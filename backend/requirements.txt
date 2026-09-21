@@ -1,0 +1,22 @@
+# Reasoning3D backend dependencies
+# 锁定到兼容 Python 3.9 + numpy 1.x（避开 2.x 的 np.float_ / np.complex_ 等 deprecation）
+
+# 协议与传输
+fastapi>=0.110,<0.130
+uvicorn[standard]>=0.27,<0.40
+websockets>=12.0,<14.0
+
+# 数值（1.26 是最后一个兼容 Python 3.9 的 1.x LTS）
+numpy>=1.26,<2.0
+scikit-learn>=1.3,<1.6
+
+# 真实模型推理（可选；只跑 synthetic 不需要）
+# 用 torch + transformers。CPU-only 也能跑小模型；GPU 用户把下面的
+# 注释打开或显式装 torch>=2.3
+# torch>=2.2,<2.5
+# transformers>=4.42,<4.46
+# accelerate>=0.30,<0.34
+
+# 测试 / 文档
+httpx>=0.27,<0.29           # TestClient 用（如果你跑 backend/tests/smoke_test.py）
+pytest>=8.0,<9.0            # 可选：更结构化测试

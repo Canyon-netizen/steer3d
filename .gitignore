@@ -1,0 +1,60 @@
+# -----------------------------------------------------------------------------
+# Reasoning3D .gitignore
+# -----------------------------------------------------------------------------
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+venv/
+.venv/
+env/
+
+# --- Node / Next.js / R3F ---
+node_modules/
+.next/
+out/
+dist/
+build/
+.npm/
+.yarn/
+.pnp.*
+*.tsbuildinfo
+next-env.d.ts
+
+# 本机临时 npm cache（我装依赖时为了绕开 root-owned cache 用的）
+frontend_npm_cache/
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- Logs / runtime ---
+*.log
+logs/
+.env
+.env.local
+.env.*.local
+pip-wheel-cache/
+
+# --- Big transient artifacts (前端 build 输出) ---
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+
+# --- 用户可能临时放进去的 ---
+*.tmp
+*.bak
+*.orig
