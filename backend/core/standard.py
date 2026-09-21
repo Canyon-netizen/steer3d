@@ -1,0 +1,549 @@
+"""Standardized on-disk format for Reasoning3D trajectories.
+
+Goal: every run we collect (Qwen3-1.7B on AIME, in thinking mode or not,
+at all layers, etc.) lands in the same shape so downstream tools can
+load it without ad-hoc parsing.
+
+A single "trajectory" is one problem's full generation, saved as a pair:
+
+  <id>.json   — metadata: prompt, answer, mode, config, per-token scalars
+  <id>.npz    — arrays: hidden states, logits, token ids, attention mask
+
+File naming convention::
+
+  <dataset>__<split>__<id>__<mode>.json
+  <dataset>__<split>__<id>__<mode>.npz
+
+e.g. ``aime__2024__0001__think.json`` + ``...__think.npz``.
+
+This module provides:
+
+  * ``TrajectorySchema``  — constants / dataclass describing the schema
+  * ``save_trajectory``   — write a JSON + NPZ pair
+  * ``TrajectoryDataset`` — reader/iterator over a directory of pairs
+  * ``load_trajectory``   — convenience loader returning a dataclass
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any, Dict, Iterator, List, Optional, Tuple
+
+import numpy as np
+
+
+SCHEMA_VERSION = "1.0"
+
+
+# ---------------------------------------------------------------------------
+# Schema definition
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class RunConfig:
+    """How this trajectory was generated.
+
+    Stored verbatim inside the JSON sidecar so a downstream tool can
+    reconstruct the generation config without guessing.
+    """
+    model: str                 # e.g. "Qwen/Qwen3-1.7B"
+    model_path: str            # local snapshot path
+    mode: str                  # "think" | "no_think"
+    max_new_tokens: int        # generation budget
+    max_context: int           # context length cap (e.g. 16384)
+    temperature: float         # sampling temperature (0 = greedy)
+    top_p: float
+    top_k: int
+    seed: int
+    chat_template_kwargs: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class TokenRecord:
+    """Per-token scalar metadata. (Hidden states are in NPZ.)"""
+    step_id: int
+    token_id: int
+    token: str                 # decoded text (may contain spaces/newlines)
+    ts: float                  # unix seconds
+    perplexity: Optional[float]
+    entropy: Optional[float]
+    top1_prob: Optional[float]
+    is_self_check: bool
+    is_in_think_block: bool    # inside <think>...</think>
+    is_after_think: bool       # answer section
+
+
+@dataclass
+class TrajectoryMeta:
+    """Top-level metadata for a single generation."""
+    schema_version: str
+    trajectory_id: str         # unique key (e.g. "aime__2024__0001__think")
+    dataset: str               # "aime"
+    split: str                 # "2024"
+    problem_id: str            # original problem id within the split
+    prompt: str                # user prompt as fed to the model
+    system_prompt: Optional[str]
+    chat_template_input: str   # what apply_chat_template produced
+    ground_truth: str          # expected answer (raw)
+    generated_text: str        # full model output (incl. <think>...</think>)
+    generated_answer: str      # parsed answer (best-effort)
+    is_correct: Optional[bool] # None if ground truth missing
+    n_tokens: int              # total tokens emitted (incl. prompt or not?)
+    n_generated_tokens: int    # tokens generated (excludes prompt)
+    n_layers: int              # model hidden_size dim
+    d_model: int               # hidden state dim (e.g. 2048)
+    config: RunConfig
+    tokens: List[TokenRecord]
+    extra: Dict[str, Any] = field(default_factory=dict)
+
+
+# NPZ arrays (per-token, in the same order as ``tokens``):
+#
+#   hidden_states   (T, L, D)   float16  — every generated token × every layer × hidden_dim
+#   logits          (T, V)      float16  — full softmax logits (for re-analysis)
+#   last_hidden     (T, D)      float16  — final-layer residual stream (alias of hidden_states[:, -1])
+#   token_ids       (T,)        int32    — generated token ids
+#   attention_mask  (T,)        int8     — valid mask (1 = real, 0 = pad)
+#   topk_logits     (T, K)      float16  — top-K logits (smaller than full logits for quick inspection)
+#   topk_indices    (T, K)      int32    — token ids of top-K logits
+#
+# Where T = n_generated_tokens, L = n_layers, D = d_model, V = vocab_size, K = top_k.
+# (We don't store the prompt tokens' hidden states here; only what the
+# model *generated*.)
+#
+NPZ_KEYS = ("hidden_states", "logits", "last_hidden", "token_ids",
+            "attention_mask", "topk_logits", "topk_indices")
+
+
+# ---------------------------------------------------------------------------
+# Saver
+# ---------------------------------------------------------------------------
+
+
+def trajectory_filename(meta: TrajectoryMeta) -> Tuple[str, str]:
+    """Return (json_path, npz_path) under the given directory."""
+    tid = meta.trajectory_id
+    return (f"{tid}.json", f"{tid}.npz")
+
+
+def save_trajectory(out_dir: str | Path, meta: TrajectoryMeta,
+                    hidden_states: np.ndarray,
+                    logits: np.ndarray,
+                    token_ids: np.ndarray,
+                    attention_mask: np.ndarray,
+                    *,
+                    save_full_logits: bool = True,
+                    topk: int = 64,
+                    compress: bool = False,
+                    ) -> Tuple[Path, Path]:
+    """Write a single trajectory as JSON + NPZ.
+
+    Args:
+        out_dir:         directory to write into
+        meta:            TrajectoryMeta (must match array shapes)
+        hidden_states:   (T, L, D) float16
+        logits:          (T, V)   float16/float32
+        token_ids:       (T,)     int32
+        attention_mask:  (T,)     int8
+        save_full_logits: if False, do not store the full V-sized logits
+                          (saves ~T*V*2 bytes)
+        topk:            save the top-k logits for each token (always on)
+        compress:        use np.savez_compressed (slow on big arrays,
+                          default False for ~30x speedup)
+
+    Returns:
+        (json_path, npz_path)
+    """
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    json_name, npz_name = trajectory_filename(meta)
+
+    # Validate shapes
+    T = meta.n_generated_tokens
+    L = meta.n_layers
+    D = meta.d_model
+    V = logits.shape[-1]
+    if hidden_states.shape != (T, L, D):
+        raise ValueError(f"hidden_states must be (T={T}, L={L}, D={D}), "
+                         f"got {hidden_states.shape}")
+    if logits.shape != (T, V):
+        raise ValueError(f"logits must be (T={T}, V={V}), got {logits.shape}")
+    if token_ids.shape != (T,):
+        raise ValueError(f"token_ids must be (T={T},), got {token_ids.shape}")
+    if attention_mask.shape != (T,):
+        raise ValueError(f"attention_mask must be (T={T},), got {attention_mask.shape}")
+
+    # Top-K of logits, computed once for both saves
+    K = min(topk, V)
+    # argpartition is faster than full sort
+    topk_idx = np.argpartition(-logits, kth=K - 1, axis=-1)[..., :K]
+    # Re-sort those K by descending value so consumers can read off ranks
+    rows = np.arange(T)[:, None]
+    topk_vals = logits[rows, topk_idx]
+    order = np.argsort(-topk_vals, axis=-1)
+    topk_vals = topk_vals[rows, order].astype(np.float16, copy=False)
+    topk_idx = topk_idx[rows, order].astype(np.int32, copy=False)
+
+    # Build the npz dict
+    npz_dict = dict(
+        hidden_states=hidden_states.astype(np.float16, copy=False),
+        last_hidden=hidden_states[:, -1, :].astype(np.float16, copy=False),
+        token_ids=token_ids.astype(np.int32, copy=False),
+        attention_mask=attention_mask.astype(np.int8, copy=False),
+        topk_logits=topk_vals,
+        topk_indices=topk_idx,
+    )
+    if save_full_logits:
+        npz_dict["logits"] = logits.astype(np.float16, copy=False)
+
+    npz_path = out_dir / npz_name
+    saver = np.savez_compressed if compress else np.savez
+    saver(npz_path, **npz_dict)
+
+    # JSON
+    json_path = out_dir / json_name
+    payload = {
+        "schema_version": SCHEMA_VERSION,
+        "trajectory_id": meta.trajectory_id,
+        "dataset": meta.dataset,
+        "split": meta.split,
+        "problem_id": meta.problem_id,
+        "prompt": meta.prompt,
+        "system_prompt": meta.system_prompt,
+        "chat_template_input": meta.chat_template_input,
+        "ground_truth": meta.ground_truth,
+        "generated_text": meta.generated_text,
+        "generated_answer": meta.generated_answer,
+        "is_correct": meta.is_correct,
+        "n_tokens": meta.n_tokens,
+        "n_generated_tokens": meta.n_generated_tokens,
+        "n_layers": meta.n_layers,
+        "d_model": meta.d_model,
+        "config": asdict(meta.config),
+        "tokens": [asdict(t) for t in meta.tokens],
+        "extra": meta.extra,
+    }
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False, default=_json_default)
+
+    return json_path, npz_path
+
+
+def _json_default(o):
+    """Fallback encoder for non-standard types."""
+    if isinstance(o, np.integer):
+        return int(o)
+    if isinstance(o, np.floating):
+        if np.isnan(o):
+            return None
+        return float(o)
+    if isinstance(o, np.ndarray):
+        return o.tolist()
+    raise TypeError(f"not serialisable: {type(o)}")
+
+
+# ---------------------------------------------------------------------------
+# Loader
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Trajectory:
+    """In-memory representation of one trajectory."""
+    meta: TrajectoryMeta
+    # Arrays
+    hidden_states: np.ndarray           # (T, L, D) float16
+    last_hidden: np.ndarray             # (T, D)   float16
+    token_ids: np.ndarray               # (T,)     int32
+    attention_mask: np.ndarray          # (T,)     int8
+    # Optional
+    logits: Optional[np.ndarray] = None      # (T, V)   float16 — may be None if not saved
+    topk_logits: Optional[np.ndarray] = None # (T, K)   float16
+    topk_indices: Optional[np.ndarray] = None # (T, K)   int32
+
+    @property
+    def is_correct(self) -> Optional[bool]:
+        return self.meta.is_correct
+
+    @property
+    def mode(self) -> str:
+        return self.meta.config.mode
+
+    @property
+    def has_logits(self) -> bool:
+        return self.logits is not None
+
+    @property
+    def think_hidden(self) -> np.ndarray:
+        """Hidden states (T_think, L, D) for tokens inside <think>."""
+        mask = np.array([t.is_in_think_block for t in self.meta.tokens], dtype=bool)
+        return self.hidden_states[mask]
+
+    @property
+    def answer_hidden(self) -> np.ndarray:
+        """Hidden states for tokens in the answer section."""
+        mask = np.array([t.is_after_think for t in self.meta.tokens], dtype=bool)
+        return self.hidden_states[mask]
+
+
+def load_trajectory(json_path: str | Path) -> Trajectory:
+    """Load a single trajectory (JSON + NPZ)."""
+    json_path = Path(json_path)
+    npz_path = json_path.with_suffix(".npz")
+    if not npz_path.exists():
+        raise FileNotFoundError(f"missing sidecar: {npz_path}")
+    with open(json_path, "r", encoding="utf-8") as f:
+        payload = json.load(f)
+    data = np.load(npz_path)
+    cfg = RunConfig(**payload["config"])
+    tokens = [TokenRecord(**t) for t in payload["tokens"]]
+    meta = TrajectoryMeta(
+        schema_version=payload["schema_version"],
+        trajectory_id=payload["trajectory_id"],
+        dataset=payload["dataset"],
+        split=payload["split"],
+        problem_id=payload["problem_id"],
+        prompt=payload["prompt"],
+        system_prompt=payload.get("system_prompt"),
+        chat_template_input=payload.get("chat_template_input", ""),
+        ground_truth=payload["ground_truth"],
+        generated_text=payload["generated_text"],
+        generated_answer=payload.get("generated_answer", ""),
+        is_correct=payload.get("is_correct"),
+        n_tokens=payload["n_tokens"],
+        n_generated_tokens=payload["n_generated_tokens"],
+        n_layers=payload["n_layers"],
+        d_model=payload["d_model"],
+        config=cfg,
+        tokens=tokens,
+        extra=payload.get("extra", {}),
+    )
+    return Trajectory(
+        meta=meta,
+        hidden_states=data["hidden_states"],
+        last_hidden=data["last_hidden"],
+        token_ids=data["token_ids"],
+        attention_mask=data["attention_mask"],
+        logits=data["logits"] if "logits" in data.files else None,
+        topk_logits=data["topk_logits"] if "topk_logits" in data.files else None,
+        topk_indices=data["topk_indices"] if "topk_indices" in data.files else None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Dataset
+# ---------------------------------------------------------------------------
+
+
+_FN_RE = re.compile(
+    r"^(?P<dataset>[^_]+)__(?P<split>[^_]+)__(?P<pid>.+)__(?P<mode>[^/\\.]+)\.json$"
+)
+
+
+@dataclass
+class TrajectoryFilter:
+    """Selectors for ``TrajectoryDataset.iter_trajectories``."""
+    mode: Optional[str] = None           # "think" / "no_think"
+    dataset: Optional[str] = None
+    split: Optional[str] = None
+    only_correct: Optional[bool] = None  # True/False/None (no filter)
+    min_tokens: int = 0
+    max_tokens: Optional[int] = None
+
+    def matches(self, traj: Trajectory) -> bool:
+        if self.mode is not None and traj.mode != self.mode:
+            return False
+        if self.dataset is not None and traj.meta.dataset != self.dataset:
+            return False
+        if self.split is not None and traj.meta.split != self.split:
+            return False
+        if self.only_correct is not None and traj.is_correct != self.only_correct:
+            return False
+        if traj.meta.n_generated_tokens < self.min_tokens:
+            return False
+        if self.max_tokens is not None and traj.meta.n_generated_tokens > self.max_tokens:
+            return False
+        return True
+
+
+class TrajectoryDataset:
+    """A directory of trajectory pairs.
+
+    Use::
+
+        ds = TrajectoryDataset("/data/.../trajectories")
+        for traj in ds.iter_trajectories():
+            print(traj.meta.trajectory_id, traj.is_correct)
+
+        correct = ds.filter(TrajectoryFilter(mode="think", only_correct=True))
+    """
+
+    def __init__(self, root: str | Path):
+        self.root = Path(root)
+        if not self.root.is_dir():
+            raise NotADirectoryError(self.root)
+        self._index: Dict[str, Path] = {}
+        self._scan()
+
+    def _scan(self):
+        for p in self.root.glob("*.json"):
+            m = _FN_RE.match(p.name)
+            if not m:
+                continue
+            tid = m.group(0)[:-len(".json")]  # trajectory_id
+            self._index[tid] = p
+
+    # ----- Inspection --------------------------------------------------
+
+    def __len__(self) -> int:
+        return len(self._index)
+
+    def __contains__(self, tid: str) -> bool:
+        return tid in self._index
+
+    def ids(self) -> List[str]:
+        return sorted(self._index.keys())
+
+    def summary(self) -> Dict[str, Any]:
+        """Aggregate stats over the dataset."""
+        modes: Dict[str, int] = {}
+        correct = {"yes": 0, "no": 0, "unknown": 0}
+        token_counts: List[int] = []
+        for tid in self.ids():
+            json_path = self._index[tid]
+            with open(json_path) as f:
+                m = json.load(f)
+            mode = m["config"]["mode"]
+            modes[mode] = modes.get(mode, 0) + 1
+            ic = m.get("is_correct")
+            if ic is True:
+                correct["yes"] += 1
+            elif ic is False:
+                correct["no"] += 1
+            else:
+                correct["unknown"] += 1
+            token_counts.append(m.get("n_generated_tokens", 0))
+        return {
+            "n_trajectories": len(self._index),
+            "by_mode": modes,
+            "correctness": correct,
+            "tokens_min": min(token_counts) if token_counts else 0,
+            "tokens_max": max(token_counts) if token_counts else 0,
+            "tokens_mean": (sum(token_counts) / len(token_counts)) if token_counts else 0,
+        }
+
+    # ----- Iteration ---------------------------------------------------
+
+    def iter_trajectories(self, flt: Optional[TrajectoryFilter] = None,
+                          lazy: bool = False) -> Iterator[Trajectory]:
+        flt = flt or TrajectoryFilter()
+        for tid in self.ids():
+            json_path = self._index[tid]
+            if lazy:
+                yield self._lazy(tid, json_path, flt)
+            else:
+                traj = load_trajectory(json_path)
+                if flt.matches(traj):
+                    yield traj
+
+    def _lazy(self, tid: str, json_path: Path, flt: TrajectoryFilter):
+        # Light pre-check from JSON only, then full load
+        with open(json_path) as f:
+            payload = json.load(f)
+        meta_stub = TrajectoryMeta(
+            schema_version=payload["schema_version"],
+            trajectory_id=tid,
+            dataset=payload["dataset"],
+            split=payload["split"],
+            problem_id=payload["problem_id"],
+            prompt=payload["prompt"],
+            system_prompt=payload.get("system_prompt"),
+            chat_template_input=payload.get("chat_template_input", ""),
+            ground_truth=payload["ground_truth"],
+            generated_text=payload["generated_text"],
+            generated_answer=payload.get("generated_answer", ""),
+            is_correct=payload.get("is_correct"),
+            n_tokens=payload["n_tokens"],
+            n_generated_tokens=payload["n_generated_tokens"],
+            n_layers=payload["n_layers"],
+            d_model=payload["d_model"],
+            config=RunConfig(**payload["config"]),
+            tokens=[TokenRecord(**t) for t in payload["tokens"]],
+            extra=payload.get("extra", {}),
+        )
+        # Re-use TrajectoryFilter.matches through a stub Trajectory
+        stub = Trajectory(meta=meta_stub, hidden_states=None, last_hidden=None,
+                          token_ids=None, attention_mask=None)
+        if not flt.matches(stub):
+            return
+        yield load_trajectory(json_path)
+
+    def filter(self, flt: TrajectoryFilter) -> "TrajectoryDataset":
+        """Return a NEW dataset that only contains matching trajectories."""
+        sub = TrajectoryDataset.__new__(TrajectoryDataset)
+        sub.root = self.root
+        sub._index = {
+            tid: p for tid, p in self._index.items()
+            if self._match_from_json(tid, p, flt)
+        }
+        return sub
+
+    def _match_from_json(self, tid: str, json_path: Path,
+                         flt: TrajectoryFilter) -> bool:
+        try:
+            with open(json_path) as f:
+                m = json.load(f)
+            cfg = m["config"]
+            if flt.mode is not None and cfg.get("mode") != flt.mode:
+                return False
+            if flt.dataset is not None and m.get("dataset") != flt.dataset:
+                return False
+            if flt.split is not None and m.get("split") != flt.split:
+                return False
+            if flt.only_correct is not None and m.get("is_correct") != flt.only_correct:
+                return False
+            ng = m.get("n_generated_tokens", 0)
+            if ng < flt.min_tokens:
+                return False
+            if flt.max_tokens is not None and ng > flt.max_tokens:
+                return False
+            return True
+        except Exception:
+            return False
+
+    def get(self, trajectory_id: str) -> Trajectory:
+        if trajectory_id not in self._index:
+            raise KeyError(trajectory_id)
+        return load_trajectory(self._index[trajectory_id])
+
+    # ----- Convenience collections ------------------------------------
+
+    def by_mode(self) -> Dict[str, List[Trajectory]]:
+        out: Dict[str, List[Trajectory]] = {"think": [], "no_think": []}
+        for traj in self.iter_trajectories():
+            if traj.mode in out:
+                out[traj.mode].append(traj)
+        return out
+
+    def by_correctness(self) -> Dict[str, List[Trajectory]]:
+        out: Dict[str, List[Trajectory]] = {"correct": [], "wrong": [], "unknown": []}
+        for traj in self.iter_trajectories():
+            if traj.is_correct is True:
+                out["correct"].append(traj)
+            elif traj.is_correct is False:
+                out["wrong"].append(traj)
+            else:
+                out["unknown"].append(traj)
+        return out
+
+    def pair(self, trajectory_id_prefix: str) -> Optional[Tuple[Trajectory, Trajectory]]:
+        """Return (think, no_think) trajectories for a given problem id prefix
+        like ``aime__2024__2024_I_1``."""
+        think = self.get(trajectory_id_prefix + "__think")
+        nothink = self.get(trajectory_id_prefix + "__no_think")
+        return (think, nothink)

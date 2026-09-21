@@ -32,6 +32,23 @@ from .model_runner import (
     qwen3_1p7b_runner,
     looks_like_self_check,
 )
+from .standard import (
+    SCHEMA_VERSION,
+    RunConfig,
+    TokenRecord,
+    TrajectoryMeta,
+    Trajectory,
+    TrajectoryFilter,
+    TrajectoryDataset,
+    save_trajectory,
+    load_trajectory,
+)
+from .aime_loader import (
+    load_aime,
+    load_aime_from_jsonl,
+    parse_aime_answer,
+    check_correct,
+)
 
 __all__ = [
     # protocol
@@ -55,4 +72,19 @@ __all__ = [
     "default_runner",
     "qwen3_1p7b_runner",
     "looks_like_self_check",
+    # standardised trajectory format
+    "SCHEMA_VERSION",
+    "RunConfig",
+    "TokenRecord",
+    "TrajectoryMeta",
+    "Trajectory",
+    "TrajectoryFilter",
+    "TrajectoryDataset",
+    "save_trajectory",
+    "load_trajectory",
+    # AIME loader
+    "load_aime",
+    "load_aime_from_jsonl",
+    "parse_aime_answer",
+    "check_correct",
 ]

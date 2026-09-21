@@ -116,10 +116,15 @@ steering3d/
 │   │   ├── protocol.py             ← Frame 数据类
 │   │   ├── projector.py            ← 在线 PCA / UMAP
 │   │   ├── activation.py           ← 激活提取 hook + 向量注入 hook
-│   │   └── model_runner.py         ← SyntheticRunner / HFTransformerRunner
+│   │   ├── model_runner.py         ← SyntheticRunner / HFTransformerRunner
+│   │   ├── standard.py             ← Trajectory / TrajectoryDataset 标准化格式
+│   │   └── aime_loader.py          ← AIME 数据集加载 + 答案解析
 │   └── examples/
 │       ├── demo_synthetic.py       ← 无 GPU 演示
-│       └── demo_real_model.py      ← 接真实模型
+│       ├── demo_real_model.py      ← 接真实模型
+│       ├── collect_qwen3_aime.py   ← 多层多模式批量收集（AIME）
+│       ├── inspect_dataset.py      ← 数据集对比检查
+│       └── build_multilayer_viewer.py  ← 多层 3D viewer 构建
 ├── frontend/
 │   ├── app/{page,layout,globals.css}
 │   ├── components/
@@ -143,6 +148,62 @@ steering3d/
 - ✅ **速度控制**：0.5x / 1x / 2x
 - ✅ **重置**：清空当前 trajectory 开始新一轮
 - ⏳ **Hook 点**：在 `activation.py:install_residual_add_hook` 已预留
+
+## 📦 标准化轨迹数据集（AIME）
+
+> "不只是实时单次推理，而是把每道题的**完整 28 层 hidden state 流**存成可复用的轨迹。"
+
+新增的**离线批量收集 + 标准化存储**管线，把 reasoning 可视化从「跑一次看一次」升级成「数据可以反复分析、跨模型对比、做干预实验」。
+
+### 关键能力
+
+| 能力 | 说明 |
+|---|---|
+| **多模型多模式** | Qwen3-1.7B 跑 `think` / `no_think` 两种 chat-template 模式 |
+| **多层 hidden state** | 一次性保存全部 28 层的 residual stream（`(T, 28, 2048)` float16）|
+| **完整 logits** | 每个 token 的 full vocab logits，可重算任意 perplexity/entropy |
+| **AIME 数据集** | 24 道 AIME-style 题（覆盖 1983–2025），自带 ground truth |
+| **统一格式** | `Trajectory` / `TrajectoryDataset` / `TrajectoryFilter` 一组 dataclass |
+
+### 输出格式（每个 trajectory = 两个文件）
+
+```
+output/trajectories/aime/
+├── aime__2024__2024_I_1__think.json     ← 元数据 + 每个 token 的指标
+├── aime__2024__2024_I_1__think.npz      ← hidden_states, logits, token_ids
+├── aime__2024__2024_I_1__no_think.json
+└── aime__2024__2024_I_1__no_think.npz
+```
+
+`hidden_states` shape: `(n_generated_tokens, 28, 2048)` — float16，**减半存储**。
+`logits` shape: `(n_generated_tokens, 151936)` — 完整词表。
+
+### 收集与检查
+
+```bash
+cd backend
+python examples/collect_qwen3_aime.py --max-new-tokens 2048 --max-context 16384
+python examples/inspect_dataset.py --root examples/output/trajectories/aime
+python examples/build_multilayer_viewer.py --root examples/output/trajectories/aime
+```
+
+### 标准 API
+
+```python
+from core.standard import TrajectoryDataset, TrajectoryFilter
+
+ds = TrajectoryDataset("examples/output/trajectories/aime")
+print(ds.summary())  # n_trajectories, by_mode, correctness, tokens range
+
+filt = TrajectoryFilter(mode="think", only_correct=True, min_tokens=200)
+for tid in ds.ids(filter=filt):
+    t = ds.get(tid)
+    hs = t.hidden_states          # (T, 28, 2048) float16
+    think_hs = t.think_hidden     # 只取 think block 内的 token
+    answer_hs = t.answer_hidden   # 只取最终答案部分
+```
+
+复用核心接口：`save_trajectory`、`load_trajectory`、`TrajectoryFilter` 都暴露在 `core.standard` 里。
 
 ## 🎯 与 LoT 的关系
 
