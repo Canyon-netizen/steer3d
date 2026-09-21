@@ -58,13 +58,14 @@ app.add_middleware(
 class SessionState:
     """One session per WebSocket connection."""
 
-    def __init__(self):
+    def __init__(self, runner_factory=None):
         self.layer = 14
         self.prompt: str = ""
         self.speed: float = 1.0
         self.paused = False
         self.cancelled = False
-        self.runner = default_runner()
+        factory = runner_factory or default_runner
+        self.runner = factory()
         self.projector = OnlinePCA(d=self.runner.d_model, target_dim=3, window=256)
         self.runner.reset()
 
@@ -77,7 +78,9 @@ class SessionState:
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket):
     await websocket.accept()
-    state = SessionState()
+    # Allow runtime override of the runner factory via app.state (set by demos).
+    factory = getattr(app.state, "runner_factory", None)
+    state = SessionState(runner_factory=factory)
 
     # Greet with config so the UI can populate defaults.
     await websocket.send_json(
@@ -216,14 +219,27 @@ def _wrap_projector(
 ) -> Callable[[Frame], None]:
     """Apply the projector to a Frame's raw 3-D point before sending.
 
-    The runner already ships a synthetic Point3D, so for the
-    synthetic runner this is a no-op pass-through. For the real
-    runner (HF), the runner would emit a Frame with point=(0,0,0)
-    and the user would replace this wrapper with their own logic
-    that projects the captured hidden state to 3-D before emitting.
+    The synthetic runner ships 3-D coordinates directly (projector is
+    a pass-through). For the HF runner, the runner attaches a
+    ``_raw_hidden`` attribute carrying the residual-stream vector;
+    we project it via OnlinePCA and overwrite the Frame's ``point``
+    field before forwarding.
     """
 
     def wrapped(frame: Frame) -> None:
+        raw = getattr(frame, "_raw_hidden", None)
+        if raw is not None and not getattr(frame, "_is_end", False):
+            try:
+                p = projector.update(np.asarray(raw, dtype=np.float64))
+                frame.point.x = float(p.x)
+                frame.point.y = float(p.y)
+                frame.point.z = float(p.z)
+            except Exception:
+                # projector can be singular for the very first point;
+                # fall back to identity
+                frame.point.x = float(raw[0]) * 0.01
+                frame.point.y = float(raw[1]) * 0.01
+                frame.point.z = float(raw[2]) * 0.01
         on_frame(frame)
 
     return wrapped

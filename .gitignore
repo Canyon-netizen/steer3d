@@ -58,3 +58,8 @@ backend/htmlcov/
 *.tmp
 *.bak
 *.orig
+# --- Reasoning3D-specific ---
+# Generated Qwen3-1.7B trajectories & visualizations are committed
+# (they document what was produced), but the vendored three.js copies
+# used to build the standalone HTML are not.
+backend/examples/output/vendor/

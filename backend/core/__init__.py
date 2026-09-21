@@ -29,6 +29,7 @@ from .model_runner import (
     SyntheticRunner,
     HFTransformerRunner,
     default_runner,
+    qwen3_1p7b_runner,
     looks_like_self_check,
 )
 
@@ -52,5 +53,6 @@ __all__ = [
     "SyntheticRunner",
     "HFTransformerRunner",
     "default_runner",
+    "qwen3_1p7b_runner",
     "looks_like_self_check",
 ]
