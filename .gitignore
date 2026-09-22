@@ -70,12 +70,25 @@ backend/examples/output/vendor/
 # trajectory is ~220 MB (28 layers × 2048 dim × N tokens of float32 +
 # full logits) and the full AIME corpus is ~13 GB. Use the collectors
 # under ``backend/examples/`` to regenerate; keep these dirs local-only.
-datasets/
+#
+# Ignored: the raw ``aime/*.npz`` trajectory files (too big for git).
+# Tracked: the ``viewer_cache/`` subfolder so the 3D viewer works out-
+# of-the-box after a clone (each __layers.json is ≈17-23 MB, no single
+# file >50 MB so plain git works, no LFS needed).
+datasets/aime_qwen3_1p7b_32k_fp32/aime/
+datasets/aime_qwen3_1p7b_32k_fp32/aime/**
+datasets/aime_qwen3_1p7b_16k_fp16/aime/
+datasets/aime_qwen3_1p7b_16k_fp16/aime/**
 
 # Convenience cache that mirrors the trajectory datasets in viewer-ready
 # form (one ``__layers.json`` per trajectory). Built by
 # ``examples/build_per_layer.py``. Large enough to ignore per-machine.
 backend/examples/output/viewer_cache/
+
+# Symlinks pointing into datasets/ for legacy scripts that still hard-code
+# the old output/ paths. Git follows symlinks only partially, so we
+# ignore them outright.
+backend/examples/output/datasets/
 
 # Old trajectory folders under examples/output (pre-datasets/ move).
 # These may now be symlinks pointing into datasets/ — git tracks neither.
