@@ -50,6 +50,7 @@ sys.path.insert(0, str(HERE.parent))
 
 from core.standard import (
     RunConfig, TokenRecord, TrajectoryMeta, save_trajectory,
+    SCHEMA_VERSION,
 )
 from core.aime_loader import (
     load_aime, load_aime_from_jsonl, parse_aime_answer, check_correct,
@@ -133,12 +134,23 @@ def vllm_generate(llm, tokenizer, problem_text: str, mode: str,
 
 def hf_extract(model, tokenizer, prompt_text: str, gen_ids: List[int],
                device: "torch.device",
-               ) -> Tuple[np.ndarray, np.ndarray]:
-    """One forward pass; return (hidden_states, logits) for generated tokens.
+               include_prompt_hidden: bool = False,
+               ) -> Tuple[np.ndarray, np.ndarray,
+                          Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+    """One forward pass; return gen arrays + (optionally) prompt arrays.
 
-    hidden_states: (T, L, D) float32 — at every generated token, the
-        residual AFTER each of the L layers (skip embedding).
-    logits:        (T, V) float32 — next-token logits for each step.
+    Returns:
+      hidden_gen:           (T, L, D) float32
+      logits_gen:           (T, V) float32
+      prompt_hidden_states: (T_p, L, D) float32 or None
+      prompt_last_hidden:   (T_p, D) float32 or None
+      prompt_token_ids:     (T_p,) int32 or None
+
+    The HF forward is over ``prompt_ids + gen_ids``; gen-position hidden
+    states (the residual AFTER each layer) at positions [n_prompt-1 ..
+    n_prompt+T-1] are what the model used to predict each generated
+    token. The first [0 .. n_prompt-1] positions are the prompt tokens
+    themselves, also exposed when ``include_prompt_hidden=True``.
     """
     enc = tokenizer(prompt_text, return_tensors="pt", add_special_tokens=False)
     prompt_ids = enc.input_ids[0].tolist()
@@ -179,14 +191,26 @@ def hf_extract(model, tokenizer, prompt_text: str, gen_ids: List[int],
         logits_full[gen_positions].to(torch.float32).cpu().numpy()  # (T, V)
     )
 
+    if include_prompt_hidden:
+        prompt_hs = hidden_full[:n_prompt]                    # (T_p, L, D)
+        prompt_lh = prompt_hs[:, -1, :].copy()                # (T_p, D)
+        prompt_ti = np.asarray(prompt_ids, dtype=np.int32)     # (T_p,)
+    else:
+        prompt_hs = prompt_lh = prompt_ti = None
+
     del out, hs_tuple, logits_full, input_ids, attention_mask
-    return hidden_gen, logits_gen
+    return hidden_gen, logits_gen, prompt_hs, prompt_lh, prompt_ti
 
 
 def run_one(llm, hf_model, tokenizer, problem: dict, mode: str, args,
             device: "torch.device",
-            ) -> Tuple[TrajectoryMeta, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Run one AIME problem end-to-end (vLLM gen + HF forward)."""
+            ) -> Tuple[TrajectoryMeta, np.ndarray, np.ndarray, np.ndarray, np.ndarray,
+                       Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
+    """Run one AIME problem end-to-end (vLLM gen + HF forward).
+
+    Returns ``(meta, hidden, logits, token_ids, attention_mask, p_hs, p_lh, p_ti)``.
+    The last three are the v1.1 prompt block (all None if not requested).
+    """
     t0 = time.time()
 
     gen_ids, prompt_text = vllm_generate(
@@ -202,7 +226,10 @@ def run_one(llm, hf_model, tokenizer, problem: dict, mode: str, args,
 
     n_prompt = len(tokenizer(prompt_text, add_special_tokens=False).input_ids)
     t1 = time.time()
-    hidden, logits = hf_extract(hf_model, tokenizer, prompt_text, gen_ids, device)
+    hidden, logits, p_hs, p_lh, p_ti = hf_extract(
+        hf_model, tokenizer, prompt_text, gen_ids, device,
+        include_prompt_hidden=args.include_prompt_hidden,
+    )
     t_hf = time.time() - t1
     dt = time.time() - t0
 
@@ -251,7 +278,7 @@ def run_one(llm, hf_model, tokenizer, problem: dict, mode: str, args,
     )
 
     meta = TrajectoryMeta(
-        schema_version="1.0",
+        schema_version=SCHEMA_VERSION,
         trajectory_id=f"aime__{problem['split']}__{problem['id']}__{mode}",
         dataset="aime",
         split=problem["split"],
@@ -265,6 +292,7 @@ def run_one(llm, hf_model, tokenizer, problem: dict, mode: str, args,
         is_correct=is_correct,
         n_tokens=n_prompt + len(gen_ids),
         n_generated_tokens=len(gen_ids),
+        n_prompt_tokens=(n_prompt if args.include_prompt_hidden else 0),
         n_layers=n_layers,
         d_model=d_model,
         config=cfg,
@@ -275,7 +303,7 @@ def run_one(llm, hf_model, tokenizer, problem: dict, mode: str, args,
     )
 
     token_ids_arr = np.asarray(gen_ids, dtype=np.int32)
-    return meta, hidden, logits, token_ids_arr, attention_mask
+    return meta, hidden, logits, token_ids_arr, attention_mask, p_hs, p_lh, p_ti
 
 
 def main(args):
@@ -370,13 +398,16 @@ def main(args):
             print(f"[{i+1}/{len(problems)}] {mode:8s} {problem['id']:10s} ...",
                   flush=True)
             try:
-                meta, hidden, logits, token_ids, attn = run_one(
+                meta, hidden, logits, token_ids, attn, p_hs, p_lh, p_ti = run_one(
                     llm, hf_model, vllm_tokenizer, problem, mode,
                     args, device,
                 )
                 save_trajectory(out_root, meta, hidden, logits, token_ids, attn,
                                 save_full_logits=args.save_full_logits,
-                                dtype=args.store_dtype)
+                                dtype=args.store_dtype,
+                                prompt_hidden_states=p_hs,
+                                prompt_last_hidden=p_lh,
+                                prompt_token_ids=p_ti)
                 ans = meta.generated_answer or "(none)"
                 corr = "OK" if meta.is_correct else "X "
                 print(f"      {corr} {meta.n_generated_tokens:4d} tok  "
@@ -428,6 +459,14 @@ def cli():
     ap.add_argument("--save-full-logits", action="store_true")
     ap.add_argument("--store-dtype", default="float32",
                     choices=["float16", "float32"])
+    ap.add_argument("--include-prompt-hidden", action="store_true",
+                    help="Also store hidden states for chat-template prompt "
+                         "tokens (v1.1 schema). Compute cost is ~zero "
+                         "(already computed in the HF forward); storage "
+                         "cost is ~7%% extra. The npz gains keys "
+                         "prompt_hidden_states / prompt_last_hidden / "
+                         "prompt_token_ids, and the JSON gains "
+                         "n_prompt_tokens.")
     ap.add_argument("--overwrite", action="store_true")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()

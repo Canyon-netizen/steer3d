@@ -36,7 +36,11 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 import numpy as np
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
+# v1.1: add per-token hidden states for the chat-template prompt tokens
+#   (keyed ``prompt_hidden_states``/``prompt_last_hidden``/``prompt_token_ids``
+#    in the NPZ; ``n_prompt_tokens`` field promoted to TrajectoryMeta top-level).
+# v1.0 (legacy): gen-only hidden states. Still readable by v1.1 loader.
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +69,15 @@ class RunConfig:
 
 @dataclass
 class TokenRecord:
-    """Per-token scalar metadata. (Hidden states are in NPZ.)"""
+    """Per-token scalar metadata. (Hidden states are in NPZ.)
+
+    For generated tokens: perplexity/entropy/top1_prob are populated,
+    is_prompt=False.
+    For prompt tokens (v1.1 only, the collectors currently keep the
+    ``tokens`` list gen-only — the prompt block lives in the NPZ as
+    ``prompt_*`` arrays with ``n_prompt_tokens`` indexing them):
+    perplexity/entropy/top1_prob are None, is_prompt=True.
+    """
     step_id: int
     token_id: int
     token: str                 # decoded text (may contain spaces/newlines)
@@ -76,6 +88,7 @@ class TokenRecord:
     is_self_check: bool
     is_in_think_block: bool    # inside <think>...</think>
     is_after_think: bool       # answer section
+    is_prompt: bool = False    # True iff this is a chat-template prompt token
 
 
 @dataclass
@@ -93,12 +106,13 @@ class TrajectoryMeta:
     generated_text: str        # full model output (incl. <think>...</think>)
     generated_answer: str      # parsed answer (best-effort)
     is_correct: Optional[bool] # None if ground truth missing
-    n_tokens: int              # total tokens emitted (incl. prompt or not?)
+    n_tokens: int              # == n_prompt_tokens + n_generated_tokens (i.e. total tokens the model saw)
     n_generated_tokens: int    # tokens generated (excludes prompt)
     n_layers: int              # model hidden_size dim
     d_model: int               # hidden state dim (e.g. 2048)
     config: RunConfig
     tokens: List[TokenRecord]
+    n_prompt_tokens: int = 0   # v1.1: tokens of the chat-template prompt; 0 if not captured
     extra: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -112,9 +126,15 @@ class TrajectoryMeta:
 #   topk_logits     (T, K)      float32  — top-K logits (smaller than full logits for quick inspection)
 #   topk_indices    (T, K)      int32    — token ids of top-K logits
 #
-# Where T = n_generated_tokens, L = n_layers, D = d_model, V = vocab_size, K = top_k.
-# (We don't store the prompt tokens' hidden states here; only what the
-# model *generated*.)
+#   prompt_hidden_states  (T_p, L, D)   — v1.1, OPTIONAL: per-layer hidden state at every
+#                                          chat-template prompt token (positions [0..n_prompt_tokens-1]
+#                                          of the same forward pass that produced the gen block).
+#   prompt_last_hidden    (T_p, D)      — v1.1, OPTIONAL: alias of prompt_hidden_states[:, -1, :].
+#   prompt_token_ids       (T_p,)        — v1.1, OPTIONAL: token ids of the chat-template prompt.
+#
+# Where T = n_generated_tokens, T_p = n_prompt_tokens, L = n_layers, D = d_model, V = vocab_size, K = top_k.
+# (The gen-only block is unchanged across schema versions; the prompt_* arrays
+# are additive and absent in v1.0 files.)
 #
 # Precision policy:
 #   We default to float32 for hidden_states and logits because downstream
@@ -123,9 +143,15 @@ class TrajectoryMeta:
 #   two close activations to isolate a direction. The on-disk cost is
 #   ~2× compared to float16; one trajectory is then ~0.5 GB instead of
 #   ~0.25 GB. Override with ``save_trajectory(..., dtype="float16")``.
+#   The same precision is used for prompt_hidden_states when captured.
 #
 NPZ_KEYS = ("hidden_states", "logits", "last_hidden", "token_ids",
-            "attention_mask", "topk_logits", "topk_indices")
+            "attention_mask", "topk_logits", "topk_indices",
+            # v1.1 (all optional; only present if --include-prompt-hidden was set):
+            "prompt_hidden_states", "prompt_last_hidden", "prompt_token_ids")
+
+PROMPT_NPZ_KEYS = ("prompt_hidden_states", "prompt_last_hidden",
+                   "prompt_token_ids")
 
 
 # ---------------------------------------------------------------------------
@@ -149,6 +175,12 @@ def save_trajectory(out_dir: str | Path, meta: TrajectoryMeta,
                     topk: int = 64,
                     compress: bool = False,
                     dtype: str = "float32",
+                    # v1.1 prompt-block (all optional). Either all three None
+                    # (writes a v1.0-shape file) or all three arrays (writes
+                    # the prompt_* arrays in the NPZ + n_prompt_tokens in JSON).
+                    prompt_hidden_states: Optional[np.ndarray] = None,
+                    prompt_last_hidden:   Optional[np.ndarray] = None,
+                    prompt_token_ids:     Optional[np.ndarray] = None,
                     ) -> Tuple[Path, Path]:
     """Write a single trajectory as JSON + NPZ.
 
@@ -167,6 +199,10 @@ def save_trajectory(out_dir: str | Path, meta: TrajectoryMeta,
         dtype:           "float32" (default, full precision) or "float16"
                           (half precision, ~2× smaller on disk). float32 is
                           recommended for downstream analysis.
+        prompt_hidden_states: (T_p, L, D) — v1.1, optional
+        prompt_last_hidden:   (T_p, D)    — v1.1, optional (defaults to
+                              prompt_hidden_states[:, -1, :] if None)
+        prompt_token_ids:     (T_p,) int32 — v1.1, optional
 
     Returns:
         (json_path, npz_path)
@@ -194,6 +230,34 @@ def save_trajectory(out_dir: str | Path, meta: TrajectoryMeta,
     if attention_mask.shape != (T,):
         raise ValueError(f"attention_mask must be (T={T},), got {attention_mask.shape}")
 
+    # Validate prompt block (v1.1). All three None => gen-only file.
+    # If prompt_hidden_states is given, then prompt_token_ids is required;
+    # prompt_last_hidden is optional and defaults to prompt_hidden_states[:, -1, :].
+    has_prompt_block = prompt_hidden_states is not None
+    if has_prompt_block:
+        if prompt_token_ids is None:
+            raise ValueError(
+                "prompt_hidden_states is given but prompt_token_ids is None. "
+                "Either pass both, or pass neither (gen-only file)."
+            )
+        T_p = meta.n_prompt_tokens
+        if prompt_hidden_states.shape != (T_p, L, D):
+            raise ValueError(
+                f"prompt_hidden_states must be (T_p={T_p}, L={L}, D={D}), "
+                f"got {prompt_hidden_states.shape}"
+            )
+        if prompt_token_ids.shape != (T_p,):
+            raise ValueError(
+                f"prompt_token_ids must be (T_p={T_p},), got {prompt_token_ids.shape}"
+            )
+        if prompt_last_hidden is None:
+            prompt_last_hidden = prompt_hidden_states[:, -1, :]
+        elif prompt_last_hidden.shape != (T_p, D):
+            raise ValueError(
+                f"prompt_last_hidden must be (T_p={T_p}, D={D}), "
+                f"got {prompt_last_hidden.shape}"
+            )
+
     # Top-K of logits, computed once for both saves
     K = min(topk, V)
     # argpartition is faster than full sort
@@ -216,6 +280,11 @@ def save_trajectory(out_dir: str | Path, meta: TrajectoryMeta,
     )
     if save_full_logits:
         npz_dict["logits"] = logits.astype(target_dtype, copy=False)
+    # v1.1 prompt block
+    if has_prompt_block:
+        npz_dict["prompt_hidden_states"] = prompt_hidden_states.astype(target_dtype, copy=False)
+        npz_dict["prompt_last_hidden"]   = prompt_last_hidden.astype(target_dtype, copy=False)
+        npz_dict["prompt_token_ids"]     = prompt_token_ids.astype(np.int32, copy=False)
 
     npz_path = out_dir / npz_name
     saver = np.savez_compressed if compress else np.savez
@@ -236,6 +305,7 @@ def save_trajectory(out_dir: str | Path, meta: TrajectoryMeta,
         "generated_text": meta.generated_text,
         "generated_answer": meta.generated_answer,
         "is_correct": meta.is_correct,
+        "n_prompt_tokens": meta.n_prompt_tokens,
         "n_tokens": meta.n_tokens,
         "n_generated_tokens": meta.n_generated_tokens,
         "n_layers": meta.n_layers,
@@ -281,6 +351,10 @@ class Trajectory:
     logits: Optional[np.ndarray] = None      # (T, V)   float32 — may be None if not saved
     topk_logits: Optional[np.ndarray] = None # (T, K)   float32
     topk_indices: Optional[np.ndarray] = None # (T, K)   int32
+    # v1.1 prompt block (None if not captured / v1.0 file)
+    prompt_hidden_states: Optional[np.ndarray] = None  # (T_p, L, D)
+    prompt_last_hidden:   Optional[np.ndarray] = None  # (T_p, D)
+    prompt_token_ids:     Optional[np.ndarray] = None  # (T_p,) int32
 
     @property
     def stored_dtype(self) -> str:
@@ -302,6 +376,11 @@ class Trajectory:
         return self.logits is not None
 
     @property
+    def has_prompt_hidden(self) -> bool:
+        """True iff v1.1 prompt hidden states were captured."""
+        return self.prompt_hidden_states is not None
+
+    @property
     def think_hidden(self) -> np.ndarray:
         """Hidden states (T_think, L, D) for tokens inside <think>."""
         mask = np.array([t.is_in_think_block for t in self.meta.tokens], dtype=bool)
@@ -313,9 +392,30 @@ class Trajectory:
         mask = np.array([t.is_after_think for t in self.meta.tokens], dtype=bool)
         return self.hidden_states[mask]
 
+    @property
+    def all_hidden_states(self) -> Optional[np.ndarray]:
+        """(T_p + T, L, D) — concatenated prompt + gen, or None if prompt
+        hidden states were not captured.
+
+        dtype matches ``hidden_states`` (the gen block); prompt is cast
+        if it was stored at a different precision.
+        """
+        if self.prompt_hidden_states is None:
+            return None
+        if self.prompt_hidden_states.dtype != self.hidden_states.dtype:
+            return np.concatenate([
+                self.prompt_hidden_states.astype(self.hidden_states.dtype, copy=False),
+                self.hidden_states,
+            ], axis=0)
+        return np.concatenate([self.prompt_hidden_states, self.hidden_states], axis=0)
+
 
 def load_trajectory(json_path: str | Path) -> Trajectory:
-    """Load a single trajectory (JSON + NPZ)."""
+    """Load a single trajectory (JSON + NPZ).
+
+    Backwards compatible with both v1.0 (gen-only) and v1.1 (with prompt
+    block) files. The prompt arrays are simply absent on v1.0 files.
+    """
     json_path = Path(json_path)
     npz_path = json_path.with_suffix(".npz")
     if not npz_path.exists():
@@ -325,6 +425,11 @@ def load_trajectory(json_path: str | Path) -> Trajectory:
     data = np.load(npz_path)
     cfg = RunConfig(**payload["config"])
     tokens = [TokenRecord(**t) for t in payload["tokens"]]
+    # n_prompt_tokens: v1.1 top-level OR fallback to extra dict (legacy)
+    if "n_prompt_tokens" in payload:
+        n_prompt_tokens = int(payload["n_prompt_tokens"])
+    else:
+        n_prompt_tokens = int(payload.get("extra", {}).get("prompt_tokens", 0))
     meta = TrajectoryMeta(
         schema_version=payload["schema_version"],
         trajectory_id=payload["trajectory_id"],
@@ -338,6 +443,7 @@ def load_trajectory(json_path: str | Path) -> Trajectory:
         generated_text=payload["generated_text"],
         generated_answer=payload.get("generated_answer", ""),
         is_correct=payload.get("is_correct"),
+        n_prompt_tokens=n_prompt_tokens,
         n_tokens=payload["n_tokens"],
         n_generated_tokens=payload["n_generated_tokens"],
         n_layers=payload["n_layers"],
@@ -355,6 +461,12 @@ def load_trajectory(json_path: str | Path) -> Trajectory:
         logits=data["logits"] if "logits" in data.files else None,
         topk_logits=data["topk_logits"] if "topk_logits" in data.files else None,
         topk_indices=data["topk_indices"] if "topk_indices" in data.files else None,
+        prompt_hidden_states=(data["prompt_hidden_states"]
+                              if "prompt_hidden_states" in data.files else None),
+        prompt_last_hidden=(data["prompt_last_hidden"]
+                            if "prompt_last_hidden" in data.files else None),
+        prompt_token_ids=(data["prompt_token_ids"]
+                          if "prompt_token_ids" in data.files else None),
     )
 
 
@@ -478,6 +590,10 @@ class TrajectoryDataset:
         # Light pre-check from JSON only, then full load
         with open(json_path) as f:
             payload = json.load(f)
+        n_prompt_tokens = int(payload.get(
+            "n_prompt_tokens",
+            payload.get("extra", {}).get("prompt_tokens", 0),
+        ))
         meta_stub = TrajectoryMeta(
             schema_version=payload["schema_version"],
             trajectory_id=tid,
@@ -491,6 +607,7 @@ class TrajectoryDataset:
             generated_text=payload["generated_text"],
             generated_answer=payload.get("generated_answer", ""),
             is_correct=payload.get("is_correct"),
+            n_prompt_tokens=n_prompt_tokens,
             n_tokens=payload["n_tokens"],
             n_generated_tokens=payload["n_generated_tokens"],
             n_layers=payload["n_layers"],
