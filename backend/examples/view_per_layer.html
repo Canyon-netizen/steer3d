@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Qwen3-1.7B Reasoning3D — Per-Layer Viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #0a0d12; --panel: #131820; --border: #1f2630;
+    --text: #d6dde7; --muted: #7e8694; --accent: #5cb6ff;
+    --think: #ff9d57; --nothink: #5e9cff;
+  }
+  html, body { margin:0; padding:0; height:100%; background:var(--bg);
+    color:var(--text); font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow:hidden; }
+  #app { display:grid; grid-template-columns: 1fr 360px; height:100vh; }
+  #scene-wrap { position:relative; min-width:0; }
+  #scene { width:100%; height:100%; cursor:grab; }
+  #scene:active { cursor:grabbing; }
+  #scene-hint {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    pointer-events:none; color:var(--accent); font-size:13px;
+    background:rgba(19,24,32,.7); padding:8px 14px; border-radius:8px;
+    border:1px solid var(--accent); opacity:0.7;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.9} }
+  #cam-buttons {
+    position:absolute; left:16px; top:16px;
+    display:flex; gap:6px;
+    background:rgba(19,24,32,.85); border:1px solid var(--border);
+    border-radius:8px; padding:6px;
+  }
+  #cam-buttons button {
+    background:transparent; color:var(--text); border:1px solid var(--border);
+    padding:5px 10px; border-radius:5px; font-size:11px; cursor:pointer;
+  }
+  #cam-buttons button.active { background:var(--accent); color:#001a2c; border-color:var(--accent); }
+  #legend { position:absolute; left:16px; bottom:16px;
+    background:rgba(19,24,32,.85); border:1px solid var(--border);
+    border-radius:10px; padding:12px 14px; font-size:12px;
+    line-height:1.7; pointer-events:none; max-width:330px; }
+  aside { background:var(--panel); border-left:1px solid var(--border);
+    display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+  .controls { padding:14px; border-bottom:1px solid var(--border); }
+  .controls h2 { font-size:11px; font-weight:600; color:var(--muted);
+    letter-spacing:.08em; text-transform:uppercase; margin:0 0 10px; }
+  .row-c { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .row-c label { font-size:12px; color:var(--muted); min-width:74px; }
+  button { background:var(--accent); color:#001a2c; border:0;
+    padding:6px 12px; border-radius:6px; font-weight:600; font-size:12px; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--text);
+    border:1px solid var(--border); }
+  button.active { background:var(--accent); color:#001a2c; }
+  input[type=range] { flex:1; }
+  input[type=file] { display:none; }
+  .picker-row { display:flex; gap:8px; align-items:center; }
+  select {
+    flex:1; background:#1a2230; color:var(--text);
+    border:1px solid var(--border); border-radius:6px;
+    padding:5px 8px; font-size:12px;
+  }
+  .list { overflow-y:auto; flex:1; }
+  .item { padding:10px 14px; border-bottom:1px solid var(--border);
+    cursor:pointer; display:flex; flex-direction:column; gap:3px; }
+  .item:hover { background:rgba(92,182,255,.05); }
+  .item.active { background:rgba(92,182,255,.10); border-left:3px solid var(--accent); }
+  .item .head { display:flex; justify-content:space-between; align-items:center; }
+  .item .id { font-size:12px; font-weight:600; }
+  .badge { padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700; }
+  .b-correct { background:#1a4731; color:#58e090; }
+  .b-wrong { background:#4a1820; color:#f57880; }
+  .b-na { background:#2c3138; color:var(--muted); }
+  .item .meta { font-size:10.5px; color:var(--muted); }
+  .over { display:flex; flex-wrap:wrap; gap:4px; padding:6px 14px;
+    border-bottom:1px solid var(--border); background:#0e131a; }
+  .chip { font-size:10px; padding:2px 7px; border-radius:4px;
+    background:#1a2230; color:var(--text); border:1px solid var(--border);
+    cursor:pointer; }
+  .chip.on { background:var(--accent); color:#001a2c; border-color:var(--accent); }
+  #status { padding:8px 14px; font-size:11px; color:var(--muted);
+    background:#0e131a; border-top:1px solid var(--border); }
+  #text-panel { padding:10px 14px; border-top:1px solid var(--border);
+    font-family:ui-monospace,Menlo,monospace; font-size:10.5px;
+    line-height:1.5; max-height:25%; overflow-y:auto; }
+  #text-panel h3 { margin:0 0 4px; font-size:10px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.06em; }
+  .think-text { color:#a8b1c4; }
+  .answer-text { color:var(--accent); }
+  #hud { position:absolute; top:16px; right:16px;
+    background:rgba(19,24,32,.85); border:1px solid var(--border);
+    border-radius:10px; padding:10px 14px; font-size:11px;
+    line-height:1.6; font-family:ui-monospace,Menlo,monospace;
+    max-width:300px; min-width:200px; }
+  #hud .stat { color:var(--muted); }
+  #hud .val { color:var(--text); font-weight:600; }
+  #drop-zone {
+    position:absolute; inset:0; pointer-events:none;
+    background:rgba(92,182,255,.1); border:3px dashed var(--accent);
+    border-radius:12px; display:none; align-items:center;
+    justify-content:center; font-size:18px; color:var(--accent);
+  }
+  #drop-zone.show { display:flex; pointer-events:auto; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="scene-wrap">
+    <div id="scene"></div>
+    <div id="drop-zone">Drop __layers.json here to import</div>
+    <div id="cam-buttons">
+      <button data-cam="persp" class="active">Perspective</button>
+      <button data-cam="iso">Isometric</button>
+      <button data-cam="top">Top-Down</button>
+      <button data-cam="side">Side</button>
+    </div>
+    <div id="scene-hint">🖱 drag to rotate · scroll to zoom · right-drag to pan</div>
+    <div id="hud">
+      <div><span class="stat">layer: </span><span id="hud-layer" class="val">—</span></div>
+      <div><span class="stat">problem: </span><span id="hud-prob" class="val">—</span></div>
+      <div><span class="stat">mode: </span><span id="hud-mode" class="val">—</span></div>
+      <div><span class="stat">n_tokens: </span><span id="hud-ntok" class="val">—</span></div>
+      <div><span class="stat">correct: </span><span id="hud-corr" class="val">—</span></div>
+      <div><span class="stat">overlays: </span><span id="hud-ov" class="val">0</span></div>
+    </div>
+    <div id="legend">
+      <div style="font-weight:600;margin-bottom:6px">PER-LAYER TERRAIN</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+        Each layer of the residual stream has its own 2D projection
+        (PCA → 2D). Height ∝ log perplexity. Switch layers with the slider.
+      </div>
+      <div style="font-weight:600;margin-bottom:6px">TRAJECTORY</div>
+      <div class="row" style="display:flex;align-items:center;gap:8px;font-size:11px">
+        <span style="display:inline-block;width:18px;height:2px;background:var(--think)"></span>
+        <span>think mode</span>
+      </div>
+      <div class="row" style="display:flex;align-items:center;gap:8px;font-size:11px">
+        <span style="display:inline-block;width:18px;height:2px;background:var(--nothink)"></span>
+        <span>no_think mode</span>
+      </div>
+      <div class="row" style="display:flex;align-items:center;gap:8px;font-size:11px">
+        <span style="display:inline-block;width:8px;height:8px;background:#58e090;border-radius:50%"></span>
+        <span>inside <think></span>
+      </div>
+      <div class="row" style="display:flex;align-items:center;gap:8px;font-size:11px">
+        <span style="display:inline-block;width:8px;height:8px;background:var(--accent);border-radius:50%"></span>
+        <span>final answer</span>
+      </div>
+    </div>
+  </div>
+  <aside>
+    <div class="controls">
+      <h2>Problem</h2>
+      <div class="row-c">
+        <select id="prob-sel"></select>
+      </div>
+      <div class="row-c">
+        <button id="import-btn" class="ghost">📂 Import artifact</button>
+        <input type="file" id="import-file" accept=".json,application/json" />
+        <button id="reload-btn" class="ghost" title="Re-fetch index">⟳</button>
+      </div>
+      <h2 style="margin-top:14px">Layer (0..L−1)</h2>
+      <div class="row-c">
+        <input id="layer" type="range" min="0" max="27" step="1" value="27" />
+        <span id="layer-val" style="font-size:11px;color:var(--muted);width:62px">final (27)</span>
+      </div>
+      <h2 style="margin-top:14px">Display</h2>
+      <div class="row-c">
+        <button id="show-think" class="active">Think</button>
+        <button id="show-nothink" class="active">No-Think</button>
+        <button id="overlay-btn" class="ghost">Overlay</button>
+        <button id="reset-ov" class="ghost">Clear</button>
+      </div>
+    </div>
+    <div id="overlays" class="over"></div>
+    <div id="list" class="list"></div>
+    <div id="text-panel">
+      <h3>Generated output</h3>
+      <div id="cur-text" class="think-text"></div>
+    </div>
+    <div id="status">Loading index…</div>
+  </aside>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+
+<script>
+(function () {
+  const errEl = document.createElement('div');
+  errEl.style.cssText = 'position:absolute;top:8px;left:8px;background:#4a1820;color:#ffd0d6;padding:8px 12px;border-radius:6px;font-family:monospace;font-size:11px;display:none;z-index:100';
+  document.body.appendChild(errEl);
+  function showError(msg) { errEl.textContent = msg; errEl.style.display = 'block'; console.error(msg); }
+  window.addEventListener('error', e => showError('JS: ' + e.message));
+  window.addEventListener('unhandledrejection', e => showError('Promise: ' + e.message));
+
+  if (typeof THREE === 'undefined') { showError('three.js failed to load'); return; }
+  if (typeof OrbitControls === 'undefined') { showError('OrbitControls failed to load'); return; }
+
+  // ----- 3D scene scaffolding -----
+  const wrap = document.getElementById('scene');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0d12);
+  scene.fog = new THREE.Fog(0x0a0d12, 20, 60);
+
+  const camera = new THREE.PerspectiveCamera(45, wrap.clientWidth / wrap.clientHeight, 0.1, 200);
+  camera.position.set(20, 18, 24);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  wrap.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.target.set(0, 1.5, 0);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+  const d1 = new THREE.DirectionalLight(0xffffff, 0.45);
+  d1.position.set(12, 18, 8); scene.add(d1);
+
+  // Reusable container for terrain
+  let terrainGroup = new THREE.Group();
+  scene.add(terrainGroup);
+  let trajGroup = new THREE.Group();
+  scene.add(trajGroup);
+
+  // ----- Index + state -----
+  const state = {
+    index: null,
+    cache: new Map(),   // trajectory_id -> artifact JSON
+    activeId: null,
+    overlays: new Set(), // trajectory_ids to overlay (when overlay mode)
+    layer: 27,
+    showThink: true,
+    showNothink: true,
+    overlayMode: false,
+  };
+
+  const status = (msg) => { document.getElementById('status').textContent = msg; };
+
+  // ----- Helpers -----
+  function badge(c) {
+    if (c === true) return '<span class="badge b-correct">✓</span>';
+    if (c === false) return '<span class="badge b-wrong">✗</span>';
+    return '<span class="badge b-na">?</span>';
+  }
+  function layerLabel(L) {
+    if (L === 27) return 'final (27)';
+    if (L === 0) return 'embedding (0)';
+    return 'layer ' + L;
+  }
+
+  function clearGroup(g) {
+    while (g.children.length) {
+      const c = g.children.pop();
+      c.geometry?.dispose();
+      c.material?.dispose();
+    }
+  }
+
+  // Build terrain mesh for an artifact at given layer
+  function buildTerrain(art, layerIdx) {
+    const layer = art.layers[layerIdx];
+    if (!layer || layer.empty) return null;
+    const t = layer.terrain;
+    const positions = new Float32Array(t.positions);
+    const colors = new Float32Array(t.colors);
+    const indices = (t.indices.length < 65535)
+      ? new Uint16Array(t.indices)
+      : new Uint32Array(t.indices);
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.setIndex(new THREE.BufferAttribute(indices, 1));
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  // Build trajectory line + beads for one artifact at one layer
+  function buildTrajectory(art, layerIdx, color, baseHeight) {
+    const layer = art.layers[layerIdx];
+    if (!layer || layer.empty || !layer.proj_2d) return null;
+    const proj = layer.proj_2d;
+    const tokens = art.tokens;
+    const n = tokens.length;
+    const Tcolor = new THREE.Color(color);
+
+    const pos = new Float32Array(n * 3);
+    const cols = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const x = proj[i * 2 + 0];
+      const y = proj[i * 2 + 1];
+      const ppl = tokens[i].ppl || 1.0;
+      const h = baseHeight + 1.5 * (1.0 / Math.min(4.0, Math.max(1.0, ppl)));
+      pos[i * 3 + 0] = x;
+      pos[i * 3 + 1] = h;
+      pos[i * 3 + 2] = y;
+      cols[i * 3 + 0] = Tcolor.r;
+      cols[i * 3 + 1] = Tcolor.g;
+      cols[i * 3 + 2] = Tcolor.b;
+    }
+
+    const lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    lineGeo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+    const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.9,
+    }));
+
+    const beadGeo = new THREE.SphereGeometry(0.18, 8, 8);
+    const bead = new THREE.InstancedMesh(beadGeo, new THREE.MeshBasicMaterial({
+      color: color, transparent: true, opacity: 0.85,
+    }), n);
+    const m = new THREE.Matrix4();
+    for (let i = 0; i < n; i++) {
+      const sz = tokens[i].in_think ? 0.16 : (tokens[i].after_think ? 0.22 : 0.10);
+      m.makeScale(sz, sz, sz);
+      m.setPosition(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+      bead.setMatrixAt(i, m);
+    }
+    bead.instanceMatrix.needsUpdate = true;
+    return { line, bead, n };
+  }
+
+  // ----- Render -----
+  function render() {
+    clearGroup(terrainGroup);
+    clearGroup(trajGroup);
+
+    const ids = state.overlayMode
+      ? Array.from(state.overlays)
+      : (state.activeId ? [state.activeId] : []);
+
+    if (ids.length === 0) {
+      status('No trajectory loaded. Import one or pick from the list.');
+      document.getElementById('hud-prob').textContent = '—';
+      document.getElementById('hud-mode').textContent = '—';
+      document.getElementById('hud-ntok').textContent = '—';
+      document.getElementById('hud-corr').textContent = '—';
+      document.getElementById('hud-ov').textContent = '0';
+      document.getElementById('cur-text').textContent = '';
+      return;
+    }
+
+    // Use the first trajectory's terrain (each trajectory has its own PCA basis)
+    const first = state.cache.get(ids[0]);
+    if (!first) return;
+    const terrGeo = buildTerrain(first, state.layer);
+    if (terrGeo) {
+      const mat = new THREE.MeshLambertMaterial({
+        vertexColors: true, flatShading: true, side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.Mesh(terrGeo, mat);
+      terrainGroup.add(mesh);
+      const wireGeo = new THREE.WireframeGeometry(terrGeo);
+      const wireMat = new THREE.LineBasicMaterial({
+        color: 0x223344, transparent: true, opacity: 0.20,
+      });
+      terrainGroup.add(new THREE.LineSegments(wireGeo, wireMat));
+    }
+
+    // Draw each trajectory
+    ids.forEach(tid => {
+      const art = state.cache.get(tid);
+      if (!art) return;
+      const color = (art.mode === 'think') ? 0xff9d57 : 0x5e9cff;
+      const visible = (art.mode === 'think') ? state.showThink : state.showNothink;
+      if (!visible) return;
+      const traj = buildTrajectory(art, state.layer, color, 9.0);
+      if (traj) { trajGroup.add(traj.line); trajGroup.add(traj.bead); }
+    });
+
+    // HUD
+    document.getElementById('hud-layer').textContent = layerLabel(state.layer);
+    document.getElementById('hud-ov').textContent = String(ids.length);
+    if (!state.overlayMode && first) {
+      document.getElementById('hud-prob').textContent = first.problem_id;
+      document.getElementById('hud-mode').textContent = first.mode;
+      document.getElementById('hud-ntok').textContent = first.n_tokens;
+      document.getElementById('hud-corr').textContent =
+        first.is_correct === true ? '✓ ' + (first.generated_answer || '')
+        : first.is_correct === false ? '✗ ' + (first.generated_answer || '')
+        : '?';
+      document.getElementById('cur-text').textContent =
+        (first.tokens || []).map(r => r.token).join('').slice(0, 1500);
+    }
+    status(`rendered: ${ids.length} trajectory/ies at layer ${state.layer}`);
+  }
+
+  // ----- Index + load -----
+  async function loadIndex() {
+    try {
+      const r = await fetch('index.json');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      state.index = await r.json();
+      populateList();
+      status(`Index loaded — ${state.index.n_artifacts} artifacts. Click one to load.`);
+    } catch (e) {
+      status('No index.json found. Use "📂 Import artifact" to load a __layers.json.');
+    }
+  }
+
+  function populateList() {
+    const listEl = document.getElementById('list');
+    listEl.innerHTML = '';
+    state.index.items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'item';
+      div.dataset.id = item.trajectory_id;
+      div.innerHTML = `
+        <div class="head">
+          <span class="id">${item.problem_id} <span style="color:var(--muted);font-weight:400">· ${item.mode}</span></span>
+          ${badge(item.is_correct)}
+        </div>
+        <div class="meta">${item.dataset}/${item.split} · ${item.n_tokens} tok · ${item.n_layers} layers</div>
+      `;
+      div.addEventListener('click', () => select(item.trajectory_id));
+      listEl.appendChild(div);
+    });
+
+    // also populate problem dropdown
+    const sel = document.getElementById('prob-sel');
+    sel.innerHTML = '';
+    const seen = new Set();
+    state.index.items.forEach(it => {
+      if (seen.has(it.problem_id)) return;
+      seen.add(it.problem_id);
+      const opt = document.createElement('option');
+      opt.value = it.problem_id;
+      opt.textContent = `${it.problem_id} (${it.dataset}/${it.split})`;
+      sel.appendChild(opt);
+    });
+    sel.onchange = () => {
+      const pid = sel.value;
+      // pick think first, fall back to first
+      const hit = state.index.items.find(i => i.problem_id === pid && i.mode === 'think')
+               || state.index.items.find(i => i.problem_id === pid);
+      if (hit) select(hit.trajectory_id);
+    };
+  }
+
+  async function loadArtifact(tid, filename) {
+    if (state.cache.has(tid)) return state.cache.get(tid);
+    const url = filename || `${tid}__layers.json`;
+    status(`loading ${url}…`);
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const art = await r.json();
+    state.cache.set(art.trajectory_id, art);
+    return art;
+  }
+
+  async function select(tid) {
+    try {
+      await loadArtifact(tid);
+      state.activeId = tid;
+      document.querySelectorAll('.item').forEach(d => {
+        d.classList.toggle('active', d.dataset.id === tid);
+      });
+      render();
+    } catch (e) { status('failed to load: ' + e.message); }
+  }
+
+  async function addOverlay(tid) {
+    try {
+      await loadArtifact(tid);
+      state.overlays.add(tid);
+      renderOverlaysChips();
+      render();
+    } catch (e) { status('failed to load: ' + e.message); }
+  }
+
+  function renderOverlaysChips() {
+    const wrap = document.getElementById('overlays');
+    wrap.innerHTML = '';
+    state.overlays.forEach(tid => {
+      const chip = document.createElement('span');
+      const art = state.cache.get(tid);
+      chip.className = 'chip on';
+      chip.textContent = (art?.problem_id || tid) + '·' + (art?.mode || '?');
+      chip.onclick = () => { state.overlays.delete(tid); renderOverlaysChips(); render(); };
+      wrap.appendChild(chip);
+    });
+  }
+
+  // ----- File import (no server required for local files) -----
+  async function importFile(file) {
+    try {
+      const text = await file.text();
+      const art = JSON.parse(text);
+      if (!art.trajectory_id || !art.layers) {
+        throw new Error('not a __layers.json (missing trajectory_id / layers)');
+      }
+      state.cache.set(art.trajectory_id, art);
+      // Add to index if not present
+      if (state.index && !state.index.items.find(i => i.trajectory_id === art.trajectory_id)) {
+        state.index.items.push({
+          trajectory_id: art.trajectory_id,
+          problem_id: art.problem_id,
+          dataset: art.dataset,
+          split: art.split,
+          mode: art.mode,
+          n_tokens: art.n_tokens,
+          n_layers: art.n_layers,
+          is_correct: art.is_correct,
+          filename: file.name,
+        });
+        state.index.n_artifacts += 1;
+        populateList();
+      }
+      select(art.trajectory_id);
+      status(`imported ${file.name} (${art.n_layers} layers, ${art.n_tokens} tokens)`);
+    } catch (e) { status('import failed: ' + e.message); showError(e.message); }
+  }
+
+  document.getElementById('import-btn').onclick = () =>
+    document.getElementById('import-file').click();
+  document.getElementById('import-file').onchange = e => {
+    if (e.target.files[0]) importFile(e.target.files[0]);
+  };
+
+  // Drag & drop
+  const dropZone = document.getElementById('drop-zone');
+  let dragCount = 0;
+  document.addEventListener('dragenter', e => {
+    if (e.dataTransfer?.types?.includes('Files')) {
+      dragCount++; dropZone.classList.add('show');
+    }
+  });
+  document.addEventListener('dragleave', () => {
+    dragCount--; if (dragCount <= 0) dropZone.classList.remove('show');
+  });
+  document.addEventListener('dragover', e => { e.preventDefault(); });
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    dragCount = 0;
+    dropZone.classList.remove('show');
+    const f = e.dataTransfer?.files?.[0];
+    if (f) importFile(f);
+  });
+
+  // ----- UI bindings -----
+  document.getElementById('reload-btn').onclick = () => loadIndex();
+  document.getElementById('layer').addEventListener('input', e => {
+    state.layer = parseInt(e.target.value);
+    document.getElementById('layer-val').textContent = layerLabel(state.layer);
+    render();
+  });
+  document.getElementById('show-think').onclick = e => {
+    state.showThink = !state.showThink;
+    e.target.classList.toggle('active', state.showThink); render();
+  };
+  document.getElementById('show-nothink').onclick = e => {
+    state.showNothink = !state.showNothink;
+    e.target.classList.toggle('active', state.showNothink); render();
+  };
+  document.getElementById('overlay-btn').onclick = e => {
+    state.overlayMode = !state.overlayMode;
+    e.target.classList.toggle('active', state.overlayMode);
+    e.target.textContent = state.overlayMode ? 'Overlay ON' : 'Overlay';
+    if (state.overlayMode && state.activeId) state.overlays.add(state.activeId);
+    renderOverlaysChips(); render();
+  };
+  document.getElementById('reset-ov').onclick = () => {
+    state.overlays.clear();
+    if (state.activeId) state.overlays.add(state.activeId);
+    renderOverlaysChips(); render();
+  };
+
+  document.querySelectorAll('#cam-buttons button').forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll('#cam-buttons button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const m = b.dataset.cam;
+      if (m === 'persp') camera.position.set(20, 18, 24);
+      else if (m === 'iso') camera.position.set(25, 22, 25);
+      else if (m === 'top') { camera.position.set(0, 38, 0.001); camera.up.set(0, 0, -1); }
+      else if (m === 'side') { camera.position.set(0, 8, 32); camera.up.set(0, 1, 0); }
+      if (m !== 'top') camera.up.set(0, 1, 0);
+      controls.update();
+    };
+  });
+
+  // ----- Resize -----
+  window.addEventListener('resize', () => {
+    camera.aspect = wrap.clientWidth / wrap.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  });
+
+  // ----- Boot -----
+  loadIndex();
+  let last = performance.now();
+  function tick(now) {
+    requestAnimationFrame(tick);
+    controls.update();
+    renderer.render(scene, camera);
+    last = now;
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

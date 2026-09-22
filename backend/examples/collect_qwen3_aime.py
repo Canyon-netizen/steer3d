@@ -415,7 +415,8 @@ def main(args):
                     model, tokenizer, problem, mode, args, device, dtype
                 )
                 save_trajectory(out_root, meta, hidden, logits, token_ids, attn,
-                                save_full_logits=args.save_full_logits)
+                                save_full_logits=args.save_full_logits,
+                                dtype=args.store_dtype)
                 ans = meta.generated_answer or "(none)"
                 corr = "✓" if meta.is_correct else "✗"
                 print(f"{corr} {meta.n_generated_tokens:4d} tok  ans={ans[:30]:30s}  -> {npz_path.name}")
@@ -434,7 +435,11 @@ def cli():
     ap.add_argument("--model-name", default="Qwen/Qwen3-1.7B")
     ap.add_argument("--model-path",
                     default="/home/zhourui/.cache/huggingface/models/Qwen--Qwen3-1.7B/snapshots/master")
-    ap.add_argument("--device", default="cuda:7")
+    ap.add_argument("--device", default="cuda:2",
+                    help="PyTorch device index. NOTE: PyTorch's cuda:N is NOT "
+                         "the same as nvidia-smi index N on multi-GPU boxes; "
+                         "run `python -c 'import torch; [print(i, torch.cuda.get_device_name(i)) for i in range(torch.cuda.device_count())]'` "
+                         "to see the mapping on this host.")
     ap.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
     ap.add_argument("--max-new-tokens", type=int, default=4096,
                     help="Maximum tokens to generate per problem")
@@ -449,6 +454,9 @@ def cli():
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--save-full-logits", action="store_true",
                     help="Store full V-sized logits (default: top-K only)")
+    ap.add_argument("--store-dtype", default="float32", choices=["float16", "float32"],
+                    help="Precision for hidden_states / logits on disk "
+                         "(default float32 for analysis-friendly precision)")
     ap.add_argument("--overwrite", action="store_true")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()

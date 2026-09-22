@@ -104,17 +104,25 @@ class TrajectoryMeta:
 
 # NPZ arrays (per-token, in the same order as ``tokens``):
 #
-#   hidden_states   (T, L, D)   float16  — every generated token × every layer × hidden_dim
-#   logits          (T, V)      float16  — full softmax logits (for re-analysis)
-#   last_hidden     (T, D)      float16  — final-layer residual stream (alias of hidden_states[:, -1])
+#   hidden_states   (T, L, D)   float32  — every generated token × every layer × hidden_dim
+#   logits          (T, V)      float32  — full softmax logits (for re-analysis)
+#   last_hidden     (T, D)      float32  — final-layer residual stream (alias of hidden_states[:, -1])
 #   token_ids       (T,)        int32    — generated token ids
 #   attention_mask  (T,)        int8     — valid mask (1 = real, 0 = pad)
-#   topk_logits     (T, K)      float16  — top-K logits (smaller than full logits for quick inspection)
+#   topk_logits     (T, K)      float32  — top-K logits (smaller than full logits for quick inspection)
 #   topk_indices    (T, K)      int32    — token ids of top-K logits
 #
 # Where T = n_generated_tokens, L = n_layers, D = d_model, V = vocab_size, K = top_k.
 # (We don't store the prompt tokens' hidden states here; only what the
 # model *generated*.)
+#
+# Precision policy:
+#   We default to float32 for hidden_states and logits because downstream
+#   analysis (cosine similarity, PCA, layer-wise norm, steering vectors)
+#   is sensitive to float16 round-off — particularly when subtracting
+#   two close activations to isolate a direction. The on-disk cost is
+#   ~2× compared to float16; one trajectory is then ~0.5 GB instead of
+#   ~0.25 GB. Override with ``save_trajectory(..., dtype="float16")``.
 #
 NPZ_KEYS = ("hidden_states", "logits", "last_hidden", "token_ids",
             "attention_mask", "topk_logits", "topk_indices")
@@ -140,21 +148,25 @@ def save_trajectory(out_dir: str | Path, meta: TrajectoryMeta,
                     save_full_logits: bool = True,
                     topk: int = 64,
                     compress: bool = False,
+                    dtype: str = "float32",
                     ) -> Tuple[Path, Path]:
     """Write a single trajectory as JSON + NPZ.
 
     Args:
         out_dir:         directory to write into
         meta:            TrajectoryMeta (must match array shapes)
-        hidden_states:   (T, L, D) float16
-        logits:          (T, V)   float16/float32
+        hidden_states:   (T, L, D)
+        logits:          (T, V)
         token_ids:       (T,)     int32
         attention_mask:  (T,)     int8
         save_full_logits: if False, do not store the full V-sized logits
-                          (saves ~T*V*2 bytes)
+                          (saves ~T*V*4 bytes at float32, ~T*V*2 at float16)
         topk:            save the top-k logits for each token (always on)
         compress:        use np.savez_compressed (slow on big arrays,
                           default False for ~30x speedup)
+        dtype:           "float32" (default, full precision) or "float16"
+                          (half precision, ~2× smaller on disk). float32 is
+                          recommended for downstream analysis.
 
     Returns:
         (json_path, npz_path)
@@ -162,6 +174,10 @@ def save_trajectory(out_dir: str | Path, meta: TrajectoryMeta,
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     json_name, npz_name = trajectory_filename(meta)
+
+    if dtype not in ("float16", "float32"):
+        raise ValueError(f"dtype must be 'float16' or 'float32', got {dtype!r}")
+    target_dtype = np.float16 if dtype == "float16" else np.float32
 
     # Validate shapes
     T = meta.n_generated_tokens
@@ -186,20 +202,20 @@ def save_trajectory(out_dir: str | Path, meta: TrajectoryMeta,
     rows = np.arange(T)[:, None]
     topk_vals = logits[rows, topk_idx]
     order = np.argsort(-topk_vals, axis=-1)
-    topk_vals = topk_vals[rows, order].astype(np.float16, copy=False)
+    topk_vals = topk_vals[rows, order].astype(target_dtype, copy=False)
     topk_idx = topk_idx[rows, order].astype(np.int32, copy=False)
 
     # Build the npz dict
     npz_dict = dict(
-        hidden_states=hidden_states.astype(np.float16, copy=False),
-        last_hidden=hidden_states[:, -1, :].astype(np.float16, copy=False),
+        hidden_states=hidden_states.astype(target_dtype, copy=False),
+        last_hidden=hidden_states[:, -1, :].astype(target_dtype, copy=False),
         token_ids=token_ids.astype(np.int32, copy=False),
         attention_mask=attention_mask.astype(np.int8, copy=False),
         topk_logits=topk_vals,
         topk_indices=topk_idx,
     )
     if save_full_logits:
-        npz_dict["logits"] = logits.astype(np.float16, copy=False)
+        npz_dict["logits"] = logits.astype(target_dtype, copy=False)
 
     npz_path = out_dir / npz_name
     saver = np.savez_compressed if compress else np.savez
@@ -226,7 +242,7 @@ def save_trajectory(out_dir: str | Path, meta: TrajectoryMeta,
         "d_model": meta.d_model,
         "config": asdict(meta.config),
         "tokens": [asdict(t) for t in meta.tokens],
-        "extra": meta.extra,
+        "extra": {**meta.extra, "stored_dtype": dtype},
     }
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False, default=_json_default)
@@ -256,15 +272,22 @@ def _json_default(o):
 class Trajectory:
     """In-memory representation of one trajectory."""
     meta: TrajectoryMeta
-    # Arrays
-    hidden_states: np.ndarray           # (T, L, D) float16
-    last_hidden: np.ndarray             # (T, D)   float16
+    # Arrays (default precision is float32; check ``meta.extra["stored_dtype"]``)
+    hidden_states: np.ndarray           # (T, L, D) float32 (or float16 if downgraded)
+    last_hidden: np.ndarray             # (T, D)   float32
     token_ids: np.ndarray               # (T,)     int32
     attention_mask: np.ndarray          # (T,)     int8
     # Optional
-    logits: Optional[np.ndarray] = None      # (T, V)   float16 — may be None if not saved
-    topk_logits: Optional[np.ndarray] = None # (T, K)   float16
+    logits: Optional[np.ndarray] = None      # (T, V)   float32 — may be None if not saved
+    topk_logits: Optional[np.ndarray] = None # (T, K)   float32
     topk_indices: Optional[np.ndarray] = None # (T, K)   int32
+
+    @property
+    def stored_dtype(self) -> str:
+        """The on-disk precision stored in ``hidden_states`` and ``logits``."""
+        if self.hidden_states is None:
+            return "(no data)"
+        return "float16" if self.hidden_states.dtype == np.float16 else "float32"
 
     @property
     def is_correct(self) -> Optional[bool]:
