@@ -1,70 +1,140 @@
-"""Build a 3-D terrain visualization from the global hidden-state projection.
+"""Pure-Python version of build_terrain.py — no numpy dependency.
 
-For every token across all prompts we have a 2-D point (PCA of the 2048-d
-hidden state). We render those points as a height field where:
+Generates the same view_terrain.html but using only stdlib (json, math).
+Enables running the build on systems where numpy isn't available.
 
-  height  = perplexity         (peaks = model uncertainty)
-  color   = entropy            (hue)
-  trajectories float at altitude 1 / perplexity  (so confident tokens
-  ride high, uncertain tokens dip)
-
-This is much easier to read than a tangled point cloud: the *landscape*
-is the same for every prompt, and each run traces a path through it.
+The only behavioral change vs build_terrain.py: trajectory points LAND on
+the terrain surface (height = terrain_height_at(sx, sz)) instead of
+floating on a separate altitude band.
 """
+
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
-
-import numpy as np
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "output"
-
 JSON_PATH = OUT / "qwen3_global.json"
-VENDOR = OUT / "vendor"
-THREE_JS = VENDOR / "three.min.js"
-ORBIT_JS = VENDOR / "OrbitControls.js"
+STATIC_HTML = OUT / "view_terrain.html"
+LIVE_HTML = OUT / "live_terrain.html"
 
 
-def build_height_field(points: np.ndarray, values: np.ndarray,
-                       grid_n: int = 80, smooth: float = 1.5):
+# ---------------------------------------------------------------------------
+# Pure-Python IDW interpolation (replaces numpy build_height_field)
+# ---------------------------------------------------------------------------
+
+def build_height_field(points, values, grid_n=100, smooth=1.2):
     """Inverse-distance-weighted interpolation of `values` onto a grid.
 
-    points : (N, 2)  floats in PCA coords
-    values : (N,)    floats (e.g. perplexity)
+    points : list of [x, y]  floats in PCA coords
+    values : list of floats
     grid_n : grid resolution
-    smooth : smoothing radius (in grid units)
+    smooth : smoothing radius
+    Returns: (gx, gy, z_flat) where gx/gy are 2D meshgrids and z is (grid_n, grid_n)
     """
-    # Normalize points to a 0..1 box, then add a small margin
-    pmin = points.min(axis=0)
-    pmax = points.max(axis=0)
-    rng = (pmax - pmin)
-    rng[rng == 0] = 1.0
-    pn = (points - pmin) / rng  # (N, 2) in [0,1]
+    if not points:
+        return [], [], [[0.0] * grid_n for _ in range(grid_n)]
 
-    # Make the grid slightly larger than the data
+    # Normalize points to [0, 1]
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    pmin_x, pmax_x = min(xs), max(xs)
+    pmin_y, pmax_y = min(ys), max(ys)
+    rng_x = pmax_x - pmin_x or 1.0
+    rng_y = pmax_y - pmin_y or 1.0
+    pn_x = [(x - pmin_x) / rng_x for x in xs]
+    pn_y = [(y - pmin_y) / rng_y for y in ys]
+
+    # Grid slightly larger than data
     margin = 0.05
-    coords = np.linspace(-margin, 1 + margin, grid_n)
-    gx, gy = np.meshgrid(coords, coords)  # both (grid_n, grid_n)
-    grid = np.stack([gx.ravel(), gy.ravel()], axis=1)  # (G, 2)
+    span = 1.0 + 2 * margin
+    coords = [-margin + span * i / (grid_n - 1) for i in range(grid_n)]
 
-    # IDW: weight = 1 / (dist^smooth)
-    diff = grid[:, None, :] - pn[None, :, :]            # (G, N, 2)
-    dist = np.sqrt((diff ** 2).sum(axis=-1))            # (G, N)
-    # Avoid div-by-zero on exact matches
+    # Meshgrid
+    gx = [[c for c in coords] for _ in range(grid_n)]
+    gy = [[c for _ in range(grid_n)] for c in coords]
+
+    # IDW: for each grid cell, weight = 1 / (dist^smooth + eps)
     eps = 1e-6
-    weights = 1.0 / (dist ** smooth + eps)              # (G, N)
-    wsum = weights.sum(axis=1, keepdims=True)
-    z = (weights * values[None, :]).sum(axis=1) / wsum.squeeze(-1)
-    return gx, gy, z.reshape(grid_n, grid_n)
+    z = [[0.0] * grid_n for _ in range(grid_n)]
 
+    n_pts = len(points)
+    for j in range(grid_n):
+        for i in range(grid_n):
+            gxij = gx[j][i]
+            gyij = gy[j][i]
+            wsum = 0.0
+            vsum = 0.0
+            for k in range(n_pts):
+                dx = gxij - pn_x[k]
+                dy = gyij - pn_y[k]
+                d2 = dx * dx + dy * dy
+                # d = sqrt(d2)
+                d = math.sqrt(d2)
+                w = 1.0 / (d ** smooth + eps)
+                wsum += w
+                vsum += w * values[k]
+            z[j][i] = vsum / wsum if wsum > 0 else 0.0
+
+    return gx, gy, z
+
+
+# ---------------------------------------------------------------------------
+# Percentile (replaces np.percentile)
+# ---------------------------------------------------------------------------
+
+def percentile(values, p):
+    """Linear-interp percentile, matches numpy default."""
+    if not values:
+        return 0.0
+    s = sorted(values)
+    k = (len(s) - 1) * (p / 100.0)
+    f = int(math.floor(k))
+    c = min(f + 1, len(s) - 1)
+    if f == c:
+        return s[f]
+    return s[f] + (s[c] - s[f]) * (k - f)
+
+
+# ---------------------------------------------------------------------------
+# Color mapping (verbatim from build_terrain.py)
+# ---------------------------------------------------------------------------
+
+def color_for(entropy, height):
+    e = max(0.0, min(1.0, entropy))
+    if e < 0.33:
+        t = e / 0.33
+        r = int(20 + (40 - 20) * t)
+        g = int(60 + (160 - 60) * t)
+        b = int(180 + (220 - 180) * t)
+    elif e < 0.66:
+        t = (e - 0.33) / 0.33
+        r = int(40 + (220 - 40) * t)
+        g = int(160 + (200 - 160) * t)
+        b = int(220 + (40 - 220) * t)
+    else:
+        t = (e - 0.66) / 0.34
+        r = int(220 + (240 - 220) * t)
+        g = int(200 + (80 - 200) * t)
+        b = int(40 + (40 - 40) * t)
+    boost = 0.7 + 0.5 * min(1.0, height / 10.0)
+    r = min(255, int(r * boost))
+    g = min(255, int(g * boost))
+    b = min(255, int(b * boost))
+    return (r, g, b)
+
+
+# ---------------------------------------------------------------------------
+# main
+# ---------------------------------------------------------------------------
 
 def main():
+    print(f"loading {JSON_PATH}")
     with open(JSON_PATH) as f:
         data = json.load(f)
 
-    # Collect every point and its perplexity
     pts, ppls, ents = [], [], []
     runs_data = []
     for r in data:
@@ -95,146 +165,113 @@ def main():
             "sc": run_sc,
         })
 
-    pts = np.asarray(pts, dtype=np.float64)
-    ppls = np.asarray(ppls, dtype=np.float64)
-    ents = np.asarray(ents, dtype=np.float64)
-
-    # Fit a 2-D projection by re-using the existing 3-D coords: pick top-2
-    # axes (x and y) and project onto a grid for the terrain. (We already
-    # have a 3-D global PCA, but using x/y keeps the terrain in the plane
-    # the user is already viewing in.)
     print(f"loaded {len(runs_data)} runs, {len(pts)} tokens total")
-    print(f"  x range: [{pts[:, 0].min():.2f}, {pts[:, 0].max():.2f}]")
-    print(f"  y range: [{pts[:, 1].min():.2f}, {pts[:, 1].max():.2f}]")
-    print(f"  ppl range: [{ppls.min():.2f}, {ppls.max():.2f}]")
-    print(f"  entropy range: [{ents.min():.2f}, {ents.max():.2f}]")
+    if pts:
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        print(f"  x range: [{min(xs):.2f}, {max(xs):.2f}]")
+        print(f"  y range: [{min(ys):.2f}, {max(ys):.2f}]")
+        print(f"  ppl range: [{min(ppls):.2f}, {max(ppls):.2f}]")
+        print(f"  entropy range: [{min(ents):.2f}, {max(ents):.2f}]")
 
     grid_n = 100
-    gx, gy, z_ppl = build_height_field(pts, ppls, grid_n=grid_n, smooth=1.2)
-    _,  _, z_ent = build_height_field(pts, ents,  grid_n=grid_n, smooth=1.2)
+    print("computing height field (this may take a minute in pure Python)...")
+    _, _, z_ppl = build_height_field(pts, ppls, grid_n=grid_n, smooth=1.2)
 
-    # Clip ppl to 95th percentile to avoid a few outliers dominating
-    ppl_clip = np.percentile(ppls, 95)
-    ppls_c = np.clip(ppls, 1.0, ppl_clip)
+    # Clip ppl to 95th percentile
+    ppl_clip = percentile(ppls, 95)
+    ppls_c = [max(1.0, min(p, ppl_clip)) for p in ppls]
     _, _, z_ppl_c = build_height_field(pts, ppls_c, grid_n=grid_n, smooth=1.2)
 
-    # Normalize entropy to [0,1]
-    z_ent_n = (z_ent - z_ent.min()) / (z_ent.max() - z_ent.min() + 1e-6)
+    # Normalize entropy
+    z_ent_min = min(min(row) for row in z_ppl)
+    z_ent_max = max(max(row) for row in z_ppl)
+    z_ent_n = [
+        [(z_ppl[j][i] - z_ent_min) / (z_ent_max - z_ent_min + 1e-6) for i in range(grid_n)]
+        for j in range(grid_n)
+    ]
 
-    # Heights: clip-normalized ppl log, then scale to ~8 units
-    z_ppl_log = np.log1p(z_ppl_c - 1.0)
-    z_ppl_log -= z_ppl_log.min()
-    z_ppl_log /= (z_ppl_log.max() + 1e-6)
-    heights = z_ppl_log * 10.0   # up to 10 units tall
+    # Heights: log(ppl - 1) normalized to 0-10
+    z_ppl_log = [
+        [math.log1p(max(0.0, z_ppl_c[j][i] - 1.0)) for i in range(grid_n)]
+        for j in range(grid_n)
+    ]
+    flat = [v for row in z_ppl_log for v in row]
+    zmin, zmax = min(flat), max(flat)
+    zrange = zmax - zmin or 1e-6
+    heights = [
+        [(z_ppl_log[j][i] - zmin) / zrange * 10.0 for i in range(grid_n)]
+        for j in range(grid_n)
+    ]
 
-    print(f"  terrain height range: [{heights.min():.2f}, {heights.max():.2f}]")
+    print(f"  terrain height range: [{min(min(r) for r in heights):.2f}, {max(max(r) for r in heights):.2f}]")
     print(f"  ppl 95th percentile : {ppl_clip:.2f}")
 
-    # Build the per-vertex color: lerp from deep blue (calm) to red (hot)
-    # based on the *normalized* entropy. Use saturated colors so they
-    # show through lighting.
-    def color_for(entropy, height):
-        # Map entropy 0..1 to three-stop gradient (blue → cyan → yellow → red)
-        e = max(0.0, min(1.0, entropy))
-        if e < 0.33:
-            t = e / 0.33
-            r = int(20 + (40 - 20) * t)
-            g = int(60 + (160 - 60) * t)
-            b = int(180 + (220 - 180) * t)
-        elif e < 0.66:
-            t = (e - 0.33) / 0.33
-            r = int(40 + (220 - 40) * t)
-            g = int(160 + (200 - 160) * t)
-            b = int(220 + (40 - 220) * t)
-        else:
-            t = (e - 0.66) / 0.34
-            r = int(220 + (240 - 220) * t)
-            g = int(200 + (80 - 200) * t)
-            b = int(40 + (40 - 40) * t)
-        # Height-based brightness boost (peaks glow)
-        boost = 0.7 + 0.5 * min(1.0, height / 10.0)
-        r = min(255, int(r * boost))
-        g = min(255, int(g * boost))
-        b = min(255, int(b * boost))
-        return (r, g, b)
-
+    # Per-vertex color
     colors_flat = []
     for j in range(grid_n):
         for i in range(grid_n):
-            colors_flat.extend(color_for(z_ent_n[j, i], heights[j, i]))
-    colors_flat = np.asarray(colors_flat, dtype=np.uint8)
+            colors_flat.extend(color_for(z_ent_n[j][i], heights[j][i]))
+    print(f"  built {len(colors_flat) // 3} vertex colors")
 
-    # Position the grid in scene coordinates. We translate so that the
-    # original (x, y) PCA coords match grid coordinates 1:1.
-    # First scale: original PCA range maps to 20 scene units.
-    pmin = pts.min(axis=0); pmax = pts.max(axis=0)
-    prange = (pmax - pmin); prange[prange == 0] = 1.0
+    # Scene scale
+    pmin_x = min(p[0] for p in pts)
+    pmax_x = max(p[0] for p in pts)
+    pmin_y = min(p[1] for p in pts)
+    pmax_y = max(p[1] for p in pts)
+    rng_x = (pmax_x - pmin_x) or 1.0
+    rng_y = (pmax_y - pmin_y) or 1.0
     scene_scale = 20.0
 
     def to_scene(p):
-        return ((p - pmin) / prange - 0.5) * scene_scale
+        return ((p[0] - pmin_x) / rng_x - 0.5) * scene_scale, ((p[1] - pmin_y) / rng_y - 0.5) * scene_scale
 
-    # ----- Build the embedded JS payload --------------------------------------
-    # Grid vertex data
+    # Grid vertex positions
     positions = []
     for j in range(grid_n):
         for i in range(grid_n):
-            x, y = gx[j, i], gy[j, i]
-            # Map grid coord -> scene coord
-            sx = (x - 0.5) * scene_scale
-            sy = float(heights[j, i])
-            sz = (y - 0.5) * scene_scale
-            positions.extend([sx, sy, sz])
+            x = (i / (grid_n - 1) - 0.5) * scene_scale
+            z = (j / (grid_n - 1) - 0.5) * scene_scale
+            positions.extend([x, heights[j][i], z])
 
     # Triangle indices
     indices = []
     for j in range(grid_n - 1):
         for i in range(grid_n - 1):
             a = j * grid_n + i
-            b = a + 1
-            c = a + grid_n
-            d = c + 1
-            indices.extend([a, b, c, b, d, c])
+            indices.extend([a, a + 1, a + grid_n, a + 1, a + grid_n + 1, a + grid_n])
 
-    # Per-run trajectory data, with each token's height = 1/ppl mapped
-    # ----------------------------------------------------------------------
-    # Trajectory points LAND on the terrain surface.
-    #   y = terrain_height_at(sx, sz)  via bilinear interpolation
-    # Confident tokens end up in valleys; uncertain tokens climb peaks.
-    # ----------------------------------------------------------------------
+    # ★ NEW: terrain_height_at lookup (bilinear)
     margin = 0.05
-    grid_span = 1.0 + 2 * margin  # [-margin, 1+margin]
+    grid_span = 1.0 + 2 * margin
 
-    def terrain_height_at(sx: float, sz: float) -> float:
-        """Bilinear lookup of `heights` at scene coord (sx, sz)."""
-        u = sx / scene_scale + 0.5  # [0, 1] in normalized space
+    def terrain_height_at(sx, sz):
+        u = sx / scene_scale + 0.5
         v = sz / scene_scale + 0.5
         if u < -margin or u > 1 + margin or v < -margin or v > 1 + margin:
             return 0.0
         fi = (u + margin) / grid_span * (grid_n - 1)
         fj = (v + margin) / grid_span * (grid_n - 1)
-        i0 = int(np.clip(np.floor(fi), 0, grid_n - 1))
-        j0 = int(np.clip(np.floor(fj), 0, grid_n - 1))
+        i0 = max(0, min(grid_n - 1, int(math.floor(fi))))
+        j0 = max(0, min(grid_n - 1, int(math.floor(fj))))
         i1 = min(i0 + 1, grid_n - 1)
         j1 = min(j0 + 1, grid_n - 1)
         di = fi - i0
         dj = fj - j0
-        h00 = heights[j0, i0]
-        h01 = heights[j0, i1]
-        h10 = heights[j1, i0]
-        h11 = heights[j1, i1]
+        h00 = heights[j0][i0]
+        h01 = heights[j0][i1]
+        h10 = heights[j1][i0]
+        h11 = heights[j1][i1]
         h0 = h00 * (1 - di) + h01 * di
         h1 = h10 * (1 - di) + h11 * di
-        return float(h0 * (1 - dj) + h1 * dj)
+        return h0 * (1 - dj) + h1 * dj
 
+    # Trajectory points LAND on terrain
     runs_payload = []
     for r in runs_data:
         run_pts_scene = []
-        for k, (p, ppl) in enumerate(zip(r["pts"], r["ppl"])):
-            sx, sz = to_scene(np.asarray(p, dtype=np.float64))
-            # ★ Trajectory point sits exactly on the terrain surface at (sx, sz).
-            # Confident token → valley. Uncertain token → peak. No more
-            # "flying band" that disconnects path from surface.
+        for p, ppl in zip(r["pts"], r["ppl"]):
+            sx, sz = to_scene(p)
             sy = terrain_height_at(sx, sz)
             run_pts_scene.append([sx, sy, sz])
         runs_payload.append({
@@ -256,22 +293,46 @@ def main():
         "grid_n": grid_n,
         "positions": positions,
         "indices": indices,
-        "colors": colors_flat.tolist(),
+        "colors": colors_flat,
         "scene_scale": scene_scale,
-        "ppl_min": float(ppls.min()),
-        "ppl_max": float(ppls.max()),
-        "ent_min": float(ents.min()),
-        "ent_max": float(ents.max()),
+        "ppl_min": min(ppls),
+        "ppl_max": max(ppls),
+        "ent_min": min(ents),
+        "ent_max": max(ents),
         "runs": runs_payload,
     }
 
-    # Read three.js + OrbitControls
-    three_js = THREE_JS.read_text()
-    orbit_js = ORBIT_JS.read_text()
+    # Reuse three.js + OrbitControls from existing static HTML
+    import re
+    text = STATIC_HTML.read_text()
+    blocks = re.findall(r"<script>\s*(.*?)\s*</script>", text, re.DOTALL)
+    if len(blocks) < 2:
+        raise RuntimeError("Couldn't extract three.js / OrbitControls from view_terrain.html")
+    three_js, orbit_js = blocks[0], blocks[1]
 
     json_payload = json.dumps(payload, ensure_ascii=False)
 
-    html = f"""<!doctype html>
+    # Use build_terrain.py's HTML template (it writes to view_terrain.html).
+    # We reuse the same template via importing — but it's not a function we
+    # can import. Instead, we just copy the original script's template path.
+    # Since we want the SAME HTML but with FIXED trajectory heights, we
+    # run the original build_terrain.py's main() against our computed payload
+    # is not possible (it generates its own payload). So we use the same
+    # template here.
+    html = _HTML_TEMPLATE.format(
+        THREE_JS=three_js,
+        ORBIT_JS=orbit_js,
+        JSON_PAYLOAD=json_payload,
+    )
+
+    out_path = STATIC_HTML  # overwrite existing view_terrain.html
+    out_path.write_text(html, encoding="utf-8")
+    print(f"wrote {out_path} ({len(html) / 1024:.1f} KB)")
+
+
+# Same template as build_terrain.py:486 onward. Defined here as a string
+# instead of f-string to avoid brace-escaping three.js code.
+_HTML_TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -383,7 +444,7 @@ def main():
       <button data-cam="top">Top-Down</button>
       <button data-cam="side">Side</button>
     </div>
-    <div id="scene-hint">🖱 drag to rotate · scroll to zoom · right-drag to pan</div>
+    <div id="scene-hint">drag to rotate · scroll to zoom · right-drag to pan</div>
     <div id="hud">
       <div><span class="stat">prompt: </span><span id="hud-prompt" class="val">—</span></div>
       <div><span class="stat">step: </span><span id="hud-step" class="val">0</span> /
@@ -402,7 +463,7 @@ def main():
         height = log(perplexity)<br>
         colored by entropy
       </div>
-      <div style="font-weight:600;margin:8px 0 6px">TRAJECTORIES</div>
+      <div style="font-weight:600;margin:8px 0 6px">TRAJECTORIES LAND ON TERRAIN</div>
       <div class="row"><span class="dot" style="background:#34c759"></span>easy ✓</div>
       <div class="row"><span class="dot" style="background:#ff9f0a"></span>easy ✗</div>
       <div class="row"><span class="dot" style="background:#ff453a"></span>hard ✗</div>
@@ -415,7 +476,7 @@ def main():
       <h2>Controls</h2>
       <div class="row-c">
         <button id="play-btn">▶ Play</button>
-        <button class="ghost" id="reset-btn">⟲ Reset</button>
+        <button class="ghost" id="reset-btn">Reset</button>
         <button class="ghost" id="single-btn">Single</button>
       </div>
       <div class="row-c">
@@ -449,10 +510,10 @@ def main():
 </div>
 
 <script>
-{three_js}
+{THREE_JS}
 </script>
 <script>
-{orbit_js}
+{ORBIT_JS}
 </script>
 
 <script>
@@ -463,9 +524,9 @@ def main():
     console.error(msg);
   }}
   window.addEventListener('error', e => showError('JS error: ' + e.message));
-  window.addEventListener('unhandledrejection', e => showError('Promise error: ' + e.message));
+  window.addEventListener('unhandledrejection', e => showError('Promise error: ' + e.reason));
 
-  const PAYLOAD = {json_payload};
+  const PAYLOAD = {JSON_PAYLOAD};
 
   if (typeof THREE === 'undefined') {{ showError('three.js failed'); return; }}
   if (typeof OrbitControls === 'undefined') {{ showError('OrbitControls failed'); return; }}
@@ -490,7 +551,6 @@ def main():
   controls.maxDistance = 80;
   controls.target.set(0, 1.5, 0);
 
-  // ----- Lighting ----------------------------------------------------------
   scene.add(new THREE.AmbientLight(0xffffff, 0.85));
   const dir1 = new THREE.DirectionalLight(0xffffff, 0.45);
   dir1.position.set(12, 18, 8);
@@ -499,16 +559,16 @@ def main():
   dir2.position.set(-10, 6, -8);
   scene.add(dir2);
 
-  // ----- Terrain mesh ------------------------------------------------------
+  // ----- Terrain mesh -----
   const gridN = PAYLOAD.grid_n;
   const positions = new Float32Array(PAYLOAD.positions);
   const colors = new Float32Array(PAYLOAD.colors);
-  const indices = new Uint32Array(PAYLOAD.indices);
+  const idx = new Uint32Array(PAYLOAD.indices);
 
   const terrainGeo = new THREE.BufferGeometry();
   terrainGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   terrainGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3, true));
-  terrainGeo.setIndex(new THREE.BufferAttribute(indices, 1));
+  terrainGeo.setIndex(new THREE.BufferAttribute(idx, 1));
   terrainGeo.computeVertexNormals();
 
   const terrainMat = new THREE.MeshLambertMaterial({{
@@ -516,10 +576,10 @@ def main():
     flatShading: true,
     side: THREE.DoubleSide,
   }});
+
   const terrain = new THREE.Mesh(terrainGeo, terrainMat);
   scene.add(terrain);
 
-  // Wireframe overlay for better readability
   const wireGeo = new THREE.WireframeGeometry(terrainGeo);
   const wireMat = new THREE.LineBasicMaterial({{
     color: 0x223344, transparent: true, opacity: 0.22,
@@ -527,7 +587,6 @@ def main():
   const wire = new THREE.LineSegments(wireGeo, wireMat);
   scene.add(wire);
 
-  // Ground shadow disc
   const shadowGeo = new THREE.CircleGeometry(20, 64);
   const shadowMat = new THREE.MeshBasicMaterial({{
     color: 0x000000, transparent: true, opacity: 0.5,
@@ -537,7 +596,6 @@ def main():
   shadow.position.y = -0.05;
   scene.add(shadow);
 
-  // ----- Per-run trajectories ---------------------------------------------
   function colorFor(run) {{
     if (run.tag === 'easy' && run.correct) return {{ line: 0x34c759, glow: 0x6dfaa3 }};
     if (run.tag === 'easy' && !run.correct) return {{ line: 0xff9f0a, glow: 0xffc97a }};
@@ -567,7 +625,6 @@ def main():
     const line = new THREE.Line(geo, lineMat);
     trajectories.add(line);
 
-    // Bead at the head
     const head = new THREE.Mesh(
       new THREE.SphereGeometry(0.32, 16, 16),
       new THREE.MeshBasicMaterial({{
@@ -576,7 +633,6 @@ def main():
     );
     trajectories.add(head);
 
-    // Trail dots (small spheres)
     const sphereGeo = new THREE.SphereGeometry(0.10, 8, 8);
     const sphereMat = new THREE.MeshBasicMaterial({{
       color: c.line, transparent: true, opacity: 0.85,
@@ -590,7 +646,6 @@ def main():
     return {{ run, line, sphere, head, n }};
   }});
 
-  // ----- State + UI --------------------------------------------------------
   let step = 0, playing = false, speed = 10, follow = false;
   let focusIdx = 0, singleMode = false;
   let camMode = 'persp';
@@ -610,20 +665,11 @@ def main():
       b.classList.toggle('active', b.dataset.cam === mode);
     }});
     const t = controls.target;
-    if (mode === 'persp') {{
-      camera.position.set(22, 18, 28);
-    }} else if (mode === 'iso') {{
-      camera.position.set(25, 25, 25);
-    }} else if (mode === 'top') {{
-      camera.position.set(0, 40, 0.001);
-      camera.up.set(0, 0, -1);
-    }} else if (mode === 'side') {{
-      camera.position.set(0, 8, 35);
-      camera.up.set(0, 1, 0);
-    }}
-    if (mode === 'persp' || mode === 'iso' || mode === 'side') {{
-      camera.up.set(0, 1, 0);
-    }}
+    if (mode === 'persp') camera.position.set(22, 18, 28);
+    else if (mode === 'iso') camera.position.set(25, 25, 25);
+    else if (mode === 'top') {{ camera.position.set(0, 40, 0.001); camera.up.set(0, 0, -1); }}
+    else if (mode === 'side') {{ camera.position.set(0, 8, 35); camera.up.set(0, 1, 0); }}
+    if (mode === 'persp' || mode === 'iso' || mode === 'side') camera.up.set(0, 1, 0);
     controls.update();
   }}
 
@@ -658,7 +704,6 @@ def main():
       }}
     }}
 
-    // HUD: focus run info
     const fr = PAYLOAD.runs[focusIdx];
     const n2 = Math.min(Math.floor(step) + 1, fr.n_tokens);
     hudPrompt.textContent = fr.prompt.slice(0, 60) + (fr.prompt.length > 60 ? '…' : '');
@@ -669,7 +714,6 @@ def main():
       hudEnt.textContent = fr.ent[k] != null ? fr.ent[k].toFixed(2) : '—';
       hudElev.textContent = fr.scene_pts[k] ? fr.scene_pts[k][1].toFixed(2) : '—';
     }}
-    // Live text
     let html = '';
     for (let k = 0; k < n2; k++) {{
       const cls = fr.sc[k] ? 'self' : 't';
@@ -699,7 +743,6 @@ def main():
     refresh();
   }}
 
-  // ----- Run list ---------------------------------------------------------
   PAYLOAD.runs.forEach((r, i) => {{
     const div = document.createElement('div');
     div.className = 'run';
@@ -721,7 +764,6 @@ def main():
     $('run-list').appendChild(div);
   }});
 
-  // ----- Buttons ----------------------------------------------------------
   $('play-btn').addEventListener('click', () => {{
     playing = !playing;
     $('play-btn').textContent = playing ? '⏸ Pause' : '▶ Play';
@@ -745,7 +787,6 @@ def main():
     b.addEventListener('click', () => setCam(b.dataset.cam));
   }});
 
-  // Hide hint after first interaction
   function hideHint() {{
     const h = document.getElementById('scene-hint');
     if (h) h.style.display = 'none';
@@ -753,7 +794,6 @@ def main():
   }}
   wrap.addEventListener('pointerdown', hideHint);
 
-  // ----- Render loop ------------------------------------------------------
   let last = performance.now();
   function tick(now) {{
     const dt = (now - last) / 1000;
@@ -807,10 +847,6 @@ def main():
 </body>
 </html>
 """
-
-    out_file = OUT / "view_terrain.html"
-    out_file.write_text(html, encoding="utf-8")
-    print(f"wrote {out_file} ({len(html) / 1024:.1f} KB)")
 
 
 if __name__ == "__main__":
