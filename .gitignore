@@ -65,7 +65,19 @@ deploy_staging/
 # Vendored three.js copies used to build the standalone HTML viewer.
 backend/examples/output/vendor/
 
-# Generated trajectory datasets. Each trajectory is ~244MB (28 layers ×
-# 2048 dim × N tokens of float16 + full logits). The full AIME corpus
-# is ~12GB. Use the collectors to regenerate; keep the dir local-only.
-backend/examples/output/trajectories/
+# Generated trajectory datasets live under ``datasets/`` (one folder per
+# collector run, e.g. ``datasets/aime_qwen3_1p7b_32k_fp32/``). Each
+# trajectory is ~220 MB (28 layers × 2048 dim × N tokens of float32 +
+# full logits) and the full AIME corpus is ~13 GB. Use the collectors
+# under ``backend/examples/`` to regenerate; keep these dirs local-only.
+datasets/
+
+# Convenience cache that mirrors the trajectory datasets in viewer-ready
+# form (one ``__layers.json`` per trajectory). Built by
+# ``examples/build_per_layer.py``. Large enough to ignore per-machine.
+backend/examples/output/viewer_cache/
+
+# Old trajectory folders under examples/output (pre-datasets/ move).
+# These may now be symlinks pointing into datasets/ — git tracks neither.
+backend/examples/output/trajectories_16k_fp16
+backend/examples/output/trajectories_32k_fp32

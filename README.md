@@ -160,31 +160,72 @@ steering3d/
 | 能力 | 说明 |
 |---|---|
 | **多模型多模式** | Qwen3-1.7B 跑 `think` / `no_think` 两种 chat-template 模式 |
-| **多层 hidden state** | 一次性保存全部 28 层的 residual stream（`(T, 28, 2048)` float16）|
+| **多层 hidden state** | 一次性保存全部 28 层的 residual stream（`(T, 28, 2048)` float32）|
 | **完整 logits** | 每个 token 的 full vocab logits，可重算任意 perplexity/entropy |
 | **AIME 数据集** | 24 道 AIME-style 题（覆盖 1983–2025），自带 ground truth |
 | **统一格式** | `Trajectory` / `TrajectoryDataset` / `TrajectoryFilter` 一组 dataclass |
+| **vLLM 加速** | `collect_qwen3_aime_vllm.py`：vLLM 生成 + HF 一次性 forward 拿全层 hidden state，比纯 HF 快 ~10× |
 
-### 输出格式（每个 trajectory = 两个文件）
+### 输出目录布局
+
+数据集放到仓库顶层的独立 `datasets/` 下，每个 collector 一次跑的结果是一个子目录：
 
 ```
-output/trajectories/aime/
+datasets/
+├── aime_qwen3_1p7b_16k_fp16/                ← 早期 16k 上下文、float16 跑出来的轨迹
+│   └── aime/<trajectory_id>.json + .npz
+└── aime_qwen3_1p7b_32k_fp32/                ← vLLM 加速、32k 上下文、float32 跑出来的轨迹
+    ├── aime/<trajectory_id>.json + .npz
+    └── viewer_cache/aime/
+        ├── index.json
+        ├── view.html                        ← view_per_layer.html 的副本
+        └── <trajectory_id>__layers.json     ← PCA + IDW terrain + 投影（28 层 × ~17-23 MB）
+```
+
+每个 trajectory = 两个文件（标准 `core.standard.Trajectory` 格式）：
+
+```
+datasets/aime_qwen3_1p7b_32k_fp32/aime/
 ├── aime__2024__2024_I_1__think.json     ← 元数据 + 每个 token 的指标
 ├── aime__2024__2024_I_1__think.npz      ← hidden_states, logits, token_ids
 ├── aime__2024__2024_I_1__no_think.json
 └── aime__2024__2024_I_1__no_think.npz
 ```
 
-`hidden_states` shape: `(n_generated_tokens, 28, 2048)` — float16，**减半存储**。
+`hidden_states` shape: `(n_generated_tokens, 28, 2048)` — float32 精度。
 `logits` shape: `(n_generated_tokens, 151936)` — 完整词表。
 
-### 收集与检查
+> 数据集本身不进 git（每个 ~13 GB / 一组）。`.gitignore` 排除了 `datasets/`、
+> `backend/examples/output/viewer_cache/` 以及早期路径。
+
+### 收集、检查、构建 viewer
 
 ```bash
 cd backend
-python examples/collect_qwen3_aime.py --max-new-tokens 2048 --max-context 16384
-python examples/inspect_dataset.py --root examples/output/trajectories/aime
-python examples/build_multilayer_viewer.py --root examples/output/trajectories/aime
+# 跑 vLLM 加速的 collector（推荐，需要 vLLM 0.29+）
+python examples/collect_qwen3_aime_vllm.py \
+    --max-new-tokens 8192 --max-context 32768 \
+    --out-dir ../datasets/aime_qwen3_1p7b_32k_fp32
+
+# 或用纯 HF 版本（无需 vLLM，慢但更稳定）
+python examples/collect_qwen3_aime.py \
+    --max-new-tokens 4096 --max-context 16384 \
+    --out-dir ../datasets/aime_qwen3_1p7b_16k_fp16
+
+# 检查 + 构建 per-layer viewer cache
+python examples/inspect_dataset.py \
+    --root ../datasets/aime_qwen3_1p7b_32k_fp32/aime
+python examples/build_per_layer.py \
+    --root ../datasets/aime_qwen3_1p7b_32k_fp32/aime \
+    --cache-dir ../datasets/aime_qwen3_1p7b_32k_fp32/viewer_cache/aime
+```
+
+启动 viewer（HTTP 服务，让 three.js 能 fetch 那些大 JSON）：
+
+```bash
+cd datasets/aime_qwen3_1p7b_32k_fp32/viewer_cache/aime
+python -m http.server 8765
+# 然后浏览器打开 http://localhost:8765/view.html
 ```
 
 ### 标准 API
@@ -192,13 +233,13 @@ python examples/build_multilayer_viewer.py --root examples/output/trajectories/a
 ```python
 from core.standard import TrajectoryDataset, TrajectoryFilter
 
-ds = TrajectoryDataset("examples/output/trajectories/aime")
+ds = TrajectoryDataset("../datasets/aime_qwen3_1p7b_32k_fp32/aime")
 print(ds.summary())  # n_trajectories, by_mode, correctness, tokens range
 
 filt = TrajectoryFilter(mode="think", only_correct=True, min_tokens=200)
 for tid in ds.ids(filter=filt):
     t = ds.get(tid)
-    hs = t.hidden_states          # (T, 28, 2048) float16
+    hs = t.hidden_states          # (T, 28, 2048) float32
     think_hs = t.think_hidden     # 只取 think block 内的 token
     answer_hs = t.answer_hidden   # 只取最终答案部分
 ```

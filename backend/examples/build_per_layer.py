@@ -15,9 +15,9 @@ these lightweight JSONs.
 
 Usage::
 
-    python examples/build_per_layer.py --root examples/output/trajectories_16k_fp16
-    python examples/build_per_layer.py --root examples/output/trajectories_32k_fp32 \
-        --cache-dir examples/output/viewer_cache
+    python examples/build_per_layer.py --root datasets/aime_qwen3_1p7b_16k_fp16
+    python examples/build_per_layer.py --root datasets/aime_qwen3_1p7b_32k_fp32 \
+        --cache-dir datasets/aime_qwen3_1p7b_32k_fp32/viewer_cache
 """
 
 from __future__ import annotations
