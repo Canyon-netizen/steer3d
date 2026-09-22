@@ -49,6 +49,13 @@ logs/
 .env.*.local
 pip-wheel-cache/
 
+# --- Secrets accidentally saved next to code ---
+# Used by ``datasets/upload_to_hf.py``. If a token lands on disk it must not
+# be committed. Rotate the token immediately if this ever fires.
+*.token
+.hf_token
+hf_token.txt
+
 # --- Big transient artifacts (前端 build 输出) ---
 backend/.pytest_cache/
 backend/.coverage
