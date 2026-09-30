@@ -274,36 +274,87 @@ statistic is **sign agreement** — how often the layer's partial model
 already prefers the token that is ultimately chosen, against its top-1
 alternative:
 
-| layer | Qwen3-1.7B (28L) | Qwen3-4B (36L) |
-|---|---|---|
-| 0 | 56% | 42% |
-| 4 | 67% | 48% |
-| 8 | 71% | 57% |
-| 12 | 73% | 64% |
-| 16 | 75% | 63% |
-| 20 | **83%** | 70% |
-| 24 | **91%** | 72% |
-| 28 | **100%** | 79% |
-| 32 | — | 83% |
-| 36 | — | **100%** |
+| layer | Qwen3-1.7B (28L) | Qwen3-4B (36L) | Qwen3-8B (36L) |
+|---|---|---|---|
+| 0 | 56% | 42% | 60% |
+| 4 | 67% | 48% | 46% |
+| 8 | 71% | 57% | 58% |
+| 12 | 73% | 64% | 64% |
+| 16 | 75% | 63% | 68% |
+| 20 | **83%** | 70% | 74% |
+| 24 | **91%** | 72% | 61% |
+| 28 | **100%** | 79% | 78% |
+| 32 | — | 83% | 78% |
+| 36 | — | **100%** | **100%** |
 
 | model | 80% agreement | as % of depth | 90% agreement |
 |---|---|---|---|
 | Qwen3-1.7B | L20 | 71% | L24 (86%) |
 | Qwen3-4B | L30 | 83% | L35 (97%) |
+| Qwen3-8B | L23 | 64% | L35 (97%) |
 
-The early stack is near chance — L0 sits at 56% and 42%, which is a coin
-flip — and agreement climbs late and monotonically. **The token is not
-chosen early and merely read out late; the choice itself is made in the
-last quarter of the stack, and it is made *relatively* late, at 71% and 83%
-of depth.** The absolute layer index does not transfer across model sizes,
-which is the same warning Finding 1's closing note carries.
+The early stack is near chance — L0 sits at 56%, 42% and 60%, which is a
+coin flip — and agreement climbs late. **The token is not chosen early and
+merely read out late; the choice is made in the last third of the stack.**
+The absolute layer index does not transfer across model sizes, which is the
+same warning Finding 1's closing note carries.
 
-This corroborates Finding 1 from an independent direction. That finding
-measured ‖h‖ correlating with next-token entropy and put certainty in
-L17–23; this one puts the *decision* at 71–83% of depth. Two unrelated
-statistics landing in the same third of the stack is stronger than either
-alone.
+**The 8B column is visibly noisier and is reported that way rather than
+smoothed.** With n = 280 the standard error on each point is about 3.0
+points, and 8B's curve falls from 74% at L20 to 61% at L24 before
+recovering — a 13-point move that is four standard errors, so it is a real
+departure from the clean monotonic shape of 1.7B and 4B, not a rendering
+artefact. The other two models rise monotonically. What survives across all
+three is the *late* rise and the 97–100% endpoint; the intermediate
+thresholds do not, and the 64% figure in the table is a first crossing
+through a fluctuating curve rather than a stable plateau.
+
+This corroborates Finding 1 from an independent direction for the two
+cleaner models. That finding measured ‖h‖ correlating with next-token
+entropy and put certainty in L17–23; this one puts the *decision* at 64–83%
+of depth. Two unrelated statistics landing in the same third of the stack
+is stronger than either alone — but see 8a-null below before treating the
+early-layer values as measured chance rather than an assumed one.
+
+### 8a-null: the raw agreement curve has no 50% baseline
+
+The obvious reading of the table above is "the early layers sit near 50%,
+i.e. near chance". That was asserted, not measured, so it was measured: the
+same 288 steps were re-attributed against an alternative token drawn **at
+random from the vocabulary** instead of the model's own top-1
+(`--random-alternatives 1`, seed 0).
+
+The null is **not 50%**. It runs 78.5% at L0 and reaches 100% by L24:
+
+| layer | real (vs top-1 alt) | null (vs random token) | excess |
+|---|---|---|---|
+| 0 | 55.8% | 78.5% | **−22.7** |
+| 4 | 66.5% | 85.4% | −18.9 |
+| 8 | 70.5% | 88.5% | −18.0 |
+| 12 | 73.0% | 90.6% | −17.6 |
+| 16 | 75.2% | 92.0% | −16.8 |
+| 20 | 83.1% | 94.8% | −11.7 |
+| 24 | 91.4% | 100.0% | −8.6 |
+| 28 | 100.0% | 100.0% | 0.0 |
+
+A random token's logit is uniformly low, so *which way round* it loses is
+decided early and confidently — the null picks "the real token wins" ~78%
+of the time from L0. Against that baseline the real comparison is not
+merely uninformative early, it is **below** the null: the early layers are
+if anything mildly *anti*-aligned with the eventual answer, which is what
+an actively-wrong intermediate prediction looks like.
+
+This does not change the conclusion and it sharpens it. The real signal is
+the part of the curve that runs *ahead* of the null, and the excess decays
+monotonically from −22.7 to exactly 0, with the two conditions becoming
+indistinguishable at **L27**. So the decision is not merely "completed" at
+L24 — the late-layer read-out stops being distinguishable from a coin flip
+against a meaningless token only in the last two layers.
+
+The generalisable lesson is the same one as Finding 7, and it is now the
+third time: **a statistic quoted without its baseline is not interpretable,
+and the baseline here was not the one assumed.** 56% "looks like chance" and
+is in fact 23 points worse than chance.
 
 ### 8b: the obvious summary statistic is an artefact
 
@@ -475,10 +526,18 @@ python3 backend/examples/attribute_token_choice.py \
     --out backend/examples/output/attr_qwen3_1p7b.json
 
 # 9b. the decision-depth curve. Do not read the flip_layer field; see 8b.
+#     The raw agreement curve has no 50% baseline, so the --null run is not
+#     optional — see 8a-null.
+python3 backend/examples/attribute_token_choice.py \
+    --model-path /path/to/Qwen3-1.7B \
+    --problem-file backend/examples/output/problem_index.json \
+    --limit 24 --steps 12 --mode layers --random-alternatives 1 \
+    --out backend/examples/output/attr_null_1p7b.json
+
 python3 backend/examples/summarise_attribution.py \
     --json backend/examples/output/attr_qwen3_1p7b.json \
-          backend/examples/output/attr_qwen3_4b.json \
-    --out backend/examples/output/token_attribution_1p7b_4b.json
+    --null backend/examples/output/attr_null_1p7b.json \
+    --out backend/examples/output/token_attribution_1p7b.json
 
 # 9c. what steering does to the reasoning text. Needs no GPU — it reads the
 #     primary/shadow traces run_intervention.py already writes.
@@ -818,12 +877,18 @@ per-layer, are the three changes that would most improve these vectors.
   distribution. The margin distribution is reported beside it (median 12.3
   and 12.7, minimum 0.51 and 0.60) so the hard steps are visible, but the
   curve is not a statement about the whole vocabulary.
-- **Findings 8 and 9 have no null.** The 80%/90% decision depths are
-  computed from real traces with no random-token or shuffled-layer control.
-  A control worth adding: attribute a step against a *random* alternative
-  and confirm the curve is flat, the way Finding 7's floors work. Until
-  that exists, "the early stack is near chance" rests on agreement being at
-  42–56% against a 50% coin, which is suggestive rather than tested.
+- **The null exists only for Qwen3-1.7B.** The random-alternative control
+  (8a-null) was run at one model size. The 4B and 8B excess-over-null
+  curves are not measured, so the claim that the late rise is *relative to
+  a null* is established at 1.7B only. Their raw curves are in the tables
+  above and their baselines are not.
+- **Findings 8 and 9 do not establish causality.** Both are
+  observational: the lens describes where a decision is visible, and the
+  CoT divergence describes that steering changes the trace. Neither shows
+  that intervening at the identified layer would change the decision.
+  Doing that — steering *only* at L20–L24 and measuring whether the token
+  changes — is the experiment that would connect the two, and it has not
+  been run.
 - **The answer-level effect of steering is not measured** (Finding 9a). The
   traces on disk are truncated at 60 steps and contain no completed chain of
   thought. Everything about *how the reasoning changes* is established;

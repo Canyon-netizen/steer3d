@@ -19,21 +19,32 @@ to summarise a logit lens are both misleading:
   * **"Flip layer" per step.** The first layer reaching 50% of the final gap
     is a tempting summary and it is an artefact here. At L0 the lens is
     maximally unfaithful (KL ~145, far above every other layer) and its
-    gap agrees with the final answer only ~56% of the time -- a coin flip.
-    So a large fraction of steps "commit" at L0 for reasons that have
-    nothing to do with the computation. The flip layer is still reported,
-    but it is labelled, and the claim is made from the sign-agreement curve
-    instead.
+    gap agrees with the final answer only ~56% of the time. So a large
+    fraction of steps "commit" at L0 for reasons that have nothing to do
+    with the computation. The flip layer is still reported, but it is
+    labelled, and the claim is made from the sign-agreement curve instead.
+
+  * **Reading the raw agreement curve as a chance baseline.** It is not
+    50%. Measured against a control that swaps the alternative for a
+    *random* token from the vocabulary, the null runs 78% at L0 and 100%
+    by L24 -- a random token's logit is uniformly low, so its sign is
+    settled early and consistently. A raw 56% at L0 is therefore *below*
+    the null, not "about half". Any comparison across conditions has to be
+    made on the excess over the null, which is the quantity reported.
 
 What is reported:
 
   * `sign_agreement_by_layer` -- the fraction of steps where layer L's
     partial model already prefers the token that is ultimately chosen,
-    against the top-1 alternative. This is the decision-depth curve, and it
-    is the honest version of "which layer decided this token".
+    against the top-1 alternative.
+  * `null_agreement_by_layer` and `excess_over_null` -- the same curve for
+    a random-alternative control, and the difference. The excess decays
+    monotonically to zero exactly where the decision completes, which is
+    the shape the real curve is supposed to have and does not have on its
+    own.
   * `decision_layer_80pct` / `decision_layer_90pct` -- the depths at which
-    that agreement crosses 80% and 90%.
-  * `mean_lens_kl_by_layer` beside both, because a depth claim in a
+    raw agreement crosses 80% and 90%.
+  * `mean_lens_kl_by_layer` beside all of it, because a depth claim in a
     high-KL region is a claim about the lens, not the model.
 
 Usage:
@@ -107,11 +118,14 @@ def summarise(path: str) -> dict:
 
     # Only steps where the decision is non-trivial. A step whose top-2 gap
     # is 0.04 is not a decision, and averaging it in dilutes the very
-    # question being asked.
+    # question being asked. The filter is on the *real* top-2 margin in
+    # both modes, so a null run covers the same steps as its real
+    # counterpart and the two curves are comparable step for step.
     informative = [
         s for s in steps
         if len(s.get("top", [])) >= 2 and abs(float(s.get("margin") or 0.0)) > 0.5
     ]
+    is_null = bool(steps and steps[0].get("alternatives_are_random"))
 
     flip: List[int] = []
     margins: List[float] = []
@@ -126,7 +140,19 @@ def summarise(path: str) -> dict:
         layers = s.get("layers", {}).get("layers", [])
         if not layers:
             continue
-        alt = str(s["top"][1]["id"])
+        # The token being attributed against. In a real run that is the
+        # model's own top-1 alternative; in a null run it is a random draw
+        # recorded under `alternatives`. Using `top[1]` in a null run would
+        # silently re-measure the real comparison and report it as a control.
+        if s.get("alternatives_are_random"):
+            alts = s.get("alternatives") or []
+            if not alts:
+                continue
+            alt = str(alts[0]["id"])
+        else:
+            if len(s.get("top", [])) < 2:
+                continue
+            alt = str(s["top"][1]["id"])
         true_rows = [r for r in layers if r.get("is_true_output")]
         if not true_rows or alt not in true_rows[-1]:
             continue
@@ -181,6 +207,7 @@ def summarise(path: str) -> dict:
     return {
         "source": path,
         "model": data.get("model"),
+        "is_null_control": is_null,
         "n_steps": len(steps),
         "n_informative": n_ok,
         "sign_agreement_by_layer": sign_curve,
@@ -206,17 +233,54 @@ def summarise(path: str) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", required=True, nargs="+")
+    ap.add_argument("--null", nargs="*", default=None,
+                    help="null-control run(s) produced with "
+                         "--random-alternatives. Matched to --json by "
+                         "position; the excess over these is the only "
+                         "cross-condition comparison that is valid.")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
     summaries = [summarise(p) for p in args.json]
+    nulls = [summarise(p) for p in (args.null or [])]
+
+    # Pair each real run with its null by position and record the excess.
+    for i, s in enumerate(summaries):
+        if i < len(nulls):
+            nl = nulls[i]
+            s["null_source"] = nl["source"]
+            s["null_agreement_by_layer"] = nl["sign_agreement_by_layer"]
+            excess = {}
+            for L, v in s["sign_agreement_by_layer"].items():
+                if L in nl["sign_agreement_by_layer"]:
+                    excess[L] = v - nl["sign_agreement_by_layer"][L]
+            s["excess_over_null"] = excess
+            # Depth at which the real curve stops differing from the null.
+            # Measured on |excess| because the real curve sits *below* the
+            # null for most of the stack -- the null's sign is settled early
+            # and confidently, so "the excess is negative" is the expected
+            # sign here, and only its magnitude shrinking to zero marks the
+            # layer where the two conditions become indistinguishable.
+            close = next(
+                (int(L) for L in sorted(excess, key=lambda x: int(x))
+                 if abs(excess[L]) <= 0.02), None
+            )
+            s["excess_within_2pct_at"] = close
+        else:
+            s["null_source"] = None
+
     out = {
         "note": (
-            "flip_layer = first layer where |gap| reaches 50% of the final "
-            "true gap. sign_settle_layer = first layer after which the sign "
-            "matches the final sign and never changes again. mean_lens_kl_by_layer "
-            "bounds both: a depth claim in a high-KL region is a claim about "
-            "the lens, not the model."
+            "sign_agreement_by_layer = fraction of steps where layer L's "
+            "partial model already picks the eventual winner over the "
+            "top-1 alternative. The RAW curve is not comparable across "
+            "conditions: the random-alternative null is 78% at L0 and 100% "
+            "by L24, not 50%, because a random token's logit is uniformly "
+            "low and its sign settles early. Use excess_over_null. "
+            "mean_lens_kl_by_layer bounds all of it: a depth claim in a "
+            "high-KL region is a claim about the lens, not the model. "
+            "flip_layer is an artefact (see the module docstring) and is "
+            "reported only so the failure is on the record."
         ),
         "runs": summaries,
     }
@@ -229,6 +293,16 @@ def main() -> None:
         sc = s["sign_agreement_by_layer"]
         print(f"  decision layer        : 80% at L{s['decision_layer_80pct']}, "
               f"90% at L{s['decision_layer_90pct']}")
+        if s.get("excess_over_null"):
+            ex = s["excess_over_null"]
+            print(f"  excess over null      : " +
+                  "  ".join(f"L{k}={ex[k]*100:+.0f}" for k in ex
+                            if int(k) % 4 == 0 or int(k) in ("27", "28")))
+            print(f"  |excess| ≤2% from     : L{s.get('excess_within_2pct_at')}"
+                  f"   (null is 78% at L0, not 50%)")
+        else:
+            print("  excess over null      : (no --null supplied; the raw "
+                  "curve is not comparable across conditions)")
         f = s["flip_layer"]
         print(f"  per-step flip layer   : median {f['median']} "
               f"(IQR {f['p25']}–{f['p75']})  [not a decision-depth measure; "

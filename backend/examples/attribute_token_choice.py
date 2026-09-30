@@ -264,8 +264,16 @@ def _head_outputs(attn, normed_hidden, model):
 
 
 def attribute_step(model, tok, input_ids, alt_k: int = 4,
-                   with_heads: bool = False) -> dict:
-    """Attribute one decoding step: chosen token vs its top alternatives."""
+                   with_heads: bool = False, rng=None) -> dict:
+    """Attribute one decoding step: chosen token vs its top alternatives.
+
+    With `rng` supplied, the alternatives are drawn at random from the
+    vocabulary instead of taken as the model's own top-k. That produces the
+    null control for the whole method: a random token carries no decision,
+    so its sign-agreement curve should be flat and near 50%. Without that
+    curve measured, "the early layers are near chance" is an assumption
+    about what chance looks like rather than a control for it.
+    """
     import torch
 
     with torch.inference_mode():
@@ -273,11 +281,19 @@ def attribute_step(model, tok, input_ids, alt_k: int = 4,
                     use_cache=False, return_dict=True)
     logits = out.logits[0, -1, :].float()
     hs = out.hidden_states
-    true_logits = model.lm_head(model.model.norm(hs[-1]))[0].float()
 
     top = torch.topk(logits, alt_k + 1)
     chosen = int(top.indices[0])
-    alts = [int(i) for i in top.indices[1:]]
+    if rng is None:
+        alts = [int(i) for i in top.indices[1:]]
+    else:
+        vocab = int(logits.shape[0])
+        pool = [t for t in top.indices.tolist() if int(t) != chosen]
+        alts = []
+        while len(alts) < alt_k:
+            c = int(rng.integers(0, vocab))
+            if c != chosen and c not in alts:
+                alts.append(c)
 
     rec = {
         "chosen": chosen,
@@ -285,6 +301,9 @@ def attribute_step(model, tok, input_ids, alt_k: int = 4,
         "chosen_logit": float(logits[chosen]),
         "top": [{"id": int(i), "text": tok.decode([int(i)]),
                  "logit": float(logits[int(i)])} for i in top.indices],
+        "alternatives_are_random": rng is not None,
+        "alternatives": [{"id": a, "text": tok.decode([a]),
+                          "logit": float(logits[a])} for a in alts],
         "margin": float(logits[chosen] - logits[alts[0]]) if alts else None,
         "entropy": float(-torch.sum(torch.softmax(logits, -1)
                                     * torch.log_softmax(logits, -1))),
@@ -312,6 +331,11 @@ def main() -> int:
                     default="layers")
     ap.add_argument("--chat-template", type=int, default=1,
                     help="wrap the problem in Qwen3's chat template (default on)")
+    ap.add_argument("--random-alternatives", type=int, default=0,
+                    help="draw the alternatives at random from the "
+                         "vocabulary instead of the model's top-k. This is "
+                         "the null control for the attribution: its "
+                         "sign-agreement curve should stay near 50%.")
     ap.add_argument("--device", default="cuda" if __import__("torch").cuda.is_available() else "cpu")
     ap.add_argument("--dtype", default="float32",
                     help="float32 is REQUIRED for a logit lens. In bfloat16 "
@@ -323,6 +347,10 @@ def main() -> int:
     args = ap.parse_args()
 
     import torch
+
+    rng = None
+    if args.random_alternatives:
+        rng = np.random.default_rng(0)
 
     model, tok = load_model(args.model_path, args.device, args.dtype)
 
@@ -378,7 +406,8 @@ def main() -> int:
         for step in range(args.steps):
             # Teacher-forced prefill, then attribute the next-token choice.
             rec = attribute_step(model, tok, ids,
-                                 with_heads=(args.mode in ("heads", "both")))
+                                 with_heads=(args.mode in ("heads", "both")),
+                                 rng=rng)
             rec["problem"] = prob.get("label")
             rec["step"] = step
             rec["context_len"] = int(ids.shape[1])
