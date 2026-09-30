@@ -224,13 +224,209 @@ python3 backend/examples/layer_scan.py \
     --model-path /path/to/Qwen3-1.7B \
     --direction confidence_up --norm 130 --layers 4 8 12 14 16 18 20 22 24 26
 
-# 5. publish to the UI
+# 5. does the extraction layer matter behaviourally? Extract the same
+#    contrast at four layers, inject at one.
+./scripts/run_extraction_layer_experiment.sh
+python3 backend/examples/analyse_extraction_layer_effect.py --dir /tmp/iv_ext
+
+# 6. every cross-layer cosine needs its null floor
+python3 backend/examples/compare_extraction_layers.py --layers 8 14 20 24
+
+# 7. what is inside a llama.cpp control-vector GGUF
+python3 backend/examples/inspect_control_vectors.py --dir ~/test/vectors/Qwen3-1.7B
+python3 backend/examples/diagnose_vector_signs.py --dir ~/test/vectors/Qwen3-1.7B
+
+# 8. publish to the UI
 ./scripts/publish_artifacts.sh
 ```
 
 On a network filesystem, copy the model to local disk first and set
 `HF_HUB_OFFLINE=1`; the import alone can cost minutes and a blocking network
 call looks exactly like a hang.
+
+## Finding 5: "the confidence direction" is not one direction
+
+Every result above extracts a vector at L14 and injects it at L20. That
+mixes two things — the direction is *about* confidence, and it was *read out*
+somewhere specific. Extracting the same semantic contrast at four different
+layers and comparing the resulting vectors (`compare_extraction_layers.py`,
+same 48 trajectories) separates them:
+
+| cosine between extractions | L8↔L14 | L14↔L20 | L20↔L24 | L8↔L24 |
+|---|---|---|---|---|
+| confidence_up | 0.825 | 0.623 | 0.830 | **0.395** |
+| caution | 0.756 | 0.554 | 0.796 | **0.319** |
+| creativity | 0.675 | 0.510 | 0.776 | **0.243** |
+| reasoning_deep | 0.737 | 0.629 | 0.813 | **0.344** |
+
+**Every one of those numbers needs the null floor beside it.** Two vectors
+extracted from the same model share most of their direction through the
+residual stream's own geometry, so a high cosine is the expected result
+rather than evidence of a shared concept. `compute_steering_vectors.py
+--with-null` therefore also extracts a matched random control per direction —
+the same two sample sizes, assigned at random from the same pool, so it
+differs from the real contrast only in that the grouping carries no
+information. Mean off-diagonal cosine, real vs null:
+
+| direction | real | null floor | excess |
+|---|---|---|---|
+| confidence_up | +0.613 | +0.039 | **+0.574** |
+| reasoning_deep | +0.576 | −0.006 | +0.582 |
+| caution | +0.547 | −0.020 | +0.567 |
+| creativity | +0.486 | +0.011 | +0.474 |
+
+The floor is near zero for this construction and the real directions clear it
+by a wide margin, so the differences above are real. The L8 and L24 versions
+of "the confidence direction" have a cosine of 0.395 against a floor of ~0.03:
+they share almost nothing. There is a shared component — adjacent layers stay
+well correlated — but the direction is substantially rebuilt through the
+stack rather than merely rotated.
+
+Separately, the confidence contrast is *cleaner* deeper in: Cohen's d rises
+from 1.70 at L8 to 2.26 at L20 before easing to 2.11 at L24. So a vector can
+be better separated at depth and still point somewhere else — those are two
+different properties, and the d column alone would mislead.
+
+## Finding 6: the extraction layer changes the effect, 2.15×
+
+Finding 5 is representational. This is the behavioural consequence, and it
+is the confound named at the end of Finding 5 actually mattering.
+
+Same 24 problems, injection held fixed at L20, strength 0.20, paired. Only
+the layer the vector was **read out at** varies:
+
+| extracted at | control | Δ logit KL | sd | t(23) | p | token agree |
+|---|---|---|---|---|---|---|
+| L8 | 0.0000 | +0.0953 | 0.069 | 6.74 | 7.1e−07 | 0.9460 |
+| L14 | 0.0000 | +0.1358 | 0.088 | 7.55 | 1.1e−07 | 0.9399 |
+| L20 | 0.0000 | +0.1965 | 0.084 | 11.45 | 5.6e−11 | 0.9440 |
+| L24 | 0.0000 | +0.2048 | 0.085 | 11.74 | 3.4e−11 | 0.9447 |
+
+Friedman across the four layers: χ² = 32.95, p = 3.3e−07. The effect rises
+monotonically with extraction depth — **2.15× from L8 to L24** — and every
+pairwise difference is significant except L24 vs L20 (t = 0.39, p = 0.70).
+
+That last row is the informative one. The gain stops exactly at the injection
+layer: reading the direction out *at or past* where it is applied buys
+nothing further, while reading it out well below costs about half the effect.
+The confound is not a footnote after all, and the right default is to extract
+at the layer you inject at.
+
+Token agreement barely moves (0.940–0.946) while logit KL doubles. The extra
+divergence is therefore distributional — the shadow stream moves further into
+the tail of the distribution without changing which token is usually picked.
+That is a meaningfully different thing from "the model behaves differently",
+and the two should not be conflated.
+
+## Finding 7: a cross-layer cosine has no meaning without its control
+
+While checking the user's GGUF control vectors (below) it became clear that
+the null floor for this family of statistics is not a constant, and quoting a
+cosine without saying which control produced it is meaningless. Two
+constructions, both legitimate, both measured on this corpus:
+
+| null construction | adjacent-layer floor | ≥4 layers apart | L0↔L27 |
+|---|---|---|---|
+| balanced random split of one pool | ~0.00 | −0.01 | +0.10 |
+| two small random subsets of all positions | **+0.87** | +0.38 | +0.10 |
+
+The second has a floor of 0.87 because the positive group is a small,
+selected subset: its mean is a biased estimate of something, and that bias
+persists across layers, so a difference of means built from it inherits a
+shared component whether or not the grouping means anything. `null` mode in
+`position_pooling_test.py` measures it; the floor is what any cross-layer
+cosine from that construction has to be read against.
+
+The practical consequence: **the same number, 0.4, is either strong evidence
+or pure noise depending on the control.** Finding 5's 0.395 is real because
+it is measured against the first construction. Any cross-layer cosine
+reported anywhere in this project now ships with its floor.
+
+The same file also showed that **separation**, not cosine, is what actually
+discriminates a real contrast. Extracting the self-check contrast four ways
+on 27 trajectories, with a random-split null:
+
+| mode | separation (L0 → L27) | adjacent cosine |
+|---|---|---|
+| last position only | 30.1 → 43.8 | +0.899 |
+| final fifth of each trajectory | 25.9 → 39.3 | +0.903 |
+| every position | 24.9 → 38.3 | +0.906 |
+| **random split (null)** | **3.3 → 3.8** | +0.873 |
+
+A real contrast separates by 25–44 where a null separates by ~3.4 — a factor
+of ten — while the adjacent cosine barely moves (0.906 vs 0.873). Cohen's d
+and effect-size proxies are the statistics that carry information here; the
+cosine is mostly measuring the residual stream's own geometry.
+
+This also **overturns an earlier hypothesis in this project.** The
+`token_pos` flip in the user's files looked like a position-pooling failure,
+and the natural experiment on our own data found no such effect: all three
+pooling modes were equally stable (0 sign changes, adjacent cosine 0.90). The
+failure is in the null control, not in the position handling.
+
+## The user's GGUF control vectors
+
+`~/test/vectors` holds llama.cpp `controlvector` files (method
+`pca_cv:center`), six model directories, `entry_01`–`entry_08` each. They are
+read by `examples/gguf_cv.py`, a dependency-free parser — the `gguf` package
+in the conda env predates numpy 2.0 and dies on `ndarray.newbyteorder`.
+
+Their structure is easy to misread, and this project misread it once. The
+files store **one direction per layer** — a Qwen3-1.7B file has 28 tensors
+named `direction.0`…`direction.27`, matching its `layer_count` of 28 — and
+the 28 `explained_variance.N` values are per layer, not per component.
+Treating them as components of one vector produced a "flat, no dominant
+direction" verdict that was an artefact. `test_rows_are_layers_not_components`
+pins the real layout.
+
+What the files actually contain, and what bears on the reported low
+interpretability:
+
+1. **The sample is 4–30 pairs.** `n_pairs` is 30 for the reasoning and safety
+   vectors, 10 for the style and creative ones, and **4** for
+   `Qwen2.5-7B-Instruct`, whose files carry no `dataset` or contrast fields at
+   all. Vectors in this repo are built from 15,679–20,930 tokens. A
+   difference of means over 4 pairs in 3584 dimensions is close to a random
+   draw with a label attached.
+2. **The `token_pos=all` files have inconsistent per-layer signs.**
+   Adjacent-layer cosines, which should be strongly positive for one
+   semantic contrast:
+
+   | entry | contrast | pairs | token_pos | negative adjacent pairs | sign changes |
+   |---|---|---|---|---|---|
+   | entry_01 | sound/flawed | 30 | −1 | 0/27 | 0 |
+   | entry_02 | harmful/benign | 30 | −1 | 0/27 | 0 |
+   | entry_03 | adult/child | 10 | −1 | 0/27 | 0 |
+   | entry_04 | creative/mundane | 10 | −1 | 0/27 | 0 |
+   | entry_05 | sound/flawed | 29 | all | 7/27 | 9 |
+   | entry_06 | planned/impulsive | 29 | all | 6/27 | 8 |
+   | entry_07 | sound/flawed | 10 | all | 8/27 | 10 |
+   | entry_08 | adult/child | 10 | all | 13/27 | 16 |
+
+   entries 1 and 5 are the *same contrast* at the *same sample size*
+   (30 vs 29 pairs) and differ only in `token_pos`; entries 1–4 all use
+   `token_pos=-1` and none of them flip, while every `token_pos=all` file
+   does. Magnitudes reach −0.89, and the sign alternates rather than
+   inverting a contiguous run. That is the signature of a sign taken
+   per-layer from something that varies per-layer, not of a semantic
+   difference — a difference of means for one contrast does not reverse
+   180° between adjacent blocks. **This is a bug in the extraction, and it
+   is the most likely single cause of the vectors reading as uninterpretable
+   in use.** `diagnose_vector_signs.py` reproduces the table.
+3. **The vectors are unit-norm** (‖v‖ = 1.00 at every layer, ratio 1.000).
+   That is fine as a format, but it means the file cannot express *how much*
+   to add. The same nominal strength is 343% of the state norm at L4 and 4% at
+   L26 (Finding 4), so a per-layer scale has to come from outside the format.
+   This is exactly what `SteeringRegistry.load_layer_scales()` does, sourced
+   from the measured `layer_profiles.json`, and what the UI reports as
+   "scale not measured" when it has no profile for a layer.
+4. **`correct_direction` is set**, so "up" is a stored convention rather than
+   a fact, and the sign question above cannot be settled from the file.
+
+The format itself is fine; the extraction behind it is where the work is.
+Extracting at the injection layer (Finding 6), from hundreds of pairs rather
+than tens, with the per-layer sign taken from a fixed convention rather than
+per-layer, are the three changes that would most improve these vectors.
 
 ## What is not established
 
@@ -242,14 +438,27 @@ call looks exactly like a hang.
 - **Why `caution` and `creativity` degrade is unexplained.** The
   categorical-vs-continuous contrast offered above is a hypothesis this
   data does not test.
-- Vectors are extracted at L14 and tested at L20. The extraction layer was
-  not swept — that confound is not yet separated.
+- Vectors are extracted at L14 and tested at L20. Finding 6 quantifies
+  what that costs: **2.15× in logit KL** between the L8 and L24
+  extractions, with injection held fixed. Every effect size in the
+  earlier sections is specific to that pairing, and the gap is large
+  enough that quoting a number without naming both layers is misleading.
+- **Why the user's `token_pos=all` vectors flip sign is not established.**
+  The pattern is clear and consistent across four files and three
+  contrasts, and it is not explained by position handling (correction 3
+  above). The likely cause is a per-layer sign convention, but that is
+  inference from the pattern, not a measurement — confirming it needs
+  the extraction code that produced them.
 - Everything is Qwen3-1.7B. The layer conclusions are model-specific and
   should not be assumed to transfer.
 - The strength-0.0 control proves the *hook* is inert when it should be. It
   does not rule out a systematic bias present at every non-zero strength,
   such as the perturbation itself changing the layer statistics the
   divergence is measured against.
+- **Logit KL and behaviour are not the same quantity.** Finding 6's 2.15×
+  is a distributional divergence that leaves token agreement flat at
+  ~0.94. No claim here establishes that the model's *answers* get better
+  or worse — only that its output distribution moves.
 
 ## Reporting standard used here
 
@@ -259,8 +468,13 @@ such, and a paired contrast is distinguished from a one-sample test — the
 two differ enough at small n to change the p-value, and conflating them is
 easy to do by accident.
 
-Two claims in earlier drafts of this file did not survive checking and have
-been corrected above:
+Any statistic comparing two vectors extracted from the same model is
+reported with the null floor it was measured against, for the reason in
+Finding 7: the floor ranges from ~0 to ~0.87 depending on how the control
+is built, so the bare number is not interpretable on its own.
+
+Three claims in earlier drafts of this file did not survive checking and
+have been corrected above:
 
 1. That the `confidence_up`/`confidence_down` antisymmetry was "the single
    strongest piece of evidence" for the pipeline measuring causal effect.
@@ -271,3 +485,13 @@ been corrected above:
    imbalance. It is not — `creativity` is near-balanced and degrades just
    as much, so the imbalance story does not survive contact with the other
    four directions.
+3. That pooling the contrast over token positions destabilises the
+   extracted direction, offered as the explanation for the sign flips in
+   the user's GGUF vectors. It does not: all three pooling modes were
+   equally stable on this corpus, with zero sign changes and adjacent
+   cosine ~0.90 against a null floor of 0.87. The null floor is high
+   enough that this test could not have detected the effect even if it
+   were present, which is itself the lesson of Finding 7 — and the
+   per-layer sign inconsistency in those files remains unexplained by
+   position handling.
+

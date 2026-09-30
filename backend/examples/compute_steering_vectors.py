@@ -237,6 +237,30 @@ def pool_think_block(trajs: List[dict]) -> Tuple[np.ndarray, np.ndarray]:
     return np.stack(inside), np.stack(outside)
 
 
+def matched_null(pos: np.ndarray, neg: np.ndarray, trajs: List[dict],
+                 seed: int = 0) -> np.ndarray:
+    """A difference of means over the same sample sizes, assigned at random.
+
+    Every layer's activations share a large common direction, so two
+    vectors extracted from the same model are correlated whether or not
+    either of them means anything. Without a control of the same shape
+    there is no way to tell a real cross-layer agreement from the floor.
+
+    The null draws from the same pool of generated-token activations the
+    real contrast used, with the same two sample sizes, so it differs
+    only in that the grouping carries no information.
+    """
+    rng = np.random.default_rng(seed)
+    n_p, n_n = len(pos), len(neg)
+    pool = np.concatenate([pos, neg]) if len(neg) else pos
+    idx = rng.permutation(len(pool))
+    if len(pool) < n_p + n_n:
+        return np.zeros(pos.shape[1], np.float32)
+    a = pool[idx[:n_p]]
+    b = pool[idx[n_p:n_p + n_n]]
+    return l2(a.mean(axis=0) - b.mean(axis=0))
+
+
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
@@ -335,6 +359,23 @@ def main(args):
             print(f"  {name:18s} n=({len(pos)},{len(neg)}) "
                   f"norm={np.linalg.norm(v):.3f} "
                   f"d={metadata[name]['validation'].get('confidence_cohens_d', float('nan')):+.2f}")
+            if args.with_null:
+                nv = matched_null(pos, neg, trajs, seed=hash(name) % (2 ** 31))
+                vectors[f"{name}_NULL"] = nv
+                metadata[f"{name}_NULL"] = {
+                    "description": "matched random control — carries no "
+                                   "information, exists to establish the "
+                                   "cross-layer cosine floor",
+                    "layer": args.layer,
+                    "d_model": int(d_model),
+                    "method": "diff_of_means on randomly assigned groups",
+                    "n_positive": int(len(pos)),
+                    "n_negative": int(len(neg)),
+                    "norm": float(np.linalg.norm(nv)),
+                    "validation": {"confidence_cohens_d": float(
+                        validate(nv, trajs, args.layer)
+                        .get("confidence_cohens_d", float("nan")))},
+                }
         except Exception as e:
             print(f"  {name:18s} ERROR — {e}")
 
@@ -389,6 +430,9 @@ def cli():
                     default="backend/examples/output/steering_vectors")
     ap.add_argument("--layer", type=int, default=14)
     ap.add_argument("--method", choices=["diff_of_means", "pca"], default="diff_of_means")
+    ap.add_argument("--with-null", action="store_true",
+                    help="also extract a matched random control per direction, "
+                         "to establish the cross-layer cosine floor")
     ap.add_argument("--limit", type=int, default=None,
                     help="Cap the number of .npz files (debugging)")
     ap.add_argument("--min-tokens", type=int, default=40)
