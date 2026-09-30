@@ -434,6 +434,43 @@ traces are too short to contain an answer. Re-running with
 
 ## Reproducing
 
+### Two traps that silently invalidate any new run
+
+Both were hit while building the section above, and both produce output that
+looks entirely reasonable.
+
+**1. `SteeringRegistry` is uncalibrated until you ask.** `scaled()` calls
+`layer_rms(layer)`, which returns a default of **1.0** for every layer
+unless `load_layer_scales()` has been called. A strength of 0.2 then means
+"a vector of length 0.2" rather than "20% of this layer's state" — on
+Qwen3-1.7B at L20 that is 0.2 against a real ‖h‖ of 865.8, i.e. about
+4000× too small, with no error and no warning. A fresh registry reports
+`calibrated_layers() == []`.
+
+`run_intervention.py` handles this (line ~364). Any new script must call it
+too, and should assert it:
+
+```python
+n_cal = registry.load_layer_scales(Path("output/layer_profiles.json"))
+assert n_cal, "uncalibrated: strength is not a fraction of the state norm"
+```
+
+The check that caught it: a run at L20 that printed `‖v‖ = 0.2` when every
+earlier run at L20 printed `173.15`.
+
+**2. A zero vector is the correct control, `None` removes it.** In
+`run_dual_stream`, `shadow_ok = track_shadow and steer_vec is not None`.
+Passing `None` therefore disables the shadow stream entirely — the control
+is not measured, it is *absent*, and `summary()` comes back nearly empty
+rather than reporting an error. The inert control is a real zero array,
+which keeps the dual-stream path alive and returns KL exactly 0.000
+(verified: 3 trials × 2 layers, token agreement 1.0, max divergence 1.8e-07).
+
+Also relevant: `set_vector` does `.view(1, 1, -1)` on the array it is
+given, so any later in-place scaling of that same buffer mutates a tensor
+the steerer still holds. Build a fresh array per call.
+
+
 ```bash
 # 1. steering vectors from the collected .npz trajectories
 python3 backend/examples/compute_steering_vectors.py --layer 14

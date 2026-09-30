@@ -81,7 +81,21 @@ def main() -> int:
     if not registry.load():
         raise SystemExit(f"could not load vectors: {registry.load_error}")
 
-    profiles_path = here / "output" / "layer_profiles.json"
+    # Calibration is NOT automatic. `SteeringRegistry.scaled()` falls back to
+    # layer_rms = 1.0 for every layer until `load_layer_scales()` is called,
+    # which silently turns "20% of the state" into "0.2 in absolute units" —
+    # a difference of two to three orders of magnitude on this model. The
+    # profile is loaded here for the same reason `run_intervention.py` does it.
+    here_profiles = here / "output" / "layer_profiles.json"
+    n_cal = registry.load_layer_scales(
+        here_profiles if here_profiles.exists() else None
+    )
+    if not n_cal:
+        print("WARNING: no layer profiles loaded; strength is uncalibrated "
+              "and NOT a fraction of the state norm. Results will not be "
+              "comparable with any other run in this project.")
+
+    profiles_path = here_profiles
     norms: Dict[int, float] = {}
     if profiles_path.exists():
         prof = json.loads(profiles_path.read_text())
@@ -96,6 +110,11 @@ def main() -> int:
                     norms[int(k)] = float(rec["mean_norm"])
 
     def layer_norm(L: int) -> Optional[float]:
+        # Prefer the registry's calibrated per-layer RMS, which is the same
+        # number every other run in this project scales against. Fall back
+        # to the profile file's `mean_norm` only if calibration failed.
+        if registry.has_rms(L):
+            return registry.layer_rms(L)
         return norms.get(int(L))
 
     problems = json.loads(Path(args.problems_file).read_text())
@@ -134,9 +153,22 @@ def main() -> int:
             scale = args.frac_of_state_norm * ln
             injected = vec * scale
             for strength in (0.0, args.strength):
+                # A zero vector is the correct control here, and the shadow
+                # stream must still run so there is something to compare
+                # against. Passing None would set `shadow_ok = False` and
+                # disable the shadow entirely, which silently removes the
+                # control rather than measuring it. Verified in isolation:
+                # a zero vector gives token agreement 1.0 and KL exactly 0
+                # on 3 trials x 2 layers.
+                #
+                # `injected * strength` must build a NEW array. `set_vector`
+                # does `.view(1, 1, -1)` on its argument, so any later
+                # in-place scaling of the same buffer would mutate a tensor
+                # the steerer still holds.
                 res = run_dual_stream(
                     model, tok, templ,
-                    steer_vec=(injected * strength) if strength else injected,
+                    steer_vec=np.ascontiguousarray(injected * strength,
+                                                   dtype=np.float32),
                     layer=L,
                     max_new_tokens=args.max_new_tokens,
                     track_shadow=True,
