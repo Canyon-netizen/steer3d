@@ -133,10 +133,38 @@ built from *categorical* token sets (self-check / in-think-block) rather
 than from a continuous score (entropy quantile, sequence position). A
 difference-of-means over a bimodal set of token types may be pointing at a
 state the network uses for a categorical decision, which is why over-driving
-it degrades fluency instead of shifting a tunable scalar. That is a
-hypothesis, and this data does not test it — it would need directions built
-from matched categorical and continuous contrasts, varying only in that
-respect.
+it degrades fluency instead of shifting a tunable scalar.
+
+**That hypothesis was tested, and it does not survive.** `cat_matched` and
+`cont_matched` hold everything fixed except the kind of split: both take
+379 samples per side, one grouping self-check tokens against other tokens
+(categorical) and the other the top 379 entropy tokens against the bottom
+379 (a continuous score), both injected at L20 at strength 0.20 over the
+same 24 problems:
+
+| direction | kind of split | n per side | Cohen's d | Δ logit KL |
+|---|---|---|---|---|
+| cat_matched | categorical | 379 / 379 | −1.15 | 0.1114 |
+| cont_matched | continuous score | 379 / 379 | −1.63 | 0.0879 |
+
+The categorical direction is 26.7% more damaging, in the predicted
+direction, and higher on 18 of 24 problems — but **t = 1.50, p = 0.15, not
+significant.** And the grouping does not survive contact with the other four
+directions:
+
+| | directions | mean Δ logit KL |
+|---|---|---|
+| categorical | cat_matched, caution, creativity | 0.1158 |
+| continuous | cont_matched, reasoning_deep, confidence_up | 0.1252 |
+
+The continuous set is *higher* on average, because `confidence_up` — a
+continuous contrast, and the most damaging of all six — sits at 0.1965. So
+the original pattern was an artefact of which concepts happened to land in
+each group, not a property of categoricity. The two groups are not matched
+on effect size either (`confidence_up` has d = +1.83 against cat_matched's
+−1.15), so the only like-for-like evidence is the matched pair above, and it
+is not significant. **Stop attributing the fragility of `caution` and
+`creativity` to categoricity; the data does not support it.**
 
 ## Finding 3b: does it hold up across problems?
 
@@ -248,6 +276,17 @@ python3 backend/examples/analyse_extraction_layer_effect.py --dir /tmp/iv_ext
 
 # 6. every cross-layer cosine needs its null floor
 python3 backend/examples/compare_extraction_layers.py --layers 8 14 20 24
+
+# 6b. categorical vs continuous contrast, matched on sample size
+python3 backend/examples/compute_steering_vectors.py \
+    --layer 20 --matched-set --out-dir /tmp/steer3d_matched
+python3 backend/examples/run_intervention.py \
+    --model-path /path/to/Qwen3-1.7B \
+    --vector-dir /tmp/steer3d_matched \
+    --problems-file /tmp/problem_index.json \
+    --directions cat_matched cont_matched caution creativity confidence_up reasoning_deep \
+    --sweep 0.0 0.2 --layer 20 \
+    --out backend/examples/output/intervention/matched_cat_vs_cont.json
 
 # 7. what is inside a llama.cpp control-vector GGUF
 python3 backend/examples/inspect_control_vectors.py --dir ~/test/vectors/Qwen3-1.7B
@@ -551,9 +590,13 @@ per-layer, are the three changes that would most improve these vectors.
   ~6% token agreement. Individual problems range from −0.072 to +0.040, so
   a single run predicts almost nothing. The n = 24 result establishes that
   the *mean* effect is real, not that any individual run is predictable.
-- **Why `caution` and `creativity` degrade is unexplained.** The
-  categorical-vs-continuous contrast offered above is a hypothesis this
-  data does not test.
+- **Why `caution` and `creativity` degrade is still unexplained.** The
+  categorical-vs-continuous explanation has been tested and refuted above.
+  What is left is the open question: both point away from the confidence
+  axis (cos −0.54 and −0.84 against +1.83 for `confidence_up`), so part of
+  what looks like "damage" may simply be a direction that is further from
+  wherever the model's distribution is heading, rather than a harmful
+  state. Nothing here separates those.
 - Vectors are extracted at L14 and tested at L20. Finding 6 quantifies
   what that costs: **2.15× in logit KL** between the L8 and L24
   extractions, with injection held fixed. Every effect size in the
@@ -588,7 +631,7 @@ reported with the null floor it was measured against, for the reason in
 Finding 7: the floor ranges from ~0 to ~0.87 depending on how the control
 is built, so the bare number is not interpretable on its own.
 
-Three claims in earlier drafts of this file did not survive checking and
+Four claims in earlier drafts of this file did not survive checking and
 have been corrected above:
 
 1. That the `confidence_up`/`confidence_down` antisymmetry was "the single
@@ -600,6 +643,12 @@ have been corrected above:
    imbalance. It is not — `creativity` is near-balanced and degrades just
    as much, so the imbalance story does not survive contact with the other
    four directions.
+4. That the fragility of `caution` and `creativity` is explained by their
+   being built from categorical token sets. Tested with a matched pair
+   differing only in the kind of split: the predicted direction appears
+   (+26.7%, 18/24 problems) but is not significant (p = 0.15), and the
+   group means run the wrong way because `confidence_up` is continuous and
+   the most damaging direction of the six. Refuted.
 3. That pooling the contrast over token positions destabilises the
    extracted direction, offered as the explanation for the sign flips in
    the user's GGUF vectors. The test meant to check it **could not have
