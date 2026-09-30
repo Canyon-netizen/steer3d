@@ -440,20 +440,135 @@ def _gather_prompts(args) -> List[Tuple[str, str]]:
         msgs = [{"role": "system", "content": AIME_SYSTEM},
                 {"role": "user", "content": args.prompt}]
         return [("prompt", _apply_template(args, msgs))]
+
+    if args.problems_file:
+        return _prompts_from_index(args)
+
+    if args.from_dataset:
+        return _prompts_from_dataset(args)
+
     if args.aime_split:
         from core.aime_loader import load_aime
         problems = load_aime(args.aime_split)
         if args.limit:
             problems = problems[: args.limit]
+        print(f"  (note: the builtin loader ships {len(problems)} problem(s) "
+              f"per split — use --from-dataset for a real multi-prompt run)")
         out = []
         for p in problems:
             msgs = [{"role": "system", "content": AIME_SYSTEM},
                     {"role": "user", "content": p["problem"]}]
             out.append((p["id"], _apply_template(args, msgs)))
         return out
+
     msgs = [{"role": "system", "content": AIME_SYSTEM},
             {"role": "user", "content": "What is 17 * 23?"}]
     return [("demo", _apply_template(args, msgs))]
+
+
+def _prompts_from_index(args) -> List[Tuple[str, str]]:
+    """Load problems from a small JSON index of ``{id, prompt, correct}``.
+
+    The collected sidecars carry a full per-token record list and run to
+    tens of megabytes each, so reading them off a network filesystem to
+    get the problem text is needlessly slow. `make_problem_index.py`
+    distils them into a few kilobytes; this is the fast path for
+    multi-prompt runs.
+    """
+    import json as _json
+
+    path = Path(args.problems_file)
+    if not path.exists():
+        print(f"ERROR: {path} does not exist")
+        return []
+    data = _json.loads(path.read_text())
+    problems = list(data.values()) if isinstance(data, dict) else list(data)
+
+    if args.only_correct:
+        kept = [p for p in problems if p.get("correct")]
+        if kept:
+            print(f"  {len(kept)}/{len(problems)} kept (model solved them)")
+            problems = kept
+    if args.limit and len(problems) > args.limit:
+        print(f"  NOTE: --limit {args.limit} is capping "
+              f"{len(problems)} available problem(s); this run has n="
+              f"{args.limit}, not {len(problems)}")
+        problems = problems[: args.limit]
+    if not problems:
+        print("ERROR: no problems selected")
+        return []
+
+    n_solved = sum(1 for p in problems if p.get("correct"))
+    print(f"  {len(problems)} problem(s) from {path} "
+          f"({n_solved} originally solved)")
+
+    out = []
+    for p in problems:
+        msgs = [{"role": "system", "content": AIME_SYSTEM},
+                {"role": "user", "content": p["prompt"]}]
+        out.append((p.get("id", f"p{len(out)}"), _apply_template(args, msgs)))
+    return out
+
+
+def _prompts_from_dataset(args) -> List[Tuple[str, str]]:
+    """Pull real AIME problems out of the collected trajectory dataset.
+
+    The builtin `load_aime` is a stub with a single problem per split,
+    which is not enough to say anything about variance across prompts.
+    The collected dataset carries the actual problem text in each
+    sidecar, so a genuine multi-prompt replication reads it from there.
+
+    Both `think` and `no_think` variants of a problem carry the same
+    text, so we de-duplicate on problem id to keep the sample
+    independent rather than doubled up.
+    """
+    import json as _json
+
+    root = Path(args.data_root)
+    if not root.is_dir():
+        print(f"ERROR: --from_dataset given but {root} does not exist")
+        return []
+
+    seen: Dict[str, dict] = {}
+    for j in sorted(root.glob("*.json")):
+        try:
+            meta = _json.loads(j.read_text())
+        except Exception:
+            continue
+        pid = meta.get("problem_id") or j.stem
+        if pid in seen:
+            continue
+        text = meta.get("prompt")
+        if not text:
+            continue
+        seen[pid] = {"id": pid, "problem": text,
+                     "answer": meta.get("ground_truth", ""),
+                     "was_correct": meta.get("is_correct")}
+
+    problems = list(seen.values())
+    # Prefer problems the model actually solved: an intervention on a
+    # prompt the model was already failing gives a muddier read than
+    # one where the baseline behaviour is sensible.
+    if args.only_correct and any(p["was_correct"] for p in problems):
+        before = len(problems)
+        problems = [p for p in problems if p["was_correct"]]
+        print(f"  {len(problems)}/{before} problems kept (model solved them)")
+    if args.limit and len(problems) > args.limit:
+        print(f"  NOTE: --limit {args.limit} is capping "
+              f"{len(problems)} available problem(s); this run has n="
+              f"{args.limit}, not {len(problems)}")
+        problems = problems[: args.limit]
+    if not problems:
+        print(f"ERROR: no problems with prompt text under {root}")
+        return []
+
+    print(f"  {len(problems)} problem(s) from {root}")
+    out = []
+    for p in problems:
+        msgs = [{"role": "system", "content": AIME_SYSTEM},
+                {"role": "user", "content": p["problem"]}]
+        out.append((p["id"], _apply_template(args, msgs)))
+    return out
 
 
 def _apply_template(args, msgs) -> str:
@@ -500,7 +615,23 @@ def cli():
     )
     ap.add_argument("--prompt", type=str, help="A single prompt")
     ap.add_argument("--aime-split", type=str, help="Run a builtin AIME split")
-    ap.add_argument("--limit", type=int, default=3, help="Cap #problems")
+    ap.add_argument("--from-dataset", action="store_true",
+                    help="Take the problems from the collected trajectory "
+                         "dataset instead of the builtin loader, which "
+                         "ships only one problem per split")
+    ap.add_argument("--problems-file", type=str, default=None,
+                    help="JSON index of {id, prompt, correct} — see "
+                         "make_problem_index.py. Far faster than reading "
+                         "the multi-MB trajectory sidecars off a network "
+                         "filesystem.")
+    ap.add_argument("--only-correct", action="store_true",
+                    help="With --from-dataset, keep only problems the model "
+                         "originally solved")
+    ap.add_argument("--limit", type=int, default=None,
+                    help="Cap the number of problems. Defaults to all of "
+                         "them — a silent default cap quietly turns a "
+                         "24-problem replication into a 3-problem one and "
+                         "the reduced n is easy to miss in the output.")
     ap.add_argument("--direction", type=str, default="confidence_up")
     ap.add_argument("--directions", type=str, nargs="+", default=None,
                     help="Several directions in one process. Loading the "

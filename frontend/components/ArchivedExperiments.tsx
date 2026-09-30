@@ -39,6 +39,7 @@ type StepSummary = {
 };
 
 type SweepRow = {
+  prompt_label?: string;
   direction: string;
   strength: number;
   layer: number;
@@ -67,19 +68,24 @@ type ScanFile = {
 
 const FILES: { url: string; label: string; kind: "sweep" | "scan" }[] = [
   {
-    url: "/intervention/directions_L20_aime2023.json",
-    label: "All directions · L20 · AIME 2023 I#1",
+    url: "/intervention/replication_24problems_L20.json",
+    label: "24-problem replication · confidence pair · L20",
     kind: "sweep",
   },
   {
-    url: "/intervention/confidence_up_L20_sweep.json",
-    label: "confidence_up strength sweep · L20",
+    url: "/intervention/directions_L20_aime2023.json",
+    label: "All directions · L20 · AIME 2023 I#1",
     kind: "sweep",
   },
   {
     url: "/intervention/layer_scan_confidence_up.json",
     label: "Injection-layer scan · confidence_up",
     kind: "scan",
+  },
+  {
+    url: "/intervention/confidence_up_L20_sweep.json",
+    label: "confidence_up strength sweep · L20 · 1 prompt",
+    kind: "sweep",
   },
 ];
 
@@ -164,16 +170,45 @@ function SweepTable({ rows }: { rows: SweepRow[] }) {
     else groups.push({ direction: r.direction, rows: [r] });
   }
 
+  // How many distinct prompts does this file cover? A mean over 24
+  // problems is evidence; a mean over 1 is an anecdote, and the bar
+  // looks the same either way unless we say which it is.
+  const nProblems = new Set(rows.map((r) => r.prompt_label)).size;
+
   return (
     <div className="flex flex-col gap-2.5 max-h-80 overflow-y-auto">
+      <div
+        className={`text-[10px] px-2 py-1 rounded border ${
+          nProblems >= 10
+            ? "border-emerald-600/40 bg-emerald-500/10 text-emerald-300"
+            : "border-amber-600/40 bg-amber-500/10 text-amber-300"
+        }`}
+      >
+        {nProblems === 1
+          ? "n = 1 prompt — illustrative only"
+          : `n = ${nProblems} prompts`}
+      </div>
+
       {groups.map((g) => {
         // Scale the entropy bar to the largest |Δentropy| in this group.
-        const maxDe = Math.max(
-          ...g.rows.map((r) =>
-            Math.abs(r.summary.mean_entropy_primary - r.summary.mean_entropy_shadow)
-          ),
-          1e-6
+        const deltas = g.rows.map(
+          (r) => r.summary.mean_entropy_primary - r.summary.mean_entropy_shadow
         );
+        const maxDe = Math.max(...deltas.map(Math.abs), 1e-6);
+        // Per-problem spread, when the file has more than one prompt.
+        const spread = (() => {
+          if (nProblems < 2) return null;
+          const nonControl = deltas.filter((_, i) => g.rows[i].strength > 0);
+          if (nonControl.length < 2) return null;
+          const m = nonControl.reduce((a, b) => a + b, 0) / nonControl.length;
+          const sd = Math.sqrt(
+            nonControl.reduce((a, b) => a + (b - m) ** 2, 0) / (nonControl.length - 1)
+          );
+          return { sd, m };
+        })();
+        const sdExceedsMean =
+          spread != null && Math.abs(spread.m) > 0 && spread.sd > Math.abs(spread.m);
+
         return (
           <div key={g.direction}>
             <div className="text-[10px] font-medium text-gray-300 mb-1">
@@ -205,7 +240,7 @@ function SweepTable({ rows }: { rows: SweepRow[] }) {
                           }}
                         >
                           {de >= 0 ? "+" : ""}
-                          {de.toFixed(3)}
+                          {de.toFixed(4)}
                         </span>
                       )}
                     </span>
@@ -247,15 +282,27 @@ function SweepTable({ rows }: { rows: SweepRow[] }) {
                 );
               })}
             </div>
+            {spread && (
+              <div className="text-[9px] text-gray-600 mt-0.5 pl-[4.5rem]">
+                across problems: {spread.m >= 0 ? "+" : ""}
+                {spread.m.toFixed(4)} ± {spread.sd.toFixed(4)} sd
+                {sdExceedsMean && (
+                  <span className="text-amber-600/80">
+                    {" "}
+                    — spread exceeds the effect
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
 
       <p className="text-[10px] text-gray-500 leading-relaxed border-t border-border pt-1.5">
         Columns: strength · token agreement · Δentropy · max per-layer
-        divergence. Rows at strength 0.00 are controls — they inject a
-        zero vector and must come back at exactly zero divergence, which
-        is what makes the other rows attributable to the intervention.
+        divergence. Rows at strength 0.00 are controls — they inject a zero
+        vector and must come back at exactly zero divergence, which is what
+        makes the other rows attributable to the intervention.
       </p>
     </div>
   );

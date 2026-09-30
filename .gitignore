@@ -99,3 +99,17 @@ backend/examples/output/datasets/
 
 # Old trajectory folders under examples/output (pre-datasets/ move).
 # These may now be symlinks pointing into datasets/ — git tracks neither.
+
+# Per-layer 3-D projections, one small binary per (trajectory, layer) —
+# thousands of files that are fully regenerable from datasets/ by
+# examples/expand_global_data.py.
+backend/examples/output/layer_xyz/
+
+# Standalone viewer bundles and caches built by the terrain scripts.
+backend/examples/output/token_terrain.html
+backend/examples/output/live_terrain.html
+backend/examples/output/view_terrain.html
+backend/examples/output/view_standalone.html
+
+# Locally-downloaded model weights.
+datasets/models/
