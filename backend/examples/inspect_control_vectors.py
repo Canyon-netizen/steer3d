@@ -209,9 +209,14 @@ def main(args) -> int:
         p = Path(args.compare_dir).expanduser() / f"{args.compare_name}.npy"
         if p.exists():
             ours = np.load(p).astype(np.float32).reshape(-1)
+            d = ours.shape[0]
+            # Two independent random unit vectors in R^d have
+            # E|cos| = sqrt(2/(pi*d)). Below that, the two are as
+            # unrelated as noise allows and the comparison says nothing.
+            floor = float(np.sqrt(2.0 / (np.pi * d)))
             print()
             print(f"  cosine vs our {args.compare_name} (extracted at "
-                  f"L{args.compare_layer}):")
+                  f"L{args.compare_layer}); random floor |cos| = {floor:.3f}")
             for i in infos:
                 c = compare_with_ours(i, ours, args.compare_layer, args.compare_name)
                 if "error" in c:
@@ -219,10 +224,19 @@ def main(args) -> int:
                     continue
                 bl = c["by_layer"]
                 shown = {k: bl[k] for k in list(bl)[:4]}
+                # Deliberately conservative bands. A bare cosine against a
+                # floor is easy to overread — the lesson of Finding 7 is
+                # that small excesses are not evidence, so only a
+                # multiple well clear of the floor is called "related".
+                ratio = c["mean_abs"] / floor if floor else 0.0
+                over = ("unrelated (at the floor)" if ratio < 2.0 else
+                        "barely related" if ratio < 3.0 else
+                        "related")
                 print(f"    {i['file']:>16}  L0..L3 " +
                       " ".join(f"{v:+.3f}" for v in shown.values()) +
                       f"   | max |cos| {c['max_abs']:.3f} at L{c['argmax_abs']}"
-                      f"  mean |cos| {c['mean_abs']:.3f}")
+                      f"  mean {c['mean_abs']:.3f} = {ratio:.1f}x floor"
+                      f" — {over}")
         else:
             print(f"  no {p}")
 

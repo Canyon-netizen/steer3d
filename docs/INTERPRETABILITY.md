@@ -236,6 +236,13 @@ python3 backend/examples/compare_extraction_layers.py --layers 8 14 20 24
 python3 backend/examples/inspect_control_vectors.py --dir ~/test/vectors/Qwen3-1.7B
 python3 backend/examples/diagnose_vector_signs.py --dir ~/test/vectors/Qwen3-1.7B
 
+# 7b. use one - picks a layer, optionally repairs the per-layer sign
+python3 backend/examples/gguf_to_npy.py \
+    --gguf ~/test/vectors/Qwen3-1.7B/entry_05.gguf \
+    --name sound_vs_flawed --layer 20 --sign-fix \
+    --layer-profiles backend/examples/output/layer_profiles.json \
+    --out-dir backend/examples/output/steering_vectors_user
+
 # 8. publish to the UI
 ./scripts/publish_artifacts.sh
 ```
@@ -444,6 +451,19 @@ interpretability:
    "scale not measured" when it has no profile for a layer.
 4. **`correct_direction` is set**, so "up" is a stored convention rather than
    a fact, and the sign question above cannot be settled from the file.
+5. **They are not interchangeable with this project's vectors.** Cosine
+   between each of the eight per-layer directions and this repo's
+   `reasoning_deep` at L20 stays at the random floor: mean |cos| 0.010–0.036
+   against √(2/π·2048) = 0.018. So "sound vs flawed reasoning" and "late
+   vs early reasoning" are different concepts here, at every layer. They
+   should be chosen between on the basis of which contrast is wanted, not
+   treated as two versions of a reasoning direction.
+
+`gguf_to_npy.py` exports any of these into the registry's format, picking a
+layer, optionally applying the sign fix, and reporting the before/after. The
+scale still has to come from outside the format:
+`--layer-profiles layer_profiles.json`, and the UI will otherwise show the
+direction as uncalibrated.
 
 The format itself is fine; the extraction behind it is where the work is.
 Extracting at the injection layer (Finding 6), from hundreds of pairs rather
