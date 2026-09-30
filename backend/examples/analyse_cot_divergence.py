@@ -219,7 +219,36 @@ def _t_sf_approx(t: float, df: int) -> float:
     return erfc(abs(t) / sqrt(2.0))
 
 
+def _selftest() -> None:
+    """Verify the answer extractor before its output is used for a claim."""
+    cases = [
+        (r"<think>reasoning...</think>\n\nThe final answer is \boxed{60}.",
+         60, "boxed after a closed think block"),
+        (r"<think>r</think>\nThe answer is 123.", 123, "plain prose"),
+        (r"<think>r</think>\n\boxed{999}", 999, "bare boxed"),
+        ("<think>r</think>\nSo the value comes to 45.", 45, "trailing integer"),
+        ("<think>unclosed reasoning that just stops", None,
+         "think never closed — must NOT invent an answer"),
+        ("", None, "empty text"),
+    ]
+    bad = []
+    for text, expect, label in cases:
+        got = extract_answer(text)
+        if got != expect:
+            bad.append(f"{label}: expected {expect}, got {got}")
+    if bad:
+        raise SystemExit("answer extractor self-test FAILED:\n  " +
+                         "\n  ".join(bad))
+
+
 def main() -> None:
+    # The extractor decides whether the answer-level effect is measurable at
+    # all, so it is checked before it is trusted. A wrong extraction is worse
+    # than an honest None: it would turn "no answer was found" into "the
+    # answer never changed", which is the specific claim this script exists
+    # to avoid making on short traces.
+    _selftest()
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", required=True, nargs="+",
                     help="intervention output JSON file(s) to analyse")
