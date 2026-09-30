@@ -55,11 +55,13 @@ def main() -> int:
     ap.add_argument("--problems-file", required=True)
     ap.add_argument("--layers", type=int, nargs="+",
                     default=[8, 12, 16, 20, 22, 24, 26])
-    ap.add_argument("--strength", type=float, default=0.2)
     ap.add_argument("--frac-of-state-norm", type=float, default=0.2,
                     help="inject this fraction of the layer's own measured "
                          "‖h‖, so an early injection is proportionally as "
-                         "large as a late one")
+                         "large as a late one. This is the ONLY dose "
+                         "parameter — there is deliberately no separate "
+                         "--strength, because having both is how the earlier "
+                         "version applied the dose twice.")
     ap.add_argument("--max-new-tokens", type=int, default=48)
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--dtype", default="bfloat16",
@@ -150,9 +152,20 @@ def main() -> int:
             if ln is None:
                 print(f"  (no measured norm for L{L}, skipping)")
                 continue
-            scale = args.frac_of_state_norm * ln
-            injected = vec * scale
-            for strength in (0.0, args.strength):
+            # The dose has exactly one source: frac_of_state_norm x this
+            # layer's own norm. An earlier version of this script also
+            # multiplied by --strength, so the model received 0.04 of the
+            # state when the label said 0.2, while the log line printed
+            # the un-multiplied 173.15. That produced a 38x discrepancy
+            # against run_intervention.py at the same layer and dose, which
+            # is how it was caught. Keep one source of truth, and print
+            # the norm that actually reaches the model.
+            active = vec * (args.frac_of_state_norm * ln)
+            conditions = (
+                (0.0, np.zeros_like(vec)),
+                (args.frac_of_state_norm, active),
+            )
+            for frac, steer in conditions:
                 # A zero vector is the correct control here, and the shadow
                 # stream must still run so there is something to compare
                 # against. Passing None would set `shadow_ok = False` and
@@ -160,15 +173,9 @@ def main() -> int:
                 # control rather than measuring it. Verified in isolation:
                 # a zero vector gives token agreement 1.0 and KL exactly 0
                 # on 3 trials x 2 layers.
-                #
-                # `injected * strength` must build a NEW array. `set_vector`
-                # does `.view(1, 1, -1)` on its argument, so any later
-                # in-place scaling of the same buffer would mutate a tensor
-                # the steerer still holds.
                 res = run_dual_stream(
                     model, tok, templ,
-                    steer_vec=np.ascontiguousarray(injected * strength,
-                                                   dtype=np.float32),
+                    steer_vec=np.ascontiguousarray(steer, dtype=np.float32),
                     layer=L,
                     max_new_tokens=args.max_new_tokens,
                     track_shadow=True,
@@ -177,9 +184,9 @@ def main() -> int:
                 results.append({
                     "problem": prob.get("label"),
                     "layer": L,
-                    "strength": strength,
-                    "injected_norm": float(scale * strength),
-                    "frac_of_state_norm": args.frac_of_state_norm * strength,
+                    "strength": frac,
+                    "injected_norm": float(np.linalg.norm(steer)),
+                    "frac_of_state_norm": frac,
                     "n_steps": s.get("n_steps"),
                     "token_agreement": s.get("token_agreement"),
                     "mean_logit_kl": s.get("mean_logit_kl"),
@@ -188,10 +195,18 @@ def main() -> int:
                     "shadow_text": res["shadow_text"],
                 })
             got = results[-1]
+            # Print the norm that actually reached the model, and the
+            # control's divergence next to it, so a run whose control is
+            # not inert is visible in the log rather than in the aggregate
+            # table at the end.
+            ctl = results[-2]
             print(f"[{pi+1}/{len(problems)}] {prob.get('label','?')} "
-                  f"L{L} |‖v‖={scale:.1f} ({args.frac_of_state_norm*100:.0f}% of "
-                  f"‖h‖) agree={got['token_agreement']:.3f} "
-                  f"KL={got['mean_logit_kl']:.4f}")
+                  f"L{L} |‖v‖={got['injected_norm']:.1f} "
+                  f"({args.frac_of_state_norm*100:.0f}% of ‖h‖={ln:.1f}) "
+                  f"agree={got['token_agreement']:.3f} "
+                  f"KL={got['mean_logit_kl']:.4f} "
+                  f"| ctrl agree={ctl['token_agreement']:.3f} "
+                  f"KL={ctl['mean_logit_kl']:.4f}")
 
     # --- aggregate by layer, and split late vs early ---
     by_layer: Dict[int, Dict[float, List[dict]]] = {}
@@ -202,7 +217,7 @@ def main() -> int:
     for L in sorted(by_layer):
         cells = by_layer[L]
         ctrl = cells.get(0.0, [])
-        act = cells.get(args.strength, [])
+        act = cells.get(args.frac_of_state_norm, [])
         summary.append({
             "layer": L,
             "n": len(act),
@@ -222,7 +237,6 @@ def main() -> int:
     out = {
         "model": args.model_path,
         "direction": direction,
-        "strength": args.strength,
         "frac_of_state_norm": args.frac_of_state_norm,
         "n_problems": len(problems),
         "note": (

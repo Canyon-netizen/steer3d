@@ -434,10 +434,11 @@ traces are too short to contain an answer. Re-running with
 
 ## Reproducing
 
-### Two traps that silently invalidate any new run
+### Three traps that silently invalidate any new run
 
-Both were hit while building the section above, and both produce output that
-looks entirely reasonable.
+All three were hit while building the section above, and all three produce output that
+looks entirely reasonable. (A third, the double-applied dose, was found
+later and is written up as well — see below.)
 
 **1. `SteeringRegistry` is uncalibrated until you ask.** `scaled()` calls
 `layer_rms(layer)`, which returns a default of **1.0** for every layer
@@ -469,6 +470,34 @@ which keeps the dual-stream path alive and returns KL exactly 0.000
 Also relevant: `set_vector` does `.view(1, 1, -1)` on the array it is
 given, so any later in-place scaling of that same buffer mutates a tensor
 the steerer still holds. Build a fresh array per call.
+
+**3. Two dose parameters means the dose gets applied twice.** This is the
+subtlest of the three, and it did not raise an error — it just made every
+effect 5× too small while the log line printed the intended norm.
+
+The scan script had both `--strength` and `--frac-of-state-norm`. It built
+`injected = vec * frac * ‖h‖` and then passed `injected * strength` to
+`run_dual_stream`, so a run labelled "20% of the state" delivered 4%. The
+printed `‖v‖ = 173.15` was the pre-multiplication value, matching the
+historical runs exactly, which is precisely why it looked right.
+
+It was caught by a cross-check, not by reading the code: the same layer and
+the same nominal dose gave
+
+| run | ‖v‖ reported | mean logit KL |
+|---|---|---|
+| `run_intervention.py`, L20, 0.2 | 173.1543 | **0.1606** |
+| scan script, L20, "0.2" | 173.15 | **0.0042** |
+
+a 38× gap on the same model, layer, norm and token budget. The fix was to
+delete the redundant parameter so the dose has exactly one source of truth,
+and to print `‖steer_vec‖` as it is handed over rather than a re-derivation
+of it — the same rule `run_intervention.py` already follows with its
+"report the norm actually injected" comment.
+
+**The generalisable form: if a new tool disagrees with an existing one on
+the same condition, believe the disagreement before the numbers.**
+Everything about the scan run looked internally consistent.
 
 
 ```bash
