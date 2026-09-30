@@ -438,8 +438,20 @@ interpretability:
    layers and its negation at others. `diagnose_vector_signs.py`
    reproduces the before and after.
 
+   **Scope of the damage.** This is a *between*-layers fault, so it does
+   not by itself corrupt a single-layer injection — applying only
+   `direction.20` at L20 uses one layer's sign and is unaffected. It
+   bites where a control vector is actually used that way: applied across
+   a range of layers, which is what llama.cpp does with these files;
+   aggregated across layers, which `gguf_to_npy.py --all-layers` does for
+   a layer scan; or compared across files, where "the sound direction"
+   would not mean a consistent thing. For those uses the fix is not
+   cosmetic — a vector whose sign alternates with depth is applying a
+   perturbation at some layers and its negation at others, and the two
+   roughly cancel.
+
    The extraction code is `~/test/steer/extract/extract_vectors.py`, which
-   delegates to a library object via `cv.export_gguf()`. Which layer
+   delegates to a library object via `cv.export_gguf()`. Which line
    chooses the sign is inside that library and was not traced; the data
    above localises the fault to it either way.
 3. **The vectors are unit-norm** (‖v‖ = 1.00 at every layer, ratio 1.000).
