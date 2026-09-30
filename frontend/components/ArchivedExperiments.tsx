@@ -491,8 +491,10 @@ function ExtractionTable({ data }: { data: ExtractionFile }) {
             out past where it is applied buys nothing
           </>
         ) : null}
-        . Token agreement is flat across the same range, so this is the output
-        distribution moving, not the model choosing different tokens.
+        . Token agreement barely varies across the same range — though it
+        sits about 6% below the inert control at every one of them, so the
+        intervention is never free; only the distributional divergence grows
+        with extraction depth.
       </p>
     </div>
   );

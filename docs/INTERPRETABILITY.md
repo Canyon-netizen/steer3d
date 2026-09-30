@@ -56,10 +56,15 @@ model's next-token entropy:
 The frontend used to carry a hand-written table — "L12 semantic, L16
 reasoning, L20 deep reasoning". The measurement contradicts it. L12 sits in
 the flat region; the entropy signal lives at L17–23. Self-check states show
-the inverse pattern: most separable early (cos gap 0.90–0.93), dipping to
-0.736 at L19. "Verification" is encoded early and stays available;
-*confidence as magnitude* is a late-layer phenomenon. Those are two
-different things, and conflating them was the original error.
+the inverse pattern, though not a simple one — the cosine gap between
+self-check and ordinary tokens runs 0.900–0.917 through L12, drops to
+0.776–0.788 across L16–L18, bottoms at 0.736 at L19, recovers to 0.828 at
+L24, and then collapses to 0.355 at L27. An earlier draft of this file
+reported only the L19 dip, which reads as a single excursion; the curve
+actually falls, partly recovers, and then falls off a cliff at the last
+layer. "Verification" is encoded early and stays available through most of
+the stack; *confidence as magnitude* is a late-layer phenomenon. Those are
+two different things, and conflating them was the original error.
 
 Layer 27 dropping to about half the effective rank of other layers (42.9 vs
 84–94 with the random-projection sketch used here) is the model compressing
@@ -71,7 +76,11 @@ effective rank is not comparable across estimators.
 
 ## Finding 2: the confidence vector works, and over-driving it inverts
 
-`confidence_up` extracted at L14, injected at L20, on "What is 17 × 23?":
+`confidence_up` extracted at L14, injected at L20, on "What is 17 × 23?".
+**This is n = 1.** It is the clearest illustration of the shape of the
+dose-response, and the shape is the point — but nothing here establishes
+where the turning point is in general, and Finding 3b's 24-problem run
+covers only strength 0.20:
 
 | strength | ‖v‖ | token agree | Δentropy | max divergence |
 |---|---|---|---|---|
@@ -159,9 +168,13 @@ Two things worth noting:
 
 - **The effect is asymmetric by about 1.9×.** The vectors are exact
   negations, so under a linear readout the two effects would be equal.
-  They are not, which means the response is nonlinear: entropy is much
-  cheaper to raise than to suppress. A "confidence" direction is a weaker
-  lever than its "uncertainty" counterpart.
+  They are not, which is solid evidence the response is nonlinear at this
+  strength. What it does *not* establish is the shape of that nonlinearity:
+  one point on each side is enough to show the curve is not through the
+  origin, not to say that raising entropy is "cheaper" in any general sense.
+  Both directions have only been measured at 0.0 and 0.2, so a dose-
+  response for `confidence_down` — which Finding 2 has for `confidence_up`
+  — would be what actually characterises it.
 - **Token agreement falls to 94.0% (up) and 93.5% (down)** at this strength,
   so roughly one token in twenty is different from baseline. Most of the
   entropy shift is achieved without the model producing a visibly different
@@ -169,7 +182,11 @@ Two things worth noting:
 
 ## Finding 4: a fixed norm is not a fixed intervention
 
-Injecting ‖v‖ = 130 at ten different layers:
+Injecting ‖v‖ = 130 at ten different layers. **This is also n = 1** — one
+AIME problem. The relative magnitudes are a property of how the residual
+stream grows, which is measured over the whole corpus, but the
+agreement and KL columns are one problem's worth of damage and the exact
+cliff location should be treated as a single observation:
 
 | layer | ‖h‖ | ‖v‖/‖h‖ | token agree | logit KL |
 |---|---|---|---|---|
@@ -319,30 +336,46 @@ nothing further, while reading it out well below costs about half the effect.
 The confound is not a footnote after all, and the right default is to extract
 at the layer you inject at.
 
-Token agreement barely moves (0.940–0.946) while logit KL doubles. The extra
-divergence is therefore distributional — the shadow stream moves further into
-the tail of the distribution without changing which token is usually picked.
-That is a meaningfully different thing from "the model behaves differently",
-and the two should not be conflated.
+Token agreement is nearly constant *across the four extraction layers*
+(0.940–0.946, a range of 0.006) while logit KL doubles. But it is not
+unchanged: every one of those is about 6% below the inert control's 1.0, and
+that cost is the same at all four extraction depths. So the honest reading is
+two separate facts, not one — the *distributional* divergence varies 2.15×
+with where the vector was read out, while the *behavioural* cost of
+disrupting the model does not vary at all. Which is a slightly weaker claim
+than "the extra divergence is distributional", and a truer one: the deeper
+extraction buys a larger change in the output distribution without buying a
+larger change in which token the model picks, and without making the
+disruption more damaging either.
 
 ## Finding 7: a cross-layer cosine has no meaning without its control
 
 While checking the user's GGUF control vectors (below) it became clear that
 the null floor for this family of statistics is not a constant, and quoting a
 cosine without saying which control produced it is meaningless. Two
-constructions, both legitimate, both measured on this corpus:
+constructions, both balanced random splits, both legitimate, both measured on
+this corpus — and they differ by a factor of 30:
 
 | null construction | adjacent-layer floor | ≥4 layers apart | L0↔L27 |
 |---|---|---|---|
-| balanced random split of one pool | ~0.00 | −0.01 | +0.10 |
-| two small random subsets of all positions | **+0.87** | +0.38 | +0.10 |
+| split the **global** pool in two | ~0.00 | −0.01 | +0.10 |
+| split **within each trajectory** | **+0.87** | +0.38 | +0.10 |
 
-The second has a floor of 0.87 because the positive group is a small,
-selected subset: its mean is a biased estimate of something, and that bias
-persists across layers, so a difference of means built from it inherits a
-shared component whether or not the grouping means anything. `null` mode in
-`position_pooling_test.py` measures it; the floor is what any cross-layer
-cosine from that construction has to be read against.
+The first is `matched_null` in `compute_steering_vectors.py`; the second is
+`null` mode in `position_pooling_test.py`. The difference is not the sample
+sizes, which are matched in both, but *where* the two halves are drawn from.
+A within-trajectory split leaves both halves drawn from the same small set of
+sequences, and the per-trajectory offsets that dominate a difference of means
+therefore survive into both halves and cancel nowhere — they persist across
+layers, giving a floor of 0.87. Drawing the two halves from the pooled
+activations instead lets the between-trajectory structure cancel, and the
+floor drops to ~0.
+
+Both are correct controls for the thing they control. What is not acceptable
+is the label: describing these as "balanced" versus "small subsets"
+conceals the mechanism entirely, and that description is what an earlier
+draft of this file used. A reader could not have known which floor applied to
+which number.
 
 The practical consequence: **the same number, 0.4, is either strong evidence
 or pure noise depending on the control.** Finding 5's 0.395 is real because
@@ -350,8 +383,9 @@ it is measured against the first construction. Any cross-layer cosine
 reported anywhere in this project now ships with its floor.
 
 The same file also showed that **separation**, not cosine, is what actually
-discriminates a real contrast. Extracting the self-check contrast four ways
-on 27 trajectories, with a random-split null:
+discriminates a real contrast — and, just as importantly, that the cosine
+cannot be used to argue anything here. Extracting the self-check contrast
+four ways on 27 trajectories, with a random-split null:
 
 | mode | separation (L0 → L27) | adjacent cosine |
 |---|---|---|
@@ -364,6 +398,13 @@ A real contrast separates by 25–44 where a null separates by ~3.4 — a factor
 of ten — while the adjacent cosine barely moves (0.906 vs 0.873). Cohen's d
 and effect-size proxies are the statistics that carry information here; the
 cosine is mostly measuring the residual stream's own geometry.
+
+**This table cannot answer the question it was built to answer, and the
+reason is the floor.** The real modes and the null differ by 0.03 on
+adjacent cosine and by *nothing at all* on sign changes — all four rows
+have zero. So the test has no power to distinguish a stable direction from
+an unstable one, and "position pooling looks harmless" would be reading
+signal out of noise.
 
 This also **overturns an earlier hypothesis in this project.** The
 `token_pos` flip in the user's files looked like a position-pooling failure,
@@ -465,11 +506,27 @@ interpretability:
    a fact, and the sign question above cannot be settled from the file.
 5. **They are not interchangeable with this project's vectors.** Cosine
    between each of the eight per-layer directions and this repo's
-   `reasoning_deep` at L20 stays at the random floor: mean |cos| 0.010–0.036
-   against √(2/π·2048) = 0.018. So "sound vs flawed reasoning" and "late
-   vs early reasoning" are different concepts here, at every layer. They
-   should be chosen between on the basis of which contrast is wanted, not
-   treated as two versions of a reasoning direction.
+   `reasoning_deep` **extracted at L20** runs 1.1×–2.7× the random floor
+   √(2/π·2048) = 0.018: mean |cos| 0.010–0.036, with entry_04 at 0.010
+   (below the floor) and entry_01 at 0.027 (1.5×). An earlier draft called
+   this "at the random floor", which overstates it — the code's own bands
+   call anything under 2× "unrelated" and 2–3× "barely related", and half
+   these files fall in the second band. The honest summary is: **no
+   relationship strong enough to call them the same concept, and none
+   strong enough to call them provably unrelated either.** They should be
+   chosen between on which contrast is wanted, not treated as two versions
+   of a reasoning direction.
+
+   The layer matters to this comparison and is easy to get wrong. The
+   comparison is against a single `reasoning_deep` vector extracted at L20,
+   dotted against all 28 of the GGUF's per-layer directions. That answers
+   "is any layer of this file aligned with our L20 direction", which is
+   what was asked; it does not answer "is this the same concept", and a
+   contrast could score well simply by peaking at a different depth. An
+   earlier run of this same comparison against an L14-extracted
+   `reasoning_deep` gave a different range (0.020–0.048) — the same
+   verdict, but a reminder that the number is a function of which
+   extraction it is compared against.
 
 `gguf_to_npy.py` exports any of these into the registry's format, picking a
 layer, optionally applying the sign fix, and reporting the before/after. The
@@ -484,6 +541,11 @@ per-layer, are the three changes that would most improve these vectors.
 
 ## What is not established
 
+- **Findings 2 and 4 are single-prompt.** The dose-response shape and the
+  L12 destruction cliff both rest on n = 1. What carries over from the
+  corpus is the layer geometry underneath them — the 80× growth and the
+  measured per-layer norms are averaged over 48 trajectories — not the
+  behavioural columns.
 - **Effect sizes are small and per-problem variance is large.** The
   confidence direction moves mean entropy by 0.012–0.022 nats and costs
   ~6% token agreement. Individual problems range from −0.072 to +0.040, so
@@ -540,11 +602,14 @@ have been corrected above:
    four directions.
 3. That pooling the contrast over token positions destabilises the
    extracted direction, offered as the explanation for the sign flips in
-   the user's GGUF vectors. It does not: all three pooling modes were
-   equally stable on this corpus, with zero sign changes and adjacent
-   cosine ~0.90 against a null floor of 0.87. The null floor is high
-   enough that this test could not have detected the effect even if it
-   were present, which is itself the lesson of Finding 7. The flips are
-   instead a per-layer sign decision, confirmed by sign-aligning from
-   L0 and recovering a smooth profile in every affected file.
+   the user's GGUF vectors. The test meant to check it **could not have
+   detected the effect in either direction**: all three pooling modes and
+   the null all show zero sign changes, and adjacent cosine 0.899 / 0.903
+   / 0.906 against a null of 0.873. I originally wrote that pooling "does
+   not" destabilise the direction. That was an underpowered test reported
+   as a negative result, which is the same error as reporting a bare
+   cosine without its floor. The flips are explained instead by a
+   per-layer sign decision, confirmed by sign-aligning from L0 and
+   recovering a smooth profile in every affected file — but position
+   pooling remains untested rather than exonerated.
 
