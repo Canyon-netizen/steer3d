@@ -108,6 +108,39 @@ def sign_for_layer(M: np.ndarray, layer: int, anchor: Optional[int]) -> float:
     return float(s[layer])
 
 
+def anchor_agreement(M: np.ndarray, target: int) -> dict:
+    """Do different anchors agree on the direction, or just its sign?
+
+    The fix makes the layers mutually consistent. It does not make the
+    absolute sign meaningful: the same propagated vector anchored at a
+    different layer can come out negated, and that is expected — it is
+    what `correct_direction` records. What must hold is that anchors
+    agree up to that negation. If two anchors disagree by more than a
+    sign, the alternation is not a single consistent flip and one global
+    convention does not repair it.
+    """
+    ref = M[target] * sign_for_layer(M, target, 0)
+    ref = ref / (np.linalg.norm(ref) + 1e-12)
+    rows = []
+    for a in (0, len(M) // 2, len(M) - 1):
+        v = M[target] * sign_for_layer(M, target, a)
+        c = float(v @ ref / (np.linalg.norm(v) + 1e-12))
+        rows.append((a, c))
+    # Agreement up to a global sign means every anchor produces the same
+    # unit vector, possibly negated. What matters is |cos| == 1 for all of
+    # them, NOT that the signs are equal: anchors on opposite sides of a
+    # flip legitimately give opposite signs, and counting distinct signs
+    # would call that a disagreement when it is the expected result.
+    offs = [abs(abs(c) - 1.0) for _, c in rows]
+    agree = max(offs) < 1e-3
+    return {
+        "per_anchor": rows,
+        "agree_up_to_sign": agree,
+        "worst_deviation_from_unit": max(offs),
+        "n_distinct_conventions": len({1 if c > 0 else -1 for _, c in rows}),
+    }
+
+
 def main(args) -> int:
     cv = read_control_vector(Path(args.gguf).expanduser())
     M = cv.direction_matrix
@@ -133,6 +166,23 @@ def main(args) -> int:
         print("  ** stored vectors have inconsistent per-layer signs. "
               "Re-run with --sign-fix, or the injected direction is "
               "arbitrary in sign at some layers. **")
+
+    agr = anchor_agreement(M, args.layer)
+    if int((adj < 0).sum()):
+        desc = "  ".join(f"L{a}:{c:+.2f}" for a, c in agr["per_anchor"])
+        print(f"  anchor agreement at L{args.layer}: {desc}")
+        if agr["agree_up_to_sign"]:
+            n = agr["n_distinct_conventions"]
+            print(f"      -> every anchor yields the same vector up to a "
+                  f"global sign ({n} convention"
+                  f"{'s' if n > 1 else ''} across the stack), so one "
+                  f"convention does repair the file. Which of the two "
+                  f"conventions is right is not a fact — that is what "
+                  f"correct_direction records.")
+        else:
+            print("      ** anchors give directions that are not even "
+                  "parallel, so the alternation is not a consistent flip "
+                  "and one global convention does NOT repair this file **")
     print()
 
     if args.all_layers:
