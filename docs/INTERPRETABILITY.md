@@ -194,15 +194,18 @@ from −0.072 to +0.040 — so a single run still predicts very little.
 
 Two things worth noting:
 
-- **The effect is asymmetric by about 1.9×.** The vectors are exact
-  negations, so under a linear readout the two effects would be equal.
-  They are not, which is solid evidence the response is nonlinear at this
-  strength. What it does *not* establish is the shape of that nonlinearity:
-  one point on each side is enough to show the curve is not through the
-  origin, not to say that raising entropy is "cheaper" in any general sense.
-  Both directions have only been measured at 0.0 and 0.2, so a dose-
-  response for `confidence_down` — which Finding 2 has for `confidence_up`
-  — would be what actually characterises it.
+- **The two directions differ by 1.9× in mean effect** (0.0224 against
+  0.0118). The vectors are exact negations, so a linear response would give
+  equal magnitudes. **That nonlinearity is not established**: the test it
+  requires is a one-sample test on the *sum* of the two per-problem effects,
+  and at n = 24 that gives t = 1.80, p = 0.085. The paired t(23) = −4.72,
+  p = 0.00009 reported above tests whether the average effect is non-zero,
+  which is a different and easier question — it would come out significant
+  even if the two sides were exactly symmetric. So the asymmetry is a real
+  difference between two measured means and nothing more. Both directions
+  have only been measured at 0.0 and 0.2; a dose-response for
+  `confidence_down`, which Finding 2 has for `confidence_up`, is what would
+  characterise the shape.
 - **Token agreement falls to 94.0% (up) and 93.5% (down)** at this strength,
   so roughly one token in twenty is different from baseline. Most of the
   entropy shift is achieved without the model producing a visibly different
@@ -298,6 +301,14 @@ python3 backend/examples/gguf_to_npy.py \
     --name sound_vs_flawed --layer 20 --sign-fix \
     --layer-profiles backend/examples/output/layer_profiles.json \
     --out-dir backend/examples/output/steering_vectors_user
+
+# 7c. check the repaired vector actually behaves as a signed quantity
+python3 backend/examples/run_intervention.py \
+    --model-path /path/to/Qwen3-1.7B \
+    --vector-dir backend/examples/output/steering_vectors_user \
+    --problems-file /tmp/problem_index.json \
+    --directions sound_vs_flawed --sweep -0.2 0.0 0.2 --layer 20 \
+    --out backend/examples/output/intervention/antisymmetry_user_vector.json
 
 # 8. publish to the UI
 ./scripts/publish_artifacts.sh
@@ -572,6 +583,39 @@ layer, optionally applying the sign fix, and reporting the before/after. The
 scale still has to come from outside the format:
 `--layer-profiles layer_profiles.json`, and the UI will otherwise show the
 direction as uncalibrated.
+
+### The sign fix is validated behaviourally
+
+A static cosine profile shows the stored vectors are internally inconsistent
+after the repair. That does not by itself show the exported vector *works*,
+so it was checked by injection: the sign-fixed `sound_vs_flawed` at L20,
+strengths −0.2 / 0.0 / +0.2, over the same 24 problems. 72 counterfactual
+runs.
+
+| strength | Δentropy (primary − shadow) | logit KL |
+|---|---|---|
+| −0.2 | −0.01363 | 0.0611 |
+| 0.0 | +0.00000 (exactly, all 24) | 0.0000 (exactly) |
+| +0.2 | **+0.02255** | 0.0485 |
+
+**The sign is real.** Adding the vector raises the shadow stream's entropy
+and subtracting it lowers it, with the two effects in opposite directions on
+**19 of 24 problems (exact sign test p = 0.0066)**, paired t(23) = 5.55. So
+once the convention is fixed, the exported vector is a signed quantity whose
+sign determines the direction of the effect — which is the property that
+makes it usable, and the alternating per-layer sign would have destroyed it.
+
+Two things this does *not* show:
+
+- **The magnitudes are not established as asymmetric.** 0.0226 against 0.0136
+  is a 1.65× ratio in the same direction as the confidence pair's 1.9×, but
+  the test that matters — a one-sample test on the sum of the per-problem
+  effects — gives p = 0.18. Same verdict as § Finding 3b: a difference
+  between two means, not an established nonlinearity.
+- **Logit KL is the wrong quantity for this test and must not be used here.**
+  KL is a divergence and is non-negative by construction, so +v and −v both
+  produce it, and the "opposing signs on 0/24" an antisymmetry check
+  reports for it is a property of the metric rather than of the vector.
 
 The format itself is fine; the extraction behind it is where the work is.
 Extracting at the injection layer (Finding 6), from hundreds of pairs rather
