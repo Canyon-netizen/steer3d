@@ -11,6 +11,7 @@ import ControlPanel from "@/components/ControlPanel";
 import TokenStreamPanel from "@/components/TokenStreamPanel";
 import InterpretationPanel from "@/components/InterpretationPanel";
 import SteeringControl from "@/components/SteeringControl";
+import ArchivedExperiments from "@/components/ArchivedExperiments";
 import Legend from "@/components/Legend";
 
 const Scene3D = dynamic(() => import("@/components/Scene3D"), { ssr: false });
@@ -114,6 +115,7 @@ export default function Page() {
         <aside className="flex flex-col gap-4 p-4 overflow-hidden min-h-0">
           <ControlPanel sendControl={sendControl} />
           <SteeringControl sendControl={sendControl} />
+          <ArchivedExperiments />
           <InterpretationPanel />
           <TokenStreamPanel />
         </aside>

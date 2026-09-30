@@ -341,9 +341,14 @@ def main(args) -> int:
     print(f"         {', '.join(registry.names)}")
     print()
 
-    if not registry.has(args.direction):
-        print(f"ERROR: unknown direction '{args.direction}'")
+    directions = args.directions or [args.direction]
+    unknown = [d for d in directions if not registry.has(d)]
+    if unknown:
+        print(f"ERROR: unknown direction(s): {', '.join(unknown)}")
+        print(f"available: {', '.join(registry.names)}")
         return 1
+    if len(directions) > 1:
+        print(f"sweeping {len(directions)} directions: {', '.join(directions)}")
 
     # Scale reference: how big the hidden state actually is at the
     # target layer. Without this, "strength" means wildly different
@@ -386,38 +391,41 @@ def main(args) -> int:
 
     all_summaries = []
     for pi, (label, prompt_text) in enumerate(prompts):
-        for strength in args.sweep:
-            vec = registry.scaled(args.direction, strength, args.layer)
-            if vec is None:
-                print(f"  could not build vector for {args.direction}")
-                continue
-            t0 = time.time()
-            res = run_dual_stream(
-                model, tok, prompt_text, vec, args.layer,
-                max_new_tokens=args.max_new_tokens,
-                track_shadow=not args.no_shadow,
-                max_track_steps=args.max_track_steps,
-            )
-            dt = time.time() - t0
-            # Report the norm actually injected, not a re-derivation of
-            # it — if the scaling ever changes, the printed number would
-            # otherwise quietly stop matching what the model received.
-            print(format_result(res, args.direction, strength, args.layer,
-                                float(np.linalg.norm(vec)),
-                                verbose=args.verbose))
-            print(f"  wallclock: {dt:.1f}s")
-            print()
+        for direction in directions:
+            for strength in args.sweep:
+                vec = registry.scaled(direction, strength, args.layer)
+                if vec is None:
+                    print(f"  could not build vector for {direction}")
+                    continue
+                t0 = time.time()
+                res = run_dual_stream(
+                    model, tok, prompt_text, vec, args.layer,
+                    max_new_tokens=args.max_new_tokens,
+                    track_shadow=not args.no_shadow,
+                    max_track_steps=args.max_track_steps,
+                )
+                dt = time.time() - t0
+                # Report the norm actually injected, not a re-derivation
+                # of it — if the scaling ever changes, the printed number
+                # would otherwise quietly stop matching what the model
+                # received.
+                print(format_result(res, direction, strength, args.layer,
+                                    float(np.linalg.norm(vec)),
+                                    verbose=args.verbose))
+                print(f"  wallclock: {dt:.1f}s")
+                print()
 
-            all_summaries.append({
-                "prompt_label": label,
-                "direction": args.direction,
-                "strength": strength,
-                "layer": args.layer,
-                "n_steps": res["n_steps"],
-                "primary_text": res["primary_text"],
-                "shadow_text": res["shadow_text"],
-                "summary": res["shadow"].summary(),
-            })
+                all_summaries.append({
+                    "prompt_label": label,
+                    "direction": direction,
+                    "strength": strength,
+                    "layer": args.layer,
+                    "injected_norm": float(np.linalg.norm(vec)),
+                    "n_steps": res["n_steps"],
+                    "primary_text": res["primary_text"],
+                    "shadow_text": res["shadow_text"],
+                    "summary": res["shadow"].summary(),
+                })
 
     if args.out:
         out = Path(args.out)
@@ -494,6 +502,11 @@ def cli():
     ap.add_argument("--aime-split", type=str, help="Run a builtin AIME split")
     ap.add_argument("--limit", type=int, default=3, help="Cap #problems")
     ap.add_argument("--direction", type=str, default="confidence_up")
+    ap.add_argument("--directions", type=str, nargs="+", default=None,
+                    help="Several directions in one process. Loading the "
+                         "model costs minutes on a network filesystem, so "
+                         "batching the sweep is much cheaper than "
+                         "re-launching per direction.")
     ap.add_argument("--sweep", type=float, nargs="+", default=None,
                     help="Multiple strengths to try (overrides --strength)")
     ap.add_argument("--strength", type=float, default=0.1)
