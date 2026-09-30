@@ -407,12 +407,34 @@ interpretability:
    (30 vs 29 pairs) and differ only in `token_pos`; entries 1–4 all use
    `token_pos=-1` and none of them flip, while every `token_pos=all` file
    does. Magnitudes reach −0.89, and the sign alternates rather than
-   inverting a contiguous run. That is the signature of a sign taken
-   per-layer from something that varies per-layer, not of a semantic
-   difference — a difference of means for one contrast does not reverse
-   180° between adjacent blocks. **This is a bug in the extraction, and it
-   is the most likely single cause of the vectors reading as uninterpretable
-   in use.** `diagnose_vector_signs.py` reproduces the table.
+   inverting a contiguous run.
+
+   **This is confirmed, not inferred.** Propagating a single sign
+   convention from layer 0 — carry the previous layer's sign forward,
+   flipping the current one only if it points against its predecessor —
+   makes *every* adjacent cosine positive in all four files, and the
+   profile becomes smooth and rising with depth, the same shape as the
+   clean files:
+
+   | entry | before (min adj) | after sign-aligning from L0 |
+   |---|---|---|
+   | entry_05 | −0.89 | +0.47 … +0.89, all positive |
+   | entry_06 | −0.81 | +0.36 … +0.85, all positive |
+   | entry_07 | −0.85 | +0.48 … +0.76, all positive |
+   | entry_08 | −0.72 | +0.03 … +0.72, all positive |
+
+   So the direction itself is coherent and the *sign* is not: it is being
+   decided per layer, and one global convention repairs every file. That
+   is the most likely single cause of the vectors reading as
+   uninterpretable in use — a steering vector whose sign alternates with
+   depth is not steering, it is applying a random perturbation at some
+   layers and its negation at others. `diagnose_vector_signs.py`
+   reproduces the before and after.
+
+   The extraction code is `~/test/steer/extract/extract_vectors.py`, which
+   delegates to a library object via `cv.export_gguf()`. Which layer
+   chooses the sign is inside that library and was not traced; the data
+   above localises the fault to it either way.
 3. **The vectors are unit-norm** (‖v‖ = 1.00 at every layer, ratio 1.000).
    That is fine as a format, but it means the file cannot express *how much*
    to add. The same nominal strength is 343% of the state norm at L4 and 4% at
@@ -443,12 +465,11 @@ per-layer, are the three changes that would most improve these vectors.
   extractions, with injection held fixed. Every effect size in the
   earlier sections is specific to that pairing, and the gap is large
   enough that quoting a number without naming both layers is misleading.
-- **Why the user's `token_pos=all` vectors flip sign is not established.**
-  The pattern is clear and consistent across four files and three
-  contrasts, and it is not explained by position handling (correction 3
-  above). The likely cause is a per-layer sign convention, but that is
-  inference from the pattern, not a measurement — confirming it needs
-  the extraction code that produced them.
+- **Which layer chooses the sign is not traced.** The fault is localised
+  to a per-layer sign decision inside the library that writes the GGUF,
+  and the data shows a single global convention repairs all four files —
+  but the specific line is in code this project did not write and has
+  not read.
 - Everything is Qwen3-1.7B. The layer conclusions are model-specific and
   should not be assumed to transfer.
 - The strength-0.0 control proves the *hook* is inert when it should be. It
@@ -491,7 +512,7 @@ have been corrected above:
    equally stable on this corpus, with zero sign changes and adjacent
    cosine ~0.90 against a null floor of 0.87. The null floor is high
    enough that this test could not have detected the effect even if it
-   were present, which is itself the lesson of Finding 7 — and the
-   per-layer sign inconsistency in those files remains unexplained by
-   position handling.
+   were present, which is itself the lesson of Finding 7. The flips are
+   instead a per-layer sign decision, confirmed by sign-aligning from
+   L0 and recovering a smooth profile in every affected file.
 

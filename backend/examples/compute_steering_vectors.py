@@ -261,6 +261,50 @@ def matched_null(pos: np.ndarray, neg: np.ndarray, trajs: List[dict],
     return l2(a.mean(axis=0) - b.mean(axis=0))
 
 
+def pool_entropy_matched(trajs: List[dict], n_each: int) -> Tuple[np.ndarray, np.ndarray]:
+    """Top-`n_each` vs bottom-`n_each` entropy tokens, globally ranked.
+
+    A CONTINUOUS contrast: the split is by a score the model produces
+    per token, with no category boundary. Paired with
+    `pool_self_check_matched`, which splits the same tokens by a
+    CATEGORICAL label, at the same two sample sizes.
+    """
+    hs, es = [], []
+    for t in trajs:
+        n_p = t["n_prompt"]
+        if t["hidden"].shape[0] - n_p < 20:
+            continue
+        hs.append(t["hidden"][n_p:])
+        es.append(t["entropy"][n_p:])
+    if not hs:
+        return np.zeros((0, 1), np.float32), np.zeros((0, 1), np.float32)
+    H, E = np.concatenate(hs), np.concatenate(es)
+    order = np.argsort(E)
+    lo, hi = order[:n_each], order[-n_each:]
+    return H[hi], H[lo]
+
+
+def pool_self_check_matched(trajs: List[dict], n_each: int) -> Tuple[np.ndarray, np.ndarray]:
+    """Self-check tokens vs an equal number of other tokens.
+
+    The CATEGORICAL half of the matched pair. `pool_self_check` splits on
+    the same label but leaves the classes at 379 vs 62,420, so anything
+    measured from it is confounded with that ratio; here both sides have
+    `n_each` members and the only thing left differing between this and
+    `pool_entropy_matched` is whether the split is a category or a score.
+    """
+    sc, other = [], []
+    for t in trajs:
+        h, flags, n_p = t["hidden"], t["is_self_check"], t["n_prompt"]
+        for i, f in enumerate(flags):
+            if i < n_p:
+                continue
+            (sc if f else other).append(h[i])
+    if len(sc) < n_each or len(other) < n_each:
+        return np.zeros((0, 1), np.float32), np.zeros((0, 1), np.float32)
+    return np.stack(sc[:n_each]), np.stack(other[:n_each])
+
+
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
@@ -330,6 +374,20 @@ def main(args):
         ("creativity",     lambda: pool_think_block(trajs),
          "tokens inside <think>", "tokens outside <think>"),
     ]
+
+    if args.matched_set:
+        # The categorical-vs-continuous pair. Both sides are the same
+        # size, so sample ratio is held fixed and cannot explain a
+        # difference between them; only the kind of split differs.
+        n = args.matched_n
+        specs += [
+            ("cat_matched", lambda: pool_self_check_matched(trajs, n),
+             f"self-check tokens (categorical), n={n} each side",
+             f"other tokens, n={n}"),
+            ("cont_matched", lambda: pool_entropy_matched(trajs, n),
+             f"top-{n} entropy tokens (continuous score)",
+             f"bottom-{n} entropy tokens"),
+        ]
 
     print("[2/3] extracting directions …")
     vectors: Dict[str, np.ndarray] = {}
@@ -418,6 +476,10 @@ DESCRIPTIONS = {
     "reasoning_shallow": "Push toward early, setup-stage states (short answers)",
     "caution": "Push toward the state the model is in when it verifies its work",
     "creativity": "Push toward the state inside the <think> scratchpad",
+    "cat_matched": "Categorical split (self-check vs other) at matched sample "
+                   "sizes — control for the continuous split",
+    "cont_matched": "Continuous split (high vs low entropy) at the same "
+                    "sample sizes — control for the categorical split",
 }
 
 
@@ -433,6 +495,12 @@ def cli():
     ap.add_argument("--with-null", action="store_true",
                     help="also extract a matched random control per direction, "
                          "to establish the cross-layer cosine floor")
+    ap.add_argument("--matched-set", action="store_true",
+                    help="also extract cat_matched / cont_matched: the same "
+                         "concept split categorically vs by a continuous "
+                         "score, at identical sample sizes")
+    ap.add_argument("--matched-n", type=int, default=379,
+                    help="per-side sample size for --matched-set")
     ap.add_argument("--limit", type=int, default=None,
                     help="Cap the number of .npz files (debugging)")
     ap.add_argument("--min-tokens", type=int, default=40)

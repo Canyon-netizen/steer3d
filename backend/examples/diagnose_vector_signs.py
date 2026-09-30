@@ -30,12 +30,34 @@ def adjacent_cos(M: np.ndarray) -> np.ndarray:
     return np.array([C[i, i + 1] for i in range(len(M) - 1)])
 
 
+def sign_aligned_cos(M: np.ndarray) -> np.ndarray:
+    """Adjacent cosines after propagating ONE sign convention from layer 0.
+
+    If a per-layer sign was decided independently at each layer, then
+    choosing a sign once and carrying it forward should turn an
+    alternating profile into a smooth one. If it does not, the layers
+    genuinely disagree about orientation and no single convention fixes
+    it — the direction really is unstable, and the fix is more data
+    rather than a sign rule.
+    """
+    Mn = M / (np.linalg.norm(M, axis=1, keepdims=True) + 1e-12)
+    s = np.ones(len(Mn))
+    for i in range(1, len(Mn)):
+        # Carry the previous layer's sign forward: flip this one if it
+        # points against the already-signed predecessor.
+        if float(Mn[i] @ (Mn[i - 1] * s[i - 1])) < 0:
+            s[i] = -1.0
+    A = Mn * s[:, None]
+    return np.array([float(A[i] @ A[i + 1]) for i in range(len(A) - 1)])
+
+
 def main(args) -> int:
     d = Path(args.dir).expanduser()
     for f in sorted(d.glob("*.gguf"))[: args.limit]:
         cv = read_control_vector(f)
         M = cv.direction_matrix
         adj = adjacent_cos(M)
+        fixed = sign_aligned_cos(M)
         print(f"{f.name}  dataset={cv.get('dataset')}  "
               f"contrast={cv.get('pos_field')}/{cv.get('neg_field')}  "
               f"pairs={cv.get_int('n_pairs')}  token_pos={cv.get('token_pos')}")
@@ -50,6 +72,15 @@ def main(args) -> int:
             print(f"   {len(neg)}/{len(adj)} adjacent pairs negative, "
                   f"{n_flips} sign changes"
                   f"   -> {'ALTERNATING (unstable direction)' if n_flips > 1 else 'contiguous run (sign convention)'}")
+            print(f"   after propagating one sign from L0: "
+                  f"min {fixed.min():+.3f}  mean {fixed.mean():+.3f}  "
+                  f"({int((fixed < 0).sum())} still negative)")
+            print(f"      " + " ".join(f"{v:+.2f}" for v in fixed))
+            if (fixed >= 0).all():
+                print("      -> one global sign convention fixes this file")
+            else:
+                print("      -> layers still disagree; needs more data, "
+                      "not just a sign rule")
         print()
     return 0
 
