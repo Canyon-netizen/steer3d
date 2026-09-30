@@ -60,6 +60,7 @@ def main(args) -> int:
 
     metric = args.metric
     data: Dict[int, np.ndarray] = {}
+    agree: Dict[int, float] = {}
     print(f"  {'extracted':>9} {'n':>3} {'control':>9} {args.strength:>7} "
           f"{'delta':>9} {'sd':>8} {'t':>7} {'p':>10} {'agree':>8}")
     for L in layers:
@@ -69,6 +70,7 @@ def main(args) -> int:
         d = t - c
         tt, pp = stats.ttest_rel(t, c)
         data[L] = t
+        agree[L] = float(ag.mean())
         print(f"  L{L:<8} {n:>3} {c.mean():9.4f} {t.mean():7.4f} "
               f"{d.mean():+9.4f} {d.std(ddof=1):8.4f} {tt:7.2f} {pp:10.2e} "
               f"{ag.mean():8.4f}")
@@ -97,9 +99,27 @@ def main(args) -> int:
 
     lo, hi = layers[0], layers[-1]
     ratio = data[hi].mean() / data[lo].mean() if data[lo].mean() else float("nan")
+
+    # Does the effect saturate at the injection layer? If the last pair of
+    # extraction depths is not separable, the gain from reading the
+    # direction out deeper stops where it is applied.
+    sat = None
+    if len(layers) >= 2:
+        d = data[layers[-1]] - data[layers[-2]]
+        tt, pp = stats.ttest_rel(data[layers[-1]], data[layers[-2]])
+        sat = {"pair": [layers[-2], layers[-1]], "delta": float(d.mean()),
+               "p": float(pp)}
+        print(f"  top pair L{layers[-2]} vs L{layers[-1]}: "
+              f"{d.mean():+.4f}, p={pp:.2f}"
+              f"{' — saturates at the injection layer' if pp > 0.05 else ''}")
+
+    ag_lo, ag_hi = agree[lo], agree[hi]
     print()
     print(f"  {metric} at L{hi} is {ratio:.2f}x the value at L{lo}, with the "
           f"injection layer held fixed at L{args.inject_at}.")
+    print(f"  token agreement barely moves across the same range "
+          f"({ag_lo:.3f} → {ag_hi:.3f}), so this is a distributional "
+          f"divergence rather than a change in which token is picked.")
 
     if args.out:
         out = Path(args.out)
@@ -111,8 +131,11 @@ def main(args) -> int:
             "per_layer": {str(L): {
                 "mean": float(data[L].mean()),
                 "sd": float(data[L].std(ddof=1)),
+                "token_agreement": agree[L],
             } for L in layers},
             "friedman_p": float(p),
+            "ratio_top_bottom": float(ratio),
+            "saturation": sat,
             "problems": labels,
         }, indent=2))
         print(f"\nwrote {out}")

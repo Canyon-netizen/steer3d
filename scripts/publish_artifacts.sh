@@ -51,6 +51,10 @@ else
 fi
 
 # Warn about files the frontend references but that are not published.
-for want in directions_L20_aime2023.json confidence_up_L20_sweep.json layer_scan_confidence_up.json; do
+for want in directions_L20_aime2023.json \
+            confidence_up_L20_sweep.json \
+            layer_scan_confidence_up.json \
+            extraction_layer_effect.json \
+            extraction_layer_with_null.json; do
     [[ -f "$PUB/intervention/$want" ]] || echo "  (referenced by the UI but not yet produced: $want)"
 done
