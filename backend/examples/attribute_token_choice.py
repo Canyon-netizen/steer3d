@@ -334,8 +334,11 @@ def main() -> int:
     ap.add_argument("--random-alternatives", type=int, default=0,
                     help="draw the alternatives at random from the "
                          "vocabulary instead of the model's top-k. This is "
-                         "the null control for the attribution: its "
-                         "sign-agreement curve should stay near 50%.")
+                         "the null control for the attribution. Measured on "
+                         "Qwen3-1.7B it is NOT 50%: it runs 78% at L0 and "
+                         "100% by L24, because a random token's logit is "
+                         "uniformly low and its sign settles early. Compare "
+                         "against it as an excess, never as a 50% coin.")
     ap.add_argument("--device", default="cuda" if __import__("torch").cuda.is_available() else "cpu")
     ap.add_argument("--dtype", default="float32",
                     help="float32 is REQUIRED for a logit lens. In bfloat16 "
