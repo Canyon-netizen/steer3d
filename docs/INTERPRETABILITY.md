@@ -945,9 +945,8 @@ Finding 7: the floor ranges from ~0 to ~0.87 depending on whether the
 control splits the global pool or splits within each trajectory, so the bare
 number is not interpretable on its own.
 
-Five claims in earlier drafts of this file did not survive checking and
+Nine claims in earlier drafts of this file did not survive checking and
 have been corrected above:
-
 1. That the `confidence_up`/`confidence_down` antisymmetry was "the single
    strongest piece of evidence" for the pipeline measuring causal effect.
    At the time it rested on one prompt, and at n = 5 it did not reach
@@ -997,4 +996,14 @@ have been corrected above:
    the lens reported a perfectly flat, perfectly consistent `0.000` gap at
    every layer. Smoothness is not fidelity; `attribute_token_choice.py` now
    raises on a degenerate lens rather than reporting it.
+8. That the early layers' 56% agreement was "near chance". It was 23
+   points *below* the measured null (8a-null), because a random token's
+   sign is settled early and confidently. An assumed 50% baseline was
+   wrong by a wide margin, and the correct reading — the early stack is
+   mildly anti-aligned with the eventual answer — is the opposite of the
+   one originally written.
+9. That the decision-depth curve rises monotonically. It does so for
+   Qwen3-1.7B and Qwen3-4B. Qwen3-8B falls from 74% at L20 to 61% at L24
+   — four standard errors, so a real departure, not noise. Reported as
+   such rather than smoothed into agreement with the other two.
 
