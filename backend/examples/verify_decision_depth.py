@@ -234,6 +234,69 @@ def main() -> int:
                 / len(act)) if act else None,
         })
 
+    # --- does the layer ordering survive its own noise? ---
+    #
+    # The per-layer means above are not evidence on their own. With n
+    # problems the standard error of a difference between two layers is
+    # what decides whether the ordering is real, and it is computable here
+    # because every layer is run on the same problems: the comparison is
+    # paired, and only the per-problem disagreement carries information.
+    #
+    # This matters because the effect sizes are small (KL ~0.03-0.12) and a
+    # monotone-looking curve can be produced by noise alone. The
+    # discriminability is reported *before* any ordering claim.
+    labels = sorted({r["problem"] for r in results})
+    kl_by: Dict[int, Dict[str, float]] = {}
+    for L in sorted(by_layer):
+        for a in by_layer[L].get(args.frac_of_state_norm, []):
+            kl_by.setdefault(L, {})[a["problem"]] = a["mean_logit_kl"]
+
+    def paired_delta(L1: int, L2: int) -> dict:
+        common = [p for p in labels
+                  if p in kl_by.get(L1, {}) and p in kl_by.get(L2, {})]
+        diffs = [kl_by[L1][p] - kl_by[L2][p] for p in common]
+        n = len(diffs)
+        if n < 2:
+            return {"n": n, "mean": None, "se": None, "t": None}
+        m = statistics.fmean(diffs)
+        sd = statistics.stdev(diffs)
+        se = sd / (n ** 0.5) if sd > 0 else 0.0
+        return {
+            "n": n,
+            "mean": m,
+            "sd": sd,
+            "se": se,
+            "t": (m / se) if se > 0 else None,
+            "signs_positive": sum(1 for d in diffs if d > 0),
+            "signs_negative": sum(1 for d in diffs if d < 0),
+        }
+
+    discriminability = {
+        "note": ("paired per-problem differences of mean logit KL between "
+                 "layers. |t| < 2 means the two layers are not separable at "
+                 "this n; the per-layer means must not be read as an "
+                 "ordering until this says otherwise."),
+        "pairwise": {},
+    }
+    Ls = sorted(kl_by)
+    for i, L1 in enumerate(Ls):
+        for L2 in Ls[i + 1:]:
+            d = paired_delta(L1, L2)
+            if d.get("t") is not None:
+                discriminability["pairwise"][f"L{L1}-L{L2}"] = d
+
+    # The specific contrast the Finding 8 prediction is about: late window
+    # vs early window. The decision is measured at L20-L26 and the
+    # undecided stack at L8-L16.
+    early = [L for L in Ls if L <= 16]
+    late = [L for L in Ls if L >= 20]
+    if early and late:
+        lo, hi = min(early), max(late)
+        discriminability["early_vs_late"] = {
+            "definition": f"mean of {early} minus mean of {late}",
+            "per_layer": {f"L{lo}": paired_delta(lo, l) for l in late},
+        }
+
     out = {
         "model": args.model_path,
         "direction": direction,
