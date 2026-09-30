@@ -1,7 +1,13 @@
 "use client";
 
 import { create } from "zustand";
-import type { Frame, ReadyMessage } from "./frame-types";
+import type {
+  ActiveIntervention,
+  Frame,
+  ReadyMessage,
+  SteeringCatalogMessage,
+  SteeringDirectionInfo,
+} from "./frame-types";
 
 /**
  * Global app state. The key slice is `frames`, a rolling buffer of
@@ -29,9 +35,20 @@ type AppState = {
   connected: boolean;
   error: string | null;
 
+  // Steering / intervention state. The catalog is what the backend
+  // says it can actually inject (with the evidence for each), and
+  // `active` is the live set currently perturbing the stream.
+  steeringAvailable: boolean;
+  steeringError: string | null;
+  steeringDirections: SteeringDirectionInfo[];
+  steeringCalibration: { calibrated: boolean; layers: number[]; layer_rms: Record<string, number> } | null;
+  activeInterventions: ActiveIntervention[];
+
   // Setters
   ingestFrame: (f: Frame) => void;
   ingestReady: (r: ReadyMessage) => void;
+  ingestSteeringCatalog: (m: SteeringCatalogMessage) => void;
+  setActiveInterventions: (list: ActiveIntervention[]) => void;
   setLayer: (l: number) => void;
   setPrompt: (p: string) => void;
   setSpeed: (s: number) => void;
@@ -56,6 +73,12 @@ export const useApp = create<AppState>((set) => ({
   connected: false,
   error: null,
 
+  steeringAvailable: false,
+  steeringError: null,
+  steeringDirections: [],
+  steeringCalibration: null,
+  activeInterventions: [],
+
   ingestFrame: (f) =>
     set((s) => ({
       frames: [...s.frames, f].slice(-MAX_FRAMES),
@@ -70,11 +93,27 @@ export const useApp = create<AppState>((set) => ({
       layer: r.payload.layer,
     })),
 
+  ingestSteeringCatalog: (m) =>
+    set(() => ({
+      steeringAvailable: m.payload.available,
+      steeringError: m.payload.error,
+      steeringDirections: m.payload.directions,
+      steeringCalibration: m.payload.calibration ?? null,
+    })),
+
+  setActiveInterventions: (list) => set(() => ({ activeInterventions: list })),
+
   setLayer: (l) => set(() => ({ layer: l })),
   setPrompt: (p) => set(() => ({ prompt: p })),
   setSpeed: (s) => set(() => ({ speed: s })),
   setPaused: (b) => set(() => ({ paused: b })),
   setConnected: (c) => set(() => ({ connected: c })),
   setError: (e) => set(() => ({ error: e })),
-  reset: () => set(() => ({ frames: [], latest: null, fullText: "" })),
+  reset: () =>
+    set(() => ({
+      frames: [],
+      latest: null,
+      fullText: "",
+      activeInterventions: [],
+    })),
 }));

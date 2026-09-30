@@ -18,6 +18,11 @@ export type Frame = {
   loss?: number | null;
   is_self_check?: boolean;
   is_revisit?: boolean;
+  // Intervention telemetry — populated only while steering is active.
+  steer_active?: boolean;
+  steer_norm?: number | null;
+  steer_alignment?: number | null;
+  steer_projection?: number | null;
 };
 
 export type ReadyMessage = {
@@ -30,10 +35,60 @@ export type ReadyMessage = {
   };
 };
 
+/** One steering direction the backend can inject, with its evidence. */
+export type SteeringDirectionInfo = {
+  id: string;
+  label: string;
+  hint: string;
+  layer: number | null;
+  validation: { confidence_cohens_d?: number; [k: string]: unknown };
+  n_positive: number | null;
+  n_negative: number | null;
+};
+
+export type SteeringCatalogMessage = {
+  kind: "steering_catalog";
+  payload: {
+    available: boolean;
+    error: string | null;
+    directions: SteeringDirectionInfo[];
+    calibration?: {
+      calibrated: boolean;
+      layers: number[];
+      layer_rms: Record<string, number>;
+    };
+  };
+};
+
+export type ActiveIntervention = {
+  id: number;
+  direction: string;
+  strength: number;
+  layer: number;
+  active: boolean;
+};
+
+export type SteeringAckMessage = {
+  kind: "steering_ack";
+  payload: {
+    intervention?: ActiveIntervention;
+    injected_norm?: number | null;
+    reverted?: number | null;
+    cleared?: number;
+    active: ActiveIntervention[];
+  };
+};
+
 export type ErrorMessage = { kind: "error"; payload: { message: string } };
 export type ResetAckMessage = { kind: "reset_ack" };
 
-export type ServerMessage = Frame | ReadyMessage | ErrorMessage | ResetAckMessage;
+export type ServerMessage =
+  | Frame
+  | ReadyMessage
+  | SteeringCatalogMessage
+  | SteeringAckMessage
+  | ErrorMessage
+  | ResetAckMessage;
 
 export type ControlKind =
   | "start"
@@ -43,7 +98,10 @@ export type ControlKind =
   | "set_layer"
   | "set_prompt"
   | "set_speed"
-  | "reset";
+  | "reset"
+  | "inject_steering"
+  | "revert_steering"
+  | "clear_steering";
 
 export type ControlMessage = {
   kind: ControlKind;

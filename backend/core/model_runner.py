@@ -177,19 +177,36 @@ class SyntheticRunner(BaseModelRunner):
             last_delta = delta
             prev_xyz = xyz
 
-            # Inject-vector hook (no-op for synthetic unless provided)
-            injected = None
-            if inject_vector is not None:
-                injected = inject_vector(i, tok)
-                if injected is not None:
-                    xyz = xyz + injected  # nudge in 3-D directly
-
             # Top token probability + entropy (synthetic, but plausible)
             top1_prob = max(0.05, 0.7 - 0.005 * (i % 15))
             entropy = 1.5 + 0.3 * math.sin(t * 0.5)
             perplexity = 1.0 / top1_prob
 
             is_self_check = tok in self.SELF_CHECK_TOKENS or looks_like_self_check(tok)
+
+            # Vector injection. The steering vectors live in the model's
+            # d_model-dimensional residual space, which the synthetic
+            # runner does not have — so there is no principled way to
+            # apply one here. We report the injection's magnitude (so the
+            # UI plumbing and telemetry are exercised) and displace the
+            # synthetic path along a fixed axis by that amount. Only the
+            # real HF runner does genuine residual-stream surgery; see
+            # run_intervention.py for the measurement to run alongside it.
+            steer_active = False
+            steer_norm = None
+            if inject_vector is not None:
+                injected = inject_vector(i, tok)
+                if injected is not None:
+                    v = np.asarray(injected, dtype=np.float64).reshape(-1)
+                    norm = float(np.linalg.norm(v))
+                    # A non-finite norm would poison every downstream
+                    # coordinate and, in the browser, the whole render.
+                    # Refuse the intervention rather than emit a broken
+                    # trajectory.
+                    if np.isfinite(norm):
+                        steer_norm = norm
+                        xyz = xyz + np.array([0.0, 0.0, steer_norm * 0.5])
+                        steer_active = True
 
             frame = Frame(
                 ts=time.time(),
@@ -202,6 +219,8 @@ class SyntheticRunner(BaseModelRunner):
                 loss=None,
                 is_self_check=is_self_check,
                 is_revisit=bool(reversed_now),
+                steer_active=steer_active,
+                steer_norm=steer_norm,
             )
             on_frame(frame)
             state.token_idx += 1
@@ -472,10 +491,12 @@ class HFTransformerRunner(BaseModelRunner):
             # --- Vector injection (optional) ---
             tok_text = self.tokenizer.decode([first_token_id] if step_id == 0 else [next_id])
             inject_handle = None
+            steer_vec = None
             if inject_vector is not None:
                 v = inject_vector(step_id, tok_text)
                 if v is not None:
-                    inject_handle = _add_hook(v)
+                    steer_vec = np.asarray(v, dtype=np.float32).reshape(-1)
+                    inject_handle = _add_hook(steer_vec)
 
             # --- Forward ONE token with KV cache, capture hidden ---
             next_input = torch.tensor([[first_token_id]], device=self.model.device) \
@@ -516,6 +537,24 @@ class HFTransformerRunner(BaseModelRunner):
 
             h_vec = captured[0][0]
 
+            # Intervention telemetry. `h_vec` is the state *after* the
+            # injection, so the alignment we report is between the
+            # perturbed state and the direction we pushed along — how
+            # much of the perturbation the model actually retained by
+            # the time it reached this layer. The projection is the
+            # signed component along the steering direction, which is
+            # what you watch to see the effect build up step by step.
+            steer_norm = steer_align = steer_proj = None
+            if steer_vec is not None:
+                steer_norm = float(np.linalg.norm(steer_vec))
+                hv = np.asarray(h_vec, dtype=np.float32).reshape(-1)
+                if steer_norm > 1e-8:
+                    unit = steer_vec / steer_norm
+                    steer_align = float(
+                        np.dot(hv, unit) / (np.linalg.norm(hv) + 1e-8)
+                    )
+                    steer_proj = float(np.dot(hv, unit))
+
             # Emit frame
             frame = Frame(
                 ts=_time.time(),
@@ -527,6 +566,10 @@ class HFTransformerRunner(BaseModelRunner):
                 entropy=entropy,
                 is_self_check=looks_like_self_check(tok_text),
                 is_revisit=False,
+                steer_active=steer_vec is not None,
+                steer_norm=steer_norm,
+                steer_alignment=steer_align,
+                steer_projection=steer_proj,
             )
             frame._raw_hidden = h_vec  # type: ignore[attr-defined]
             on_frame(frame)

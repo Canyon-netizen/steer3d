@@ -1,0 +1,106 @@
+{
+  "confidence_up": {
+    "description": "Raise confidence / lower entropy",
+    "layer": 14,
+    "d_model": 2048,
+    "method": "diff_of_means",
+    "positive_group": "low-entropy tokens (p30)",
+    "negative_group": "high-entropy tokens (p75)",
+    "n_positive": 20930,
+    "n_negative": 15718,
+    "norm": 1.0,
+    "validation": {
+      "layer": 14,
+      "norm": 1.0,
+      "confidence_cohens_d": 1.8283096551895142,
+      "confidence_separation": 33.690555572509766
+    }
+  },
+  "reasoning_deep": {
+    "description": "Push toward long-chain, late-stage reasoning states",
+    "layer": 14,
+    "d_model": 2048,
+    "method": "diff_of_means",
+    "positive_group": "last 25% of long trajectories",
+    "negative_group": "first 25% of long trajectories",
+    "n_positive": 15679,
+    "n_negative": 15679,
+    "norm": 1.0,
+    "validation": {
+      "layer": 14,
+      "norm": 1.0,
+      "confidence_cohens_d": 0.4775237739086151,
+      "confidence_separation": 5.563727378845215
+    }
+  },
+  "caution": {
+    "description": "Push toward the state the model is in when it verifies its work",
+    "layer": 14,
+    "d_model": 2048,
+    "method": "diff_of_means",
+    "positive_group": "self-check tokens (wait/actually/…)",
+    "negative_group": "ordinary generated tokens",
+    "n_positive": 379,
+    "n_negative": 62420,
+    "norm": 1.0,
+    "validation": {
+      "layer": 14,
+      "norm": 1.0,
+      "confidence_cohens_d": -1.151949405670166,
+      "confidence_separation": -18.653797149658203
+    }
+  },
+  "creativity": {
+    "description": "Push toward the state inside the <think> scratchpad",
+    "layer": 14,
+    "d_model": 2048,
+    "method": "diff_of_means",
+    "positive_group": "tokens inside <think>",
+    "negative_group": "tokens outside <think>",
+    "n_positive": 40338,
+    "n_negative": 22461,
+    "norm": 0.9999999403953552,
+    "validation": {
+      "layer": 14,
+      "norm": 0.9999999403953552,
+      "confidence_cohens_d": -0.8372429609298706,
+      "confidence_separation": -13.998543739318848
+    }
+  },
+  "confidence_down": {
+    "description": "Lower confidence / raise entropy (more exploration)",
+    "layer": 14,
+    "d_model": 2048,
+    "method": "diff_of_means",
+    "positive_group": "high-entropy tokens (p75)",
+    "negative_group": "low-entropy tokens (p30)",
+    "n_positive": 20930,
+    "n_negative": 15718,
+    "norm": 1.0,
+    "validation": {
+      "layer": 14,
+      "norm": 1.0,
+      "confidence_cohens_d": 1.8283096551895142,
+      "confidence_separation": 33.690555572509766
+    },
+    "derived_from": "confidence_up"
+  },
+  "reasoning_shallow": {
+    "description": "Push toward early, setup-stage states (short answers)",
+    "layer": 14,
+    "d_model": 2048,
+    "method": "diff_of_means",
+    "positive_group": "first 25% of long trajectories",
+    "negative_group": "last 25% of long trajectories",
+    "n_positive": 15679,
+    "n_negative": 15679,
+    "norm": 1.0,
+    "validation": {
+      "layer": 14,
+      "norm": 1.0,
+      "confidence_cohens_d": 0.4775237739086151,
+      "confidence_separation": 5.563727378845215
+    },
+    "derived_from": "reasoning_deep"
+  }
+}

@@ -1,0 +1,146 @@
+registry: 6 vectors from /data/zju-130/zhourui/steer3d/backend/examples/output/steering_vectors
+         caution, confidence_down, confidence_up, creativity, reasoning_deep, reasoning_shallow
+
+layer L20 ‖h‖ reference: 865.77  [layer_profiles.json (28 layers)]
+
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights:   0%|          | 1/311 [00:01<05:54,  1.14s/it]Loading weights:   1%|          | 2/311 [00:02<05:55,  1.15s/it]Loading weights:   2%|▏         | 6/311 [00:02<01:28,  3.43it/s]Loading weights:   5%|▌         | 16/311 [00:02<00:25, 11.37it/s]Loading weights:   8%|▊         | 24/311 [00:02<00:15, 18.61it/s]Loading weights:  10%|▉         | 30/311 [00:02<00:12, 22.71it/s]Loading weights:  12%|█▏        | 38/311 [00:02<00:09, 29.50it/s]Loading weights:  15%|█▌        | 47/311 [00:03<00:06, 39.57it/s]Loading weights:  17%|█▋        | 54/311 [00:03<00:06, 40.64it/s]Loading weights:  19%|█▉        | 60/311 [00:03<00:05, 42.98it/s]Loading weights:  22%|██▏       | 68/311 [00:03<00:04, 50.86it/s]Loading weights:  24%|██▍       | 75/311 [00:03<00:04, 49.24it/s]Loading weights:  26%|██▋       | 82/311 [00:03<00:04, 49.98it/s]Loading weights:  29%|██▉       | 90/311 [00:03<00:03, 56.79it/s]Loading weights:  31%|███       | 97/311 [00:03<00:03, 53.59it/s]Loading weights:  33%|███▎      | 104/311 [00:04<00:03, 53.09it/s]Loading weights:  37%|███▋      | 114/311 [00:04<00:03, 58.30it/s]Loading weights:  39%|███▉      | 121/311 [00:04<00:03, 58.13it/s]Loading weights:  41%|████      | 127/311 [00:04<00:03, 50.33it/s]Loading weights:  44%|████▍     | 137/311 [00:04<00:03, 56.14it/s]Loading weights:  47%|████▋     | 146/311 [00:04<00:02, 63.61it/s]Loading weights:  49%|████▉     | 153/311 [00:04<00:02, 56.38it/s]Loading weights:  51%|█████     | 159/311 [00:05<00:02, 54.96it/s]Loading weights:  54%|█████▍    | 169/311 [00:05<00:02, 59.42it/s]Loading weights:  57%|█████▋    | 176/311 [00:05<00:02, 56.92it/s]Loading weights:  59%|█████▊    | 182/311 [00:05<00:02, 51.58it/s]Loading weights:  62%|██████▏   | 192/311 [00:05<00:02, 57.10it/s]Loading weights:  64%|██████▍   | 200/311 [00:05<00:01, 62.11it/s]Loading weights:  67%|██████▋   | 207/311 [00:05<00:01, 56.45it/s]Loading weights:  69%|██████▉   | 214/311 [00:06<00:01, 54.98it/s]Loading weights:  71%|███████▏  | 222/311 [00:06<00:01, 55.15it/s]Loading weights:  74%|███████▎  | 229/311 [00:06<00:01, 57.75it/s]Loading weights:  76%|███████▌  | 236/311 [00:06<00:01, 55.33it/s]Loading weights:  78%|███████▊  | 244/311 [00:06<00:01, 61.26it/s]Loading weights:  81%|████████  | 251/311 [00:06<00:01, 56.04it/s]Loading weights:  83%|████████▎ | 258/311 [00:06<00:00, 54.40it/s]Loading weights:  86%|████████▌ | 266/311 [00:06<00:00, 60.31it/s]Loading weights:  88%|████████▊ | 273/311 [00:07<00:00, 55.46it/s]Loading weights:  90%|█████████ | 280/311 [00:07<00:00, 54.52it/s]Loading weights:  93%|█████████▎| 289/311 [00:07<00:00, 62.93it/s]Loading weights:  95%|█████████▌| 296/311 [00:07<00:00, 55.02it/s]Loading weights:  97%|█████████▋| 302/311 [00:07<00:00, 53.42it/s]Loading weights: 100%|██████████| 311/311 [00:07<00:00, 40.34it/s]
+model loaded: /tmp/qwen3/master on cuda:0
+
+====================================================================
+  confidence_up  ·  strength 0.000  ·  layer L20
+====================================================================
+  injected ‖v‖        : 0.0000
+  steps generated      : 50
+  token agreement      : 100.0%
+  first token diverged : never
+  mean logit KL        : 0.0000 nats
+  entropy  steered     : 0.1929
+  entropy  unsteered   : 0.1929
+  Δentropy             : +0.0000
+  max divergence       : 0.0000
+  mean divergence      : 0.0000
+
+  Divergence by depth (1.0 = identical, 0.0 = orthogonal):
+    L-1  cos=1.000  relΔ=0.000  
+    L 2  cos=1.000  relΔ=0.000  
+    L 5  cos=1.000  relΔ=0.000  
+    L 8  cos=1.000  relΔ=0.000  
+    L11  cos=1.000  relΔ=0.000  
+    L14  cos=1.000  relΔ=0.000  
+    L17  cos=1.000  relΔ=0.000  
+    L20  cos=1.000  relΔ=0.000  
+    L23  cos=1.000  relΔ=0.000  
+    L26  cos=1.000  relΔ=0.000  
+    ↑ injected at L20 (cos=1.000)
+
+  steered output:
+    <think>
+    Okay, so I need to figure out what 17 times 23 is. Let me think. Hmm, multiplication... I remember there are a few ways to multiply numbers. Maybe I can do it straight up, or maybe use
+  wallclock: 63.3s
+
+====================================================================
+  confidence_up  ·  strength 0.050  ·  layer L20
+====================================================================
+  injected ‖v‖        : 43.2886
+  steps generated      : 50
+  token agreement      : 96.1%
+  first token diverged : step 22
+  mean logit KL        : 0.0135 nats
+  entropy  steered     : 0.2096
+  entropy  unsteered   : 0.2160
+  Δentropy             : -0.0064
+  max divergence       : 0.0113
+  mean divergence      : 0.0007
+
+  Divergence by depth (1.0 = identical, 0.0 = orthogonal):
+    L-1  cos=1.000  relΔ=0.000  
+    L 2  cos=1.000  relΔ=0.000  
+    L 5  cos=1.000  relΔ=0.000  
+    L 8  cos=1.000  relΔ=0.000  
+    L11  cos=1.000  relΔ=0.000  
+    L14  cos=1.000  relΔ=0.000  
+    L17  cos=1.000  relΔ=0.000  
+    L20  cos=0.997  relΔ=0.073  
+    L23  cos=0.997  relΔ=0.074  
+    L26  cos=0.998  relΔ=0.059  
+    ↑ injected at L20 (cos=0.997)
+
+  steered output:
+    <think>
+    Okay, so I need to figure out what 17 times 23 is. Let me think about how to approach this. Hmm, multiplication of two numbers. I remember there are a few ways to do this, like using the
+  unsteered output:
+    <think>
+    Okay, so I need to figure out what 17 times 23 is. Let me think. how to approach this. Hmm, multiplication of two numbers. I remember there are a few ways to do this, like breaking the
+  wallclock: 3.5s
+
+====================================================================
+  confidence_up  ·  strength 0.150  ·  layer L20
+====================================================================
+  injected ‖v‖        : 129.8657
+  steps generated      : 50
+  token agreement      : 96.1%
+  first token diverged : step 22
+  mean logit KL        : 0.0937 nats
+  entropy  steered     : 0.1483
+  entropy  unsteered   : 0.1786
+  Δentropy             : -0.0303
+  max divergence       : 0.1250
+  mean divergence      : 0.0065
+
+  Divergence by depth (1.0 = identical, 0.0 = orthogonal):
+    L-1  cos=1.000  relΔ=0.000  
+    L 2  cos=1.000  relΔ=0.000  
+    L 5  cos=1.000  relΔ=0.000  
+    L 8  cos=1.000  relΔ=0.000  
+    L11  cos=1.000  relΔ=0.000  
+    L14  cos=1.000  relΔ=0.000  
+    L17  cos=1.000  relΔ=0.000  
+    L20  cos=0.977  relΔ=0.215  █
+    L23  cos=0.974  relΔ=0.224  █
+    L26  cos=0.984  relΔ=0.175  █
+    ↑ injected at L20 (cos=0.977)
+
+  steered output:
+    <think>
+    Okay, so I need to figure out what 17 times 23 is. Let me think about how to approach this. Hmm, multiplication of two numbers... I remember there are a few ways to do this. Maybe I can
+  unsteered output:
+    <think>
+    Okay, so I need to figure out what 17 times 23 is. Let me think. how to approach this. Hmm, multiplication of two numbers. I remember there are a few ways to do this. Maybe I can
+  wallclock: 3.4s
+
+====================================================================
+  confidence_up  ·  strength 0.300  ·  layer L20
+====================================================================
+  injected ‖v‖        : 259.7314
+  steps generated      : 50
+  token agreement      : 86.3%
+  first token diverged : step 7
+  mean logit KL        : 0.5356 nats
+  entropy  steered     : 0.2085
+  entropy  unsteered   : 0.1853
+  Δentropy             : +0.0233
+  max divergence       : 0.4143
+  mean divergence      : 0.0251
+
+  Divergence by depth (1.0 = identical, 0.0 = orthogonal):
+    L-1  cos=1.000  relΔ=0.000  
+    L 2  cos=1.000  relΔ=0.000  
+    L 5  cos=1.000  relΔ=0.000  
+    L 8  cos=1.000  relΔ=0.000  
+    L11  cos=1.000  relΔ=0.000  
+    L14  cos=1.000  relΔ=0.000  
+    L17  cos=1.000  relΔ=0.000  
+    L20  cos=0.912  relΔ=0.419  ████
+    L23  cos=0.902  relΔ=0.430  ████
+    L26  cos=0.937  relΔ=0.346  ███
+    ↑ injected at L20 (cos=0.912)
+
+  steered output:
+    <think>
+    Okay, so I need to find out what 17 times 23 is. Let me think about how to do this. Hmm, I remember that multiplication can be done in different ways, like using distributive property or maybe even
+  unsteered output:
+    <think>
+    Okay, so I need to figure out what 17 times 23 is. Let me think about how to approach this. Hmm, multiplication remember that multiplication can be done in different ways, like using theutive properties or maybe breaking
+  wallclock: 3.3s
+
+wrote 4 result(s) → /tmp/iv_conf.json

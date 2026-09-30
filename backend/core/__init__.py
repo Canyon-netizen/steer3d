@@ -24,6 +24,12 @@ from .activation import (
     get_residual_at_last_token,
     remove_hook,
 )
+from .steering import (
+    SteeringRegistry,
+    InterventionController,
+    get_registry,
+    PRESET_DIRECTIONS,
+)
 from .model_runner import (
     BaseModelRunner,
     SyntheticRunner,
@@ -65,6 +71,11 @@ __all__ = [
     "install_residual_add_hook",
     "get_residual_at_last_token",
     "remove_hook",
+    # steering / intervention
+    "SteeringRegistry",
+    "InterventionController",
+    "get_registry",
+    "PRESET_DIRECTIONS",
     # model runner
     "BaseModelRunner",
     "SyntheticRunner",

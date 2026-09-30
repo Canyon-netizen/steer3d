@@ -33,6 +33,7 @@ from core import (
     default_runner,
 )
 from core.protocol import ReadyMessage
+from core.steering import get_registry, InterventionController
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +69,9 @@ class SessionState:
         self.runner = factory()
         self.projector = OnlinePCA(d=self.runner.d_model, target_dim=3, window=256)
         self.runner.reset()
+        # Active steering interventions for this session. The callback it
+        # exposes is what actually gets handed to runner.stream().
+        self.interventions = InterventionController(get_registry())
 
 
 # ---------------------------------------------------------------------------
@@ -83,14 +87,27 @@ async def ws_endpoint(websocket: WebSocket):
     state = SessionState(runner_factory=factory)
 
     # Greet with config so the UI can populate defaults.
+    registry = get_registry()
     await websocket.send_json(
         ReadyMessage(
-            presets=[],  # placeholder; reserved for future vector presets
+            presets=registry.names,
             layer=state.layer,
             d_model=state.runner.d_model,
             sample_every=1,
         ).to_dict()
     )
+    # Directions carry their own metadata (which layer they were extracted
+    # at, how strong the validation effect was) so the UI can show the
+    # evidence alongside the control rather than making the user trust us.
+    await websocket.send_json({
+        "kind": "steering_catalog",
+        "payload": {
+            "available": registry.loaded,
+            "error": registry.load_error,
+            "directions": registry.describe(),
+            "calibration": registry.calibration(),
+        },
+    })
 
     stream_task: Optional[asyncio.Task] = None
 
@@ -120,10 +137,11 @@ async def ws_endpoint(websocket: WebSocket):
         def get_speed() -> float:
             return state.speed
 
-        # Vector-injection hook stub. The user replaces this with
-        # their own logic; returning None means no injection.
-        def inject_vector(step_id: int, token: str):
-            return None
+        # Vector injection. The InterventionController owns which
+        # interventions are active and returns their sum; returning None
+        # (nothing active) means the runner skips the hook entirely, so
+        # an unsteered run costs exactly what it did before.
+        inject_vector = state.interventions.make_callback()
 
         await loop.run_in_executor(
             None,
@@ -187,6 +205,55 @@ async def ws_endpoint(websocket: WebSocket):
                 state.projector.reset()
                 stream_task = None
                 await websocket.send_json({"kind": "reset_ack"})
+
+            # ----- interventions -----
+
+            elif kind == "inject_steering":
+                direction = str(payload.get("direction", ""))
+                strength = float(payload.get("strength", 0.1))
+                layer = int(payload.get("layer", state.layer))
+                try:
+                    rec = state.interventions.add(direction, strength, layer)
+                except KeyError as e:
+                    await websocket.send_json({
+                        "kind": "error",
+                        "payload": {"message": str(e)},
+                    })
+                    continue
+                # Ack with the *resolved* vector norm so the UI can show
+                # how big the actual perturbation is, not just the
+                # abstract strength the user dragged.
+                resolved = state.interventions.registry.scaled(
+                    direction, strength, layer
+                )
+                await websocket.send_json({
+                    "kind": "steering_ack",
+                    "payload": {
+                        "intervention": rec,
+                        "injected_norm": (
+                            float(np.linalg.norm(resolved)) if resolved is not None else None
+                        ),
+                        "active": state.interventions.active(),
+                    },
+                })
+
+            elif kind == "revert_steering":
+                iv_id = int(payload.get("intervention_id", -1))
+                ok = state.interventions.revert(iv_id)
+                await websocket.send_json({
+                    "kind": "steering_ack",
+                    "payload": {
+                        "reverted": iv_id if ok else None,
+                        "active": state.interventions.active(),
+                    },
+                })
+
+            elif kind == "clear_steering":
+                n = state.interventions.clear()
+                await websocket.send_json({
+                    "kind": "steering_ack",
+                    "payload": {"cleared": n, "active": []},
+                })
 
             else:
                 # Unknown message — ignore

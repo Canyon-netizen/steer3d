@@ -65,6 +65,18 @@ class Frame:
     is_self_check: bool = False  # model said "wait", "actually", "hmm"
     is_revisit: bool = False     # the path direction reversed
 
+    # ----- Intervention telemetry -----
+    # Populated only while a steering intervention is active. These are
+    # what turn "we injected a vector" into something you can *read*:
+    # how much the state moved, how far it moved along the steering
+    # direction specifically, and how far it drifted off the
+    # unperturbed path.
+    steer_active: bool = False
+    steer_norm: Optional[float] = None        # ||injected vector||
+    steer_alignment: Optional[float] = None   # cos(h_t, v_injected), pre-add
+    steer_shift: Optional[float] = None       # ||h_t - h_t^baseline|| (cosine dist)
+    steer_projection: Optional[float] = None  # component of h_t along v
+
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
@@ -83,6 +95,19 @@ ControlKind = Literal[
     "set_prompt",
     "set_speed",
     "reset",
+    "inject_steering",
+    "revert_steering",
+    "clear_steering",
+]
+
+SteeringDirection = Literal[
+    "confidence_up",
+    "confidence_down",
+    "reasoning_deep",
+    "reasoning_shallow",
+    "creativity",
+    "caution",
+    "custom",
 ]
 
 

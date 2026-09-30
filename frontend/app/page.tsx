@@ -5,9 +5,12 @@ import { useEffect, useRef } from "react";
 
 import { useApp } from "@/lib/store";
 import { SteeringWSClient } from "@/lib/ws-client";
+import type { SteeringAckMessage } from "@/lib/frame-types";
 
 import ControlPanel from "@/components/ControlPanel";
 import TokenStreamPanel from "@/components/TokenStreamPanel";
+import InterpretationPanel from "@/components/InterpretationPanel";
+import SteeringControl from "@/components/SteeringControl";
 import Legend from "@/components/Legend";
 
 const Scene3D = dynamic(() => import("@/components/Scene3D"), { ssr: false });
@@ -21,6 +24,8 @@ const WS_URL =
 export default function Page() {
   const ingestFrame = useApp((s) => s.ingestFrame);
   const ingestReady = useApp((s) => s.ingestReady);
+  const ingestSteeringCatalog = useApp((s) => s.ingestSteeringCatalog);
+  const setActiveInterventions = useApp((s) => s.setActiveInterventions);
   const setConnected = useApp((s) => s.setConnected);
   const setError = useApp((s) => s.setError);
 
@@ -31,6 +36,16 @@ export default function Page() {
       const k = (msg as { kind?: string }).kind;
       if (k === "ready") {
         ingestReady(msg as Parameters<typeof ingestReady>[0]);
+      } else if (k === "steering_catalog") {
+        ingestSteeringCatalog(
+          msg as Parameters<typeof ingestSteeringCatalog>[0]
+        );
+      } else if (k === "steering_ack") {
+        // The backend is authoritative about which interventions are
+        // live; mirror its list so the UI can't drift out of sync.
+        setActiveInterventions(
+          (msg as SteeringAckMessage).payload.active
+        );
       } else if (k === "error") {
         setError((msg as { payload: { message: string } }).payload.message);
       } else if (k === "reset_ack") {
@@ -46,7 +61,14 @@ export default function Page() {
       client.close();
       setConnected(false);
     };
-  }, [ingestFrame, ingestReady, setConnected, setError]);
+  }, [
+    ingestFrame,
+    ingestReady,
+    ingestSteeringCatalog,
+    setActiveInterventions,
+    setConnected,
+    setError,
+  ]);
 
   const sendControl = (msg: Parameters<SteeringWSClient["sendControl"]>[0]) => {
     clientRef.current?.sendControl(msg);
@@ -91,6 +113,8 @@ export default function Page() {
 
         <aside className="flex flex-col gap-4 p-4 overflow-hidden min-h-0">
           <ControlPanel sendControl={sendControl} />
+          <SteeringControl sendControl={sendControl} />
+          <InterpretationPanel />
           <TokenStreamPanel />
         </aside>
       </div>
