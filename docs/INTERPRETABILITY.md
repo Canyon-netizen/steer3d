@@ -241,6 +241,146 @@ that layer's measured ‖h‖*, loaded from `layer_profiles.json`, and why the U
 says "scale not measured" rather than showing a percentage it cannot
 honour.
 
+## Finding 8: which layer picks the token
+
+Findings 1–7 all ask what a *vector* does. None of them asked the question
+this project is named after: at a given decoding step, **why is the output
+token this one and not the next one?**
+
+`attribute_token_choice.py` answers it with a logit lens. For each step it
+takes the chosen token and its top-1 alternative and decomposes the logit
+gap between them layer by layer, reporting each layer's lens fidelity
+(KL against the model's own logits) beside the attribution.
+
+Two things had to be fixed before any of it was trustworthy, and both
+produced plausible-looking output while being wrong:
+
+1. **bfloat16 silently zeroes the whole curve.** Read through the
+   unembedding in bf16, the un-normalised residual stream collapses to a
+   constant, so every layer's gap is exactly `0.000` — a flat, perfectly
+   "consistent" attribution that means nothing. float32 is required, and
+   the script now raises if the lens is degenerate rather than reporting it.
+2. **`hidden_states[-1]` is not the model's own final state.** Under
+   transformers 5.x, rebuilding the last layer from it disagrees with
+   `model(...).logits` by up to 15 nats and even changes which token ranks
+   second. The last layer is therefore taken from the model's own logits.
+   Verified: the L28 gap is −6.674 against a true margin of 6.674.
+
+### 8a: the decision is made in the last quarter of the stack
+
+24 AIME problems × 12 greedy steps per model, 288 steps each, restricted to
+steps with a real decision (top-2 margin > 0.5; 278 and 280 qualify). The
+statistic is **sign agreement** — how often the layer's partial model
+already prefers the token that is ultimately chosen, against its top-1
+alternative:
+
+| layer | Qwen3-1.7B (28L) | Qwen3-4B (36L) |
+|---|---|---|
+| 0 | 56% | 42% |
+| 4 | 67% | 48% |
+| 8 | 71% | 57% |
+| 12 | 73% | 64% |
+| 16 | 75% | 63% |
+| 20 | **83%** | 70% |
+| 24 | **91%** | 72% |
+| 28 | **100%** | 79% |
+| 32 | — | 83% |
+| 36 | — | **100%** |
+
+| model | 80% agreement | as % of depth | 90% agreement |
+|---|---|---|---|
+| Qwen3-1.7B | L20 | 71% | L24 (86%) |
+| Qwen3-4B | L30 | 83% | L35 (97%) |
+
+The early stack is near chance — L0 sits at 56% and 42%, which is a coin
+flip — and agreement climbs late and monotonically. **The token is not
+chosen early and merely read out late; the choice itself is made in the
+last quarter of the stack, and it is made *relatively* late, at 71% and 83%
+of depth.** The absolute layer index does not transfer across model sizes,
+which is the same warning Finding 1's closing note carries.
+
+This corroborates Finding 1 from an independent direction. That finding
+measured ‖h‖ correlating with next-token entropy and put certainty in
+L17–23; this one puts the *decision* at 71–83% of depth. Two unrelated
+statistics landing in the same third of the stack is stronger than either
+alone.
+
+### 8b: the obvious summary statistic is an artefact
+
+The first version of this section reported a "flip layer" — the first layer
+where |gap| reaches 50% of the final gap — and the answer was **L0**, with
+191 of 288 steps committing there. That is wrong, and the reason is visible
+in the same table: L0's lens KL is 145, far above every other layer, and its
+gap agrees with the final answer only 56% of the time. The gap is *large*
+and *meaningless*, so the magnitude threshold fires on noise.
+
+`flip_layer` is still reported, labelled as not a decision-depth measure.
+The claim is made from the sign-agreement curve instead. This is the same
+error as quoting a cosine without its floor (Finding 7): a statistic that
+looks clean because it is dominated by an unfaithful regime.
+
+### 8c: magnitude says nothing until the decision is made
+
+The mean |gap| relative to the final gap sits at 88–110 from L2 through
+L19 — the lens is moving the gap around, sometimes past the answer and
+sometimes back — and only then rises to 139 at L20 and ~200+ from L22. So
+the mid-stack is genuinely still deliberating rather than weakly
+pre-committed. The two statistics disagree in an informative way: **sign
+agreement crosses 80% at L20 while magnitude is only 1.4× the final gap
+there.** What rises first is the *choice*, not the *conviction*.
+
+## Finding 9: what the vector does to the reasoning
+
+Every earlier finding measures intervention as a number on a distribution —
+Δentropy, logit KL, token agreement. None of them looks at the reasoning
+text, which is the thing a person reads and the thing a steering vector is
+supposed to change.
+
+`analyse_cot_divergence.py` reads the `primary_text` (steered) and
+`shadow_text` (unsteered, teacher-forced on the same tokens) that
+`run_intervention.py` has been persisting all along. The dual-stream
+construction matters: because the shadow consumes the primary's own tokens,
+a divergence in the text is not two streams wandering onto different
+sentences — it is the same prefix carrying a different state.
+
+Over the 168 runs already on disk (24 problems × 3 directions × strengths):
+
+| direction | strength | diverged | median first-divergence | verbatim step overlap |
+|---|---|---|---|---|
+| confidence_up | 0.0 | 0/24 | — | 1.000 |
+| confidence_up | +0.20 | **24/24** | char 56.5 | 0.060 |
+| confidence_down | +0.20 | 23/24 | char 47.0 | 0.092 |
+| sound_vs_flawed | −0.20 | 22/24 | char 8.5 | 0.104 |
+| sound_vs_flawed | +0.20 | 24/24 | char 72.0 | 0.042 |
+| *all three* | 0.0 | *0/72* | *—* | *1.000 (exact)* |
+
+**The intervention rewrites the reasoning almost immediately.** The median
+trace diverges within the first ~50 characters — the opening sentence of
+the chain of thought — and the two traces share almost no reasoning steps
+verbatim (overlap 0.04–0.10 against an exactly 1.000 control). This is not
+a late divergence that propagates; the reasoning is different from its
+first clause.
+
+The zero-strength control is exact on all 72 runs — verbatim overlap
+identically 1.000, token agreement identically 1.000 — so none of this is
+the hook, the template, or the teacher forcing.
+
+### 9a: the existing data cannot answer whether the answer changed
+
+**This is a limitation of the runs already on disk, not a finding.** Every
+one of the 168 traces is truncated at 60 steps, so `</think>` never closes:
+`closed_think` is 0/168 and the mean reasoning body is 221 characters. The
+model never reaches its final answer, so answer agreement is unmeasurable —
+only 7 of 168 runs contain any extractable answer at all, and 0 of those
+differ.
+
+Reporting "the answer never changed" off this data would be exactly the
+error this file keeps retracting: a measurement that was never made. The
+honest statement is that token-level and reasoning-level effects are
+established, and the answer-level effect is **not yet measured** because the
+traces are too short to contain an answer. Re-running with
+`--max-new-tokens 1024` is what closes it; see Reproducing.
+
 ## Reproducing
 
 ```bash
@@ -271,6 +411,15 @@ python3 backend/examples/run_intervention.py \
 python3 backend/examples/layer_scan.py \
     --model-path /path/to/Qwen3-1.7B \
     --direction confidence_up --norm 130 --layers 4 8 12 14 16 18 20 22 24 26
+
+# 4b. the same scan over the whole problem index, so the agreement and KL
+#     columns are not one problem's worth of damage
+python3 backend/examples/layer_scan.py \
+    --model-path /path/to/Qwen3-1.7B \
+    --direction confidence_up --norm 130 \
+    --layers 4 8 12 14 16 18 20 22 24 26 \
+    --problems-file /tmp/problem_index.json \
+    --out backend/examples/output/intervention/layer_scan_24problems.json
 
 # 5. does the extraction layer matter behaviourally? Extract the same
 #    contrast at four layers, inject at one.
@@ -312,6 +461,39 @@ python3 backend/examples/run_intervention.py \
 
 # 8. publish to the UI
 ./scripts/publish_artifacts.sh
+```
+
+```bash
+# 9. why THIS token and not the next one — logit-lens attribution.
+#    float32 is required; bf16 zeroes the entire curve and the degeneracy
+#    guard will say so. On a network filesystem copy the model to local
+#    disk first and set HF_HUB_OFFLINE=1.
+python3 backend/examples/attribute_token_choice.py \
+    --model-path /path/to/Qwen3-1.7B \
+    --problem-file backend/examples/output/problem_index.json \
+    --limit 24 --steps 12 --mode layers \
+    --out backend/examples/output/attr_qwen3_1p7b.json
+
+# 9b. the decision-depth curve. Do not read the flip_layer field; see 8b.
+python3 backend/examples/summarise_attribution.py \
+    --json backend/examples/output/attr_qwen3_1p7b.json \
+          backend/examples/output/attr_qwen3_4b.json \
+    --out backend/examples/output/token_attribution_1p7b_4b.json
+
+# 9c. what steering does to the reasoning text. Needs no GPU — it reads the
+#     primary/shadow traces run_intervention.py already writes.
+python3 backend/examples/analyse_cot_divergence.py \
+    --json backend/examples/output/intervention/replication_24problems_L20.json \
+    --out backend/examples/output/intervention/cot_divergence_summary.json
+
+# 9d. traces long enough to contain an actual answer. The runs above used
+#     60 steps, which truncates every chain of thought before </think>.
+python3 backend/examples/run_intervention.py \
+    --model-path /path/to/Qwen3-1.7B \
+    --problems-file /tmp/problem_index.json \
+    --directions confidence_up confidence_down --sweep 0.0 0.2 --layer 20 \
+    --max-new-tokens 1024 \
+    --out backend/examples/output/intervention/cot_long_L20.json
 ```
 
 On a network filesystem, copy the model to local disk first and set
@@ -456,11 +638,16 @@ have zero. So the test has no power to distinguish a stable direction from
 an unstable one, and "position pooling looks harmless" would be reading
 signal out of noise.
 
-This also **overturns an earlier hypothesis in this project.** The
+This also **retracts an earlier hypothesis in this project.** The
 `token_pos` flip in the user's files looked like a position-pooling failure,
-and the natural experiment on our own data found no such effect: all three
-pooling modes were equally stable (0 sign changes, adjacent cosine 0.90). The
-failure is in the null control, not in the position handling.
+so a natural experiment was run on our own data. I originally read it as
+refuting the hypothesis — "all three pooling modes were equally stable". That
+was wrong, and the table above is why: the real modes and the null are
+indistinguishable on both statistics the test used, so it had no power in
+either direction. An underpowered test reported as a negative result is the
+same error as quoting a cosine without its floor. The flips are explained by a
+per-layer sign decision (confirmed below), and position pooling remains
+untested rather than cleared.
 
 ## The user's GGUF control vectors
 
@@ -610,7 +797,7 @@ Two things this does *not* show:
 - **The magnitudes are not established as asymmetric.** 0.0226 against 0.0136
   is a 1.65× ratio in the same direction as the confidence pair's 1.9×, but
   the test that matters — a one-sample test on the sum of the per-problem
-  effects — gives p = 0.18. Same verdict as § Finding 3b: a difference
+  effects — gives p = 0.18. Same verdict as Finding 3b: a difference
   between two means, not an established nonlinearity.
 - **Logit KL is the wrong quantity for this test and must not be used here.**
   KL is a divergence and is non-negative by construction, so +v and −v both
@@ -624,6 +811,23 @@ per-layer, are the three changes that would most improve these vectors.
 
 ## What is not established
 
+- **Finding 8 measures the runner-up, not the whole distribution.** The
+  sign-agreement curve compares the chosen token against its top-1
+  alternative. A step where the top-4 are nearly tied would look decisive
+  under this statistic and ambiguous under any measure of the full
+  distribution. The margin distribution is reported beside it (median 12.3
+  and 12.7, minimum 0.51 and 0.60) so the hard steps are visible, but the
+  curve is not a statement about the whole vocabulary.
+- **Findings 8 and 9 have no null.** The 80%/90% decision depths are
+  computed from real traces with no random-token or shuffled-layer control.
+  A control worth adding: attribute a step against a *random* alternative
+  and confirm the curve is flat, the way Finding 7's floors work. Until
+  that exists, "the early stack is near chance" rests on agreement being at
+  42–56% against a 50% coin, which is suggestive rather than tested.
+- **The answer-level effect of steering is not measured** (Finding 9a). The
+  traces on disk are truncated at 60 steps and contain no completed chain of
+  thought. Everything about *how the reasoning changes* is established;
+  whether the final answer changes is not.
 - **Findings 2 and 4 are single-prompt.** The dose-response shape and the
   L12 destruction cliff both rest on n = 1. What carries over from the
   corpus is the layer geometry underneath them — the 80× growth and the
@@ -672,10 +876,11 @@ easy to do by accident.
 
 Any statistic comparing two vectors extracted from the same model is
 reported with the null floor it was measured against, for the reason in
-Finding 7: the floor ranges from ~0 to ~0.87 depending on how the control
-is built, so the bare number is not interpretable on its own.
+Finding 7: the floor ranges from ~0 to ~0.87 depending on whether the
+control splits the global pool or splits within each trajectory, so the bare
+number is not interpretable on its own.
 
-Four claims in earlier drafts of this file did not survive checking and
+Five claims in earlier drafts of this file did not survive checking and
 have been corrected above:
 
 1. That the `confidence_up`/`confidence_down` antisymmetry was "the single
@@ -687,13 +892,13 @@ have been corrected above:
    imbalance. It is not — `creativity` is near-balanced and degrades just
    as much, so the imbalance story does not survive contact with the other
    four directions.
-4. That the fragility of `caution` and `creativity` is explained by their
+3. That the fragility of `caution` and `creativity` is explained by their
    being built from categorical token sets. Tested with a matched pair
    differing only in the kind of split: the predicted direction appears
    (+26.7%, 18/24 problems) but is not significant (p = 0.15), and the
    group means run the wrong way because `confidence_up` is continuous and
    the most damaging direction of the six. Refuted.
-3. That pooling the contrast over token positions destabilises the
+4. That pooling the contrast over token positions destabilises the
    extracted direction, offered as the explanation for the sign flips in
    the user's GGUF vectors. The test meant to check it **could not have
    detected the effect in either direction**: all three pooling modes and
@@ -701,8 +906,30 @@ have been corrected above:
    / 0.906 against a null of 0.873. I originally wrote that pooling "does
    not" destabilise the direction. That was an underpowered test reported
    as a negative result, which is the same error as reporting a bare
-   cosine without its floor. The flips are explained instead by a
-   per-layer sign decision, confirmed by sign-aligning from L0 and
-   recovering a smooth profile in every affected file — but position
-   pooling remains untested rather than exonerated.
+   cosine without its floor. The flips are explained instead by a per-layer
+   sign decision, confirmed by sign-aligning from L0 and recovering a
+   smooth profile in every affected file — but position pooling remains
+   untested rather than exonerated.
+5. That the 1.9× up/down asymmetry shows the response is nonlinear. It does
+   not follow: the paired t(23) = −4.72, p = 0.00009 quoted in its support
+   tests whether the average effect is non-zero, which comes out
+   significant even if the two sides are exactly symmetric. The test
+   nonlinearity requires is a one-sample test on the *sum* of the
+   per-problem effects, and that gives t = 1.80, p = 0.085. The sign-fixed
+   user vector shows the same pattern (1.65×, p = 0.18). Both are now
+   described as a difference between two measured means.
+6. That the token decision is made at L0. It is not, and the statistic that
+   said so was measuring the wrong thing: the "flip layer" fires on
+   |gap| ≥ 50% of the final, and L0's gap is large *and* uninformative
+   (lens KL 145 against ≤12 everywhere else; sign agreement 56%, i.e. a
+   coin flip). 191 of 288 steps "committed" at a layer that is measurably
+   guessing. Replaced by the sign-agreement curve, which puts the decision
+   at 71–83% of depth. The failure is the mirror image of the earlier ones:
+   there, a real signal was reported without its floor; here, a large
+   unfaithful number was read as a confident one.
+7. That a flat attribution curve meant a stable decision. It meant the
+   opposite — bf16 had collapsed the unembedding, and the first version of
+   the lens reported a perfectly flat, perfectly consistent `0.000` gap at
+   every layer. Smoothness is not fidelity; `attribute_token_choice.py` now
+   raises on a degenerate lens rather than reporting it.
 
