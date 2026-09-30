@@ -380,6 +380,94 @@ pre-committed. The two statistics disagree in an informative way: **sign
 agreement crosses 80% at L20 while magnitude is only 1.4× the final gap
 there.** What rises first is the *choice*, not the *conviction*.
 
+## Finding 10: where the decision is visible is not where steering works
+
+Finding 8 says the chosen-vs-runner-up gap only separates from a random-token
+baseline in the last third of the stack. That is an observation about where a
+*difference* lives, and the obvious extrapolation — that late layers are
+therefore where you should intervene — is testable, and it is **wrong**.
+
+`verify_decision_depth.py` injects the same `confidence_up` direction at
+eight depths, each at **20% of that layer's own measured ‖h‖**, so no layer is
+under-dosed relative to its own state. 24 AIME problems, 48 generated tokens,
+greedy, dual-stream. `confidence_up` at 0.2 of the state norm:
+
+| layer | depth | ‖v‖ (absolute) | mean logit KL | token agree | frac. problems diverged |
+|---|---|---|---|---|---|
+| 8 | 29% | 11.5 | 0.0815 | 0.9617 | 0.75 |
+| 12 | 43% | 24.2 | 0.1716 | 0.9430 | 0.92 |
+| 16 | 57% | 50.3 | **0.2080** | **0.9362** | 0.92 |
+| 18 | 64% | 95.6 | 0.1884 | 0.9388 | **0.96** |
+| 20 | 71% | 173.2 | 0.1091 | 0.9456 | **0.96** |
+| 22 | 79% | 252.8 | 0.0579 | 0.9583 | 0.92 |
+| 24 | 86% | 385.6 | 0.0553 | 0.9685 | 0.71 |
+| 26 | 93% | 610.6 | 0.0374 | 0.9736 | 0.62 |
+
+The control is exact: **all 192 strength-0.0 runs return token agreement
+1.0, logit KL 0.0, and `first_diverged_step` None.** Nothing below is the hook.
+
+### 10a: the prediction is refuted
+
+Finding 8 put the decision at 71% of depth (L20 of 28). If that is where the
+choice is made, late injection should beat early. Paired per-problem
+contrasts over the same 24 problems:
+
+| contrast | mean Δ KL | t(23) | pos/neg |
+|---|---|---|---|
+| L20 − L26 | +0.0718 | 5.40 | 24/0 |
+| **L8 − L26** | **+0.0441** | **3.01** | 16/8 |
+| L16 − L26 | +0.1706 | 6.03 | 23/1 |
+
+The sign is wrong. **L8 is more effective than L26**, and L20 is more
+effective than L26 by a hair-over-5 t-statistic with 24 of 24 problems
+agreeing. The prediction is not merely unsupported — it is refuted with
+consistent signs.
+
+### 10b: the profile is a plateau, not a peak
+
+Calling L16 "the peak" would overstate it. Against the plateau:
+
+| contrast | mean Δ KL | t(23) | pos/neg | verdict |
+|---|---|---|---|---|
+| L16 − L12 | +0.0364 | 1.45 | 14/10 | **not separable** |
+| L16 − L18 | +0.0196 | 0.53 | 13/11 | **not separable** |
+| L16 − L8 | +0.1265 | 4.95 | 22/2 | significant |
+| L16 − L20 | +0.0989 | 3.71 | 17/7 | significant |
+| L16 − L24 | +0.1527 | 5.40 | 22/2 | significant |
+
+L12–L18 is a flat optimum, and only its *edges* separate. The defensible
+statement is that a broad band in the middle of the stack — 43%–64% of
+depth — resists redirection far more than either the early stack or the
+post-decision layers.
+
+The three columns also disagree about where the maximum is, which is worth
+stating rather than picking the flattering one: KL and token agreement peak
+at L16, while "fraction of problems with any token divergence" peaks later
+at L18–L20 (0.96). A perturbation at L16 changes *how much* the output
+distribution moves; one at L18–L20 is more likely to change some token.
+
+### 10c: what this does and does not explain
+
+The late-layer weakness is **not** a dosing artefact, and this is checkable
+from the table: L26 receives an absolute vector **12.1× larger** than L16
+(610.6 vs 50.3) and produces **5.6× less** divergence. A larger perturbation
+doing less means there is simply less computation left to convert a state
+change into a different argmax — the decision is already formed.
+
+The early-layer (L8) weakness **is** confounded with dose and this design
+cannot separate them: L8's absolute vector is 4.4× smaller than L16's, so
+"L8 is worse" may be "a smaller absolute perturbation is weaker" rather than
+"perturbing early is worse". Separating them needs a fixed-absolute-dose
+sweep across layers, which has not been run.
+
+The structural lesson matches Finding 6 exactly. There, reading a direction
+out at one layer and injecting it at another changed the effect by 2.15×;
+here, the layer where the decision becomes *legible to a logit lens* sits at
+71% of depth while the layer where a perturbation does the most *behavioural*
+work sits at 43%–64%. **Attribution depth and intervention depth are
+different quantities, and reading one off the other is a mistake in both
+directions.**
+
 ## Finding 9: what the vector does to the reasoning
 
 Every earlier finding measures intervention as a number on a distribution —
@@ -611,7 +699,17 @@ python3 backend/examples/analyse_cot_divergence.py \
     --json backend/examples/output/intervention/replication_24problems_L20.json \
     --out backend/examples/output/intervention/cot_divergence_summary.json
 
-# 9d. traces long enough to contain an actual answer. The runs above used
+# 9d. where steering actually works, against the prediction from 8.
+#     Note: one dose parameter only. A second one silently applies the
+#     dose twice — see the traps above.
+python3 backend/examples/verify_decision_depth.py \
+    --model-path /path/to/Qwen3-1.7B \
+    --problems-file /tmp/problem_index.json \
+    --layers 8 12 16 18 20 22 24 26 \
+    --frac-of-state-norm 0.2 --max-new-tokens 48 \
+    --out backend/examples/output/intervention/vdd_final.json
+
+# 9e. traces long enough to contain an actual answer. The runs above used
 #     60 steps, which truncates every chain of thought before </think>.
 python3 backend/examples/run_intervention.py \
     --model-path /path/to/Qwen3-1.7B \
@@ -948,13 +1046,25 @@ per-layer, are the three changes that would most improve these vectors.
   curves are not measured, so the claim that the late rise is *relative to
   a null* is established at 1.7B only. Their raw curves are in the tables
   above and their baselines are not.
+- **Finding 10 cannot separate "early is weak" from "small absolute dose is
+  weak."** The dose is proportional (20% of each layer's own ‖h‖) so no layer
+  is under-dosed *relative to its state*, but the absolute vectors still span
+  11.5 to 610.6. The late-layer result is safe — L26's absolute dose is 12×
+  L16's and its effect is 5.6× smaller, so dose cannot explain that. The
+  early-layer result is not safe: L8's absolute dose is 4.4× smaller than
+  L16's. A fixed-absolute-dose sweep is what would settle it.
+- **Finding 10 is one direction, one strength, one model.** The profile is
+  measured for `confidence_up` at 0.2 on Qwen3-1.7B. Whether the plateau
+  sits at 43–64% of depth on 4B/8B, or for other directions, is untested —
+  and Finding 8's cross-model result showed absolute layer indices do not
+  transfer, so the depth fraction is the only thing worth comparing.
 - **Findings 8 and 9 do not establish causality.** Both are
   observational: the lens describes where a decision is visible, and the
   CoT divergence describes that steering changes the trace. Neither shows
   that intervening at the identified layer would change the decision.
-  Doing that — steering *only* at L20–L24 and measuring whether the token
-  changes — is the experiment that would connect the two, and it has not
-  been run.
+  Finding 10 is the experiment that connects them, and its answer was
+  negative — intervening where the decision is legible is *not* where
+  steering works best.
 - **The answer-level effect of steering is not measured** (Finding 9a). The
   traces on disk are truncated at 60 steps and contain no completed chain of
   thought. Everything about *how the reasoning changes* is established;
@@ -1011,7 +1121,7 @@ Finding 7: the floor ranges from ~0 to ~0.87 depending on whether the
 control splits the global pool or splits within each trajectory, so the bare
 number is not interpretable on its own.
 
-Nine claims in earlier drafts of this file did not survive checking and
+Ten claims in earlier drafts of this file did not survive checking and
 have been corrected above:
 1. That the `confidence_up`/`confidence_down` antisymmetry was "the single
    strongest piece of evidence" for the pipeline measuring causal effect.
@@ -1072,4 +1182,10 @@ have been corrected above:
    Qwen3-1.7B and Qwen3-4B. Qwen3-8B falls from 74% at L20 to 61% at L24
    — four standard errors, so a real departure, not noise. Reported as
    such rather than smoothed into agreement with the other two.
+10. That because the decision forms at L20–L24, steering there is most
+    effective. This was my own stated prediction and it is refuted
+    (Finding 10): the most effective band is L12–L18, at 43–64% of depth,
+    and L8 beats L26 with t = 3.01 while L20 beats L26 with 24 of 24
+    problems agreeing. A logit lens showing you where a decision lives is
+    not a recommendation about where to intervene.
 
