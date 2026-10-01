@@ -181,10 +181,13 @@ def hf_extract(model, tokenizer, prompt_text: str, gen_ids: List[int],
             hs_tuple[li][0].to(torch.float32).cpu().numpy()
         )
 
-    # For each generated token gen_ids[k], the hidden state that PRODUCED
-    # it is at position (n_prompt + k - 1). The logits at that position
-    # predicted gen_ids[k].
-    gen_positions = [n_prompt - 1 + k for k in range(len(gen_ids))]
+    # For each generated token gen_ids[k], the hidden state at position
+    # (n_prompt + k) is the residual stream AT that token's own position,
+    # running through all 28 layers. Layer 27 of that vector is what the
+    # model would next use to predict gen_ids[k+1], but the per-layer
+    # trajectory L0..L27 belongs to gen_ids[k] itself — the natural
+    # "this token's hidden state evolution" semantics.
+    gen_positions = [n_prompt + k for k in range(len(gen_ids))]
 
     hidden_gen = hidden_full[gen_positions]                  # (T, L, D)
     logits_gen = (

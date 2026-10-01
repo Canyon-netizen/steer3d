@@ -1306,6 +1306,28 @@ per-layer, are the three changes that would most improve these vectors.
 
 ## What is not established
 
+- **Finding 13 shows the flip happens near a decision boundary, not that the
+  boundary was crossed *because* of the steering direction.** A norm-matched
+  random direction added at the read-out point flips the token on 16% of
+  trials, and on 1984 the real Δ promotes the winner *less* than all 128 random
+  directions did (0.0 percentile). The steering vector is a sufficient way to
+  cross the boundary; this data does not show it is the selective one.
+- **Finding 13's decomposition is exact arithmetic and still not an
+  explanation.** The net logit change is 0.0%–20.7% of the dimensional movement
+  that produced it, the effective number of contributing dimensions is 587–831
+  of 2048, and the top 20 carry 7.1%–10.7%. A list of "responsible dimensions"
+  is therefore a mis-compression of the mechanism, not a summary of it. The
+  per-dimension labels in the viewer (the top unembedding token of one column)
+  are real but do not describe what decides the token here.
+- **Finding 13 covers one step per problem — the divergence step, by
+  construction.** Nothing here says what the Δ does at the 8–44 steps before it
+  where the two arms emitted identical tokens despite different hidden states.
+  That earlier divergence in representation-without-divergence-in-text is
+  unexplained and is where a mechanism story would have to start.
+- **The three "mechanism" classes (lift winner / suppress loser / both) come
+  from n=6 and are not established as a taxonomy.** 1985's loser moved +0.010
+  and 1984's winner moved −4.03, but with one example each, calling them
+  distinct mechanisms is a description of six observations.
 - **Finding 12 shows the intervention moved the representation, not that it
   moved it *because* of confidence.** The Δ at L26 is real and large
   (25–34% of ‖h‖, 6/6 problems), but only 6.9–11.8% of it lies along the
@@ -1517,3 +1539,160 @@ have been corrected above:
     reports *which* rule fired, and the measurement path refuses to read an
     answer out of an unclosed chain.
 
+
+---
+
+## Finding 13: 干预臂在最后一层选了另一个词，而这件事的解释不在少数几个维度上
+
+### 问题
+
+第 4 屏能显示"对照臂在第 27 步选了 `greater`、干预臂选了 `exceeding`"。
+这不是解释。它没有回答"**为什么是这个词不是那个词**"。
+
+### 仪器：读出，而不是前向
+
+Qwen3 的最后一级是 RMSNorm 加 unembedding，两者都是 checkpoint 的常量：
+
+    logitᵥ(h) = uᵥ · x(h)
+
+所以任何一个候选词的 logit 都可以对磁盘上已有的 `.npz` 做算术得到，
+不需要前向、不需要 KV cache、不需要题目。
+
+**但最后一层已经在 norm 之后。** transformers 的 capture 会把 `self.norm`
+的输出也追加进 `hidden_states`，于是 `hidden_states[n_layers]` 是**已经归一化**
+的向量。对同一次前向逐个下标比较 `lm_head(...)` 与模型真正返回的 `out.logits`：
+
+| 读法 | max\|差\| |
+|---|---|
+| `lm_head(hs[28])` | **0.000e+00** |
+| `lm_head(norm(hs[28]))` | 1.6e+01 … 1.9e+01 |
+
+这条约定错了很久没被发现，因为 Finding 12 用的 50.0 探针对两种读法都成立
+（`hs[20]==0`、`hs[21]==49.9`），根本区分不了。把它抓出来的是一个"读出的词与
+模型实际吐出的词不一致"的检查。三个更显然的解释都是先量后否掉的：索引约定
+（逐位置扫 ±1/±2/±3，只有 offset=0 那一列错，且恰好只在分叉步）、fp16 存储
+（量化只推动 logit 0.001–0.003，而顶两词差距 0.17–2.46，差三个数量级）、
+unembedding 绑定（`lm_head.weight` 与 `model.embed_tokens.weight` 逐位相同）。
+
+修正后，末层读出在**不加载模型**的前提下复现模型自己存的 top-1：**12/12**
+（`A6`，`analyse_divergence_logits.py`）。负控是"多套一次 norm"，在恰好那两题
+上失败。
+
+### 结果一：干预改口时，模型本来就快到边界了
+
+同一个量 `logit(对照词) − logit(干预词)`，在两臂里各取一次。符号翻转就是干预
+起作用的瞬间；干预前的数值小，说明它离改口本来就不远。
+
+| 题 | 步 | 对照选 | 干预选 | 对照臂 | 干预臂 |
+|---|---|---|---|---|---|
+| 1983 | 27 | `greater` | `exceeding` | +1.94 | −3.23 |
+| 1984 | 15 | `multiplied` | `times` | +0.87 | −3.37 |
+| 1985 | 8 | `tackle` | `solve` | +1.10 | −3.08 |
+| 1986 | 23 | `find` | `then` | +2.96 | −0.44 |
+| 1987 | 44 | `(` | `of` | +1.31 | −0.74 |
+| 1988 | 16 | `when` | `n` | +1.99 | −3.80 |
+
+**6/6 翻转，而对照臂的 margin 全部小于 3 个 logit。** 干预不是在覆盖一个强偏好，
+是在跨一道本来就很近的边界。1988 的对照 margin 是 +1.99（这一版读出下；
+早先那个错误的 0.17 是 bug 的产物），干预把它拉到 −3.80。
+
+### 结果二：改口的机制不止一种
+
+净 logit 变化（带符号）显示三类：
+
+- **两头发力**（1983）：胜者 `exceeding` +1.56，败者 `greater` −3.62。
+- **只压败者**（1984）：胜者 `times` **−4.03**，败者 `multiplied` **−8.28**。
+  胜者不但没被抬，反而被压了；翻转完全来自败者塌得更多。
+- **只抬胜者**（1985）：胜者 `solve` +4.19，败者 `tackle` **+0.01**（几乎不动）。
+
+所以"干预把答案推向某个方向"这句话，在 token 层面**没有单一机制**。
+
+### 结果三：解释不在少数几个维度上（本轮最硬的负结果）
+
+对每个候选词，末层读出的变化可以精确分解到 2048 个维度
+（末层已归一化，所以每维贡献就是 `u_{v,i} · (h'_i − h_i)`，求和精确等于
+logit 变化，`A5` 逐题核对）。把**净效果**与**绝对运动量**并排看：
+
+| 题 | 词 | 净 logit 变化 | 绝对运动量 | 保留比例 | top20 占绝对量 | 有效维度数 |
+|---|---|---|---|---|---|---|
+| 1983 | `greater` | −3.615 | 28.378 | 12.7% | 8.5% | 736 |
+| 1983 | `exceeding` | +1.562 | 26.936 | 5.8% | 9.7% | 660 |
+| 1984 | `multiplied` | −8.276 | 40.023 | 20.7% | 10.7% | 587 |
+| 1984 | `times` | −4.030 | 45.748 | 8.8% | 9.5% | 668 |
+| 1985 | `tackle` | +0.010 | 37.170 | **0.0%** | 9.4% | 691 |
+| 1985 | `solve` | +4.188 | 35.717 | 11.7% | 8.2% | 752 |
+| 1986 | `find` | +0.485 | 26.536 | 1.8% | 8.2% | 785 |
+| 1986 | `then` | +3.886 | 29.944 | 13.0% | 7.1% | 831 |
+| 1987 | `(` | −0.853 | 31.992 | 2.7% | 10.1% | 639 |
+| 1987 | `of` | +1.198 | 29.348 | 4.1% | 9.5% | 661 |
+| 1988 | `when` | −3.284 | 34.299 | 9.6% | 7.8% | 786 |
+| 1988 | `n` | +2.506 | 36.697 | 6.8% | 8.7% | 740 |
+
+- **净效果只占绝对运动量的 0.0%–20.7%。** 至少 79%、至多 100% 的维度运动
+  互相抵消掉了。1985 的 `tackle` 是极端情况：37.17 的绝对运动，净效果 0.010。
+- **有效维度数（参与比）587–831**（共 2048 维）。不是一个"少数关键维度"的
+  结构。
+- **top20 维度只占绝对运动量的 7.1%–10.7%。** 排在最前面的 20 个维度解释不了一成。
+
+这直接否掉了一种常见的可解释性说法。观察台第 3 屏给每个维度配的"代表词"
+（`prostitute`、`农贸市场`、`ollections`）是**单个 unembedding 列的 argmax**，
+它们在这个场景里语义不连贯，也解释不了任何一个 logit 变化——当一个 logit 是
+几百个维度上大部分互相抵消的求和时，任何单个维度的标签都说明不了问题。
+第 3 屏那些词条是真的（它们确实是那一列最大的词），但它们不是这里的解释。
+
+### 结果四：方向本身不是关键
+
+在读出点上做反事实：把向量加到对照臂的末层残差上，读出真实 logit。
+
+| 扰动 | 扳到干预臂那个词的比例 |
+|---|---|
+| 真 Δ | 6/6（100%） |
+| 换一道题的 Δ | 7/30（23%） |
+| **同范数随机方向** | **123/768（16%）** |
+
+16% 的同范数随机方向也能把词扳过去。再看真 Δ 给胜者加的 logit 在 128 个随机
+方向里排第几百分位：1983 第 95.3、1985 第 100、1986 第 100、1987 第 86.7、
+1988 第 96.9——但 **1984 是第 0.0 百分位**，真 Δ 给胜者加的 logit 比全部 128 个
+随机方向都差（−4.03，而随机均值 +0.06±1.62），它的翻转完全来自压败者。
+
+所以"这个 Δ 决定了那个词"在这份数据上**不成立**。成立的是弱得多的说法：
+这个 Δ 足够大，大到能跨过一道本来就近的边界，而跨过去之后落到哪个词，
+有相当一部分是边界本身的软度决定的。
+
+### 结果五：最终的运动里只有约一成是注入向量本身
+
+`Δ` 在末层沿注入方向 unit 的平方占比：**9.9% – 16.5%**（六题）。与 Finding 12
+在 L26 测到的 6.9–11.8% 一致，并且同样指向同一个结论：剩下 83%–90% 是网络
+自己在响应，不是被加进去的那个向量。
+
+### 对"为什么是这个词"这个问题，本轮能给的答案
+
+1. 因为末层残差被推过了**一道本来就很近的边界**（对照 margin 全部 < 3 logit）。
+2. 翻转的机制**不唯一**：抬赢者、压败者、或两者同时，各题不同。
+3. 边界落到哪个词**不由少数可解释的维度决定**——净效果只占运动的 0–21%，
+   有效维度 587–831，top20 只占 7–11%。
+4. **方向不是关键**：同范数随机方向有 16% 也能做到，其中一题的真 Δ 反而比全部
+   随机方向更差。
+5. 最终运动里只有约一成是注入向量本身。
+
+这不是"没有解释"，是**解释不在人们习惯找的那个粒度上**。诚实的说法是：这个
+logit 变化是几百个维度上互相抵消的求和，任何少数维度的名单都是对它的错误
+压缩。
+
+### 复现
+
+```bash
+# 1. 抽读出矩阵（622MB，约 15s）
+python3 backend/examples/extract_readout.py --model-path <model> --out readout.npz
+# 2. 采集（末层 float32 + 模型自己的 top-8 logits）
+python3 backend/examples/run_paired_steering.py ... --layers 4,12,20,26,28 \
+    --dtype float32 --outdir output/paired_v2
+# 3. 读出分析（不加载模型，只用 npz）
+python3 backend/examples/analyse_divergence_logits.py \
+    --paired-dir output/paired_v2 --readout readout.npz --vocab tokenizer.json \
+    --dim-names .../dim_names.json --random-trials 128 --out divergence_logits.json
+# 4. 检查
+python3 backend/examples/test_paired_steering.py     # 70 项
+python3 backend/examples/test_divergence_logits.py   # 19 项
+python3 backend/examples/diagnose_readout_index.py --id 1987_I_1   # 读出约定
+```
