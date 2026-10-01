@@ -428,7 +428,11 @@ async function loadPairMeta(){
 async function loadPair(i){
   if(!S.pm) return;
   const p = S.pm.pairs[i];
-  S.pi = i; S.pLayer = p.layers.indexOf(20) >= 0 ? 20 : p.layers[0];
+  // Clear the previous pair's metadata before the await below: if the new
+  // pair has no data for the requested layer, render() would otherwise keep
+  // drawing the *old* pair's stats under the new pair's title.
+  S.pi = i; S.pMeta = null;
+  S.pLayer = p.layers.indexOf(20) >= 0 ? 20 : p.layers[0];
   $("#selPair").value = i;
   const n = p.arms["_ids"];
   if(n && n.control && !S.pIdsC){
@@ -439,6 +443,11 @@ async function loadPair(i){
     S.pIdsS = bs ? new Int32Array(bs) : null;
   }
   await loadPairLayer();
+  // The token slider's range belongs to the pair, not to the unsteered
+  // trajectory, so switching pairs has to move it.
+  $("#rngTok").max = Math.max(0, (S.pCtlT||1) - 1);
+  if(S.tok > S.pCtlT - 1) S.tok = Math.max(0, S.pCtlT - 1);
+  $("#rngTok").value = S.tok;
 }
 
 async function loadPairLayer(){
