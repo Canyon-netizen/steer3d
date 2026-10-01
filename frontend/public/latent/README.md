@@ -55,6 +55,7 @@ python3 -m http.server 8899 --directory frontend/public
 | `pairs/pc_*_ids.bin` | 两条流各自的 token id 序列（int32） |
 | `pairs/steer_unit.bin` | 注入方向的单位向量，用作 Δ 散点图里的参考箭头 |
 | `divergence_readout.json` | 分叉步两臂的 top-8 读出 + 前缀每步的第一二名差距 |
+| `cot_effect.json` | 干预对**思维链**的影响（仅 1.7B，见下） |
 | `INTERPRETABILITY.md` | Finding 1–15 的完整实测记录，页面上「详见 Finding 13/14」指向的就是它 |
 
 `INTERPRETABILITY.md` 随包分发：只下 tar 的人手上没有 `docs/`，那句话会指向一个
@@ -220,3 +221,32 @@ steering 的演示写成 steering 的断言。
 
 `.cache/responsive/verify_responsive.mjs` 覆盖 10 档宽度 × 6 档高度，负控实测：
 撤掉窄屏媒体查询 → 12 条红（docW=747、画布 65px）；撤掉 300px 地板 → 11 条红。
+
+## 对思维链做了什么
+
+上面几屏量的都是分布层面的东西（logit、熵、位移）。**思维链层面**的影响是另一组
+实验：`run_intervention.py` 同时产出 `primary_text`（被干预的生成）与
+`shadow_text`（同一条 token 序列上的无干预对照，teacher-forced），所以两段文字的
+差异来自**同一个前缀带着不同的状态**，而不是两条流走到了不同句子。
+`analyse_cot_divergence.py` 把它压成 `cot_effect.json`，页面第 4 屏有对应面板。
+
+结论是个负面结果，而且是个**容易被说过头**的负面结果，所以三条限制与结论同屏：
+
+| | 结果 | 能说什么 |
+|---|---|---|
+| token 一致率 | 93.5%–95.8% | 每 100 个里约 4–6 个被改 |
+| 推理步骤逐字重合 | 4%–10% | 措辞几乎整段重写，但说的是同一件事 |
+| 推理长度比 | 0.994–0.998 | 长度没变 |
+| 自我检查次数 | Δ p = 0.16–0.33 | **测不出差别**，不是"没有差别" |
+| 最终答案 | — | **没测到**，见下 |
+
+1. 对照臂是同一条代码喂零向量，五个量逐项恒等（`build_cot_effect.py` 在出包前
+   强制校验，不恒等就拒绝写文件），所以上表不是采集链路的噪声。
+2. 自我检查 p 值 0.16–0.33、n=24，只能说在 24 次运行里分辨不出差别。
+3. **168 次运行里只有 7 次能解析出最终答案，且没有任何一次跑完 `</think>`**
+   （每题只生成 61 步）。这一维是没测到，不是测了没变——页面写"没测到"而不是
+   "答案没变"，`verify_cot.mjs` 专门判这一点。
+
+只打包了能证明模型归属的那组运行（`replication_24problems_L20.log` 记录
+`model loaded: /tmp/qwen3/master`）。1025 步的那组没有 log，不 shipping——
+挂上一个没人能核对的模型标签，和"0.6B 视图显示 1.7B 的数字"是同一种错。

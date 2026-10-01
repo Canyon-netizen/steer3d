@@ -446,6 +446,11 @@ const S = {
   // 那是「变了什么」，不是「为什么变这个」。这份数据给出那一刻模型给每个
   // 候选词打了多高的分，以及前缀每一步第 1 名和第 2 名差多少。
   dv: null, dvLayer: 28,
+  // 对思维链的影响。**这是另一组实验**：run_intervention 的 3 个方向 × 24 题
+  // × 61 步，不是上面那条配对流。两者数字混读是最容易犯的错，所以面板标题
+  // 直接写明。1.7B 才有这份数据；0.6B 上 fetch 404，这里保持 null，
+  // 绝不回退去用另一个模型的值。
+  cot: null, cotDir: null,
 };
 
 const DEC = new TextDecoder("utf-8");
@@ -766,6 +771,13 @@ async function loadPairMeta(){
       if((S.dv.layers || []).indexOf(String(fl)) >= 0) S.dvLayer = String(fl);
     }else trace("divergence_readout.json: HTTP " + dr.status);
   }catch(e){ trace("divergence_readout unavailable: " + e.message); }
+  try{
+    const cr = await fetch(dataBase()+"cot_effect.json");
+    if(cr.ok){
+      S.cot = await cr.json();
+      if((S.cot.directions || []).length) S.cotDir = S.cot.directions[0];
+    }else trace("cot_effect.json: HTTP " + cr.status);
+  }catch(e){ trace("cot_effect unavailable: " + e.message); }
   return true;
 }
 
@@ -1204,6 +1216,94 @@ function renderDivergenceReadout(){
   return wrap(h);
 }
 
+/* ---- 对思维链的影响 ---------------------------------------------------
+   目标里明确问了"向量干预之后对思维链到底有什么影响"。这个测量早就做了
+   （analyse_cot_divergence.py），但页面上一个字都没有，只有一块并排的原文。
+
+   结论是个负面结果，而负面结果最容易被说过头，所以三条限制和结论写在一起：
+     · strength=0 的对照臂逐项恒等 ⇒ 表里不是采集链路的噪声
+     · 自我检查 p=0.16~0.33，n=24 ⇒ 只能说"测不出差别"，不是"没有差别"
+     · 168 次运行里只有 7 次能解析出最终答案，且 0 次跑完 </think> ⇒
+       答案那一维基本没测到，不能写成"答案没变" */
+function renderCotEffect(){
+  const wrap = inner => `<tr><td colspan="3">${inner}</td></tr>`;
+  if(!S.cot){
+    return wrap(`<div class="note" style="padding-top:12px">` +
+      `<b>这一块没有数据</b>，因为当前模型没做过思维链层面的实验。` +
+      `下面那些候选词、位移量都还在，只是"对思维链的影响"这一维缺失。</div>`);
+  }
+  const C = S.cot;
+  const dirs = C.directions || [];
+  const rows = (C.rows || []).filter(r => r.direction === S.cotDir);
+  if(!rows.length) return wrap(`<div class="note" style="padding-top:12px">` +
+    `没有方向 ${esc(S.cotDir || "")} 的数据。</div>`);
+  const LABEL = {
+    "confidence_up":   "自信 ↑（更敢说）",
+    "confidence_down": "自信 ↓（更犹豫）",
+    "sound_vs_flawed": "对 ↔ 错",
+  };
+
+  const line = (k, v, note) =>
+    `<div style="display:flex;justify-content:space-between;align-items:baseline;` +
+    `gap:8px;padding:2px 0;border-bottom:1px solid #18202f">` +
+    `<span class="note" style="flex:0 0 auto">${k}</span>` +
+    `<span class="tok" style="flex:1 1 auto;text-align:right;font-size:12.5px">${v}` +
+    (note ? `<span class="note" style="display:block;font-size:10.5px">${note}</span>` : "") +
+    `</span></div>`;
+
+  let h = `<div data-cotblock="1" style="padding-top:14px;margin-top:12px;` +
+          `border-top:1px solid var(--line)">`;
+  h += `<div style="font-size:13px;font-weight:600">向量把思维链改成了什么样</div>`;
+  h += `<div class="note" style="margin:2px 0 6px;font-size:10.5px">` +
+       `<b style="color:#ffb454">这是另一组实验</b>：${esc(C.model)}，` +
+       `L${C.layer} 注入，${C.n_problems} 道题，每题只生成 ${C.steps_per_run} 步，` +
+       `共 ${C.n_runs} 次运行。和上面那条配对流不是同一批数据，数字不要混着读。` +
+       `对照组是同一条代码喂零向量。</div>`;
+
+  h += `<div style="display:flex;gap:3px;flex-wrap:wrap;margin:0 0 6px">`;
+  dirs.forEach(function(d){
+    h += `<button data-cotdir="${esc(d)}" class="${d === S.cotDir ? "on" : ""}" ` +
+         `style="width:auto;padding:3px 7px;font-size:11px">` +
+         `${esc(LABEL[d] || d)}</button>`;
+  });
+  h += `</div>`;
+
+  rows.forEach(function(r){
+    const pct = (r.token_agreement * 100).toFixed(1);
+    const changed = (100 - r.token_agreement * 100).toFixed(1);
+    h += `<div class="note" style="font-size:11px;color:#8891a4;margin:6px 0 2px">` +
+         `注入强度 ${r.strength}（${esc(LABEL[r.direction] || r.direction)}）· ${r.n} 次运行</div>`;
+    h += line("token 还一样", `<b>${pct}%</b>`, `每 100 个里约 ${changed} 个被改了`);
+    h += line("推理步骤逐字重合",
+              `<b>${(r.verbatim_overlap * 100).toFixed(0)}%</b>`,
+              "措辞几乎整段重写，但说的是同一件事");
+    h += line("推理长度比",
+              `<b>${r.reason_len_ratio.toFixed(3)}</b>`,
+              r.control && r.control.reason_len_ratio === 1
+                ? `对照臂 ${r.control.reason_len_ratio.toFixed(3)}（零向量）` : "");
+    h += line("自我检查次数变化",
+              `<b>${r.selfcheck_delta >= 0 ? "+" : ""}${r.selfcheck_delta.toFixed(2)}</b>`,
+              `p = ${r.selfcheck_p.toFixed(2)}，n = ${r.selfcheck_n} —— ` +
+              `测不出差别，不等于没有差别`);
+    h += line("最终答案是否改变", `<b style="color:#ff8fa3">没测到</b>`,
+              `${r.answer_known} 次能解析出答案（其中 ${r.answer_changed} 次不同），` +
+              `${r.n} 次运行里其余的都还在半路`);
+  });
+
+  h += `<div class="note" style="margin-top:10px;padding:7px 9px;background:#131a28;` +
+       `border-left:2px solid #3ddc97;border-radius:0 4px 4px 0;font-size:11px">` +
+       `<b style="color:#b9c4d6">一句话：</b>改的是词，不是思路，也不是长度。` +
+       `把措辞换掉 ${(100 - rows[0].verbatim_overlap * 100).toFixed(0)}% 之后，` +
+       `模型推理的条数、长度和自查次数都没动。<br>` +
+       `<b style="color:#b9c4d6">但别拿它证明"答案不受影响"</b>：` +
+       `${C.coverage.runs} 次运行里只有 <b>${C.coverage.answer_known}</b> 次能解析出最终答案，` +
+       `而且<b>一次都没有跑完 </think></b>（每题只给 ${C.steps_per_run} 步）。` +
+       `这一维是没测到，不是测了没变。</div>`;
+
+  h += `</div>`;
+  return wrap(h);
+}
+
 function drawDeltaSide(){
   const p = S.pm && S.pm.pairs[S.pi];
   const el = $("#sideTitle"), tb = $("#tblTop");
@@ -1231,6 +1331,7 @@ function drawDeltaSide(){
   // scroller. Everything here answers "what changed"; this answers "why", and
   // it is the question the screen exists for.
   let h = renderDivergenceReadout();
+  h += renderCotEffect();
   h += `<tr><td class="note">注入</td><td class="tok">${p.direction} @ ${p.strength} → L${p.inject_layer}</td></tr>`;
   h += `<tr><td class="note">两条流同步到</td><td class="tok">第 ${p.n_common_prefix} 步</td></tr>`;
   if(S.pLayer <= p.inject_layer){
@@ -1339,6 +1440,10 @@ function drawDeltaSide(){
   const chips = tb.querySelectorAll("[data-dvl]");
   for(let i=0;i<chips.length;i++){
     chips[i].onclick = () => { S.dvLayer = chips[i].dataset.dvl; drawDeltaSide(); };
+  }
+  const cotBtns = tb.querySelectorAll("[data-cotdir]");
+  for(let i=0;i<cotBtns.length;i++){
+    cotBtns[i].onclick = () => { S.cotDir = cotBtns[i].dataset.cotdir; drawDeltaSide(); };
   }
 }
 /* ---- 浏览器端投影：这一层自己的 PCA 基 ---- */

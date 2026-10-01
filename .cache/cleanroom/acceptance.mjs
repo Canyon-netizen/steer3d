@@ -33,8 +33,13 @@ const files = [
   'index.html', 'README.md', 'data/manifest.json', 'data/vocab.json',
   'data/dim_names.json', 'data/pairs/pairs.json',
   'data/divergence_readout.json', 'data06/divergence_readout.json',
-  'INTERPRETABILITY.md',
+  'INTERPRETABILITY.md', 'data/cot_effect.json',
 ];
+// The chain-of-thought table exists for one model only. Shipping it under both
+// would be the same mistake as a 0.6B view quoting 1.7B's retention figures,
+// so its ABSENCE from data06/ is asserted, not assumed.
+chk(!existsSync(join(ROOT, 'data06/cot_effect.json')),
+    'data06/ 确实没有 cot_effect.json（思维链实验只做了 1.7B）');
 for (const f of files) chk(existsSync(join(ROOT, f)), `包内有 ${f}`);
 
 let missing = 0, checked = 0;
@@ -215,6 +220,28 @@ chk(linkOk.n > 0, `页面上的证据链接存在（${linkOk.n} 处）`, linkOk.
 for (const h of linkOk.hrefs) {
   const r = await fetch(`http://localhost:8923/latent/${h}`, { method: 'HEAD' });
   chk(r.ok, `证据链接在包内可打开：${h}`, 'HTTP ' + r.status);
+}
+
+// The CoT panel is the answer to an explicit part of the brief ("向量干预之后对
+// 思维链到底有什么影响"), so the delivered artefact has to actually carry it --
+// and carry its limits. A panel that prints the numbers but drops the "answer
+// dimension was not measured" caveat is worse than no panel.
+const cot = JSON.parse(
+  (await import('node:fs')).readFileSync(join(ROOT, 'data/cot_effect.json'), 'utf8'));
+chk(cot.control_is_identity === true, '包内思维链数据自带对照臂恒等标记');
+chk(cot.coverage.closed_think === 0 && cot.coverage.answer_known < cot.coverage.runs,
+    '包内思维链数据带着「答案没测到」的分母',
+    `${cot.coverage.answer_known}/${cot.coverage.runs}`);
+const cotView = await page.eval(`(()=>{
+  const b=document.querySelector('[data-cotblock]');
+  return b?{t:b.innerText, dirs:[...b.querySelectorAll('[data-cotdir]')].length}:null;})()`);
+chk(!!cotView, '交付包里思维链面板渲染出来了');
+if (cotView) {
+  chk(cotView.t.includes('这是另一组实验'), '交付包页面标明这是另一组实验');
+  chk(/没测到/.test(cotView.t), '交付包页面把答案那一维标为「没测到」');
+  chk(/测不出差别|不等于没有差别/.test(cotView.t),
+      '交付包页面写明 p 值只支持「测不出差别」');
+  chk(cotView.t.includes(cot.model), '交付包页面写明是哪个模型', cot.model);
 }
 
 chk(exceptions.length === 0, '无未捕获异常', exceptions.slice(0, 2).join(' | '));
