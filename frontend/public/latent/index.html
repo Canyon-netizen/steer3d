@@ -59,11 +59,29 @@
      and `text-overflow:ellipsis` does not work on a <td> at all. With flex the
      two fixed tracks are fixed and the name gets exactly what is left. */
   .dimrow{display:flex;align-items:center;gap:7px;padding:3px 0}
+  /* #tblTop is floated into a 294px panel. Left to itself the browser sized it
+     by content — 613px — and everything past the panel's right edge was cut
+     mid-sentence with a horizontal scrollbar as the only affordance. The
+     dimension notes read as complete in the DOM (every string assertion
+     passed) while a reader saw "…净效果只占维度总运动的 0.0%–20.7%，等".
+     `width:100%` lets the table wrap inside the panel instead: the note cells
+     reflow, and `.dimname` shrinks to what is left because it already carries
+     `min-width:0` + `text-overflow:ellipsis`.
+     `width:100%` alone was not enough: on a table, width is a *minimum*, and
+     `white-space:pre` on `.tok` gives some cells a min-content width that wins,
+     so the table stayed at 613px. `table-layout:fixed` takes the column widths
+     from the first row and lets cells wrap instead of growing the table. */
+  #tblTop{width:100%;table-layout:fixed}
   .dimn{flex:0 0 56px;font-family:var(--mono);font-size:11.5px;line-height:1.3}
   .dimbar{flex:0 0 76px;height:11px;background:var(--panel2);border-radius:3px;overflow:hidden}
   .dimbar>i{display:block;height:100%;border-radius:3px}
   .dimname{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .tok{font-family:var(--mono);color:var(--ink);white-space:pre}
+  /* A `.note` inside a `.tok` cell inherits `white-space:pre`, so the
+     parenthetical runs off the right edge of the 294px panel instead of
+     wrapping — 38px of it, with no ellipsis to mark the cut. Notes are prose
+     and prose wraps. */
+  .tok .note{white-space:normal}
   .pos{color:var(--ok)} .neg{color:var(--hot)}
   .txt{font-family:var(--mono);font-size:12px;line-height:1.9;max-height:230px;overflow-y:auto;background:#080b11;border-radius:6px;padding:8px;white-space:pre-wrap;word-break:break-all}
   .txt b{color:var(--acc);font-weight:600}
@@ -196,7 +214,12 @@
         <table id="tblTop"></table>
       </div>
       <div class="note" style="margin-top:8px">
-        模型在这一步实际输出的是高亮那一行。干预向量就是要把这些分数重新排序——所以"为什么是这个 token"最终落在这张表上。
+        <b>这张表不解释「为什么是这个 token」。</b>干预确实持续把残差推走
+        （上面「残差流被推了」那一行），但文本改口并不是被这个位移推出来的：
+        6 题里有 4 题在真正改口之前就出现过<b>更险的一步</b>，同范数的<b>随机
+        方向</b>也有 16% 的机会扳出同样的词。准确的说法是——改口那一刻的判决
+        本来就薄，而那个「薄」与干预关系不大。详见 docs/INTERPRETABILITY.md
+        Finding 14。
       </div>
     </div>
 
@@ -818,8 +841,8 @@ function drawDeltaSide(){
          `<td class="tok" colspan="2" style="font-size:13px;color:var(--acc)">${esc(dv.ste)}</td></tr>` +
          `<tr><td class="note" colspan="3" style="color:#8891a4">` +
          (relLast != null
-           ? `在选这个词之前一步，残差流已经被推了 ${(relLast*100).toFixed(1)}%。` +
-             `换词是位移的结果，不是原因 —— 上面的图是原因。`
+           ? `换词<b>不是</b>位移的结果 —— 理由见本面板下方。` +
+             `详见 docs/INTERPRETABILITY.md Finding 14`
            : `换词发生在残差位移之后。注意：两臂的 token 不同，**不等于**干预改变了` +
              `答案的含义，有些只是同义改写或排版差异（对照左右两题就是例子）。`) +
          `</td></tr>`;
@@ -842,8 +865,10 @@ function drawDeltaSide(){
            `</td></tr>`;
     } else {
       h += `<tr><td colspan="3" class="note" style="padding-top:10px">` +
-           `被推最多的维度（取自 2048 维里变化最大的，同步窗口内的均值）` +
-           `<br>条长按本表内最大变化归一，括号里是绝对变化量</td></tr>`;
+           `被推最多的维度（2048 维里变化最大的，同步窗口内均值）` +
+           `<br><b>这些维度不解释 token 的选择。</b>词条是该维权重最大的词，` +
+           `是真的但不构成解释：净效果只占维度总运动的 0.0%–20.7%，` +
+           `等效 587–831 维。详见 Finding 13</td></tr>`;
       // `d.delta` is an *absolute* change in that dimension's activation
       // (100.69, -77.48, …), not a fraction. Multiplying it by 100 and handing
       // the result to CSS as a width percentage produces 10068% — the row
@@ -1193,6 +1218,27 @@ function renderSide(){
     m0 = Math.sqrt(m0/upto);
     const ratio = sd/(m0+1e-9);
     let story;
+    // What this number is, precisely: `sd` is the spread of the **2-D PCA
+    // projection** about its own centroid, and `m0` is that projection's mean
+    // distance from the origin. So `ratio` is a dimensionless *shape* statistic
+    // of the 2-D scatter — large means the points sit at noticeably different
+    // radii, small means they form a tight ring.
+    //
+    // What it is not: any statement about how many dimensions carry the
+    // information. A 2-D projection cannot show that, and the previous text here
+    // claimed it did — "状态已经被压到少数几个方向上了…把重要信息写成少数几维，其余
+    // 清零" — which is a claim about 2048 dimensions read off a 2-D scatter.
+    // It was also self-contradictory: the "compressed" branch fired on
+    // ratio > 0.55 (the *less* concentrated side) while the other branch fired
+    // on ratio <= 0.55 and said "收拢".
+    //
+    // The dimension-level question has a real answer and it is the opposite
+    // one — see the note in the 维度解读 panel and Finding 13/14.
+    const what = `这是二维投影的形状统计：散点相对自身尺度的离散度` +
+                 `${(ratio*100).toFixed(0)}%（越大表示各点离中心远近差别越大，` +
+                 `越小表示它们大致在同一个半径上）。` +
+                 `<b>它不告诉你信息被压进了多少维</b>——那要从 2048 维的 logit 变化去看` +
+                 `（见「维度解读」里的说明）。`;
     if(upto < 2){
       // A single point has zero spread by construction, so the ratio is 0
       // and the "already differentiated" branch below would announce that
@@ -1200,11 +1246,13 @@ function renderSide(){
       // one. Say what is actually true instead.
       story = "L"+S.layer+"：目前只有第 1 步这一个点，算不出离散度（单点的方差恒为 0）。把 token 滑块往后拖几个点，这里就会给出这一层点云的收拢程度。";
     } else if(S.layer === 0){
-      story = "L0 是 embedding 本身的输出。token 之间几乎完全线性可分，所以点云铺得开、分得散——还没有任何「推理」发生。";
-    } else if(ratio > 0.55){
-      story = "L"+S.layer+"：点云离中心的离散度只有 "+ (ratio*100).toFixed(0) +"%（越接近 0 越集中）。<b>状态已经被压到少数几个方向上了</b>——这正是残差流在做的工作：把这一层认为重要的信息写成少数几维，其余清零。";
+      story = "L0 是 embedding 本身的输出，各 token 的向量直接来自词表。" + what;
     } else {
-      story = "L"+S.layer+"：点云离散度是离均质距离的 "+(ratio*100).toFixed(0)+"%。相比 L0 已经明显收拢，说明到这一层不同 token 的内部表示已经开始分化。";
+      // One branch, not two. The two texts used to disagree with each other
+      // about which side of 0.55 meant "compressed" — and a branch whose arms
+      // say the same thing is a branch that can be deleted, which is also the
+      // only way to be sure a later edit cannot make them disagree again.
+      story = "L"+S.layer+"：" + what;
     }
     $("#layerStory").innerHTML = story;
   }

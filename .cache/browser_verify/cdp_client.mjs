@@ -186,8 +186,14 @@ export class Page {
     return r.result.value;
   }
 
-  async screenshot(path, { fullPage = false } = {}) {
-    const r = await this.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: fullPage });
+  async screenshot(path, { fullPage = false, clip = null } = {}) {
+    // `clip` is how you read something too small to judge in a full-page shot.
+    // A 199-character caveat in a 294px column is illegible at 1600px wide, and
+    // the first reading of it here was "the text is cut off" when it was
+    // complete. Silently ignoring the option would make that mistake repeatable.
+    const args = { format: 'png', captureBeyondViewport: fullPage };
+    if (clip) args.clip = { ...clip, scale: clip.scale ?? 1 };
+    const r = await this.send('Page.captureScreenshot', args);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, Buffer.from(r.data, 'base64'));
     return path;

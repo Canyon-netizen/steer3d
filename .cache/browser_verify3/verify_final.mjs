@@ -96,11 +96,17 @@ await dragTo(injected);
 const inj = await page.eval(`(()=>{
   const side = document.querySelector('#tblTop')?.innerHTML || '';
   const sub  = document.querySelector('#mainSub')?.textContent || '';
-  return { sideText: side.replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ').trim().slice(0,400),
+  const flat = side.replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ').trim();
+  // Full text for assertions, a short head for the human-readable line. These
+  // used to be the same string, and the 400-char slice quietly became a
+  // correctness constraint the moment the page grew: a sentence that moved
+  // past character 400 read as "the page does not say it", which is the one
+  // conclusion a growing page must never produce.
+  return { sideText: flat, sideHead: flat.slice(0,400),
            sub, layer: document.querySelector('#valLayer')?.textContent,
            pushed: (side.match(/被推了<\\/td><td class="tok"><b[^>]*>([\\d.]+)%/)||[])[1] || null };
 })()`);
-say('  侧栏: ' + inj.sideText.slice(0, 200));
+say('  侧栏: ' + inj.sideHead);
 const layersNamed = [...(inj.sideText + ' ' + inj.sub).matchAll(/L(\d+)/g)].map(m => +m[1]);
 const bogus = layersNamed.filter(L => !avail.includes(L));
 chk(bogus.length === 0, '注入块的指路指向真实存在的层',
@@ -241,6 +247,155 @@ chk(oor.hasPct === false, '越界时不显示该步的百分数');
       `共同部分=${txt.head} 对照=${txt.hasC} 干预=${txt.hasS}`);
   await page.screenshot(`${OUT}/final-04-divergence-pair5.png`);
   say('  shot -> final-04-divergence-pair5.png');
+}
+
+// ---- Finding 13/14: the page must not assert a causal link the data refutes ----
+// Three sentences were removed because measurement contradicted them. Checking
+// that a string is *absent* is the only assertion that can catch a re-introduced
+// claim, and checking that the replacement number is *present* is what stops the
+// caveat being quietly dropped in a later edit.
+{
+  say('\n[Finding 13/14] 页面不得断言数据不支持的因果');
+  await page.click('#tabDelta');
+  await sleep(1000);
+  // Scope: the whole side panel, not just #tblTop. The note under the table is
+  // a *sibling* of the scroll container, so a check reading only the table's
+  // innerHTML could not see it — and would have reported "the caveat is
+  // missing" for text that is on screen.
+  const notes = await page.eval(`(()=>{
+    const t0=document.querySelector('#tblTop');
+    const panel=t0.parentElement.parentElement;
+    const t=panel.innerHTML;
+    return {hasResult:/换词是位移的结果/.test(t),
+            hasGraphIsCause:/上面的图是原因/.test(t),
+            hasRandomNull:/16%/.test(t),
+            ctxPointer:/理由见本面板下方/.test(t),
+            dupCount:(t.match(/干预关系不大/g)||[]).length,
+            saysNotResult:/换词.{0,4}不是.{0,4}位移的结果/.test(t),
+            hasDimsCaveat:/这些维度不解释 token 的选择/.test(t),
+            hasCancel:/0\.0%[–-]20\.7%/.test(t),
+            oldFooter:/干预向量就是要把这些分数重新排序/.test(t),
+            newFooter:/这张表不解释/.test(t),
+            tail:[...document.querySelectorAll('td.note')]
+                  .filter(e=>/这些维度不解释/.test(e.innerHTML))
+                  .map(e=>e.innerHTML.length + ' >>> ' + e.innerHTML)};})()`);
+  chk(!notes.hasResult, '不再说「换词是位移的结果」', String(notes.hasResult));
+  chk(!notes.hasGraphIsCause, '不再说「上面的图是原因」', String(notes.hasGraphIsCause));
+  chk(notes.saysNotResult, '明确写出「换词不是位移的结果」');
+  chk(notes.hasRandomNull, '给出同范数随机方向 16% 这个零假设');
+  chk(notes.ctxPointer, '分叉点处留一行指路，而不是重复整段');
+  chk(notes.dupCount === 1, '完整警告只出现一次（上下文处不重复）',
+      `出现 ${notes.dupCount} 次`);
+  chk(notes.hasDimsCaveat, '维度区写明这些维度不解释 token 的选择');
+  chk(!notes.oldFooter, '删掉「干预向量就是要把这些分数重新排序」（Finding 14 已否掉）',
+      String(notes.oldFooter));
+  chk(notes.newFooter, '表下说明改成「这张表不解释为什么是这个 token」');
+  chk(notes.hasCancel, '维度区给出净效果/总运动 0.0%–20.7% 的抵消比例');
+  for (const t of [].concat(notes.tail)) say('  维度警告: ' + String(t));
+  {
+    // Is the tail line being covered by the dimension rows, or merely cut?
+    // Measure the geometry rather than guess from the pixels.
+    const geo = await page.eval(`(()=>{
+      const td = [...document.querySelectorAll('td.note')]
+        .find(e=>/这些维度不解释/.test(e.innerHTML));
+      const first = td.parentElement.parentElement.nextElementSibling;
+      const rows = [...document.querySelectorAll('.dimrow')];
+      const tb = td.getBoundingClientRect();
+      const sc = td.closest('div[style*="overflow"]');
+      const sb = sc.getBoundingClientRect();
+      const t = document.querySelector('#tblTop');
+      return { tdH: Math.round(tb.height), tdBottom: Math.round(tb.bottom),
+               tdTop: Math.round(tb.top), tdW: Math.round(tb.width),
+               tableW: Math.round(t.getBoundingClientRect().width),
+               panelW: Math.round(sb.width),
+               panelScrollW: sc.scrollWidth, panelClientW: sc.clientWidth,
+               overflowX: getComputedStyle(sc).overflowX,
+               firstRowTop: rows.length ? Math.round(rows[0].getBoundingClientRect().top) : null,
+               panelBottom: Math.round(sb.bottom),
+               nRows: rows.length };})()`);
+    say('  几何: ' + JSON.stringify(geo));
+    // Who is the 332px-wide element? 38px of horizontal overflow in a 294px
+    // panel, with the table itself now at 294, so it is something else.
+    const wide = await page.eval(`(()=>{const sc=document.querySelector('#tblTop').parentElement;
+      const lim=sc.getBoundingClientRect().right;
+      return [...sc.querySelectorAll('*')]
+        .map(e=>({t:e.tagName+'.'+(e.className||''), r:Math.round(e.getBoundingClientRect().width),
+                  over:Math.round(e.getBoundingClientRect().right-lim), w:e.innerText?.slice(0,18)}))
+        .filter(o=>o.over>2).slice(0,6);})()`);
+    for (const w of [].concat(wide))
+      say('    溢出: ' + JSON.stringify(w));
+    chk([].concat(wide).length === 0, '侧栏里没有元素越出面板右缘',
+        [].concat(wide).map(w => `${w.t} 超出 ${w.over}px «${w.w}»`).join('; ') || '无');
+    // Screen 1 shares #tblTop, and table-layout:fixed is not scoped to screen 4.
+    await page.click('#tabBar');
+    await sleep(1200);
+    const s1 = await page.eval(`(()=>{const sc=document.querySelector('#tblTop').parentElement;
+      const rows=document.querySelectorAll('#tblTop tr').length;
+      const cells=[...document.querySelectorAll('#tblTop td')].map(e=>Math.round(e.getBoundingClientRect().width));
+      return {rows, tblW:Math.round(document.querySelector('#tblTop').getBoundingClientRect().width),
+              panelW:sc.clientWidth, scrollW:sc.scrollWidth,
+              minCell:Math.min(...cells), maxCell:Math.max(...cells)};})()`);
+    say('  第1屏候选词: ' + JSON.stringify(s1));
+    await page.screenshot(`${OUT}/final-06-screen1-fixed.png`);
+    say('  shot -> final-06-screen1-fixed.png');
+    await page.click('#tabDelta');
+    await sleep(1000);
+    // Crop the caveat at 3x so the last line can actually be read. The full-page
+    // shot is 1600px wide; 199 characters of Chinese in a 294px column is
+    // simply not legible there, and "looks truncated" was my first reading of a
+    // perfectly complete element.
+    const box = await page.eval(`(()=>{const td=[...document.querySelectorAll('td.note')]
+        .find(e=>/这些维度不解释/.test(e.innerHTML));
+      const r = td.getBoundingClientRect();
+      return {x:Math.round(r.left)-6, y:Math.round(r.top)-6,
+              width:Math.round(r.width)+12, height:Math.round(r.height)+12};})()`);
+    await page.screenshot(`${OUT}/final-05-dim-caveat.png`, { clip: {...box, scale: 3} });
+    say('  shot -> final-05-dim-caveat.png');
+  }
+
+  await page.click('#tabXY');
+  await sleep(1200);
+  const story = await page.eval(`(()=>{const s=document.querySelector('#layerStory').innerHTML;
+    return {hasCompress:/压到少数几个方向/.test(s),
+            hasZeroOut:/其余清零/.test(s),
+            hasSeparable:/几乎完全线性可分/.test(s),
+            saysShape:/二维投影的形状统计/.test(s),
+            saysNotDims:/不告诉你信息被压进了多少维/.test(s)};})()`);
+  chk(!story.hasCompress, '层解说不再说「压到少数几个方向」', String(story.hasCompress));
+  chk(!story.hasZeroOut, '层解说不再说「其余清零」', String(story.hasZeroOut));
+  chk(!story.hasSeparable, '层解说不再从 2D 散点断言「线性可分」', String(story.hasSeparable));
+  chk(story.saysShape, '层解说点明这是二维投影的形状统计');
+  chk(story.saysNotDims, '层解说声明它不回答维度压缩问题');
+
+  // A caveat that is present in the DOM but cut off below the fold has not
+  // been delivered. Every string assertion above passed while the sidebar was
+  // visibly truncating both caveats mid-sentence, so measure the layout too.
+  const fit = await page.eval(`(()=>{
+    const out = [];
+    const tb = document.querySelector('#tblTop');
+    const sc = tb?.parentElement;
+    if (sc) out.push(['第4屏侧栏', sc.scrollHeight, sc.clientHeight,
+                      sc.scrollWidth, sc.clientWidth]);
+    out.push(['#tblTop 宽', 0, 0, tb.getBoundingClientRect().width,
+              sc?.clientWidth || 0]);
+    for (const id of ['#layerStory']) {
+      const e = document.querySelector(id);
+      if (e) out.push([id, e.scrollHeight, e.clientHeight,
+                       e.scrollWidth, e.clientWidth]);
+    }
+    return out;})()`);
+  // Both axes. Checking only the vertical one let a caveat through that was
+  // clipped horizontally: #tblTop is wider than the panel that scrolls it, so
+  // the tail of the sentence sat past the visible edge while every string
+  // assertion still passed.
+  const clipped = fit.filter(([, sh, ch, sw, cw]) =>
+    (sh - ch > 24) || (sw - cw > 4));
+  chk(clipped.length === 0, '警告文案没有被折叠到看不见（两个方向都量）',
+      clipped.length
+        ? clipped.map(([id, sh, ch, sw, cw]) =>
+            `${id} 纵向 ${sh}/${ch} 横向 ${sw}/${cw}`).join('; ')
+        : fit.map(([id, sh, ch, sw, cw]) =>
+            `${id} ${sh}/${ch}·${sw}/${cw}`).join('  '));
 }
 
 await page.screenshot(`${OUT}/final-01-L26-dims.png`);
