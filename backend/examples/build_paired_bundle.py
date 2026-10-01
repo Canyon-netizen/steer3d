@@ -226,9 +226,26 @@ def main() -> int:
 
             # --- delta: differenced in float32 BEFORE any quantisation -----
             if std is None or std.size == 0:
+                arm_meta["delta"] = None
+                arm_meta["delta_note"] = ("no steered arm stored for this "
+                                          "layer, so there is nothing to "
+                                          "difference against")
                 continue
             m = min(n_common, T, std.shape[0])
             if m <= 0:
+                # The two arms disagreed on their very first token. There is
+                # no step at which "the hidden state moved" is a question
+                # that can be asked, and the server-side top_dims for this
+                # layer is a mean over an empty slice — a NaN that would
+                # survive json.dumps as a bare `NaN` and make JSON.parse
+                # reject the whole manifest. Record why it is empty instead
+                # of leaving the viewer to guess.
+                arm_meta["delta"] = None
+                arm_meta["delta_note"] = (
+                    "the two arms picked different tokens on their very first "
+                    "step, so there is no common prefix and no comparable "
+                    "delta for this layer")
+                row.append(f"  L{L:<3d} 无共同前缀 → 这一层没有可比的 Δ")
                 continue
             h32 = ctl[:m].astype(np.float32)
             delta = (std[:m].astype(np.float32) - h32).astype(np.float16)
@@ -271,6 +288,20 @@ def main() -> int:
                 }
             td = rec.get("top_dims", {}).get(str(L), [])
             if td:
+                # json.loads turns a bare NaN in the source file into
+                # float('nan') without complaint, and json.dumps writes it back
+                # out as `NaN` — which JSON.parse rejects outright, so the page
+                # would fail to load its manifest with no clue why. The path
+                # that produces it is real: if the two arms disagree on the
+                # very first token, n_compared is 0 and the server-side
+                # `.mean(0)` over an empty slice is NaN. Refuse to pack it.
+                bad = [d for d in td
+                       if not np.isfinite(float(d.get("delta", np.nan)))]
+                assert not bad, (
+                    f"{pid} L{L}: top_dims has non-finite deltas "
+                    f"({bad[:3]}). Most likely n_common_prefix was 0 or 1, so "
+                    f"there is no common prefix to average over. Refusing to "
+                    f"write a manifest the browser cannot parse.")
                 arm_meta["top_dims"] = [
                     {"dim": d["dim"], "delta": round(d["delta"], 5),
                      "names": dim_names.get(d["dim"], [])}
