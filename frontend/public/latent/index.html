@@ -433,6 +433,10 @@ async function loadPair(i){
   // drawing the *old* pair's stats under the new pair's title.
   S.pi = i; S.pMeta = null;
   S.pLayer = p.layers.indexOf(20) >= 0 ? 20 : p.layers[0];
+  // The slider has to show the layer that is actually loaded, or the readout
+  // and the number under it disagree — which reads as "the page is lying"
+  // even though the plot is right.
+  $("#rngLayer").value = S.pLayer;
   $("#selPair").value = i;
   const n = p.arms["_ids"];
   if(n && n.control && !S.pIdsC){
@@ -1076,6 +1080,7 @@ $("#tabDelta").onclick = async () => {
   $("#rngLayer").min = ls[0]; $("#rngLayer").max = ls[ls.length-1];
   $("#rngLayer").step = 1;
   if(!S.pi && S.pm.pairs.length) await loadPair(0);
+  else $("#rngLayer").value = S.pLayer;
   $("#rngTok").max = Math.max(0, (S.pCtlT||1) - 1);
   layout();
 };

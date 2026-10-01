@@ -60,6 +60,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import warnings
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -128,10 +129,32 @@ def main() -> int:
 
     out = Path(args.data_dir) / args.out_subdir
     out.mkdir(parents=True, exist_ok=True)
-    dim_names: Dict[str, list] = {}
+
+    # dim_names.json is {"schema": ..., "dims": [{"d": 478, "top": [{"id":…,
+    # "t": "ters", "w": 0.157}, …]}, …]} — a list indexed by dimension, each
+    # entry carrying a `top` list of tokens. Reading it as a dict keyed by
+    # dimension number returns nothing at all, and because the failure is an
+    # empty list rather than an exception, the viewer's dimension column comes
+    # out as a column of em-dashes on a page that otherwise renders perfectly.
+    # Hence the assertion: a present-but-empty parse means the shape was
+    # misunderstood, and it must stop the run rather than ship silently.
+    dim_names: Dict[int, List[str]] = {}
     dn = Path(args.data_dir) / "dim_names.json"
     if dn.is_file():
-        dim_names = json.loads(dn.read_text())
+        raw = json.loads(dn.read_text())
+        for entry in raw.get("dims", []):
+            if not isinstance(entry, dict) or "d" not in entry:
+                continue
+            dim_names[int(entry["d"])] = [
+                t["t"] for t in entry.get("top", []) if isinstance(t, dict) and "t" in t]
+        assert dim_names, (
+            f"{dn} exists but parsed to zero dimensions — the expected shape is "
+            f"{{'dims': [{{'d': int, 'top': [{{'t': str}}]}}]}}, got keys "
+            f"{sorted(raw.keys()) if isinstance(raw, dict) else type(raw).__name__}")
+        print(f"dim names: {len(dim_names)} dimensions, "
+              f"e.g. #{next(iter(dim_names))} -> {dim_names[next(iter(dim_names))][:4]}")
+    else:
+        print(f"WARNING {dn} absent — the viewer's dimension column will be blank")
 
     entries = []
     total = 0
@@ -177,8 +200,19 @@ def main() -> int:
                 raise SystemExit(f"{pid} control_L{L}: d_model {D} != {args.d_model}")
             # Recomputed here as a check on the basis, not shipped: the
             # browser projects from the vectors itself.
-            proj = ((ctl.astype(np.float32) - basis[L]["mean"])
-                    @ basis[L]["comp"])
+            # numpy raises divide-by-zero / overflow / invalid RuntimeWarnings
+            # from this matmul on some BLAS builds (macOS Accelerate) even when
+            # every input and every output is finite — verified by checking
+            # all three. The warnings carry no information; finiteness of the
+            # result does. So suppress the noise and assert on the signal.
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=RuntimeWarning)
+                proj = ((ctl.astype(np.float32) - basis[L]["mean"])
+                        @ basis[L]["comp"])
+            assert np.isfinite(proj).all(), (
+                f"{pid} L{L}: projection produced non-finite values "
+                f"({int((~np.isfinite(proj)).sum())} of {proj.size}) — the "
+                f"basis or the vectors are not what they claim to be")
             nb = _write_f16(out / f"pc_{pid}_control_L{L}.bin", ctl)
             total += nb
             arm_meta["control"] = {
@@ -239,10 +273,12 @@ def main() -> int:
             if td:
                 arm_meta["top_dims"] = [
                     {"dim": d["dim"], "delta": round(d["delta"], 5),
-                     "names": (dim_names.get(str(d["dim"]))
-                               or dim_names.get(d["dim"]) or [])}
+                     "names": dim_names.get(d["dim"], [])}
                     for d in td
                 ]
+                assert any(x["names"] for x in arm_meta["top_dims"]), (
+                    f"{pid} L{L}: every top dimension came back without names — "
+                    f"dim_names.json was read in a shape it does not have")
             item["arms"][str(L)] = arm_meta
 
         for arm, key in (("control", "control_ids"), ("steered", "steered_ids")):
