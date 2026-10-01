@@ -457,7 +457,18 @@ async function loadPair(i){
   // pair has no data for the requested layer, render() would otherwise keep
   // drawing the *old* pair's stats under the new pair's title.
   S.pi = i; S.pMeta = null;
-  S.pLayer = p.layers.indexOf(20) >= 0 ? 20 : p.layers[0];
+  // Open on the first layer that can *show* an effect, not on the injection
+  // layer. `hidden_states[inject_layer]` is the residual entering that block,
+  // captured before the steerer runs, so its Δ is identically zero — landing
+  // there means the first thing on screen is a flat line and a "0.00%", which
+  // reads as a failed intervention even when it worked. The injection layer
+  // is still one click away, and the note explains it when you get there.
+  {
+    const above = p.layers.filter(L => L > p.inject_layer);
+    const below = p.layers.filter(L => L < p.inject_layer);
+    S.pLayer = (above[0] != null) ? above[0]
+             : (below.length ? below[below.length - 1] : p.layers[0]);
+  }
   // The slider has to show the layer that is actually loaded, or the readout
   // and the number under it disagree — which reads as "the page is lying"
   // even though the plot is right.
