@@ -38,7 +38,7 @@ const IDS = ["pbar","pmsg","selTraj","probText","rngTok","rngLayer","valLayer",
   "valTok","mainTitle","mainSub","tblTop","genTxt","layerStory","stRaw","stEnt",
   "stNorm","stMove","stD","sideTitle","dbg","tip","app","loading","btnPlay",
   "btnDepth","tabXY","tabBar","tabDim","tabDelta","selPair","cv","cvD",
-  "pairRow","pairNote","legendDelta","legendDelta2","deltaCap","layerStory"];
+  "pairRow","pairNote","legendDelta","legendDelta2","deltaCap","layerStory","trajPanel"];
 const elements = {};
 for (const id of IDS) {
   elements[id] = {
@@ -341,6 +341,20 @@ if (p.layers.includes(p.inject_layer)) {
       /没有任何维度被推动/.test(injSide) ? "改为说明两条流逐位相同" : "仍列了维度");
   chk(/没有任何维度被推动/.test(injSide),
       "注入块那一屏明说没有维度被推动（不是「变化都很小」）");
+  // "看 L21" pointed at a layer that does not exist in this bundle. With
+  // layers {4,12,20,26} the first one that can actually show an effect is
+  // L26, so the hint has to name a layer the slider can reach.
+  const avail = p.layers;
+  const pointed = [...injSide.matchAll(/L(\d+)/g)].map(m => parseInt(m[1]));
+  const bogus = pointed.filter(L => !avail.includes(L));
+  chk(bogus.length === 0,
+      "注入块的指路指向真实存在的层",
+      bogus.length ? `指向了 L${bogus.join(",L")}，可用只有 ${avail.join("/")}`
+                    : `指向 ${[...new Set(pointed)].join("/")}，可用 ${avail.join("/")}`);
+  const hdr = elements.mainSub.textContent || "";
+  const bogusHdr = [...hdr.matchAll(/L(\d+)/g)].map(m => parseInt(m[1])).filter(L => !avail.includes(L));
+  chk(bogusHdr.length === 0, "标题栏的指路也指向真实存在的层",
+      bogusHdr.length ? "L" + bogusHdr.join(",L") : hdr.slice(0, 46));
   S.pLayer = p.layers.find(L => L > p.inject_layer) ?? p.layers[p.layers.length - 1];
   await api.loadPairLayer();
 }

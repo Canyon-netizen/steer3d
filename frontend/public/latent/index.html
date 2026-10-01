@@ -24,6 +24,15 @@
   select,button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:12.5px;cursor:pointer}
   select:hover,button:hover{border-color:var(--acc)}
   button.on{background:#0e3a52;border-color:var(--acc);color:#cdeeff}
+  /* #pairRow is a flex row holding a label, a <select> and a long explanatory
+     paragraph. Without flex-shrink:0 the label is the most shrinkable item, so
+     the paragraph pushed it to one glyph per line and "配对题目" rendered
+     vertically. Fixed widths, not percentages: the select is `flex:1` and takes
+     whatever is left. */
+  #pairRow{display:flex;flex-wrap:wrap;align-items:flex-start;gap:0 8px}
+  #pairRow>label{flex:0 0 auto;white-space:nowrap;margin-bottom:4px}
+  #pairRow>select{flex:1 1 150px;min-width:0;margin-bottom:4px}
+  #pairRow>*{min-width:0}
   .row{margin-bottom:10px}
   .row:last-child{margin-bottom:0}
   label{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}
@@ -94,7 +103,7 @@
       <div class="sub">拖动层滑块或播放 token，隐空间里的点是<strong style="color:var(--acc)">实时用该层自己的 PCA 基从原始 2048 维向量算出来</strong>的，不是预渲染图。</div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="trajPanel">
       <h2>题目</h2>
       <div class="row"><select id="selTraj"></select></div>
       <div class="sub" id="probText" style="max-height:76px;overflow-y:auto"></div>
@@ -724,10 +733,18 @@ function drawDeltaSide(){
   h += `<tr><td class="note">两条流同步到</td><td class="tok">第 ${p.n_common_prefix} 步</td></tr>`;
   if(S.pLayer <= p.inject_layer){
     // Say it here, where the zeros are, not only in the header.
+    // Point at the first layer that actually *exists* in this bundle, not at
+    // inject_layer + 1. With layers {4,12,20,26} there is no L21, so "看 L21"
+    // sent the reader to a layer slider position that does not exist.
+    const aboveL = (p.layers || []).filter(L => L > p.inject_layer);
+    const firstEff = aboveL.length ? aboveL[0] : null;
     h += `<tr><td class="note" colspan="3" style="color:#8891a4">` +
          (S.pLayer === p.inject_layer
           ? `L${S.pLayer} 显示的是<b>进入</b>该块的残差，向量是在块内部加的，` +
-            `所以这一行按构造就是平的。第一行可能出现变化的是 L${S.pLayer + 1}。`
+            `所以这一行按构造就是平的。` +
+            (firstEff != null
+              ? `这份数据里第一个可能出现变化的是 <b>L${firstEff}</b>（层滑块上就有）。`
+              : `这份数据没有比它更深的层了。`)
           : `L${S.pLayer} 在注入点上游，干预还没经过这里，平是预期的。`) +
          `</td></tr>`;
   }
@@ -1106,6 +1123,11 @@ function render(){
   if(delta){
     if(!S.pBusy && S.pm) drawDelta();
     $("#pairRow").style.display = "flex";
+    // Two different problems on screen at once. The header already says which
+    // problem screen 4 is about, and the pair selector sits right below the
+    // unsteered one, so leaving both visible reads as a contradiction rather
+    // than as two datasets.
+    $("#trajPanel").style.display = "none";
     $("#legendDelta").style.display = "inline";
     $("#legendDelta2").style.display = "inline";
     const p = S.pm && S.pm.pairs[S.pi];
@@ -1122,9 +1144,12 @@ function render(){
     // that row to show anything. Measured with a 50.0 probe on Qwen3-1.7B,
     // max|Δ| at hs[20] is 0.000000 and at hs[21] is 49.91. Saying so beats
     // letting a working steer read as a no-op.
+    const _above = (p && p.layers || []).filter(L => L > p.inject_layer);
+    const _firstEff = _above.length ? _above[0] : null;
     const injNote = (p && S.pLayer <= p.inject_layer)
       ? (S.pLayer === p.inject_layer
-          ? "　这一层是注入块：显示的是进入该块的残差，干预还没发生在这里 —— 看 L" + (S.pLayer + 1)
+          ? "　这一层是注入块：显示的是进入该块的残差，干预还没发生在这里 —— " +
+            (_firstEff != null ? "看 L" + _firstEff : "这份数据没有更深的层了")
           : "　这一层在注入点上游，按构造不会有变化")
       : "";
     $("#mainSub").textContent += injNote;
@@ -1166,6 +1191,7 @@ function render(){
     return;
   }
   $("#pairRow").style.display = "none";
+  $("#trajPanel").style.display = "";
   $("#legendDelta").style.display = "none";
   $("#legendDelta2").style.display = "none";
   const t = S.m.trajectories[S.ti];
