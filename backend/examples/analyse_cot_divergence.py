@@ -73,18 +73,39 @@ def extract_answer(text: str) -> Optional[int]:
     in the trace. A wrong extraction is worse than an honest None, so the
     ordering encodes descending reliability.
     """
+    return extract_answer_sourced(text)[0]
+
+
+def extract_answer_sourced(text: str) -> Tuple[Optional[int], str]:
+    """Same extraction, but reports *which* rule fired.
+
+    The distinction matters more than it looks. ``TAIL_INT_RE`` — "whatever
+    integer happens to end the text" — is a reasonable guess for a finished
+    answer and an actively misleading one for a chain of thought that ran out
+    of budget: it will happily return an intermediate quantity from the
+    middle of a derivation and label it "the answer". Measured on the 32k
+    study (2026-10-01), two runs of problem 1987 both left ``</think>`` unclosed
+    and both came back with a confident integer — 1 for the control arm and
+    2 for the steered one. That reads exactly like "the intervention moved the
+    answer from 1 to 2", and both numbers are noise scraped off a truncated
+    derivation.
+
+    A caller comparing arms across runs needs to be able to refuse the
+    fallback. Returning the source makes that possible without changing what
+    every existing caller gets.
+    """
     if not text:
-        return None
+        return None, "empty"
     m = ANSWER_RE.search(text)
     if m:
-        return int(m.group(1))
+        return int(m.group(1)), "explicit"
     m = BOXED_RE.search(text)
     if m:
-        return int(m.group(1))
+        return int(m.group(1)), "boxed"
     m = TAIL_INT_RE.search(text.strip())
     if m:
-        return int(m.group(1))
-    return None
+        return int(m.group(1)), "tail_guess"
+    return None, "none"
 
 
 def split_think(text: str) -> Tuple[str, str]:

@@ -96,6 +96,7 @@ sys.path.insert(0, str(HERE))
 # implementation, not an accident of copy-paste.
 from analyse_cot_divergence import (  # noqa: E402
     extract_answer,
+    extract_answer_sourced,
     split_think,
     _selftest as _extractor_selftest,
 )
@@ -225,7 +226,15 @@ class _LongAccumulator:
         good = max(1, self.n_steps - self.n_bad)
         return {
             "n_steps": self.n_steps,
-            "n_bad_steps": self.n_bad,
+            # Renamed from "n_bad_steps", which read like "steps where the two
+            # streams disagreed" and is not that. It counts steps whose KL or
+            # entropy came out non-finite — a numerical-garbage counter, and
+            # the two arms disagreeing is `token_agreement` and
+            # `first_diverged_step`. The old name invited reading 0 as "the
+            # arms never diverged" on a run where they diverged on 8% of steps.
+            "n_bad_numeric_steps": self.n_bad,
+            "n_bad_meaning": ("steps where KL/entropy was non-finite; this is "
+                              "NOT the number of steps the two arms disagreed"),
             "n_tracked": self.n_tracked,
             "track_stride": self.stride,
             "full_coverage_note": (
@@ -239,8 +248,21 @@ class _LongAccumulator:
             "mean_logit_kl": self.sum_kl / good,
             "mean_entropy_primary": self.sum_ent_p / good,
             "mean_entropy_shadow": self.sum_ent_s / good,
+            # The per-step match bits are what distinguish "the perturbation
+            # compounds into a different derivation" from "it flips a few
+            # tokens early and the chains re-synchronise". A single mean
+            # cannot tell those apart — 0.94 over 6500 steps is consistent with
+            # both. 6507 bits is 814 bytes, so there was no reason to drop it.
+            "match_bits_b64": self._match_bits_b64(),
             "layer_curve": self.layer_curve(),
         }
+
+    def _match_bits_b64(self) -> Optional[str]:
+        if not self.match_series:
+            return None
+        import base64
+        bits = np.packbits(np.asarray(self.match_series, dtype=np.uint8))
+        return base64.b64encode(bits.tobytes()).decode("ascii")
 
 
 # ---------------------------------------------------------------------------
@@ -384,27 +406,58 @@ def generate(model, tokenizer, prompt_text: str, max_new_tokens: int,
         "n_reason_chars": len(p_reason),
         "n_answer_chars": len(p_ans),
         "answer": _answer_of(p_ans, p_text),
+        "answer_source": _answer_source(p_ans, p_text, _answer_of(p_ans, p_text)),
+        "answer_guessed": not p_ans.strip() and close_step is None,
         # The shadow gets the *same* fallback chain as the primary. Getting
         # this wrong is silent: an unclosed shadow chain would fall back to
         # the reasoning segment here and report a number that is really
         # "last integer mentioned anywhere in the CoT".
         "shadow_answer": _answer_of(s_ans, s_text) if measure else None,
+        "shadow_answer_source": (
+            _answer_source(s_ans, s_text, _answer_of(s_ans, s_text))
+            if measure else None),
+        "shadow_answer_guessed": bool(
+            measure and not s_ans.strip() and _THINK_CLOSE not in s_text),
         "shadow_closed_think": bool(measure and _THINK_CLOSE in s_text),
         "acc": acc,
     }
 
 
-def _answer_of(answer_part: str, full_text: str) -> Optional[int]:
-    """Answer from the post-`</think>` segment, falling back to the whole
-    response. An unclosed chain leaves that segment empty, so the fallback
-    matters — but a wrong guess would be worse than an honest ``None``, so
-    the extractor itself decides, and ``None`` is reported as *unknown*
-    rather than as "the answer did not change"."""
+def _answer_of(answer_part: str, full_text: str,
+               strict: bool = False) -> Optional[int]:
+    """Answer from the post-`</think>` segment, optionally refusing to guess.
+
+    An unclosed chain leaves that segment empty, so the default behaviour
+    falls back to scanning the whole response. That fallback is the right
+    default for a viewer and the wrong one for a *comparison*: see
+    ``extract_answer_sourced`` — on an unclosed chain it returns the last
+    integer in a truncated derivation, which is not an answer at all.
+
+    ``strict=True`` reads only the post-`</think>` segment and reports
+    ``None`` when it is empty. The 32k study uses strict, because "the
+    intervention changed the answer" is a claim that has to survive a
+    reader noticing that the chains never closed.
+    """
     if answer_part.strip():
         a = extract_answer(answer_part)
         if a is not None:
             return a
+    if strict:
+        return None
     return extract_answer(full_text)
+
+
+def _answer_source(answer_part: str, full_text: str,
+                   value: Optional[int]) -> str:
+    """Which extraction rule produced ``value`` — for the record, not for
+    branching. ``unclosed`` means the guess came from a chain of thought
+    that never emitted an answer segment."""
+    if value is None:
+        return "unknown"
+    src = extract_answer_sourced(answer_part)[1] if answer_part.strip() else "none"
+    if src in ("explicit", "boxed"):
+        return src
+    return "unclosed_guess" if not answer_part.strip() else src
 
 
 # ---------------------------------------------------------------------------
@@ -444,10 +497,51 @@ def load_problems(path: Optional[str], limit: Optional[int]) -> List[dict]:
 # ---------------------------------------------------------------------------
 
 
+def _accumulator_selftest() -> None:
+    """Round-trip the per-step match bits through the encoder.
+
+    A packbits/base64 codec is easy to write in a way that silently loses the
+    last partial byte or transposes the order, and the symptom is a plausible
+    curve rather than an error. So this checks the decoded length and a few
+    specific positions against the input, rather than comparing a copy of the
+    encoder written next to it.
+    """
+    import base64
+
+    acc = _LongAccumulator(n_layers=4, stride=64,
+                           unit=np.zeros(8, dtype=np.float32))
+    pattern = [1] * 300 + [0] * 5 + [1, 0, 1, 1, 0, 0, 0]   # 312 steps
+    fake_p = np.zeros(16)
+    fake_s = np.zeros(16)
+    for i, m in enumerate(pattern):
+        # argmax equal when m == 1; make the shadow pick a different index else
+        fake_p[:] = 0.0
+        fake_s[:] = 0.0
+        fake_p[1] = 1.0
+        fake_s[1 if m else 2] = 1.0
+        acc.cheap_step(i, fake_p, fake_s)
+
+    s = acc.summary()
+    assert s["n_steps"] == len(pattern), s["n_steps"]
+    assert s["n_bad_numeric_steps"] == 0, s["n_bad_numeric_steps"]
+    assert abs(s["token_agreement"] - sum(pattern) / len(pattern)) < 1e-12, \
+        s["token_agreement"]
+    assert s["first_diverged_step"] == 300, s["first_diverged_step"]
+
+    raw = base64.b64decode(s["match_bits_b64"])
+    bits = np.unpackbits(np.frombuffer(raw, dtype=np.uint8))[:len(pattern)]
+    assert bits.tolist() == pattern, "match bits did not round-trip"
+    assert len(bits) == len(pattern), (len(bits), len(pattern))
+    print(f"accumulator self-test OK ({len(pattern)} steps, "
+          f"{len(s['match_bits_b64'])} b64 chars, "
+          f"first_div={s['first_diverged_step']})")
+
+
 def main(args) -> int:
     if args.self_test:
         _extractor_selftest()
-        print("extractor self-test OK")
+        _accumulator_selftest()
+        print("self-test OK")
         return 0
 
     if not args.model_path:
@@ -531,11 +625,21 @@ def main(args) -> int:
                 "n_reason_chars": res["n_reason_chars"],
                 "n_answer_chars": res["n_answer_chars"],
                 "answer": res["answer"],
+                "answer_source": res["answer_source"],
                 "shadow_answer": res["shadow_answer"],
+                "shadow_answer_source": res["shadow_answer_source"],
                 "shadow_closed_think": res["shadow_closed_think"],
-                "answer_known": res["answer"] is not None,
+                # Strict: an unclosed chain reports the answer as unknown.
+                # The non-strict fallback returns the last integer in a
+                # truncated derivation, which for problem 1987 produced a
+                # confident 1 vs 2 across the two arms — a difference that
+                # reads like a result and is not one.
+                "answer_known": (res["answer"] is not None
+                                 and not res["answer_guessed"]),
+                "answer_guessed": res["answer_guessed"],
                 "answer_changed": (
                     None if not res["answer_known"] or res["shadow_answer"] is None
+                    or res["shadow_answer_guessed"]
                     else res["answer"] != res["shadow_answer"]
                 ),
                 "wallclock_s": res["wallclock_s"],

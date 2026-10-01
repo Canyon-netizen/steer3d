@@ -894,6 +894,147 @@ same error as quoting a cosine without its floor. The flips are explained by a
 per-layer sign decision (confirmed below), and position pooling remains
 untested rather than cleared.
 
+## Finding 11: 32k budget, and a number that looked like a result
+
+Earlier sections ended with a structural impossibility: 0 of 96 traces closed
+`</think>` inside 1024 tokens, so the answer-level effect of steering could not
+be measured, and every agreement number was a statement about a chain that
+never finished. That impossibility was an artefact of the budget, not a fact
+about steering. This finding reopens it — and the answer turns out to be
+"still not measurable", for a reason worth more than the one it replaces.
+
+### Calibration first, because the budget cannot be guessed
+
+`run_32k_study.py` runs three phases in a fixed order, and the middle one
+exists because the first one failed to be interesting often enough to guess
+around. Phase A generates unsteered with a 32 768 budget and records the step
+at which `</think>` closes:
+
+| problem | `</think>` closed at |
+|---|---|
+| 1983 | 3037 |
+| 1984 | 5658 |
+
+Phase B sets the measurement budget to `5658 × 1.15 = 6507` steps — sized
+from the measurement, not chosen. Both numbers land inside 32k, so the
+structural block is gone: **chains do close, they just need thousands of
+tokens, and 1024 was never enough to find out.** Phase C then runs both arms
+at 6507.
+
+### The instrument is exact
+
+The zero-vector control is the check that makes any of the rest readable:
+
+| control arm | agreement | mean KL | first divergence |
+|---|---|---|---|
+| 1983 | 1.0000 | 0.00000 | none |
+| 1984 | 1.0000 | 0.00000 | none |
+| 1985 | 1.0000 | 0.00000 | none |
+| 1986 | 1.0000 | 0.00000 | none |
+| 1987 | 1.0000 | 0.00000 | none |
+
+5 of 5, exact — bit-identical token streams, not "close". A shadow fed a
+zero vector reproduces the primary step for step, so every difference reported
+below is attributable to the injection and not to the measurement apparatus.
+
+### What the steered arm does
+
+| problem | control | steered | agreement | mean KL | first divergence |
+|---|---|---|---|---|---|
+| 1983 | 3410 steps, closed | 3410, closed | 0.9235 | 0.1136 | 26 |
+| 1984 | 6312, closed | 6507, **open** | 0.9199 | 0.1099 | 14 |
+| 1985 | 6507, open | 6507, open | 0.9802 | 0.0340 | 3 |
+| 1986 | 3941, closed | 6507, **open** | 0.9556 | 0.0707 | 22 |
+| 1987 | 6507, open | 6507, open | 0.9139 | 0.1330 | 43 |
+
+Two things are established. **Divergence is early** — first disagreement at
+step 3 to 43, median 22, out of sequences up to 6507 long. And **the effect
+decays with length**: the same dose and the same problems gave 0.995 / 0.0005
+at 1024 tokens (Finding 9a) and give 0.9386 / 0.0922 here. This is the same
+budget-dependence the earlier sections carry, now extended 6× further along
+the curve, and it is a caution against reading any short-budget agreement
+number as a property of the intervention rather than of the budget.
+
+### The answer-level effect: still not measurable
+
+| | chain closed | answer known |
+|---|---|---|
+| control | 3 / 5 | 3 / 5 |
+| steered | 1 / 5 | 1 / 5 |
+
+Fisher exact **p = 0.52**. The direction of that gap is suggestive — the
+steered arm leaves `</think>` open on both problems whose control chain closed
+— but n = 5 supports nothing, and the honest reading is that **at 6507 steps
+this model on AIME usually does not finish deliberating**, so the question
+"did the intervention change the answer" is still not reachable. Two problems
+(1983, 1984 on the control side) have a comparable answer on both arms; 1983
+agrees (60 → 60). One agreement out of one comparison is not a result.
+
+Any statement of the form "steering makes the model reason longer" has to be
+handled with the same care. The steered arm produces more characters on 3 of 5
+problems, but 4 of 5 steered chains were forced to run the full 6507 steps
+while 2 of 5 control chains stopped early — the extra length is largely the
+mechanical consequence of not closing, not a measured behavioural effect. The
+only problem where both arms closed is 1983, at 7507 → 6988 characters:
+n = 1.
+
+### The number that looked like a result
+
+The summary table for 1987 reads:
+
+```
+1987_I_1  control_zero        closed=False  answer=1
+1987_I_1  confidence_up@0.2   closed=False  answer=2
+```
+
+*"The intervention moved the answer from 1 to 2."* That is a clean,
+attractive, publishable sentence, and **both numbers are noise.**
+
+`extract_answer` tries `ANSWER_RE`, then `BOXED_RE`, then `TAIL_INT_RE` — the
+last integer in the text. Neither arm closed `</think>`, so the answer segment
+is empty, so the rule that fires is the third one, applied to a *truncated
+derivation*. The 1 and the 2 are intermediate quantities from the middle of
+each chain's reasoning.
+
+Nothing flagged it. `answer_known` was `True`, because the fallback returns an
+integer rather than `None`. `answer_changed` was `False`, because that field
+compares primary against shadow *within one run* — it never looks across
+arms, so a cross-arm difference is invisible to it. Both values sit inside
+AIME's 0–999 range. And the divergence statistics on that row are among the
+healthiest in the table (agreement 0.9139, KL 0.1330), which reads as
+corroboration rather than as a warning.
+
+The fix, now in `analyse_cot_divergence.extract_answer_sourced`, is that
+extraction reports which rule fired (`explicit` / `boxed` / `tail_guess` /
+`unclosed_guess`), and `_answer_of(..., strict=True)` refuses the fallback
+entirely. `strict` defaults to `False` so existing callers are unaffected; the
+measurement path uses it, and `answer_known` is now False whenever the value
+was guessed. The run that produced this table did not persist its raw text, so
+the 1 and the 2 cannot be traced back to what they actually were — which is
+the second half of the lesson: **an answer extracted by regex from generated
+text is a derived quantity, so the text has to be kept.** `--save-text` exists
+and was off.
+
+### A third fix, from a field name
+
+The same table reports `n_bad_steps: 0` next to `token_agreement: 0.9386`,
+which cannot both be true of divergence, and reading it as "the arms never
+diverged" would be a mistake. `n_bad` counts steps whose KL or entropy came
+out non-finite — numerical garbage, not disagreement. It is renamed
+`n_bad_numeric_steps` with an inline `n_bad_meaning` string, because a field
+name that reads like the neighbouring statistic will eventually be read as
+that statistic.
+
+The run also kept the per-step match bits in memory and dropped them from
+`summary()`. That is the series that would answer the most interesting
+question here — whether a 6% disagreement rate over 6507 steps means the
+perturbation compounds into a different derivation, or flips a few tokens
+early and the chains re-synchronise. A mean of 0.9386 is consistent with both.
+814 bytes of payload was not a reason to discard it. It is persisted now and
+round-trip tested in `--self-test`; `run_paired_steering.py` additionally
+stores both token streams in full, so the question is answerable without
+re-running this study.
+
 ## The user's GGUF control vectors
 
 `~/test/vectors` holds llama.cpp `controlvector` files (method
@@ -1087,11 +1228,27 @@ per-layer, are the three changes that would most improve these vectors.
   Finding 10 is the experiment that connects them, and its answer was
   negative — intervening where the decision is legible is *not* where
   steering works best.
-- **The answer-level effect of steering is not measured** (Finding 9a). The
-  traces are truncated at 60 steps and contain no completed chain of
-  thought. Everything about *how the reasoning changes* is established;
-  whether the final answer changes is not. Raising the budget to 1024
-  tokens did not help: 0 of 96 traces close `</think>`.
+- **The answer-level effect of steering is not measured** (Findings 9a and
+  11). At 60 steps the traces contain no completed chain of thought; at
+  1024 tokens 0 of 96 traces close `</think>`. Raising the budget to 32k and
+  sizing it from a calibration run (Finding 11) does reopen the question —
+  chains do close, at 3037 and 5658 steps — but 3 of 5 control chains still
+  fail to close inside 6507 steps, so only 2 of 5 problems have a comparable
+  answer on both arms. The effect remains unmeasured, now for a different and
+  more interesting reason: not that the budget is too small to ever reach an
+  answer, but that this model on AIME spends several thousand tokens of
+  deliberation and the intervention is small.
+- **The 32k study is 5 problems, and its one interesting contrast is not
+  significant** (Finding 11). 3/5 control chains close versus 1/5 steered,
+  Fisher exact p = 0.52. It is reported as a hypothesis — "the confidence
+  direction may lengthen deliberation" — and nothing more. The per-step
+  match bits that would separate compounding divergence from early
+  divergence followed by re-synchronisation were not persisted by the run
+  that produced these numbers; the accumulator kept them in memory and
+  `summary()` dropped them. The fix is in `_LongAccumulator.summary()` and
+  is exercised by `--self-test`, and the paired collection
+  (`run_paired_steering.py`) records both token streams in full, so the
+  question becomes answerable without re-running this study.
 - **Every agreement and KL number in this file is tied to a token budget**
   (Finding 9a). 60 tokens gives 0.94 / 0.136; 1024 gives 0.995 / 0.0005 for
   the same dose and the same problems. The short-budget numbers were used
@@ -1216,4 +1373,13 @@ have been corrected above:
     and L8 beats L26 with t = 3.01 while L20 beats L26 with 24 of 24
     problems agreeing. A logit lens showing you where a decision lives is
     not a recommendation about where to intervene.
+11. That problem 1987's answer moved from 1 to 2 under the intervention
+    (Finding 11). It did not, and the two numbers were never answers. Both
+    arms left `</think>` unclosed, and the extractor's last-resort rule —
+    "take the last integer in the text" — scraped an intermediate quantity
+    out of each truncated derivation. Every guard that should have caught
+    this passed: `answer_known` was True, both values sat inside AIME's
+    0–999 range, and the divergence statistics were healthy. Extraction now
+    reports *which* rule fired, and the measurement path refuses to read an
+    answer out of an unclosed chain.
 
