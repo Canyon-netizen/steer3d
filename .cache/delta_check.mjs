@@ -48,6 +48,7 @@ for (const id of IDS) {
     getContext: () => makeCtx(id),
     getBoundingClientRect: () => ({ width: 1200, height: 700 }),
     appendChild(){}, onclick: null, oninput: null, onmousemove: null,
+    onchange: null, dispatchEvent(){}, addEventListener(){},
     onmouseleave: null, onchange: null, addEventListener(){},
   };
 }
@@ -136,6 +137,49 @@ say(`  ${PAIR_SWEEP.length} 个组合中 ${noDelta.length} 个没有 Δ` +
 for (const r of PAIR_SWEEP.slice(0, 8)) {
   say(`  ${r.id} L${r.L}: 共同前缀 ${r.n_common}  T_ctl=${r.ctlT} T_delta=${r.dT}` +
       (r.error ? `  ERROR ${r.error}` : ""));
+}
+
+// Does switching problems actually switch?
+//
+// The page wires `sel.onchange = () => loadPair(+sel.value)`. Assigning
+// `.value` from script does NOT fire `change` — only a real user gesture does.
+// So "set value, then read the page" silently keeps showing problem 0 while
+// the harness believes it moved on, and every number after that is read off
+// the wrong problem. Dispatch a real `change` event and confirm S.pi follows;
+// if it does, the page is fine and the earlier mismatch was the harness.
+{
+  const sel = elements.selPair;
+  const results = [];
+  for (let i = 0; i < api.S.pm.pairs.length; i++) {
+    sel.value = String(i);
+    sel.dispatchEvent && sel.dispatchEvent({ type: "change" });
+    if (typeof sel.onchange === "function") sel.onchange();
+    const pi = api.S.pi;
+    const want = api.S.pm.pairs[i].id;
+    const got = api.S.pm.pairs[pi] ? api.S.pm.pairs[pi].id : "?";
+    // Read the pushed% this problem should show at its own step 0.
+    api.S.pLayer = api.S.pm.pairs[pi].layers.find(L => L > api.S.pm.pairs[pi].inject_layer)
+                   ?? api.S.pm.pairs[pi].layers[0];
+    await api.loadPairLayer();
+    api.S.tok = 0;
+    api.drawDeltaSide();
+    const m = elements.tblTop.innerHTML.match(/被推了<\/td><td class="tok"><b[^>]*>([\d.]+)%/);
+    const rel0 = api.S.pMeta.stats.rel_shift[0];
+    results.push({ want, got, ok: want === got,
+                   shown: m ? m[1] : null, json: (rel0 * 100).toFixed(2) });
+  }
+  const bad = results.filter(r => !r.ok);
+  chk(bad.length === 0,
+      `下拉框切题真的换了数据（逐题 ${results.length} 次）`,
+      bad.length ? `第 ${bad[0].want} 题没切过去，仍是 ${bad[0].got}`
+                 : results.map(r => r.want).join(","));
+  // And the number on screen must be that problem's own number.
+  const mism = results.filter(r => r.shown != null &&
+      Math.abs(parseFloat(r.shown) - parseFloat(r.json)) > 0.01);
+  chk(mism.length === 0,
+      "每题侧栏读数与该题自己的 json 一致（没有拿错题对拍）",
+      mism.length ? mism.map(r => `${r.want}: ${r.shown}% vs ${r.json}%`).join("; ")
+                  : results.map(r => `${r.want} ${r.shown}%`).join("  "));
 }
 
 // Back to pair 0 for the detailed arithmetic checks below.
