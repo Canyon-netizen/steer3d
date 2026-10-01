@@ -38,7 +38,7 @@ const IDS = ["pbar","pmsg","selTraj","probText","rngTok","rngLayer","valLayer",
   "valTok","mainTitle","mainSub","tblTop","genTxt","layerStory","stRaw","stEnt",
   "stNorm","stMove","stD","sideTitle","dbg","tip","app","loading","btnPlay",
   "btnDepth","tabXY","tabBar","tabDim","tabDelta","selPair","cv","cvD",
-  "pairRow","pairNote","legendDelta","legendDelta2","deltaCap"];
+  "pairRow","pairNote","legendDelta","legendDelta2","deltaCap","layerStory"];
 const elements = {};
 for (const id of IDS) {
   elements[id] = {
@@ -295,6 +295,25 @@ const relDown = sideRelShift();
 const side = elements.tblTop.innerHTML;
 chk(/残差流被推了/.test(side), "侧栏给出「残差流被推了 X%」",
     relDown != null ? relDown + "%" : "");
+// `#layerStory` is written only by renderSide(), which the DELTA branch
+// returns before reaching. Left alone the panel kept describing the
+// *unsteered* trajectory: "L7：…" while the reader was looking at L26 of a
+// paired problem, under a heading that says 这一层在做什么. Assert that
+// whatever it says cannot be about a different layer.
+{
+  api.S.layer = 7;                       // pretend a non-delta view ran at L7
+  api.S.view = "DELTA";
+  api.render();                          // render() is what writes #layerStory
+  const st = elements.layerStory.innerHTML;
+  const claims = [...st.matchAll(/L(\d+)/g)].map(m => parseInt(m[1]));
+  chk(claims.every(L => L === S.pLayer),
+      `第 4 屏的「这一层在做什么」不描述别的层（当前 L${S.pLayer}）`,
+      claims.length ? "提到 L" + claims.join(",L") : "没有提层号");
+  chk(/不适用|配对/.test(st),
+      "第 4 屏的「这一层在做什么」说明了它为什么讲的是别的轨迹",
+      (st.replace(/<[^>]+>/g, "").match(/所以它不适用/) || [""])[0] || "没写");
+}
+
 chk(relDown != null && relDown > 1.0,
     "下游层读出的位移是有量级的（不是 0.00%）",
     relDown != null ? relDown + "%" : "读不到");
@@ -341,7 +360,7 @@ chk((side.match(/(▲|▼)#\d+/g) || []).length > 0, "维度带方向箭头（�
 // would measure whichever table happened to render last (the candidate-word
 // screen, whose bars are top-1 probabilities). Use the sidebar snapshot
 // taken right after the delta render instead.
-const barWidths = [...side.matchAll(/width:([\d.]+)%;background/g)]
+const barWidths = [...side.matchAll(/class="dimbar"><i style="width:([\d.]+)%/g)]
   .map(m => parseFloat(m[1]));
 chk(barWidths.length > 0, "维度条有渲染出的宽度",
     `${barWidths.length} 根，最大 ${Math.max(...barWidths).toFixed(1)}%`);
@@ -356,7 +375,7 @@ chk(new Set(barWidths.map(w => w.toFixed(1))).size > 1,
 // The name has to arrive *whole* in the DOM, and it has to live inside a
 // box where `text-overflow: ellipsis` can actually act — it does nothing on
 // a <td>, which is why the names were once hard-clipped mid-glyph.
-const nameRows = [...side.matchAll(/title="([^"]*)｜绝对变化 ([-\d.]+)">[\s\S]*?<\/div>/g)]
+const nameRows = [...side.matchAll(/class="dimname" title="([^"]*)｜绝对变化 ([-\d.]+)"/g)]
   .map(m => ({ full: m[1], val: m[2] }));
 chk(nameRows.length > 0, "维度词名在 DOM 里是完整的（不是被裁后的残片）",
     nameRows.slice(0,2).map(r => r.full.slice(0, 22)).join(" / "));

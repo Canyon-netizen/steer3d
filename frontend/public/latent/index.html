@@ -44,6 +44,16 @@
   td.n{font-family:var(--mono);color:var(--dim);text-align:right;padding-right:8px;width:38px}
   .bar{height:11px;background:var(--panel2);border-radius:3px;overflow:hidden;position:relative}
   .bar>div{height:100%;border-radius:3px}
+  /* Dimension rows are flex, not <tr>. In a `table-layout:auto` table a td
+     `width` is only a suggestion and the browser redistributes by content, so
+     the flexible name column got squeezed to a single glyph in a 320px panel;
+     and `text-overflow:ellipsis` does not work on a <td> at all. With flex the
+     two fixed tracks are fixed and the name gets exactly what is left. */
+  .dimrow{display:flex;align-items:center;gap:7px;padding:3px 0}
+  .dimn{flex:0 0 56px;font-family:var(--mono);font-size:11.5px;line-height:1.3}
+  .dimbar{flex:0 0 76px;height:11px;background:var(--panel2);border-radius:3px;overflow:hidden}
+  .dimbar>i{display:block;height:100%;border-radius:3px}
+  .dimname{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .tok{font-family:var(--mono);color:var(--ink);white-space:pre}
   .pos{color:var(--ok)} .neg{color:var(--hot)}
   .txt{font-family:var(--mono);font-size:12px;line-height:1.9;max-height:230px;overflow-y:auto;background:#080b11;border-radius:6px;padding:8px;white-space:pre-wrap;word-break:break-all}
@@ -767,17 +777,13 @@ function drawDeltaSide(){
         const w = Math.abs(d.delta) / maxAbs * 100;
         const up = d.delta >= 0;
         const names = (d.names||[]).slice(0,4).map(esc).join("、") || "—";
-        h += `<tr><td class="n" style="color:${up?"#ff8fa3":"#3ddc97"};text-align:left;width:58px">` +
-             `${up?"▲":"▼"}#${d.dim}` +
-             `<br><span class="note">${d.delta>=0?"+":""}${d.delta.toFixed(1)}</span></td>` +
-             `<td class="bar" style="width:78px"><div style="width:${Math.max(3,w)}%;background:${up?"#ff8fa3":"#3ddc97"}"></div></td>` +
-             // `text-overflow: ellipsis` does nothing on a <td> — it needs a
-             // block box with overflow:hidden. Without the inner div the names
-             // were hard-clipped mid-glyph at the panel edge, which is why
-             // "prostitute、农贸市场" showed up as "pr".
-             `<td style="padding-left:8px">` +
-             `<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" ` +
-             `title="${esc(names)}｜绝对变化 ${d.delta.toFixed(2)}">${names}</div></td></tr>`;
+        const col = up ? "#ff8fa3" : "#3ddc97";
+        h += `<div class="dimrow">` +
+             `<span class="dimn" style="color:${col}">${up?"▲":"▼"}#${d.dim}` +
+             `<br><span class="note">${d.delta>=0?"+":""}${d.delta.toFixed(1)}</span></span>` +
+             `<span class="dimbar"><i style="width:${Math.max(3,w)}%;background:${col}"></i></span>` +
+             `<span class="dimname" title="${esc(names)}｜绝对变化 ${d.delta.toFixed(2)}">${names}</span>` +
+             `</div>`;
       }
     }
   }
@@ -1123,6 +1129,18 @@ function render(){
       : "";
     $("#mainSub").textContent += injNote;
     if(S.pm) drawDeltaSide();
+    // `#layerStory` is written only by renderSide(), which this branch returns
+    // before ever reaching. Left alone it kept describing the *unsteered*
+    // trajectory — the panel confidently said "L7：…" while the user was
+    // looking at L20/L26 of a different problem, under a heading that reads
+    // "这一层在做什么". Same stale-panel family as `#stNorm` above, one
+    // element over. Say what it would have said and why it does not apply.
+    if(p){
+      $("#layerStory").innerHTML =
+        `这一段解释的是<b>无干预</b>轨迹在第 ${S.pLayer} 层在做什么，` +
+        `第 4 屏看的是同一层的<b>配对</b>轨迹，所以它不适用。` +
+        `这一层的对照读数在右侧「干预 vs 对照」面板里，两臂的差值在下面的 Δ 散点图里。`;
+    }
     // The unsteered stats block still shows whatever the last non-delta view
     // left there — ‖h‖ read 144.9 for L14 of the unsteered trajectory while
     // the delta view was displaying L20 of a different problem, where the
