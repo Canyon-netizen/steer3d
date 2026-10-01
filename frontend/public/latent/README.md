@@ -54,6 +54,32 @@ python3 -m http.server 8899 --directory frontend/public
 | `pairs/pc_*_delta_L*.bin` | 逐点位移 Δ `(prefix, 2048)` fp16 |
 | `pairs/pc_*_ids.bin` | 两条流各自的 token id 序列（int32） |
 | `pairs/steer_unit.bin` | 注入方向的单位向量，用作 Δ 散点图里的参考箭头 |
+| `divergence_readout.json` | 分叉步两臂的 top-8 读出 + 前缀每步的第一二名差距 |
+
+## 「为什么最后吐出的是这个词」
+
+分叉点只给两个标签（对照吐了 A / 干预吐了 B）只能回答「变了什么」。
+`divergence_readout.json` 补上「为什么」：
+
+- **两臂候选词**：分叉那一步，每个候选词各得多少分（`L4/12/20/26/28`）。
+  `L28` 是最终读出，也就是模型真正用来选词的那次——`hidden_states[n_layers]`
+  在 `model.norm` 之后，所以第 28 层才是最终口径。
+- **前缀领先幅度**：共同前缀每一步「第 1 名 − 第 2 名」差多少。差距小 = 那一步
+  本来就快翻牌了。1.7B 的 1983 题在改口前第 26 步只差 0.72 分，比分叉那一步
+  （1.94）还小。
+- **只发 token id**，文案由页面自己的 `vocab.json` 解析。
+
+由 `backend/examples/build_divergence_readout.py` 生成，取自
+`analyse_divergence_logits.py` 与 `analyse_common_prefix.py` 的产物。
+
+两个模型复用同一批题号（1983–1988），**id 无法区分模型**，所以归属靠逐题对齐
+（分叉步 + 两个 token id）判定，6/6 不过就拒绝出包；dtype 或强度不符的文件只
+命中 0–3/6。
+
+页面上另有 `docs/INTERPRETABILITY.md` Finding 13/14：干预确实把残差推走了，
+但净效果只占维度总运动的 0.0%–20.7%（等效 587–831 / 2048 维），
+**「位移把 token 掰过去的」这个解释不成立**。这一屏给的是「当时在比哪两个词、
+差多少」，不是因果。
 
 ## 关键点：`L20` 那一行永远是平的，这不是 bug
 

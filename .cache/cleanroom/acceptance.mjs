@@ -32,6 +32,7 @@ const manifest = JSON.parse(
 const files = [
   'index.html', 'README.md', 'data/manifest.json', 'data/vocab.json',
   'data/dim_names.json', 'data/pairs/pairs.json',
+  'data/divergence_readout.json', 'data06/divergence_readout.json',
 ];
 for (const f of files) chk(existsSync(join(ROOT, f)), `包内有 ${f}`);
 
@@ -149,6 +150,58 @@ const dl = await page.eval(`(()=>{
           tableRows: document.querySelectorAll('#tblTop tr').length};
 })()`);
 chk(dl.tableRows > 0, `第 4 屏候选词表已渲染 ${dl.tableRows} 行`, dl.cap);
+
+// ---- the "why this word" block, from the delivered files only ---------------
+// The whole point of shipping divergence_readout.json is that the divergence
+// step stops being two bare labels. Checked against the JSON as it sits in the
+// untarred bundle, not against the working tree's copy.
+const vr = JSON.parse(
+  (await import('node:fs')).readFileSync(join(ROOT, 'data/divergence_readout.json'), 'utf8'));
+chk(vr.problems && Object.keys(vr.problems).length > 0,
+    `包内读出数据有题`, `${Object.keys(vr.problems || {}).length} 题`);
+chk(/6\/6/.test(vr.alignment_gate || ''),
+    '包内读出数据带着 6/6 对齐闸门的记录', vr.alignment_gate);
+
+const dvl = await page.eval(`(()=>{
+  const b=document.querySelector('[data-dvblock]');
+  if(!b) return {err:'no block'};
+  const rows=[...b.querySelectorAll('div')].filter(d=>d.querySelectorAll(':scope > span').length>=4)
+    .map(d=>{const sp=d.querySelectorAll(':scope > span');
+      // The doubled backslash is required, not a typo: this expression is
+      // a template literal in the Node file, so one backslash collapses
+      // to "s" on the way out and the browser gets a regex matching nothing
+      // . The marker survives into "tok" and the row compares as
+      // " greater " against " greater" -- a failure unrelated to what is checked.
+      return {tok:sp[2].textContent.replace(/\\s*←$/,''), g:sp[3].textContent.trim()};});
+  return {rows, text:b.innerText,
+          chips:[...b.querySelectorAll('[data-dvl]')].map(c=>c.dataset.dvl),
+          on:[...b.querySelectorAll('[data-dvl]')].filter(c=>c.className.includes('on'))
+               .map(c=>c.dataset.dvl)};
+})()`);
+chk(!dvl.err, '交付包里读出面板渲染出来了', dvl.err || '');
+chk(dvl.rows && dvl.rows.length > 0, `读出面板渲染了 ${dvl.rows ? dvl.rows.length : 0} 行候选词`);
+chk(dvl.chips && dvl.chips.length === vr.layers.length,
+    `读出层层按钮 ${vr.layers.length} 个`, (dvl.chips || []).join('/'));
+chk(dvl.on && dvl.on.length === 1 && dvl.on[0] === String(vr.final_layer),
+    `默认停在最终读出层 L${vr.final_layer}`, JSON.stringify(dvl.on));
+
+const pid = Object.keys(vr.problems)[0];
+const q = vr.problems[pid];
+const Lq = q.layers[String(vr.final_layer)];
+const vocab = JSON.parse(
+  (await import('node:fs')).readFileSync(join(ROOT, 'data/vocab.json'), 'utf8')).ids;
+const wantTop = Lq.c.slice(0, dvl.rows.length / 2).map(t => ({
+  tok: vocab[t.i], g: t.g.toFixed(2) }));
+const gotCtl = (dvl.rows || []).slice(0, wantTop.length);
+chk(gotCtl.length === wantTop.length
+    && gotCtl.every((r, i) => r.tok === wantTop[i].tok && r.g === wantTop[i].g),
+    `交付包页面渲染的候选词与包内 JSON 逐行逐分一致`,
+    'want=' + JSON.stringify(wantTop.slice(0, 3)) +
+    ' got=' + JSON.stringify(gotCtl.slice(0, 3)));
+chk(dvl.text && dvl.text.includes(`第 ${q.k} 步`),
+    `面板写明分叉步 = ${q.k}`);
+chk(dvl.text && dvl.text.includes((Lq.c[0].g - Lq.c[1].g).toFixed(2)),
+    `面板写出第一二名差距 ${(Lq.c[0].g - Lq.c[1].g).toFixed(2)}`);
 
 chk(exceptions.length === 0, '无未捕获异常', exceptions.slice(0, 2).join(' | '));
 chk(netfail.length === 0, '无资源加载失败/中止', netfail.slice(0, 3).join(' | '));
