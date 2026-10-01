@@ -14,6 +14,8 @@ Run: ``python3 backend/examples/test_paired_steering.py``
 """
 from __future__ import annotations
 
+import json
+import shutil
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -26,6 +28,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import run_paired_steering as P  # noqa: E402
 
 FAILURES = []
+
+# Scratch space. `/tmp` and `$HOME` are not writable in every environment this
+# has run in, so the temp dir hangs off the repo instead.
+_TMPDIR = Path(__file__).resolve().parents[2] / ".cache" / "test_paired_steering"
 
 
 def check(cond: bool, label: str) -> None:
@@ -113,6 +119,18 @@ def _mock_stream(tokens, n_layers=28, d=8):
           .astype(np.float16) for L in (0, 1, 2)}
     return {"text": " ".join(map(str, ids)), "ids": ids,
             "n_steps": len(ids), "hs": hs, "closed_think": False}
+
+
+def _stream_with_text(text, n_layers=28, d=8, layers=(0, 1, 2)):
+    """A `run_one` result whose ``text`` is supplied, not synthesised.
+
+    `main()` reads the generated text to recover the answer, so a test that
+    only ever feeds it digit tokens can never exercise the unclosed-chain
+    path -- which is the path that was broken.
+    """
+    hs = {L: np.zeros((1, d), dtype=np.float16) for L in layers}
+    return {"text": text, "ids": [1], "n_steps": 1, "hs": hs,
+            "closed_think": "</think>" in text}
 
 
 # ---------------------------------------------------------------------------
@@ -251,12 +269,127 @@ def test_proj_fraction():
           f"(got {orth['per_layer']['0']['proj_fraction']})")
 
 
+# ---------------------------------------------------------------------------
+# 6. main(): the per-problem record assembly
+# ---------------------------------------------------------------------------
+# Every test above calls `run_one` or `analyze` directly. That is exactly how
+# a real bug survived 30 green checks: `main()` unpacks `_answer_of(...)` --
+# which returns Optional[int], where None is a legitimate value -- into two
+# names, and raises TypeError on *every* input. No amount of testing the two
+# functions it calls can catch a mistake in how it calls them, so this section
+# drives `main()` itself with a stubbed model and reads back what it wrote.
+def test_main_record_assembly():
+    print("\n[6] main(): record assembly end-to-end (stub model, real main)")
+
+    closed = ("<think>reasoning</think>\nThe answer is \\boxed{42}.")
+    unclosed = "<think>still going, and the last number was 7"
+
+    streams = {"ctl_closed": _stream_with_text(closed),
+               "st_closed": _stream_with_text(closed),
+               "ctl_open": _stream_with_text(unclosed),
+               "st_open": _stream_with_text(unclosed)}
+    order = []
+
+    def fake_run_one(model, tok, prompt, budget, layers, steer_vec, layer,
+                     log_every=256):
+        # The two arms differ only in whether a vector was passed, so the
+        # closed/unclosed split is a property of the problem, not the arm.
+        # Match on "OPEN", not "closed" -- "unclosed" contains "closed".
+        tag = "open" if "OPEN" in prompt else "closed"
+        arm = "st" if steer_vec is not None else "ctl"
+        order.append((arm, tag))
+        return streams[f"{arm}_{tag}"]
+
+    class _Args(SimpleNamespace):
+        model_path = "mock"
+        device = "cpu"
+        dtype = "float32"
+        problems = ""
+        limit = 2
+        max_new_tokens = 8
+        layers = "0,1,2"
+        direction = "confidence_up"
+        strength = 0.2
+        layer = 1
+        outdir = ""
+
+    outdir = _TMPDIR / "paired"
+    if outdir.exists():
+        shutil.rmtree(outdir)
+    args = _Args(outdir=str(outdir))
+
+    saved = {k: getattr(P, k) for k in ("load_model", "load_problems", "run_one")}
+    P.load_model = lambda *a, **k: (_MockModel(), _MockTok())
+    P.run_one = fake_run_one
+
+    def fake_load_problems(path, limit):
+        # The prompt text is the tag: `build_prompt` is stubbed too, so it
+        # reaches `run_one` unchanged.
+        return [{"id": "closed", "prompt": "PROB_CLOSED", "correct": "42"},
+                {"id": "unclosed", "prompt": "PROB_OPEN", "correct": "7"}]
+
+    P.load_problems = fake_load_problems
+    real_build_prompt = P.build_prompt
+    P.build_prompt = lambda tok, problem: problem
+
+    stub_reg = SimpleNamespace(
+        load=lambda: True, load_error="", load_layer_scales=lambda p: 28,
+        layer_rms=lambda L: 1.0, has_rms=lambda L: True,
+        unit_vector=lambda d: np.zeros(8, dtype=np.float32),
+        scaled=lambda d, s, L: np.ones(8, dtype=np.float32))
+    fake_mod = SimpleNamespace(SteeringRegistry=lambda *a, **k: stub_reg)
+    saved_mod = sys.modules.get("core.steering")
+    sys.modules["core.steering"] = fake_mod
+
+    try:
+        rc = P.main(args)
+    finally:
+        for k, v in saved.items():
+            setattr(P, k, v)
+        P.build_prompt = real_build_prompt
+        if saved_mod is not None:
+            sys.modules["core.steering"] = saved_mod
+
+    check(rc == 0, f"main() returns 0 (got {rc})")
+    check(len(order) == 4, f"both arms ran for both problems ({len(order)} runs)")
+
+    for pid, want in (("closed", 42), ("unclosed", None)):
+        f = outdir / f"pair_{pid}.json"
+        check(f.exists(), f"{pid}: record written")
+        if not f.exists():
+            continue
+        rec = json.loads(f.read_text())
+        check("answer" in rec, f"{pid}: has answer block")
+        check(rec.get("answer", {}).get("control") == want,
+              f"{pid}: control answer == {want} "
+              f"(got {rec.get('answer', {}).get('control')!r})")
+        check("answer_source" in rec, f"{pid}: records where the answer came from")
+        src = rec.get("answer_source", {}).get("control")
+        if want is None:
+            check(src == "unknown",
+                  f"{pid}: unclosed chain reports 'unknown', not a number ({src!r})")
+        else:
+            check(src in ("explicit", "boxed"),
+                  f"{pid}: closed chain reports a real source ({src!r})")
+
+        npz = outdir / f"pair_{pid}.npz"
+        check(npz.exists(), f"{pid}: vectors written")
+        if npz.exists():
+            with np.load(npz) as z:
+                keys = set(z.files)
+            need = {"control_L0", "control_L1", "control_L2",
+                    "steered_L0", "steered_L1", "steered_L2", "control_ids"}
+            check(need <= keys, f"{pid}: npz has every layer for both arms "
+                                f"(missing {sorted(need - keys)})")
+
+
 def main() -> int:
     test_alignment()
     test_eos_truncation()
     test_analyze_identical()
     test_analyze_divergence()
     test_proj_fraction()
+    test_main_record_assembly()
     print()
     if FAILURES:
         print(f"{len(FAILURES)} FAILED: {FAILURES}")

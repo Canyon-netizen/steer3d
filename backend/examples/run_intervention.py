@@ -72,9 +72,21 @@ def load_model(model_path: str, device: str, dtype: str = "bfloat16"):
     td = {"bfloat16": torch.bfloat16, "float16": torch.float16,
           "float32": torch.float32}[dtype]
     tok = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path, dtype=td, device_map={"": device}
-    )
+    # `device_map={"": device}` and `.to(device)` place the weights in exactly
+    # the same place, but only the first one works when `accelerate` is absent
+    # -- and transformers raises a hard ValueError in that case rather than
+    # falling back. Nothing in this repo ever shards across devices (every
+    # call site passes a single "": device), so try the expressive form and
+    # degrade to the dependency-free one.
+    try:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path, dtype=td, device_map={"": device}
+        )
+    except ValueError as exc:
+        if "accelerate" not in str(exc):
+            raise
+        model = AutoModelForCausalLM.from_pretrained(model_path, dtype=td)
+        model = model.to(device)
     model.eval()
     return model, tok
 

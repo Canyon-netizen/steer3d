@@ -67,7 +67,7 @@ from run_long_cot import (  # noqa: E402
     load_model,
     load_problems,
 )
-from run_long_cot import _answer_of  # noqa: E402
+from run_long_cot import _answer_of, _answer_source  # noqa: E402
 from analyse_cot_divergence import split_think  # noqa: E402
 
 DEFAULT_LAYERS = (4, 12, 20, 26)
@@ -275,7 +275,21 @@ def main(args) -> int:
             print("  -- steered")
             st = run_one(model, tok, prompt, args.max_new_tokens, layers, vec, args.layer)
 
-        a_ans, a_think = _answer_of(split_think(ctl["text"])[1], ctl["text"])
+        # `_answer_of` returns Optional[int] -- `None` is a real value (the
+        # chain never closed, so there is no answer segment to read), not a
+        # two-tuple. Record the source too, because "no answer" and "an answer
+        # found by the tail-guess fallback" are different claims.
+        #
+        # strict=True, always. The non-strict path scans the whole response
+        # and returns its last integer, so an unclosed chain reports whatever
+        # number the truncated derivation happened to end on. That is the
+        # 1987 false signal documented in INTERPRETABILITY.md: it reads like
+        # "the steer changed the answer from 1 to 2" and is pure noise. This
+        # file exists to compare two arms, and a comparison is exactly the
+        # case the fallback is wrong for.
+        ctl_answer_part = split_think(ctl["text"])[1]
+        a_ans = _answer_of(ctl_answer_part, ctl["text"], strict=True)
+        a_src = _answer_source(ctl_answer_part, ctl["text"], a_ans)
         record = {
             "id": pid,
             "problem": prob["prompt"],
@@ -288,13 +302,17 @@ def main(args) -> int:
             "n_steps": {"control": ctl["n_steps"]},
             "closed_think": {"control": ctl["closed_think"]},
             "answer": {"control": a_ans},
+            "answer_source": {"control": a_src},
             "control": {"text": ctl["text"], "ids": ctl["ids"]},
         }
         if st:
-            b_ans, _ = _answer_of(split_think(st["text"])[1], st["text"])
+            st_answer_part = split_think(st["text"])[1]
+            b_ans = _answer_of(st_answer_part, st["text"], strict=True)
+            b_src = _answer_source(st_answer_part, st["text"], b_ans)
             record["n_steps"]["steered"] = st["n_steps"]
             record["closed_think"]["steered"] = st["closed_think"]
             record["answer"]["steered"] = b_ans
+            record["answer_source"]["steered"] = b_src
             record["steered"] = {"text": st["text"], "ids": st["ids"]}
             record["paired"] = analyze(ctl, st, layers, unit)
             mc = record["paired"]["n_common_prefix"]
@@ -330,6 +348,7 @@ def main(args) -> int:
         print(f"  wrote {outdir / f'pair_{pid}.npz'}")
 
     print(f"\ndone -> {outdir}")
+    return 0
 
 
 def cli() -> int:
