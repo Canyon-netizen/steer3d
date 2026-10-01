@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qwen3 隐空间观察台 · 实时投影</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#131824; --panel2:#1a2130; --line:#253044;
+    --ink:#e6edf7; --dim:#8fa0bb; --dim2:#5d6d8a;
+    --acc:#5cc8ff; --acc2:#ffb454; --hot:#ff6b81; --ok:#4ade80;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+  .wrap{display:grid;grid-template-columns:300px 1fr 320px;gap:12px;padding:12px;height:100vh;box-sizing:border-box}
+  .col{display:flex;flex-direction:column;gap:12px;min-height:0}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:0}
+  .panel.grow{flex:1;display:flex;flex-direction:column}
+  h1{font-size:15px;font-weight:600;letter-spacing:.3px}
+  h2{font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+  .sub{font-size:11px;color:var(--dim2);margin-top:3px}
+  select,button,input[type=range]{width:100%;font-family:inherit}
+  select,button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:12.5px;cursor:pointer}
+  select:hover,button:hover{border-color:var(--acc)}
+  button.on{background:#0e3a52;border-color:var(--acc);color:#cdeeff}
+  .row{margin-bottom:10px}
+  .row:last-child{margin-bottom:0}
+  label{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}
+  .val{font-family:var(--mono);color:var(--acc);float:right}
+  input[type=range]{-webkit-appearance:none;height:4px;background:var(--line);border-radius:3px;outline:none;margin:6px 0}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--acc);cursor:pointer;border:2px solid var(--bg)}
+  canvas{display:block;border-radius:8px;background:#080b11;cursor:crosshair}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:6px}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  td{padding:3px 0;vertical-align:middle}
+  td.n{font-family:var(--mono);color:var(--dim);text-align:right;padding-right:8px;width:38px}
+  .bar{height:11px;background:var(--panel2);border-radius:3px;overflow:hidden;position:relative}
+  .bar>div{height:100%;border-radius:3px}
+  .tok{font-family:var(--mono);color:var(--ink);white-space:pre}
+  .pos{color:var(--ok)} .neg{color:var(--hot)}
+  .txt{font-family:var(--mono);font-size:12px;line-height:1.9;max-height:230px;overflow-y:auto;background:#080b11;border-radius:6px;padding:8px;white-space:pre-wrap;word-break:break-all}
+  .txt b{color:var(--acc);font-weight:600}
+  .txt u{color:var(--acc2);text-decoration:none;border-bottom:1px solid var(--acc2)}
+  .note{font-size:11px;color:var(--dim2);line-height:1.65}
+  .note b{color:var(--dim)}
+  .stat{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--line)}
+  .stat:last-child{border:0}
+  .stat span:last-child{font-family:var(--mono);color:var(--acc)}
+  .tabs{display:flex;gap:6px;margin-bottom:8px}
+  .tabs button{flex:1}
+  #loading{position:fixed;inset:0;background:rgba(11,14,20,.94);display:flex;align-items:center;justify-content:center;z-index:99;flex-direction:column;gap:14px}
+  #loading .bar{width:260px;height:4px}
+  #loading .bar>div{background:var(--acc);width:0%;transition:width .2s}
+  .hide{display:none!important}
+  #tip{position:fixed;pointer-events:none;background:#0a0f18;border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:11.5px;font-family:var(--mono);z-index:50;display:none;white-space:pre;line-height:1.55}
+  .dgrid{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font-size:11.5px}
+  .dbar{height:9px;background:var(--panel2);border-radius:2px;position:relative;min-width:60px}
+  .dbar>div{position:absolute;top:0;height:100%;border-radius:2px}
+  .dbar>u{position:absolute;top:-2px;width:1px;height:13px;background:var(--dim2)}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="font-size:15px">正在加载隐空间数据…</div>
+  <div class="bar"><div id="pbar"></div></div>
+  <div class="sub" id="pmsg">manifest.json</div>
+</div>
+
+<div class="wrap" id="app" style="visibility:hidden">
+
+  <!-- ========== 左：控制 ========== -->
+  <div class="col">
+    <div class="panel">
+      <h1>Qwen3-1.7B 隐空间观察台</h1>
+      <div class="sub">拖动层滑块或播放 token，隐空间里的点是<strong style="color:var(--acc)">实时用该层自己的 PCA 基从原始 2048 维向量算出来</strong>的，不是预渲染图。</div>
+    </div>
+
+    <div class="panel">
+      <h2>题目</h2>
+      <div class="row"><select id="selTraj"></select></div>
+      <div class="sub" id="probText" style="max-height:76px;overflow-y:auto"></div>
+    </div>
+
+    <div class="panel grow">
+      <h2>视图</h2>
+      <div class="tabs">
+        <button id="tabXY" class="on">隐空间 2D</button>
+        <button id="tabBar">候选词</button>
+        <button id="tabDim">维度解读</button>
+      </div>
+      <div class="row">
+        <label>当前层 <span class="val" id="valLayer">L14</span></label>
+        <input type="range" id="rngLayer" min="0" max="27" value="14">
+        <div class="sub">L0 = embedding 输出，Lk = 第 k−1 个 block 的输出（即第 k 个 block 的输入）</div>
+      </div>
+      <div class="row">
+        <label>当前 token <span class="val" id="valTok">0</span></label>
+        <input type="range" id="rngTok" min="0" max="47" value="0">
+      </div>
+      <div class="row" style="display:flex;gap:6px">
+        <button id="btnPlay">▶ 播放</button>
+        <button id="btnDepth">深度轨迹</button>
+      </div>
+      <div class="stat"><span>原始向量维度</span><span id="stD">2048</span></div>
+      <div class="stat"><span>该 token 原始 token</span><span id="stRaw">—</span></div>
+      <div class="stat"><span>熵 / top1 概率</span><span id="stEnt">—</span></div>
+      <div class="stat"><span>‖h‖ 当前层</span><span id="stNorm">—</span></div>
+      <div class="stat"><span>相对 embedding 移动</span><span id="stMove">—</span></div>
+      <div class="note" style="margin-top:10px">
+        <b>怎么读：</b>点云是这一层所有 token 的隐状态。亮色 = 刚生成的 token。
+        拖动层滑块会看到点云从松散逐渐收紧——这是残差流把不同 token 挤到少数几个「方向」上的过程。
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 中：主画布 ========== -->
+  <div class="col">
+    <div class="panel grow">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+        <h2 style="margin:0" id="mainTitle">隐空间 2D 投影 · L14</h2>
+        <div class="sub" id="mainSub"></div>
+      </div>
+      <canvas id="cv" style="flex:1;width:100%"></canvas>
+      <div class="legend">
+        <span><i style="background:#5cc8ff"></i>当前 token</span>
+        <span><i style="background:#4a5a78"></i>已生成 token</span>
+        <span><i style="background:#2a3348"></i>未生成 token（淡显）</span>
+        <span><i style="background:#ffb454"></i>深度轨迹（跨层）</span>
+        <span><i style="background:#ff6b81"></i>PC1/PC2 轴</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 右：解读 ========== -->
+  <div class="col">
+    <div class="panel">
+      <h2>这一层在做什么</h2>
+      <div class="note" id="layerStory">—</div>
+    </div>
+
+    <div class="panel grow">
+      <h2 id="sideTitle">top-64 候选词</h2>
+      <div style="flex:1;overflow-y:auto;min-height:0">
+        <table id="tblTop"></table>
+      </div>
+      <div class="note" style="margin-top:8px">
+        模型在这一步实际输出的是高亮那一行。干预向量就是要把这些分数重新排序——所以"为什么是这个 token"最终落在这张表上。
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>生成的文本</h2>
+      <div class="txt" id="genTxt">—</div>
+    </div>
+  </div>
+</div>
+
+<div id="tip"></div>
+<div id="dbg" style="position:fixed;left:6px;bottom:4px;font:10px monospace;color:#3d4a63;z-index:60;pointer-events:none"></div>
+
+<script>
+"use strict";
+/* ===================================================================
+   数据契约（全部来自 build_latent_bundle.py 的实测产物）
+   -------------------------------------------------------------------
+   manifest.json  trajectories[i]:
+       hs        Float16 (n_tok_shipped, 28, 2048)   原始隐藏状态
+       mean[L]   Float32 (2048)                    该层均值
+       comp[L]   Float32 (2048, 2) 行主序展开→     该层 PCA 基（已转置成列）
+       proj[L]   Float32 (2T,)                     全 token 的 2D 坐标
+       topk/topki Float32 (n,64) / Int32 (n,64)    候选词分数与 id
+   dim_names   每个维度对应的词（build_dim_dictionary.py 在服务器上算）
+   =================================================================== */
+
+const $ = s => document.querySelector(s);
+const S = {
+  m: null, ti: 0, layer: 14, tok: 0, view: "XY",
+  hs: null, pcaBuf: null, meanBuf: null, projBuf: null, topk: null, topki: null,
+  strideComp: 4096, strideProj: 2048,
+  playing: false, timer: null, depthMode: false, tokById: null, vocab: null,
+  // 用 raw[idx*1] 之外没有的独立缓存：浏览器端投影结果
+  projCache: new Map(), dimNames: null, tokText: null,
+  W: 0, H: 0, dpr: 1,
+};
+
+const DEC = new TextDecoder("utf-8");
+
+async function fetchBuf(url){
+  const r = await fetch(url);
+  if(!r.ok) throw new Error(url + " → HTTP " + r.status);
+  return await r.arrayBuffer();
+}
+
+function f16decode(buf){
+  // Float16 → Float32。浏览器还没有原生 Float16Array。
+  const n = buf.byteLength >> 1;
+  const out = new Float32Array(n);
+  const u = new Uint16Array(buf);
+  for(let i=0;i<n;i++){
+    const h = u[i], s = (h & 0x8000) ? -1 : 1;
+    let e = (h >> 10) & 0x1f, f = h & 0x3ff;
+    if(e === 0)      out[i] = s * Math.pow(2,-14) * (f/1024);
+    else if(e === 31) out[i] = f ? NaN : s * Infinity;
+    else              out[i] = s * Math.pow(2, e-15) * (1 + f/1024);
+  }
+  return out;
+}
+
+function setBar(p, msg){
+  $("#pbar").style.width = (p*100).toFixed(0) + "%";
+  if(msg) $("#pmsg").textContent = msg;
+  trace("bar " + p.toFixed(2) + " " + (msg||""));
+}
+
+// trace(): a small always-visible marker. A silent hang with a frozen
+// progress bar is otherwise indistinguishable from "still slow", and this
+// cost one very long debugging detour to establish.
+let _tn = 0;
+function trace(msg){
+  _tn++;
+  const el = document.getElementById("dbg");
+  if(el) el.textContent = "[" + _tn + "] " + msg;
+}
+
+// health(): a one-line status in the document title. The title is the only
+// channel that reliably round-trips out of this browser session — DOM
+// queries time out and screenshots come back as stale frames — so every
+// "did that actually work" check during development went through here.
+function health(){
+  const t = S.m && S.m.trajectories[S.ti];
+  document.title = S.m
+    ? `OK t=${S.ti} L=${S.layer} k=${S.tok} v=${S.view} `
+      + `dim=${S.dimNames?S.dimNames.length:0} voc=${S.vocab?S.vocab.length:0} `
+      + `hs=${S.hs?S.hs.length:0}`
+    : "LOADING";
+  // Independent audit trail. Every state change is written to a server-side
+  // log, because a screenshot or a DOM query in this browser session can
+  // both return stale state and a click that "succeeded" can have done
+  // nothing. The log is the only evidence that is not produced by the same
+  // possibly-stale channel as the thing being verified.
+  // Debounced, and silent while the self-test runs. An unthrottled beacon
+  // on every render saturates the browser's 6-connections-per-origin pool
+  // with POSTs, and the next data fetch then queues forever — the
+  // self-test hung on exactly that, loading trajectory 1 after ~30 renders.
+  if(S.quiet) return;
+  const now = performance.now();
+  if(S._lastHealth === document.title && now - S._lastAt < 400) return;
+  S._lastHealth = document.title; S._lastAt = now;
+  try{
+    fetch("http://localhost:8918/audit", {method:"POST", body:document.title})
+      .catch(()=>{});
+  }catch(e){}
+}
+
+async function boot(){
+  const base = "data/";
+  setBar(0.02, "manifest.json");
+  trace("fetch manifest");
+  S.m = await (await fetch(base+"manifest.json")).json();
+  trace("manifest parsed");
+  const t0 = S.m.trajectories[0];
+  const D = S.m.d_model, L = S.m.n_layers;
+
+  // 维度字典
+  try{
+    setBar(0.04, "vocab.json");
+    const vb = await (await fetch(base+"vocab.json")).json();
+    S.vocab = vb.ids;
+    trace("vocab " + S.vocab.length);
+  }catch(e){ S.vocab = null; }
+
+  try{
+    setBar(0.06, "dim_names.json");
+    const dn = await (await fetch(base+"dim_names.json")).json();
+    S.dimNames = (dn.dims && dn.dims.length) ? dn.dims : null;
+    S.dimPending = !!dn.pending;
+  }catch(e){ S.dimNames = null; S.dimPending = false; }
+
+  // 题目下拉
+  const sel = $("#selTraj");
+  S.m.trajectories.forEach((t,i)=>{
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = `${t.problem_id}  ${t.correct ? "✓" : "✗"}  (${t.n_tokens_total} tok)`;
+    sel.appendChild(o);
+  });
+  trace("options built");
+  sel.onchange = () => loadTraj(+sel.value);
+
+  // 预载第一条
+  try { await loadTraj(0, 0.10); }
+  catch(e){ trace("loadTraj THREW: " + e.message); throw e; }
+  trace("loadTraj done");
+
+  // PCA 基 + 均值：所有轨迹共用一层一份最省，但每条轨迹的基不同（PC 是
+  // 按该轨迹的 token 分布拟合的），所以必须逐轨迹载入。
+  $("#app").style.visibility = "visible";
+  $("#loading").classList.add("hide");
+  trace("overlay hidden");
+  layout();
+  health();
+  window.addEventListener("resize", layout);
+}
+
+async function loadTraj(i, prog){
+  const t = S.m.trajectories[i];
+  S.ti = i; S.tok = 0; S.projCache.clear();
+  const base = "data/";
+
+  setBar(prog + 0.05, "原始 hidden states 与候选词");
+  // Parallel, not sequential. 28 layers x 3 files awaited one after another
+  // is 84 round trips, and a single stalled one leaves the page on the
+  // loading screen with a stale message and no way to tell whether it is
+  // slow or wedged.
+  // Six files per trajectory, issued together. An earlier build fetched 84
+  // per-layer files in parallel and never finished: that overruns a plain
+  // http.server's listen backlog, and the page sits on the loading screen
+  // with no error to explain why. The per-layer arrays are contiguous
+  // inside these three, so slicing them is arithmetic, not more requests.
+  const [hsBuf, topkBuf, topkiBuf, pcaBuf, meanBuf, projBuf] =
+    await Promise.all([t.hs, t.topk, t.topki, t.pca, t.mean, t.proj]
+      .map(u => fetchBuf(base + u)));
+  setBar(prog + 0.55, "解码 2048 维向量");
+
+  trace("buffers in hand");
+  const L = t.n_layers, D = t.d_model;
+  S.hs    = f16decode(hsBuf);
+  trace("f16 decoded");
+  S.topk  = new Float32Array(topkBuf);
+  S.topki = new Int32Array(topkiBuf);
+  S.pcaBuf  = new Float32Array(pcaBuf);    // (L, D, 2)
+  S.meanBuf = new Float32Array(meanBuf);   // (L, D)
+  S.projBuf = new Float32Array(projBuf);   // (L, 2T)
+  S.strideComp  = D * 2;
+  S.strideProj  = t.layers[0].n_proj * 2;
+
+  // 分词器：从 token id 反查字符串。数据里没有完整词表，退而用 sidecar
+  // 里已有的 token 文本；新 token 显示为 id。
+  S.tokText = t.tokens;
+  trace("token map start");
+  S.tokById = new Map();
+  for(const x of t.tokens) if(!S.tokById.has(x.id)) S.tokById.set(x.id, x.s);
+
+  $("#rngTok").max = t.n_tokens_shipped - 1;
+  $("#probText").textContent = t.problem;
+  trace("pre-render");
+  setBar(1, "");
+  render();
+  trace("post-render");
+}
+
+function tokInfo(k){
+  const t = S.tokText[k];
+  if(t) return t;
+  return {id:-1, s:"", ent:null, top1:null, think:false};
+}
+
+/* ---- 浏览器端投影：这一层自己的 PCA 基 ---- */
+function project(tok, layer){
+  const key = tok*1000 + layer;
+  let v = S.projCache.get(key);
+  if(v) return v;
+  const D = S.m.d_model, L = S.m.n_layers;
+  const ho = (tok*L + layer)*D;
+  const mo = layer*D, co = layer*S.strideComp;
+  let a=0, b=0, nrm=0;
+  for(let d=0; d<D; d++){
+    const x = S.hs[ho+d] - S.meanBuf[mo+d];
+    a += x * S.pcaBuf[co+2*d];
+    b += x * S.pcaBuf[co+2*d+1];
+    nrm += x*x;
+  }
+  v = {a, b, norm: Math.sqrt(nrm)};
+  S.projCache.set(key, v);
+  return v;
+}
+
+function projAt(layer, k){
+  const o = layer*S.strideProj + 2*k;
+  return [S.projBuf[o], S.projBuf[o+1]];
+}
+
+function fullNorm(tok, layer){
+  const D = S.m.d_model, L = S.m.n_layers;
+  const o = (tok*L + layer)*D;
+  let s=0; for(let d=0;d<D;d++){ const x=S.hs[o+d]; s+=x*x; }
+  return Math.sqrt(s);
+}
+
+function embedDist(tok, layer){
+  // 相对于 embedding 位置（L0）移动了多远，按 L0 范数归一
+  const D = S.m.d_model, L = S.m.n_layers;
+  const o = (tok*L + layer)*D, o0 = (tok*L + 0)*D;
+  let s=0, n0=0;
+  for(let d=0;d<D;d++){ const x=S.hs[o+d]-S.hs[o0+d]; s+=x*x; n0+=S.hs[o0+d]*S.hs[o0+d]; }
+  return Math.sqrt(s)/Math.sqrt(n0+1e-9);
+}
+
+/* ================= 画布 ================= */
+function layout(){
+  const cv = $("#cv");
+  S.dpr = window.devicePixelRatio || 1;
+  const r = cv.getBoundingClientRect();
+  S.W = Math.max(320, r.width); S.H = Math.max(240, r.height);
+  cv.width = S.W*S.dpr; cv.height = S.H*S.dpr;
+  render();
+}
+
+function drawXY(){
+  const cv = $("#cv"), g = cv.getContext("2d");
+  const L = S.layer, T = S.m.trajectories[S.ti].n_tokens_total;
+  g.setTransform(S.dpr,0,0,S.dpr,0,0);
+  g.clearRect(0,0,S.W,S.H);
+
+  // 坐标范围：以全轨迹为准，层切换时不跳变（这才看得出"云收紧"）
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  for(let k=0;k<T;k++){
+    const [x,y] = projAt(L,k);
+    if(!isFinite(x)||!isFinite(y)) continue;
+    if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+  }
+  const pad = 0.06*(Math.max(x1-x0, y1-y0)||1);
+  x0-=pad; x1+=pad; y0-=pad; y1+=pad;
+  const sx = w => (w - x0)/(x1-x0)*S.W;
+  const sy = w => S.H - (w - y0)/(y1-y0)*S.H;
+
+  // 网格
+  g.strokeStyle = "#161d2b"; g.lineWidth = 1;
+  for(let i=0;i<=5;i++){
+    const X = S.W*i/5, Y = S.H*i/5;
+    g.beginPath(); g.moveTo(X,0); g.lineTo(X,S.H); g.stroke();
+    g.beginPath(); g.moveTo(0,Y); g.lineTo(S.W,Y); g.stroke();
+  }
+  // 坐标轴
+  g.strokeStyle = "#ff6b81"; g.setLineDash([4,4]);
+  if(x0<0 && x1>0){ g.beginPath(); g.moveTo(sx(0),0); g.lineTo(sx(0),S.H); g.stroke(); }
+  if(y0<0 && y1>0){ g.beginPath(); g.moveTo(0,sy(0)); g.lineTo(S.W,sy(0)); g.stroke(); }
+  g.setLineDash([]);
+
+  // 全轨迹淡显
+  g.fillStyle = "#2a3348";
+  for(let k=0;k<T;k+=2){
+    const [x,y] = projAt(L,k);
+    if(!isFinite(x)) continue;
+    g.fillRect(sx(x)-0.7, sy(y)-0.7, 1.4, 1.4);
+  }
+  // 已生成
+  g.fillStyle = "#4a5a78";
+  for(let k=0;k<S.tok;k++){
+    const [x,y] = projAt(L,k);
+    g.beginPath(); g.arc(sx(x),sy(y),2.1,0,7); g.fill();
+  }
+  // 深度轨迹：当前 token 跨所有层
+  if(S.depthMode){
+    g.strokeStyle = "#ffb454"; g.lineWidth = 2;
+    g.beginPath();
+    let started = false;
+    for(let l=0;l<S.m.n_layers;l++){
+      if(S.tok >= S.m.trajectories[S.ti].n_tokens_shipped) break;
+      const p = project(S.tok, l);
+      const X = sx(p.a), Y = sy(p.b);
+      if(!started){ g.moveTo(X,Y); started = true; } else g.lineTo(X,Y);
+    }
+    g.stroke();
+    for(let l=0;l<S.m.n_layers;l++){
+      if(S.tok >= S.m.trajectories[S.ti].n_tokens_shipped) break;
+      const p = project(S.tok, l);
+      g.fillStyle = (l===S.layer) ? "#ffb454" : "#7a5a2e";
+      g.beginPath(); g.arc(sx(p.a),sy(p.b), l===S.layer?4:2,0,7); g.fill();
+    }
+  }
+  // 当前 token
+  if(S.tok < S.m.trajectories[S.ti].n_tokens_shipped){
+    const p = project(S.tok, L);
+    const X = sx(p.a), Y = sy(p.b);
+    g.strokeStyle = "#5cc8ff"; g.lineWidth = 2;
+    g.beginPath(); g.arc(X,Y,8,0,7); g.stroke();
+    g.fillStyle = "#5cc8ff";
+    g.beginPath(); g.arc(X,Y,3.2,0,7); g.fill();
+    // 到 embedding 的连线
+    const e = project(S.tok, 0);
+    g.strokeStyle = "rgba(92,200,255,.28)"; g.lineWidth = 1;
+    g.setLineDash([3,3]);
+    g.beginPath(); g.moveTo(sx(e.a),sy(e.b)); g.lineTo(X,Y); g.stroke();
+    g.setLineDash([]);
+  }
+  // 边距刻度
+  g.fillStyle = "#5d6d8a"; g.font = "10px monospace";
+  g.fillText(x0.toFixed(1), 4, S.H-5);
+  g.fillText(x1.toFixed(1), S.W-42, S.H-5);
+  g.fillText("PC1 →", S.W-46, 14);
+  g.save(); g.translate(11, S.H-4); g.rotate(-Math.PI/2);
+  g.fillText("PC2 →", 0, 0); g.restore();
+}
+
+function drawBar(){
+  const cv = $("#cv"), g = cv.getContext("2d");
+  g.setTransform(S.dpr,0,0,S.dpr,0,0);
+  g.clearRect(0,0,S.W,S.H);
+  const n = S.m.trajectories[S.ti].n_tokens_shipped;
+  if(S.tok >= n){ g.fillStyle="#5d6d8a"; g.font="13px sans-serif";
+    g.fillText("没有该 token 的候选词数据（原始向量只打包了前 "+n+" 步）",30,S.H/2); return; }
+  const K = 64, off = S.tok*K;
+  const rows = [];
+  for(let k=0;k<K;k++) rows.push([S.topk[off+k], S.topki[off+k]]);
+  rows.sort((a,b)=>b[0]-a[0]);
+  const best = rows[0][0];
+  const top = rows.slice(0, 28);
+  const pad = 24, rowH = (S.H-pad*2)/top.length;
+  const wName = Math.min(150, S.W*0.28), wBar = S.W - wName - 120;
+  top.forEach(([v,id],i)=>{
+    const y = pad + i*rowH;
+    const isTop = i===0;
+    g.fillStyle = isTop ? "#5cc8ff" : "#8fa0bb";
+    g.font = (isTop?"600 ":"") + "12px monospace";
+    g.fillText(tokStr(id), 6, y+rowH*0.68);
+    const w = Math.max(0, (v-best)/ (best - rows[27][0] + 1e-6)) * wBar;
+    g.fillStyle = isTop ? "#5cc8ff" : "#2f3d55";
+    g.fillRect(wName+70, y+rowH*0.2, w, rowH*0.55);
+    g.fillStyle = isTop ? "#5cc8ff" : "#5d6d8a";
+    g.font = "10px monospace";
+    g.fillText(v.toFixed(2), wName+76+w, y+rowH*0.68);
+  });
+}
+
+function tokStr(id){
+  // Full vocabulary first: a top-64 candidate is almost never one of the
+  // first 48 tokens of the trajectory, so a lookup limited to the observed
+  // tokens resolves to "#151932" for nearly every bar.
+  if(S.vocab && S.vocab[id]) return S.vocab[id];
+  if(S.tokById && S.tokById.has(id)) return S.tokById.get(id);
+  return "#"+id;
+}
+
+function drawDim(){
+  const cv = $("#cv"), g = cv.getContext("2d");
+  g.setTransform(S.dpr,0,0,S.dpr,0,0);
+  g.clearRect(0,0,S.W,S.H);
+  const D = S.m.d_model, L = S.m.n_layers, n = S.m.trajectories[S.ti].n_tokens_shipped;
+  if(S.tok >= n) return;
+  const o = (S.tok*L + S.layer)*D;
+  const idx = [];
+  for(let d=0;d<D;d++) idx.push([d, S.hs[o+d]]);
+  idx.sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+  const top = idx.slice(0,24);
+  const mx = Math.max(...top.map(t=>Math.abs(t[1])));
+  const pad=26, rowH=(S.H-pad*2)/top.length, wName=150, wBar=S.W-wName-150;
+  g.font="11px monospace";
+  top.forEach(([d,v],i)=>{
+    const y = pad+i*rowH;
+    g.fillStyle="#5d6d8a"; g.fillText("dim "+d, 6, y+rowH*0.7);
+    const w = Math.abs(v)/mx*wBar;
+    g.fillStyle = v>0 ? "#4ade80" : "#ff6b81";
+    const x0 = v>0 ? wName+90 : wName+90;
+    g.fillRect(x0, y+rowH*0.22, w, rowH*0.5);
+    g.strokeStyle="#2f3d55"; g.beginPath();
+    g.moveTo(wName+90,y+rowH*0.7); g.lineTo(wName+90,y+rowH*0.15); g.stroke();
+    g.fillStyle = v>0 ? "#4ade80" : "#ff6b81";
+    g.fillText(v.toFixed(2), wName+96+w, y+rowH*0.7);
+    // 维度名字
+    if(S.dimNames && S.dimNames[d] && S.dimNames[d].top.length){
+      g.fillStyle="#8fa0bb"; g.font="11px sans-serif";
+      const nm = S.dimNames[d].top.map(t=>t.t).join(" ");
+      g.fillText(nm.slice(0, 46), wName+96+w+52, y+rowH*0.7);
+      g.font="11px monospace";
+    }
+  });
+  g.fillStyle="#5d6d8a"; g.font="10px sans-serif";
+  g.fillText("绿 = 数值大为正（推高它对应的词）　红 = 为负（压低）　零线在中间", pad-8, 14);
+}
+
+/* ================= 侧栏 ================= */
+function renderTop(){
+  const t = S.m.trajectories[S.ti], n = t.n_tokens_shipped, K = S.m.topk||64;
+  const tb = $("#tblTop");
+  if(S.tok >= n){ tb.innerHTML = '<tr><td class="note">该步无候选词数据</td></tr>'; return; }
+  const off = S.tok*64, rows=[];
+  for(let k=0;k<64;k++) rows.push([S.topk[off+k], S.topki[off+k]]);
+  rows.sort((a,b)=>b[0]-a[0]);
+  const best = rows[0][0], lo = rows[15][0];
+  let h = "";
+  rows.slice(0,16).forEach(([v,id],i)=>{
+    const pct = Math.max(2, (v-lo)/(best-lo+1e-6)*100);
+    const col = i===0 ? "var(--acc)" : "#2f3d55";
+    h += `<tr><td class="n" style="color:${i===0?"var(--acc)":"var(--dim2)"}">${i+1}</td>
+      <td class="tok" style="color:${i===0?"var(--acc)":"var(--ink)"};width:74px">${esc(tokStr(id))}</td>
+      <td class="bar"><div style="width:${pct}%;background:${col}"></div></td>
+      <td class="n" style="width:42px">${v.toFixed(2)}</td></tr>`;
+  });
+  tb.innerHTML = h;
+}
+
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+function renderSide(){
+  const t = S.m.trajectories[S.ti], ti = tokInfo(S.tok);
+  $("#stRaw").textContent = ti.s ? JSON.stringify(ti.s).slice(1,-1) : "#"+ti.id;
+  $("#stEnt").textContent = (ti.ent!=null? ti.ent.toFixed(3):"—") + " / " +
+                            (ti.top1!=null? ti.top1.toFixed(3):"—");
+  const n = t.n_tokens_shipped;
+  if(S.tok < n){
+    $("#stNorm").textContent = fullNorm(S.tok, S.layer).toFixed(1);
+    $("#stMove").textContent = (embedDist(S.tok,S.layer)*100).toFixed(1) + "%";
+  } else { $("#stNorm").textContent="—"; $("#stMove").textContent="—"; }
+
+  // 文本
+  let txt = "";
+  for(let k=0;k<Math.min(S.tok+1, n);k++){
+    const x = tokInfo(k);
+    txt += (k===S.tok) ? "<b>"+esc(x.s)+"</b>" : esc(x.s);
+  }
+  $("#genTxt").innerHTML = txt || "—";
+
+  // 层解说：用该层这一段 token 的真实统计
+  const upto = Math.min(S.tok+1, n);
+  if(upto>0){
+    let sx=0, sy=0;
+    for(let k=0;k<upto;k++){ const [px,py]=projAt(S.layer,k); sx+=px; sy+=py; }
+    sx/=upto; sy/=upto;
+    let v=0, m0=0;
+    for(let k=0;k<upto;k++){
+      const [px,py]=projAt(S.layer,k);
+      const dx=px-sx, dy=py-sy; v+=dx*dx+dy*dy; m0+=px*px+py*py;
+    }
+    const sd = Math.sqrt(v/upto);
+    m0 = Math.sqrt(m0/upto);
+    const ratio = sd/(m0+1e-9);
+    let story;
+    if(S.layer === 0){
+      story = "L0 是 embedding 本身的输出。token 之间几乎完全线性可分，所以点云铺得开、分得散——还没有任何「推理」发生。";
+    } else if(ratio > 0.55){
+      story = "L"+S.layer+"：点云离中心的离散度只有 "+ (ratio*100).toFixed(0) +"%（越接近 0 越集中）。<b>状态已经被压到少数几个方向上了</b>——这正是残差流在做的工作：把这一层认为重要的信息写成少数几维，其余清零。";
+    } else {
+      story = "L"+S.layer+"：点云离散度是离均质距离的 "+(ratio*100).toFixed(0)+"%。相比 L0 已经明显收拢，说明到这一层不同 token 的内部表示已经开始分化。";
+    }
+    $("#layerStory").innerHTML = story;
+  }
+}
+
+function render(){
+  trace("render enter");
+  if(!S.m) return;
+  const t = S.m.trajectories[S.ti];
+  $("#valLayer").textContent = "L"+S.layer;
+  $("#valTok").textContent = S.tok;
+  $("#mainTitle").textContent =
+    S.view==="XY" ? "隐空间 2D 投影 · L"+S.layer :
+    S.view==="BAR" ? "该步的候选词分数 · 第 "+S.tok+" 步" :
+    "这一层这一步，2048 维里最活跃的维度 · L"+S.layer;
+  $("#mainSub").textContent =
+    t.problem_id + " · " + t.tokens[S.tok]?.s?.replace(/\n/g," ") + " · 共 " + t.n_tokens_total + " 步";
+  trace("pre-canvas");
+  if(S.view==="XY") drawXY(); else if(S.view==="BAR") drawBar(); else drawDim();
+  trace("post-canvas");
+  renderTop(); renderSide(); health();
+  $("#sideTitle").textContent = "top-64 候选词 · 第 "+S.tok+" 步";
+}
+
+/* ================= 事件 ================= */
+$("#rngLayer").oninput = e => { S.layer = +e.target.value; render(); };
+$("#rngTok").oninput   = e => { S.tok = +e.target.value; render(); };
+$("#tabXY").onclick  = () => { S.view="XY";  syncTabs(); render(); };
+$("#tabBar").onclick = () => { S.view="BAR"; syncTabs(); render(); };
+$("#tabDim").onclick = () => { S.view="DIM"; syncTabs(); render(); };
+function syncTabs(){
+  $("#tabXY").classList.toggle("on", S.view==="XY");
+  $("#tabBar").classList.toggle("on", S.view==="BAR");
+  $("#tabDim").classList.toggle("on", S.view==="DIM");
+}
+$("#btnPlay").onclick = () => {
+  S.playing = !S.playing;
+  $("#btnPlay").textContent = S.playing ? "⏸ 暂停" : "▶ 播放";
+  $("#btnPlay").classList.toggle("on", S.playing);
+  if(S.playing){
+    S.timer = setInterval(()=>{
+      const n = S.m.trajectories[S.ti].n_tokens_shipped;
+      if(S.tok >= n-1){ S.tok = 0; } else { S.tok++; }
+      $("#rngTok").value = S.tok;
+      render();
+    }, 260);
+  } else clearInterval(S.timer);
+};
+$("#btnDepth").onclick = () => {
+  S.depthMode = !S.depthMode;
+  $("#btnDepth").classList.toggle("on", S.depthMode);
+  if(S.view!=="XY"){ S.view="XY"; syncTabs(); }
+  render();
+};
+
+$("#cv").onmousemove = e => {
+  const tip = $("#tip");
+  if(S.view!=="DIM"){ tip.style.display="none"; return; }
+  const r = $("#cv").getBoundingClientRect();
+  const y = e.clientY - r.top;
+  const n = S.m.trajectories[S.ti].n_tokens_shipped;
+  if(S.tok >= n){ tip.style.display="none"; return; }
+  const pad=26, rowH=(S.H-pad*2)/24;
+  const i = Math.floor((y-pad)/rowH);
+  if(i<0||i>=24){ tip.style.display="none"; return; }
+  const D=S.m.d_model, L=S.m.n_layers, o=(S.tok*L+S.layer)*D;
+  const idx=[]; for(let d=0;d<D;d++) idx.push([d,S.hs[o+d]]);
+  idx.sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+  const [d,v] = idx[i];
+  let extra = "";
+  if(S.dimNames && S.dimNames[d]){
+    extra = "\n\n这一维偏向：" + S.dimNames[d].top.map(t=>JSON.stringify(t.t)).join(" ");
+  }
+  tip.textContent = "dim "+d+"   h = "+v.toFixed(3)+extra;
+  tip.style.display="block";
+  tip.style.left = Math.min(e.clientX+14, window.innerWidth-320)+"px";
+  tip.style.top  = (e.clientY+16)+"px";
+};
+$("#cv").onmouseleave = () => { $("#tip").style.display="none"; };
+
+// selftest(): drives the app through every state it can reach and records
+// what each one produced. This exists because the browser session's click
+// targeting was landing one control to the left, so "I clicked it" could
+// not be trusted as evidence; what this verifies is the render pipeline,
+// NOT that pointer events land correctly.
+async function selftest(){
+  const log = [];
+  S.quiet = true;
+  try {
+  const snap = tag => {
+    const t = S.m.trajectories[S.ti];
+    const p = (S.tok < t.n_tokens_shipped) ? project(S.tok, S.layer) : null;
+    const rec = {tag, traj:S.ti, layer:S.layer, tok:S.tok, view:S.view,
+      pc1: p ? +p.a.toFixed(4) : null, pc2: p ? +p.b.toFixed(4) : null};
+    log.push(rec); health(); return rec;
+  };
+  for(const v of ["XY","BAR","DIM"]){ S.view=v; syncTabs(); render(); snap("view="+v); }
+  await report("STAGE views done " + log.length);
+  S.view="XY"; syncTabs();
+  for(const L of [0,7,14,21,27]){
+    S.layer=L; render();
+    const r = snap("layer=L"+L);
+    // The 2-D cloud must actually change with depth, otherwise the layer
+    // slider is decorative.
+    if(r.pc1!==null) S.projCache.delete(S.tok*1000+L);
+  }
+  await report("STAGE layers done " + log.length);
+  for(const k of [0,5,20,47]){
+    await report("tok-> " + k);
+    S.tok=k; await report("  set");
+    render(); await report("  rendered");
+    snap("tok="+k); await report("  snapped");
+  }
+  await report("STAGE tokens done " + log.length);
+  S.depthMode = true; render(); snap("depthTrail"); S.depthMode = false;
+  await report("STAGE depth done " + log.length);
+  for(const t of [1,5,11]){
+    await loadTraj(t, 0.5);
+    S.layer=14; S.tok=3; render();
+    snap("traj="+S.m.trajectories[t].problem_id);
+    await report("STAGE traj " + t + " done " + log.length);
+  }
+  }catch(e){
+    await report("SELFTEST THREW at " + log.length + " states: " + e.message
+                 + " | " + String(e.stack||"").split("\n")[1]);
+    throw e;
+  }
+  S.quiet = false;
+  await report("SELFTEST " + JSON.stringify(log));
+  document.title = "SELFTEST " + log.length + " states";
+  return log;
+}
+
+// report(): plain awaited fetch, no keepalive. Chrome throttles keepalive
+// beacons, and during the self-test the per-render health beacons had
+// already used up the budget — the final summary was the one that got
+// dropped, which is exactly the line that mattered.
+async function report(text){
+  try{
+    await fetch("http://localhost:8918/audit", {method:"POST", body:text});
+  }catch(e){ /* audit is best-effort */ }
+}
+
+if(/[?&]selftest=1/.test(location.search)){
+  boot().then(()=>selftest()).catch(e=>{
+    document.title = "SELFTEST FAILED: " + e.message;
+    report("SELFTEST FAILED " + e.message + " | "
+           + String(e.stack||"").split("\n")[1]);
+  });
+} else {
+boot().catch(e=>{
+  document.title = "FATAL: " + (e && e.message) + " @ " + (e && e.stack||"").split("\n")[1];
+  $("#pmsg").textContent = "加载失败：" + e.message;
+  $("#pmsg").style.color = "#ff6b81";
+});
+}
+</script>
+</body>
+</html>
