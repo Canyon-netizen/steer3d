@@ -1,0 +1,2 @@
+  negctl> 判据变红(←负控生效)  NEG[gloss] 熵 的解释被删 → B2「首次出现带白话解释」应 FAIL
+  negctl> 判据变红(←负控生效)  NEG[gloss] B1 首屏同一条也应 FAIL

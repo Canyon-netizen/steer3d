@@ -1,7 +1,10 @@
 # 隐空间观察台 · 可读性审计报告
 
 对象：`frontend/public/latent/index.html`
-基线：`cc896e8`（HEAD，未加导读层）→ 现行版 `sha256 302d1c03…`（见 verify 日志）
+基线：`cc896e8`（未加导读层）→ 现行版 `sha256 dd6c5df698c8a45c`
+（**已核对**：正文早期写的 `302d1c03…` 是加导读层过程中一个中间版本的 hash，
+页面在其后又改过。现行 hash 由我在提交后重跑 `verify_readability.mjs` 确认，
+与 `git show c9ee868:frontend/public/latent/index.html` 逐位一致。）
 测量环境：HeadlessChrome/148.0.7778.96，CDP 直驱（`.cache/browser_verify/cdp_client.mjs` 的 `launch()`），
 视口 1600×1000 与 1280×800，`devicePixelRatio=1`，dpr 强制 1。静态服务 `localhost:8917`。
 **所有数字都是浏览器里渲染后的实测值，没有一条是"读了一遍觉得"。**
