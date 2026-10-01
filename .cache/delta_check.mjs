@@ -353,10 +353,25 @@ chk(new Set(barWidths.map(w => w.toFixed(1))).size > 1,
     "维度条长度有区分（不是全部一样长）",
     [...new Set(barWidths.map(w => w.toFixed(0)))].slice(0,6).join(", "));
 // And the names must still be inside the table, not squeezed out of it.
-const nameCells = [...side.matchAll(/title="([^"]*)"[^>]*>([^<]*)</g)]
-  .map(m => m[2].trim()).filter(t => t && t !== "—");
-chk(nameCells.length > 0, "维度词名仍渲染在单元格里",
-    nameCells.slice(0,3).map(s => s.slice(0, 14)).join(" / "));
+// The name has to arrive *whole* in the DOM, and it has to live inside a
+// box where `text-overflow: ellipsis` can actually act — it does nothing on
+// a <td>, which is why the names were once hard-clipped mid-glyph.
+const nameRows = [...side.matchAll(/title="([^"]*)｜绝对变化 ([-\d.]+)">[\s\S]*?<\/div>/g)]
+  .map(m => ({ full: m[1], val: m[2] }));
+chk(nameRows.length > 0, "维度词名在 DOM 里是完整的（不是被裁后的残片）",
+    nameRows.slice(0,2).map(r => r.full.slice(0, 22)).join(" / "));
+chk(nameRows.every(r => r.full.includes("、") || r.full.length > 3),
+    "词名不是 1–2 个字符的残片",
+    nameRows.length ? `最短 ${Math.min(...nameRows.map(r => r.full.length))} 字符` : "无");
+chk(nameRows.length === barWidths.length,
+    "每个维度条都配了一行词名",
+    `${barWidths.length} 根条 / ${nameRows.length} 行词名`);
+// The printed number must be the dimension's own absolute change, not a
+// percentage of anything.
+const vals = nameRows.map(r => Math.abs(parseFloat(r.val)));
+chk(vals.length > 0 && vals.some(v => v > 1),
+    "词名旁的数值是该维度的绝对变化量（不是被乘 100 的百分数）",
+    vals.slice(0,4).map(v => v.toFixed(1)).join(", "));
 
 say("");
 say(fails.length ? `${fails.length} 项失败: ${fails.join(" | ")}` : "全部通过");

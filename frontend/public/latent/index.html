@@ -767,10 +767,17 @@ function drawDeltaSide(){
         const w = Math.abs(d.delta) / maxAbs * 100;
         const up = d.delta >= 0;
         const names = (d.names||[]).slice(0,4).map(esc).join("、") || "—";
-        h += `<tr><td class="n" style="color:${up?"#ff8fa3":"#3ddc97"};width:52px">${up?"▲":"▼"}#${d.dim}</td>
-          <td class="bar"><div style="width:${Math.max(3,w)}%;background:${up?"#ff8fa3":"#3ddc97"}"></div></td>
-          <td class="n" style="width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${names}">${names}
-            <span class="note">${d.delta>=0?"+":""}${d.delta.toFixed(1)}</span></td></tr>`;
+        h += `<tr><td class="n" style="color:${up?"#ff8fa3":"#3ddc97"};text-align:left;width:58px">` +
+             `${up?"▲":"▼"}#${d.dim}` +
+             `<br><span class="note">${d.delta>=0?"+":""}${d.delta.toFixed(1)}</span></td>` +
+             `<td class="bar" style="width:78px"><div style="width:${Math.max(3,w)}%;background:${up?"#ff8fa3":"#3ddc97"}"></div></td>` +
+             // `text-overflow: ellipsis` does nothing on a <td> — it needs a
+             // block box with overflow:hidden. Without the inner div the names
+             // were hard-clipped mid-glyph at the panel edge, which is why
+             // "prostitute、农贸市场" showed up as "pr".
+             `<td style="padding-left:8px">` +
+             `<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" ` +
+             `title="${esc(names)}｜绝对变化 ${d.delta.toFixed(2)}">${names}</div></td></tr>`;
       }
     }
   }
