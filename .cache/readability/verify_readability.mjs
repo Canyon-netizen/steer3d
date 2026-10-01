@@ -18,6 +18,7 @@
 //     里的 /\d/ 被模板字面量吃成字母 d，那条断言其实一直没在跑。
 
 import { launch, CDP, Page } from '../browser_verify/cdp_client.mjs';
+import { join as pathJoin } from 'node:path';
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import * as P from './probe_lib.mjs';
@@ -241,12 +242,24 @@ async function runSize(S) {
     .map(x=>x.textContent.replace(/\\s+/g,' ').trim()).join('   '))()`);
   chk(limAll.includes('6') && limAll.includes('1983') && limAll.includes('1988'),
       'C17 数据边界写明 n=6 与题号区间', limAll.slice(0, 60));
-  chk(limAll.includes('Qwen3-1.7B'), 'C18 数据边界写明只有 1 个模型');
+  // Read the expected numbers from models.json -- the same file the page
+  // renders from. Hardcoding "0.0%–20.7%" made this check a second, stale
+  // copy of a measured value: when the page switched to a registry-supplied
+  // string, the check went red on a correct page.
+  // ROOT is the repo root; the served page is under frontend/public/latent,
+  // and the registry it renders from is served from the same directory.
+  const REG = JSON.parse(readFileSync(
+    pathJoin(ROOT, 'frontend/public/latent/models.json'), 'utf8'));
+  const M0 = REG.models[0];
+  chk(/两个尺寸都收录了/.test(limAll),
+      'C18 数据边界写明收录了两个尺寸而非一个');
+  chk(limAll.includes(M0.label), 'C18b 数据边界写明模型名', M0.label);
   chk(limAll.includes('20') && limAll.includes('0.2') && limAll.includes(pairs.dir === 'confidence_up' ? '自信' : pairs.dir),
       'C19 数据边界写明唯一干预方向/层/强度');
   chk(st.no.length === 4, 'C20 本页不主张的 4 种说法都在', '条数=' + st.no.length);
-  chk(st.no[0] && st.no[0].includes('0.0%–20.7%') && st.no[0].includes('587–831'),
-      'C21 第 1 条否证带真实数字', (st.no[0] || '').slice(0, 40));
+  chk(st.no[0] && st.no[0].includes(M0.retention_text) && st.no[0].includes(M0.n_eff_text),
+      'C21 第 1 条否证带真实数字（对着 models.json 核）',
+      `期望 ${M0.retention_text} / ${M0.n_eff_text}`);
 
   /* ---------- D. 关掉能记住、能重置 ------------------------------------ */
   head('D 关闭 / 记住 / 重置');

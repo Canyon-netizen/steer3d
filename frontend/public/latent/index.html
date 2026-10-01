@@ -347,8 +347,8 @@
       <div class="note" style="margin-top:8px">
         <b>这张表不解释「为什么是这个 token」。</b>干预确实持续把残差推走
         （上面「残差流被推了」那一行），但文本改口并不是被这个位移推出来的：
-        6 题里有 4 题在真正改口之前就出现过<b>更险的一步</b>，同范数的<b>随机
-        方向</b>也有 16% 的机会扳出同样的词。准确的说法是——改口那一刻的判决
+        6 题里有 <span data-f="near">4 题</span>在真正改口之前就出现过<b>更险的一步</b>，同范数的<b>随机
+        方向</b>也有 <span data-f="c4">16%</span> 的机会扳出同样的词。准确的说法是——改口那一刻的判决
         本来就薄，而那个「薄」与干预关系不大。详见 docs/INTERPRETABILITY.md
         Finding 14。
       </div>
@@ -505,6 +505,8 @@ function applyModelFacts(){
     ret: m.retention_text,
     neff: m.n_eff_text,
     nmodels: (S.registry && S.registry.length) || 1,
+    near: m.near_miss_text,
+    c4: m.c4_short,
   };
   for(const el of document.querySelectorAll("[data-f]")){
     const k = el.getAttribute("data-f");

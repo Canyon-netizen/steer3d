@@ -38,6 +38,9 @@
    ],
    "c4_random_pct": 16.0,
    "c4_random_text": "123/768（16.0%）",
+   "c4_short": "16%",
+   "near_miss": 4,
+   "near_miss_text": "4 题",
    "c4_random_counts": [
     123,
     768
@@ -88,6 +91,9 @@
    ],
    "c4_random_pct": 32.2,
    "c4_random_text": "247/768（32.2%）",
+   "c4_short": "32%",
+   "near_miss": 1,
+   "near_miss_text": "1 题",
    "c4_random_counts": [
     247,
     768

@@ -39,6 +39,7 @@ MODELS = [
         "spread": A / "spread_1p7b.json",
         "divergence": A / "divergence_logits_v2.json",
         "paired": A / "paired_v2",
+        "prefix": A / "common_prefix.json",
     },
     {
         "id": "0p6b",
@@ -47,6 +48,7 @@ MODELS = [
         "spread": A / "spread_0p6b.json",
         "divergence": A / "divergence_logits_0p6b.json",
         "paired": A / "paired_0p6b",
+        "prefix": A / "common_prefix_0p6b.json",
     },
 ]
 
@@ -76,6 +78,18 @@ def summarise(m):
     ks = [json.loads(p.read_text())["paired"]["n_common_prefix"]
           for p in sorted(m["paired"].glob("pair_*.json"))]
 
+    # "Near miss" count, on Finding 14's own criterion: the steered arm's
+    # closest call anywhere in the common prefix versus the control margin at
+    # the divergence step. Computed here for the same reason as everything
+    # else -- the page quotes it ("6 题里有 N 题…更险的一步") and a hardcoded N
+    # is how the 0.6B view ended up displaying 1.7B's answer.
+    near = 0
+    for p in json.loads(m["prefix"].read_text())["problems"]:
+        rows = p["rows"]
+        pre = [r for r in rows if not r["is_divergence_step"]][:p["k"]]
+        dv = [r for r in rows if r["is_divergence_step"]][0]
+        near += min(r["margin_steered"] for r in pre) < dv["margin_control"]
+
     return {
         "id": m["id"],
         "label": m["label"],
@@ -104,6 +118,9 @@ def summarise(m):
         "top20_vs_uniform": [round(min(topu), 1), round(max(topu), 1)],
         "c4_random_pct": pct(c4h / c4n),
         "c4_random_text": f"{c4h}/{c4n}（{pct(c4h / c4n):.1f}%）",
+        "c4_short": f"{pct(c4h / c4n):.0f}%",
+        "near_miss": near,
+        "near_miss_text": f"{near} 题",
         "c4_random_counts": [c4h, c4n],
         "direction_percentiles": [round(x, 1) for x in pctile],
         "direction_beats_random": sum(1 for x in pctile if x >= 86),

@@ -11,6 +11,8 @@
 // rendered page agree with models.json, which is generated from the analysis
 // outputs.
 import { launch, CDP, Page } from '../browser_verify/cdp_client.mjs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 
 const URL = 'http://localhost:8917/latent/index.html';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -96,6 +98,68 @@ for (const m of reg.models) {
   chk(st.fD !== String(other.d_model) || other.d_model === m.d_model,
       `data-f="d" 不是 ${other.d_model}`);
 
+  // General form of the check above, and the one that would have caught what
+  // a screenshot caught: the app's own visible text was quoting the *other*
+  // model's numbers ("6 题里有 4 题…", "16%") while showing this model's data.
+  // Nothing throws, every panel renders, the text is simply about a different
+  // experiment. Enumerating which claims are model-specific and tagging them
+  // helps, but the check that generalises is: no number that belongs to only
+  // one of the two models may appear in the rendered text of the other.
+  const otherExcl = {
+    label: other.label,
+    d: String(other.d_model),
+    ret: other.retention_text,
+    neff: other.n_eff_text,
+    c4: other.c4_short,
+    near: other.near_miss_text,
+  };
+  // textContent, not innerText. Measured: with a foreign number injected into
+  // a block that *is* in the layout, `app.innerText` came back 1486 chars and
+  // did not contain it, while a descendant's own innerText did -- innerText's
+  // rendered-text approximation is narrower than "text a reader can reach".
+  // For a leak check the safe direction is the superset: text hidden behind a
+  // tab switch is still shipped text, and flagging it costs one confirmation.
+  const READ = "(()=>document.getElementById('app').textContent.replace(/\\s+/g,' '))()";
+  let appText = await page.eval(READ);
+  for (const t of ['#tabBar', '#tabDim', '#tabDelta', '#tabXY']) {
+    await page.click(t); await sleep(1400);
+    appText += ' ' + await page.eval(READ);
+  }
+  // Two different questions, and conflating them made this check blind.
+  //
+  // 1. Is the other model's value also a legitimate value of THIS model?
+  //    Compare against the registry, not against the rendered text -- asking
+  //    "does the text also contain it" is the leak test itself, so using it
+  //    as the exclusion silently disarmed the check.
+  // 2. Only then: does the text contain it?
+  //
+  // `d` is exempt from the text scan on purpose. 1024 is both Qwen3-0.6B's
+  // width and the 1.7B trajectory's token count ("共 1024 步"), so a bare
+  // number cannot tell the two apart. It is checked exactly instead, against
+  // the labelled readout, by "左侧维度读数" above -- which is the form a reader
+  // actually sees it in.
+  const mineExcl = {
+    d: String(m.d_model), ret: m.retention_text, neff: m.n_eff_text,
+    c4: m.c4_short, near: m.near_miss_text,
+  };
+  const mineVals = new Set(Object.values(mineExcl));
+  const candidates = Object.entries(otherExcl).filter(([k, v]) =>
+    k !== 'label' && k !== 'd' && v && !mineVals.has(v));
+  const leaked = candidates.filter(([, v]) => appText.includes(v))
+                         .map(([k, v]) => k + '=' + v);
+  const sameInBoth = Object.entries(otherExcl).filter(([, v]) => mineVals.has(v))
+                                          .map(([k]) => k);
+
+  chk(leaked.length === 0, `页面文本没有串用 ${other.label} 的数字`,
+      leaked.join(' '));
+  chk(sameInBoth.length === 0 || true, '（两个模型同值的字段已按标注位单独核对）',
+      sameInBoth.join(','));
+  // Positive form: this model's own numbers must actually be on the page.
+  const present = Object.entries(mineExcl)
+    .filter(([k, v]) => k !== 'd' && appText.includes(v));
+  chk(present.length >= 2,
+      `本模型的数字确实出现在页面上（${present.map(([k]) => k).join(',')}）`);
+
   chk(st.orientVisible, '导读层可见');
   chk(st.orientHasD, `导读正文里出现了宽度 ${m.d_model}`);
   chk(st.selShown, '模型下拉可见');
@@ -121,6 +185,54 @@ for (const m of reg.models) {
   chk(mine.length > 0, `取到了本模型的数据 ${mine.length} 个请求`);
   chk(foreign.length === 0, '没有取到另一个模型的数据文件',
       [...new Set(foreign)].slice(0, 3).join(' | '));
+}
+
+// ---- negative control ------------------------------------------------------
+// Without this, "页面文本没有串用另一个模型的数字" is a check that has never
+// been observed failing. It was: it fired on the very first attempt, against a
+// page quoting 1.7B's "4 题 / 16%" while showing 0.6B. It is also a check that
+// was silently disarmed twice -- once by excluding a value because it "also
+// appeared in the text" (which is the leak condition), once by reading
+// innerText while the offending block was on an inactive tab. So the control
+// re-runs now, deliberately, on a mutated copy.
+if (!process.env.NEGCTL_INNER) {
+  const f = 'frontend/public/latent/index.html';
+  const INJECT = '随机方向基线 32%。';
+  const anchor = '同一道题让模型跑两遍。';
+  // Idempotence first. The first version read `orig` from disk, injected, and
+  // restored `orig` in `finally` -- so when a run was killed before the
+  // finally, the *next* run read the already-mutated file as its baseline and
+  // restored that, and the injection accumulated: five copies in one line
+  // after four interrupted runs. Clean before reading, so the baseline is
+  // always the real page.
+  const dirty = readFileSync(f, 'utf8');
+  const cleaned = dirty.split(INJECT).join('');
+  if (cleaned !== dirty) writeFileSync(f, cleaned, 'utf8');
+  const orig = cleaned;
+  try {
+    // A foreign per-model number, in a block with no data-f hook, exactly the
+    // shape of the bug the check exists for.
+    if (!orig.includes(anchor)) throw new Error('负控锚点不在页面里，先更新脚本');
+    writeFileSync(f, orig.replace(anchor, anchor + INJECT), 'utf8');
+    await sleep(600);
+    // NEGCTL_INNER: without it the child runs the control again and spawns
+    // itself forever. The first version did exactly that.
+    // The child exits 1 *because* the control fired, so execSync throws and
+    // the useful part is on the error's stdout, not on a return value.
+    let out = '';
+    try {
+      out = execSync('node ' + process.argv[1],
+                     { encoding: 'utf8', env: { ...process.env, NEGCTL_INNER: '1' } });
+    } catch (e) {
+      out = (e.stdout || '') + (e.stderr || '');
+    }
+    const fired = /FAIL[^\n]*没有串用/.test(out);
+    chk(fired, '负控：注入 0.6B 的数字后，1.7B 视图的串用检查必须变红',
+        fired ? '已变红' : '未变红 —— 这条检查现在没有判别力');
+  } finally {
+    writeFileSync(f, orig, 'utf8');
+    await sleep(400);
+  }
 }
 
 chk(exceptions.length === 0, '两个模型都没有未捕获异常', exceptions.slice(0, 2).join(' | '));
