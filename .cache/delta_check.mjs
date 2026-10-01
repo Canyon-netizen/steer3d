@@ -53,18 +53,48 @@ for (const id of IDS) {
   };
 }
 
+// Stub factory. Event-handler slots are part of the shape, not an optional
+// extra: the page wires `$("#someNewId").onclick = ...` at parse time, so a
+// stub without `onclick` makes *any* element the page adds throw before a
+// single arithmetic assertion runs. Enumerating the ids instead would have
+// kept this harness green until the next page change, which is the same bug
+// wearing a different hat.
+const stub = (id) => ({
+  id, textContent: "", innerHTML: "", innerText: "", className: "",
+  value: 0, min: 0, max: 0, step: 1, style: {}, dataset: {},
+  classList: { add(){}, remove(){}, toggle(){}, contains(){ return false; } },
+  getContext: () => makeCtx(id),
+  getBoundingClientRect: () => ({ width: 1200, height: 700, top: 0, left: 0,
+                                  right: 1200, bottom: 700, x: 0, y: 0 }),
+  appendChild(){}, removeChild(){}, scrollIntoView(){},
+  onclick: null, oninput: null, onchange: null, onmousemove: null,
+  onmouseleave: null, onmouseenter: null,
+  dispatchEvent(){}, addEventListener(){}, removeEventListener(){},
+  querySelector: () => stub("q"), querySelectorAll: () => [],
+  get firstChild(){ return null; }, get children(){ return []; },
+});
+
 global.document = {
   title: "",
-  getElementById: id => elements[id] || (elements[id] = {
-    id, textContent: "", innerHTML: "", style: {},
-    classList: { add(){}, remove(){}, toggle(){} },
-    getContext: () => makeCtx(id), addEventListener(){},
-    getBoundingClientRect: () => ({ width: 1200, height: 700 }),
-  }),
-  querySelector: s => elements[s.replace("#", "")],
+  getElementById: id => elements[id] || (elements[id] = stub(id)),
+  // `$` in the page is `document.querySelector`, not getElementById, so the
+  // fallback has to live here or `$("#someNewId")` returns undefined and the
+  // page's own `el.onclick = ...` throws at parse time.
+  querySelector: s => elements[s.replace("#", "")] || stub(s),
+  querySelectorAll: () => [],
   createElement: () => ({ style: {}, appendChild() {}, textContent: "" }),
 };
 global.window = { addEventListener(){}, devicePixelRatio: 1 };
+// The orientation layer reads/writes localStorage during boot. A missing one
+// is not a silent no-op -- it throws, and the whole arithmetic check dies on a
+// feature that has nothing to do with arithmetic.
+const _mem = new Map();
+global.localStorage = {
+  getItem: k => (_mem.has(k) ? _mem.get(k) : null),
+  setItem: (k, v) => _mem.set(k, String(v)),
+  removeItem: k => _mem.delete(k),
+  clear: () => _mem.clear(),
+};
 global.location = { search: "" };
 global.performance = { now: () => Date.now() };
 global.setInterval = () => 0; global.clearInterval = () => {};

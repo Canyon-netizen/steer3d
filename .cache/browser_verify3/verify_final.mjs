@@ -50,6 +50,24 @@ cdp.on(m => {
 await page.nav(URL);
 await sleep(4500);
 
+// The orientation layer is a fixed full-screen overlay, so every click below
+// used to land on it instead of the app. Navigating with ?orient=off would
+// hide the problem; going through the real path (a first-time visitor clicks
+// "我读完了") both fixes the harness and checks the thing that actually
+// matters -- that closing the guide hands the page back fully interactive.
+const orient = await page.eval(`(()=>{const o=document.getElementById('orientation');
+  if(!o) return {present:false};
+  return {present:true, blocking: getComputedStyle(o).display !== 'none'};})()`);
+chk(orient.present, '首次访问弹出导读层');
+chk(orient.blocking, '导读层默认挡住页面（会拦截点击）');
+if (orient.blocking) { await page.click('#orientClose'); await sleep(700); }
+const afterClose = await page.eval(`(()=>{const o=document.getElementById('orientation');
+  return {hidden: getComputedStyle(o).display === 'none',
+          topEl: (document.elementFromPoint(innerWidth/2, innerHeight/2)||{}).id || ''};})()`);
+chk(afterClose.hidden, '点「我读完了」后导读层消失');
+chk(!/^orientation$/.test(afterClose.topEl), '关闭后页面中心不再被浮层占据',
+    'elementFromPoint=' + afterClose.topEl);
+
 // Enter screen 4 by clicking the real tab, coordinates read from the page.
 await page.click('#tabDelta');
 await sleep(2500);
