@@ -117,6 +117,23 @@ class ResidualSteerer:
     records each block's output. So entry ``i`` is the input to block ``i`` —
     which for ``i == layer`` is the value *before* this hook ever runs.
 
+    **The last entry is the exception, and it matters.** The tuple has
+    ``n_layers + 1`` entries, but the final one is ``self.norm``'s *output*, not
+    block ``n - 1``'s output: the capture appends the norm as well. So
+    ``hidden_states[n_layers]`` is already normalised, and reading a logit out
+    of it means ``lm_head(h)``, not ``lm_head(norm(h))``. Measured on
+    Qwen3-1.7B (float32, CPU), comparing against the ``out.logits`` of the
+    same forward pass::
+
+        lm_head(hs[n_layers])        max|diff| = 0.000e+00   <- the logits
+        lm_head(norm(hs[n_layers]))  max|diff| = 1.6e+01 … 1.9e+01
+
+    The 50.0 probe below cannot tell the two readings apart — ``hs[20] == 0``
+    and ``hs[21] == 49.9`` hold either way — which is why this stayed wrong
+    through a layer convention that had otherwise been checked against the real
+    model. It was caught by a read-out that disagreed with a token the model
+    had emitted, which is the only kind of check that can see it.
+
     Measured on Qwen3-1.7B, injecting 50.0 into the input of block 20
     (float32, CPU)::
 

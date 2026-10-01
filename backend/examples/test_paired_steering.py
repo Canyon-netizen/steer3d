@@ -135,6 +135,8 @@ def _stream_with_text(text, n_layers=28, d=8, layers=(0, 1, 2)):
     hs = {L: np.zeros((1, d), dtype=np.float16) for L in layers}
     return {"text": text, "ids": [1], "n_steps": 1, "hs": hs,
             "hs_last": np.zeros((1, d), dtype=np.float32),
+            "top_ids": np.zeros((1, 8), dtype=np.int32),
+            "top_logits": np.zeros((1, 8), dtype=np.float32),
             "closed_think": "</think>" in text}
 
 
@@ -168,6 +170,16 @@ def test_alignment():
     last_vals = [float(out["hs_last"][i][0]) for i in range(n)]
     check(last_vals == [float(i + 1) for i in range(n)],
           f"hs_last[i] carries pass i+1  -> {last_vals[:3]}...")
+
+    # The stored top-k is what makes the read-out checkable from the data file
+    # with no model present, so its shape and its row count are load-bearing:
+    # a top-k sliced to the wrong end would still be a well-formed array.
+    check(out["top_ids"].shape == (n, 8) and out["top_logits"].shape == (n, 8),
+          f"top-k shapes {out['top_ids'].shape}/{out['top_logits'].shape} == ({n}, 8)")
+    check(out["top_ids"].dtype == np.int32 and out["top_logits"].dtype == np.float32,
+          f"top-k dtypes {out['top_ids'].dtype}/{out['top_logits'].dtype}")
+    check(bool((np.diff(out["top_logits"], axis=1) <= 1e-6).all()),
+          "top_logits 每行降序")
 
 
 def test_eos_truncation():

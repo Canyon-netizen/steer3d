@@ -105,6 +105,9 @@ def run_one(model, tok, prompt: str, budget: int, layers: List[int],
     # {layer: (steps, d)} preallocated; steps grows, d is fixed.
     store = {L: [] for L in layers}
     store_last: List[np.ndarray] = []
+    top_ids: List[List[int]] = []
+    top_logits: List[List[float]] = []
+    TOPK = 8
 
     def last_residual(out) -> None:
         for L in layers:
@@ -114,12 +117,33 @@ def run_one(model, tok, prompt: str, budget: int, layers: List[int],
         store_last.append(
             out.hidden_states[n_layers][0, -1, :].to(torch.float32).cpu().numpy())
 
+    def record_logits(out) -> None:
+        """The model's own top-k logits, kept so the read-out is checkable.
+
+        ``hidden_states[n_layers]`` is already **post**-norm: transformers'
+        capture appends ``self.norm``'s output as the last entry, so
+        ``lm_head(hs[n_layers])`` reproduces ``out.logits`` exactly while
+        re-applying the norm is wrong by 16-19 logits. That was measured, not
+        assumed, and it is invisible from the layer convention alone: the 50.0
+        probe (``hs[20] == 0``, ``hs[21] == 49.9``) is identical under either
+        reading, so nothing in the existing checks could have caught it.
+
+        Storing the real top-k means that fact is verifiable from the data file
+        alone, with no model and no GPU -- which is the only way a reader can
+        check a claim about a read-out instead of taking it on trust.
+        """
+        lg = out.logits[0, -1, :]
+        v, i = torch.topk(lg, TOPK)
+        top_ids.append([int(x) for x in i.tolist()])
+        top_logits.append([float(x) for x in v.tolist()])
+
     t0 = time.time()
     with steerer, torch.inference_mode():
         enc = tok(prompt, return_tensors="pt").to(model.device)
         out = model(**enc, output_hidden_states=True, use_cache=True, return_dict=True)
         past = out.past_key_values
         last_residual(out)
+        record_logits(out)
         nxt = int(torch.argmax(out.logits[0, -1, :]))
         for step in range(1, budget + 1):
             if step % log_every == 0 or step == budget:
@@ -135,6 +159,7 @@ def run_one(model, tok, prompt: str, budget: int, layers: List[int],
                         use_cache=True, return_dict=True)
             past = out.past_key_values
             last_residual(out)
+            record_logits(out)
             nxt = int(torch.argmax(out.logits[0, -1, :]))
 
     text = tok.decode(ids, skip_special_tokens=True)
@@ -153,12 +178,16 @@ def run_one(model, tok, prompt: str, budget: int, layers: List[int],
           for L in layers}
     hs_last = (np.stack(store_last[:len(ids)]).astype(np.float32) if len(ids)
                else np.zeros((0, d), dtype=np.float32))
+    tk = np.asarray(top_ids[:len(ids)], dtype=np.int32).reshape(len(ids), TOPK)
+    tl = np.asarray(top_logits[:len(ids)], dtype=np.float32).reshape(len(ids), TOPK)
     return {
         "text": text,
         "ids": ids,
         "n_steps": len(ids),
         "hs": hs,
         "hs_last": hs_last,
+        "top_ids": tk,
+        "top_logits": tl,
         "closed_think": "</think>" in text,
     }
 
@@ -373,6 +402,13 @@ def main(args) -> int:
             control_last32=ctl["hs_last"],
             steered_last32=(st["hs_last"] if st else np.zeros((0, int(
                 model.config.hidden_size)), dtype=np.float32)),
+            # the model's own top-k, so a reader can check the read-out against
+            # the data file instead of against a live model
+            control_top_ids=ctl["top_ids"],
+            control_top_logits=ctl["top_logits"],
+            steered_top_ids=(st["top_ids"] if st else np.zeros((0, 8), np.int32)),
+            steered_top_logits=(st["top_logits"] if st else
+                                np.zeros((0, 8), np.float32)),
             unit=(unit.astype(np.float32) if unit is not None
                   else np.zeros(1, np.float32)),
             layers=np.asarray(layers, dtype=np.int32),
