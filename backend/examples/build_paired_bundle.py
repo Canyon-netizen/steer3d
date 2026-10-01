@@ -252,16 +252,43 @@ def main() -> int:
             nb = _write_f16(out / f"pc_{pid}_delta_L{L}.bin", delta)
             total += nb
 
-            # What the browser would get back, and what it would have got
-            # from differencing the two stored arms instead. Reporting both
-            # is the point: the second number is why the delta is shipped.
+            # What the browser gets back from each of the two possible
+            # routes to delta. Both are normalised by ‖h_steered‖ and both
+            # are measured against the *steered* arm, because that is the
+            # quantity being reconstructed.
+            #
+            # The earlier version of this block normalised by ‖control‖ and
+            # compared against the control arm, which made
+            #     ‖(fp16(h) + fp16(Δ)) − h‖ ≈ ‖Δ‖
+            # i.e. it reported signal-to-signal. On the real data that came
+            # out as "SNR 3.6" and looked like the delta file was useless.
             hq = h32.astype(np.float16).astype(np.float32)
-            recon = hq + delta.astype(np.float32)
-            snr_recon = float(np.linalg.norm(h32) /
-                              max(np.linalg.norm(recon - h32), 1e-30))
-            naive = std[:m].astype(np.float16).astype(np.float32) - hq
-            snr_naive = float(np.linalg.norm(h32) /
-                              max(np.linalg.norm(naive - h32), 1e-30))
+            sq = std[:m].astype(np.float16).astype(np.float32)
+            d_true = sq - hq          # the exact delta (arms are fp16-native)
+            n_d = float(np.linalg.norm(d_true))
+
+            # Two routes to the same target: how accurately can the browser
+            # recover Δ? Comparing them against *different* targets
+            # (`h_steered` for one, `Δ` for the other) is how the previous
+            # version ended up reporting a meaningless 3.6 for a route that
+            # is in fact exact.
+            #   delta route : read fp16(Δ)
+            #   naive route : read fp16(h_s) and fp16(h_c), subtract in float32
+            err_delta = float(np.linalg.norm(
+                delta.astype(np.float32) - d_true))
+            err_naive = float(np.linalg.norm((sq - hq) - d_true))
+
+            if n_d == 0.0:
+                # Upstream of the injection the two arms are bit-identical.
+                # Any ratio here is 0/0; say so instead of printing 1e+30.
+                snr_recon = None
+                snr_naive = None
+                delta_note = ("两条流在同步窗口内逐位相同（注入点上游按构造如此），"
+                              "没有 Δ，也没有可比的 SNR")
+            else:
+                snr_recon = n_d / max(err_delta, 1e-30)
+                snr_naive = n_d / max(err_naive, 1e-30)
+                delta_note = ""
             arm_meta["delta"] = {
                 "file": f"pc_{pid}_delta_L{L}.bin",
                 "T": int(m), "D": args.d_model, "n_bytes": nb,
@@ -270,10 +297,24 @@ def main() -> int:
                 "steered_reconstructed_as": "control (float32) + delta (float32)",
                 "reconstruction_snr": snr_recon,
                 "snr_if_differencing_stored_arms": snr_naive,
+                "delta_is_exactly_zero": n_d == 0.0,
+                "why_separate_file": (
+                    "Size, not precision. Differencing the two fp16 arms in "
+                    "float32 is exact for this data, because they are stored as "
+                    "fp16 to begin with — there is no rounding left to lose. "
+                    "Shipping delta costs 4.2MB per arm per layer of storage "
+                    "and saves 4.2MB by not shipping the steered arm at all."
+                    if snr_recon is not None else delta_note),
             }
-            row.append(f"  L{L:<3d} delta    T={m:<5d} {nb/1e6:6.1f}MB  "
-                       f"重建 SNR={snr_recon:8.0f}  "
-                       f"(若相减两条流 只有 {snr_naive:6.1f})")
+            if snr_recon is None:
+                row.append(f"  L{L:<3d} delta    T={m:<5d} {nb/1e6:6.1f}MB  "
+                           f"Δ 精确为 0（注入点上游），无 SNR 可报")
+            else:
+                naive_txt = ("精确（误差 0）" if err_naive == 0.0
+                             else f"{snr_naive:.0f}")
+                row.append(f"  L{L:<3d} delta    T={m:<5d} {nb/1e6:6.1f}MB  "
+                           f"经 delta 取 Δ 的 SNR={snr_recon:8.0f}  "
+                           f"(经相减两条流 {naive_txt})")
 
             e = rec.get("paired", {}).get("per_layer", {}).get(str(L), {})
             if e:
