@@ -22,8 +22,10 @@
 import { launch, CDP, Page } from '../browser_verify/cdp_client.mjs';
 import { mkdirSync } from 'node:fs';
 
-const URL = 'http://localhost:8917/latent/index.html';
-const SHOTS = '/Users/zhourui/code/steer3d/.cache/responsive_shots';
+// Point at the clean-room server to check the DELIVERED tarball. The working
+// tree being green says nothing about the artefact the user downloads.
+const URL = process.env.RESP_URL || 'http://localhost:8917/latent/index.html';
+const SHOTS = process.env.RESP_SHOTS || '/Users/zhourui/code/steer3d/.cache/responsive_shots';
 mkdirSync(SHOTS, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -37,7 +39,8 @@ const WIDTHS = [1600, 1280, 1100, 1024, 900, 768, 720, 560, 430, 390];
 const HEIGHTS = [1100, 1000, 900, 800, 720, 640];
 
 const { proc, version } = await launch({
-  port: 9363, userDataDir: '/Users/zhourui/code/steer3d/.cache/responsive/profile',
+  port: Number(process.env.RESP_PORT || 9363),
+  userDataDir: '/Users/zhourui/code/steer3d/.cache/responsive/profile',
   url: 'about:blank' });
 const cdp = await CDP.connect(
   `ws://127.0.0.1:9363/devtools/browser/${version.webSocketDebuggerUrl.split('/').pop()}`);
