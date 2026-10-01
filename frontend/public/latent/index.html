@@ -209,6 +209,13 @@ const S = {
 
 const DEC = new TextDecoder("utf-8");
 
+// A full turn. Writing 7 instead of TAU draws 401° — a complete circle plus
+// an overlapping 41° — and the doubled-up anti-aliased pixels are enough to
+// pull a marker's measured centroid about 0.3-0.7px away from the coordinate
+// it is supposed to be marking. Small, but it is the difference between a
+// readout that can be checked against the model and one that cannot.
+const TAU = Math.PI * 2;
+
 async function fetchBuf(url){
   const r = await fetch(url);
   if(!r.ok) throw new Error(url + " → HTTP " + r.status);
@@ -570,7 +577,7 @@ function drawDelta(){
     g.fillStyle="#3ddc97";
     for(let k=0;k<S.pT;k+=2){
       g.beginPath();
-      g.arc(sx(S.pProjC[2*k]+S.pProjD[2*k]), sy(S.pProjC[2*k+1]+S.pProjD[2*k+1]), 2.0, 0, 7);
+      g.arc(sx(S.pProjC[2*k]+S.pProjD[2*k]), sy(S.pProjC[2*k+1]+S.pProjD[2*k+1]), 2.0, 0, TAU);
       g.fill();
     }
   }
@@ -630,7 +637,7 @@ function drawDelta(){
                          Math.abs(dy0),Math.abs(dy1))*0.85;
   gd.fillStyle="#ff6b81";
   for(let k=0;k<S.pT;k++){
-    gd.beginPath(); gd.arc(dxs(S.pProjD[2*k]), dys(S.pProjD[2*k+1]), 1.7, 0, 7); gd.fill();
+    gd.beginPath(); gd.arc(dxs(S.pProjD[2*k]), dys(S.pProjD[2*k+1]), 1.7, 0, TAU); gd.fill();
   }
   if(S.pUnitProj){
     const ux=dxs(S.pUnitProj[0]*reach), uy=dys(S.pUnitProj[1]*reach);
@@ -647,7 +654,7 @@ function drawDelta(){
   }
   if(S.tok < S.pT){
     gd.strokeStyle="#5cc8ff"; gd.lineWidth=1.5;
-    gd.beginPath(); gd.arc(dxs(S.pProjD[2*S.tok]), dys(S.pProjD[2*S.tok+1]), 5, 0, 7); gd.stroke();
+    gd.beginPath(); gd.arc(dxs(S.pProjD[2*S.tok]), dys(S.pProjD[2*S.tok+1]), 5, 0, TAU); gd.stroke();
   }
   gd.fillStyle="#8fa0bb"; gd.font="11px monospace";
   gd.fillText("每一步的位移 Δ（独立刻度，与上图不同量纲）", 10, 16);
