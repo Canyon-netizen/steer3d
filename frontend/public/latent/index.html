@@ -30,6 +30,13 @@
              color:var(--acc);background:var(--panel2)}
   select,button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:12.5px;cursor:pointer}
   select:hover,button:hover{border-color:var(--acc)}
+  /* The global rule above is `select{width:100%}`, which is right for the
+     full-width pickers but wrong for the model switcher sitting inline in the
+     header sentence: at 100% it filled the whole 274px line, pushed the
+     sentence onto an extra line, and the left column -- which is already
+     exactly viewport-height -- grew by 25px and gave the page a scrollbar.
+     Measured, not guessed: the select came out 274px wide. */
+  #selModel{width:auto;padding:0 3px;height:15px;font-size:11px;vertical-align:middle;margin-left:6px}
   button.on{background:#0e3a52;border-color:var(--acc);color:#cdeeff}
   /* #pairRow is a flex row holding a label, a <select> and a long explanatory
      paragraph. Without flex-shrink:0 the label is the most shrinkable item, so
@@ -190,7 +197,7 @@
     <div>把「当前 token」滑块拖到第 <b>5</b> 步：它正在写 <b>'s</b>，同一行变成 <b>0.530 / 0.777</b>。意思是十个机会里它选 's 七次半，剩下几次它在犹豫。</div>
     <div>这一刻右上角「top-64 <i class="inline-gloss">候选词 = 模型此刻心里排队的字，按分数从高到低</i>」表里，第 1 名是 <b>'s</b>，第 2 名是 <b>me</b>。</div>
     <div>中间那张图上每一个点，是"这一<i class="inline-gloss">层 = 一次加工工序，共 28 道（L0 到 L27）</i>所有 token 的状态"被压成平面坐标画出来的位置。</div>
-    <div>那份状态是 <b>2048</b> 个数字<i class="inline-gloss">（维度 = 一份状态里数字的个数）</i>，画到纸上时<i class="inline-gloss">（投影 = 压成 2 个数字，好落在纸上）</i>只留 2 个。所以图上挨得近，不代表内部状态一样。</div>
+    <div>那份状态是 <b data-f="d">2048</b> 个数字<i class="inline-gloss">（维度 = 一份状态里数字的个数）</i>，画到纸上时<i class="inline-gloss">（投影 = 压成 2 个数字，好落在纸上）</i>只留 2 个。所以图上挨得近，不代表内部状态一样。</div>
     <div>那 2 个数字是用 <i class="inline-gloss">PCA = 找"最能解释差异的方向"的算法</i>挑的，<i class="inline-gloss">PC1 / PC2 = 它找到的前两根轴</i>，也就是图上那两根红箭头。</div>
     <div>拖左边「当前层」的滑块，能看这份状态在 28 道工序里怎么一步步变形。L0 是每个词的出厂编号，<i class="inline-gloss">embedding = 查表把词变成一串数字</i>，越往后越不一样。</div>
    </div>
@@ -199,8 +206,8 @@
    <div class="gitem" data-term="隐空间"><div class="gterm">隐空间<br>隐状态</div><div class="gdef"><span class="plain">模型脑子里那份"笔记"本身。它不是文字，是一串数字。</span><span class="where">在哪儿看：页面大标题、左侧「怎么读」那段、右侧「这一层在做什么」。</span></div></div>
    <div class="gitem" data-term="token"><div class="gterm">token</div><div class="gdef"><span class="plain">模型一次写的一个词的碎片，不是完整的词。</span><span class="where">在哪儿看：左边「当前 token」滑块；中间图上方那行「1983_I_1 · 's · 共 1024 步」。</span></div></div>
    <div class="gitem" data-term="候选词"><div class="gterm">候选词</div><div class="gdef"><span class="plain">模型此刻心里排队的字，按分数从高到低排成一张表。</span><span class="where">在哪儿看：右上「top-64 候选词」表。</span></div></div>
-   <div class="gitem" data-term="维度"><div class="gterm">维度</div><div class="gdef"><span class="plain">一份状态里有几个数字，这里是 2048。</span><span class="where">在哪儿看：左边「原始向量维度」。</span></div></div>
-   <div class="gitem" data-term="投影"><div class="gterm">投影</div><div class="gdef"><span class="plain">把 2048 个数字压成 2 个数字，好画在纸上。</span><span class="where">在哪儿看：中间图标题「隐空间 2D 投影 · L14」。</span></div></div>
+   <div class="gitem" data-term="维度"><div class="gterm">维度</div><div class="gdef"><span class="plain">一份状态里有几个数字，这里是 <span data-f="d">2048</span>。</span><span class="where">在哪儿看：左边「原始向量维度」。</span></div></div>
+   <div class="gitem" data-term="投影"><div class="gterm">投影</div><div class="gdef"><span class="plain">把 <span data-f="d">2048</span> 个数字压成 2 个数字，好画在纸上。</span><span class="where">在哪儿看：中间图标题「隐空间 2D 投影 · L14」。</span></div></div>
    <div class="gitem" data-term="PCA"><div class="gterm">PCA / PC1 / PC2</div><div class="gdef"><span class="plain">找"最能解释差异的方向"的算法；前两根轴叫 PC1、PC2。</span><span class="where">在哪儿看：顶部副标题；图例里的「PC1/PC2 轴」。</span></div></div>
    <div class="gitem" data-term="层"><div class="gterm">层 / block</div><div class="gdef"><span class="plain">一次加工工序，一共有 28 道（L0 到 L27）。</span><span class="where">在哪儿看：左边「当前层 L14」滑块，以及它下面那行 L0 / Lk 的说明。</span></div></div>
    <div class="gitem" data-term="embedding"><div class="gterm">embedding</div><div class="gdef"><span class="plain">查表把一个词变成一串数字，模型内部的出厂编号。</span><span class="where">在哪儿看：左边「相对 embedding 移动」。</span></div></div>
@@ -213,15 +220,15 @@
 
    <h2>四 · 本页不主张的 4 种说法</h2>
    <p>下面这些是新手最自然会形成的理解。它们在这个页面上<i class="inline-gloss">曾经被当成结论写出来过，后来被实测数据否掉了</i>，所以现在不主张。</p>
-   <div class="noitem"><span class="claim">「干预把候选词的分数重新排了一遍，所以能解释模型为什么选这个词。」</span>否掉的依据：改口时真正变了的 logit，只占整份状态被推动量的 <b>0.0%–20.7%</b>；真正参与的维度是 <b>587–831</b> / 2048。两个量级不是一回事，解释不成立。</div>
+   <div class="noitem"><span class="claim">「干预把候选词的分数重新排了一遍，所以能解释模型为什么选这个词。」</span>否掉的依据：改口时真正变了的 logit，只占整份状态被推动量的 <b data-f="ret">0.0%–20.7%</b>；真正参与的维度是 <b data-f="neff">587–831</b> / <span data-f="d">2048</span>。两个量级不是一回事，解释不成立。</div>
    <div class="noitem"><span class="claim">「换一个词，是因为草稿被挪了位置。」</span>否掉的依据：逐个词拆开看，位移与改口的关系不是这样，而且方向还写反了。</div>
-   <div class="noitem"><span class="claim">「状态已经被压到少数几个方向上，其余维度都清零了。」</span>否掉的依据：页面上那个"收拢程度"的数字来自 2D 散点的形状，从 2 个数推不出 2048 个数被压成了几个。</div>
+   <div class="noitem"><span class="claim">「状态已经被压到少数几个方向上，其余维度都清零了。」</span>否掉的依据：页面上那个"收拢程度"的数字来自 2D 散点的形状，从 2 个数推不出 <span data-f="d">2048</span> 个数被压成了几个。</div>
    <div class="noitem"><span class="claim">「干预是把答案推向某个方向。」</span>否掉的依据：逐个词拆开有三种机制——两头一起发力、只压低败者、只抬高胜者，没有单一机制。</div>
 
    <h2>五 · 这些数字的边界</h2>
    <ul class="lim">
     <li>只有 <b>6</b> 道题做过"干预 vs 对照"（题号 1983 到 1988 连续 6 道），而且全是同一族的美式数学竞赛题。</li>
-    <li>只有 <b>1</b> 个模型：Qwen3-1.7B。</li>
+    <li>本页是 <b data-f="label">Qwen3-1.7B</b>；两个尺寸都收录了（层数相同、只差宽度），换模型家族没测过。</li>
     <li>只有 <b>1</b> 个干预方向（第 20 层往残差流里推"推高自信"，强度 0.2），换别的方向没测过。</li>
     <li>所以这些是"在这一小块地方看到了什么"，不是"对所有模型、所有题都成立"。</li>
    </ul>
@@ -241,8 +248,8 @@
   <!-- ========== 左：控制 ========== -->
   <div class="col">
     <div class="panel">
-      <h1>Qwen3-1.7B 隐空间观察台</h1>
-      <div class="sub">拖动层滑块或播放 token，隐空间里的点是<strong style="color:var(--acc)">实时用该层自己的 PCA 基从原始 2048 维向量算出来</strong>的，不是预渲染图。<button id="btnOrient" title="重新打开导读">📖 导读</button></div>
+      <h1><span data-f="label">Qwen3-1.7B</span> 隐空间观察台</h1>
+      <div class="sub">拖动层滑块或播放 token，隐空间里的点是<strong style="color:var(--acc)">实时用该层自己的 PCA 基从原始 <span data-f="d">2048</span> 维向量算出来</strong>的，不是预渲染图。<select id="selModel" style="display:none;margin-left:8px" title="切换模型：数据、层宽、以及导读里引用的数字都会一起换"></select><button id="btnOrient" title="重新打开导读">📖 导读</button></div>
     </div>
 
     <div class="panel" id="trajPanel">
@@ -289,7 +296,7 @@
           「位移 Δ」在那一步之后没有定义 —— 不是"没变化"，是"已经不是同一条路，没法比"。
         </div>
       </div>
-      <div class="stat"><span>原始向量维度</span><span id="stD">2048</span></div>
+      <div class="stat"><span>原始向量维度</span><span id="stD" data-f="d">2048</span></div>
       <div class="stat"><span>该 token 原始 token</span><span id="stRaw">—</span></div>
       <div class="stat"><span>熵 / top1 概率</span><span id="stEnt">—</span></div>
       <div class="stat"><span>‖h‖ 当前层</span><span id="stNorm">—</span></div>
@@ -476,8 +483,72 @@ function health(){
 const AUDIT_ON = /[?&]audit=1/.test(location.search);
 const AUDIT_URL = "http://localhost:8918/audit";
 
+/* ---- 模型选择 --------------------------------------------------------
+   两个尺寸的数据根不同（data/ 与 data06/），而页面里凡是取数据的路径都必须
+   跟着当前选择走。最早这里是 8 处硬编码的 "data/..."，加第二个模型时漏掉任何
+   一处都会让某一屏静默读到**另一个模型**的文件——不报错，只是画出一张看起来
+   合理的错图。所以路径一律经过 dataBase()。 */
+function dataBase(){ return S.base || "data/"; }
+
+/* Fill every [data-f] slot from the selected model's registry entry.
+   The guide quotes measured numbers (width, participating dimensions, how
+   much of the movement survives). Those differ per model, and a guide that
+   says "2048" while the page is showing a 1024-wide model is worse than no
+   guide: it is confidently, checkably false. So they are read from
+   models.json, which is generated from the analysis outputs. */
+function applyModelFacts(){
+  const m = S.model;
+  if(!m) return;
+  const v = {
+    d: m.d_model,
+    label: m.label,
+    ret: m.retention_text,
+    neff: m.n_eff_text,
+    nmodels: (S.registry && S.registry.length) || 1,
+  };
+  for(const el of document.querySelectorAll("[data-f]")){
+    const k = el.getAttribute("data-f");
+    if(v[k] !== undefined) el.textContent = v[k];
+  }
+  // 标题本身就是模型名，宽度显示在「原始向量维度」和上面那句里，层数与题数在
+  // 导读的「数据边界」一节里都写着。左栏高度本来就正好贴满视口（面板基线溢出
+  // 1px），多加一行副标题就把整页撑出 74px 滚动条——所以这里不再重复一遍。
+  trace("model facts applied: " + m.label + " d=" + m.d_model);
+}
+
+async function loadModelRegistry(){
+  let reg = null;
+  try{
+    reg = await (await fetch("models.json")).json();
+  }catch(e){ trace("models.json 不可用，只用默认模型"); }
+  const want = new URLSearchParams(location.search).get("m");
+  S.registry = (reg && reg.models) ? reg.models : [];
+  const pick = S.registry.find(x => x.id === want) || S.registry[0] || null;
+  if(pick){ S.model = pick; S.base = pick.base; }
+  buildModelPicker();
+  if(S.registry.length > 1){
+    const sel = document.getElementById("selModel");
+    if(sel){
+      sel.style.display = "";
+      sel.innerHTML = "";
+      for(const m of S.registry){
+        const o = document.createElement("option");
+        o.value = m.id;
+        o.textContent = m.short || m.label;
+        if(m === pick) o.selected = true;
+        sel.appendChild(o);
+      }
+      sel.onchange = () => { location.search = "?m=" + sel.value; };
+    }
+  }
+}
+
+function buildModelPicker(){ /* UI is injected by the markup; nothing to do */ }
+
 async function boot(){
-  const base = "data/";
+  setBar(0.01, "models.json");
+  await loadModelRegistry();
+  const base = dataBase();
   setBar(0.02, "manifest.json");
   trace("fetch manifest");
   S.m = await (await fetch(base+"manifest.json")).json();
@@ -521,6 +592,9 @@ async function boot(){
   $("#app").style.visibility = "visible";
   $("#loading").classList.add("hide");
   trace("overlay hidden");
+  // 必须在弹导读层之前填好：导读里引用的宽度、参与维度数、净效果占比都是
+  // **当前模型**的实测值。晚一步，读者会先看到一个还写着上一个模型数字的导读。
+  applyModelFacts();
   // 遮罩收掉之后再弹导读层，否则浮层会盖住"正在加载…"
   if(orientAuto) orientShow();
   layout();
@@ -531,7 +605,7 @@ async function boot(){
 async function loadTraj(i, prog){
   const t = S.m.trajectories[i];
   S.ti = i; S.tok = 0; S.projCache.clear();
-  const base = "data/";
+  const base = dataBase();
 
   setBar(prog + 0.05, "原始 hidden states 与候选词");
   // Parallel, not sequential. 28 layers x 3 files awaited one after another
@@ -593,7 +667,7 @@ function tokInfo(k){
 async function loadPairMeta(){
   if(S.pm) return true;
   try{
-    const r = await fetch("data/pairs/pairs.json");
+    const r = await fetch(dataBase()+"pairs/pairs.json");
     if(!r.ok) return false;
     S.pm = await r.json();
   }catch(e){ trace("pairs.json unavailable: " + e.message); return false; }
@@ -614,14 +688,14 @@ async function loadPairMeta(){
   // 重新拟合一次会把同一条轨迹放进另一张 2-D 图里，"点云被推走了"就会
   // 变成两个投影之间的差别而不是干预的差别。
   const [pb, mb] = await Promise.all([
-    fetchBuf("data/pca_00.bin"), fetchBuf("data/mean_00.bin")]);
+    fetchBuf(dataBase()+"pca_00.bin"), fetchBuf(dataBase()+"mean_00.bin")]);
   const D = S.pm.d_model;
   S.pComp = new Float32Array(pb);                    // (L, D, 2)
   S.pMean = new Float32Array(mb);                    // (L, D)
   S.pStrideComp = D * 2;
   trace("pair basis loaded");
   if(S.pm.steer_unit){
-    try{ S.pUnit = f16decode(await fetchBuf("data/pairs/" + S.pm.steer_unit)); }
+    try{ S.pUnit = f16decode(await fetchBuf(dataBase()+"pairs/" + S.pm.steer_unit)); }
     catch(e){ trace("steer_unit missing: " + e.message); }
   }
   return true;
@@ -660,8 +734,8 @@ async function loadPair(i){
   // rather than testing whether they happen to exist.
   if(n && n.control && S.pIdsPair !== i){
     const [bc, bs] = await Promise.all([
-      fetchBuf("data/pairs/" + n.control.file),
-      n.steered ? fetchBuf("data/pairs/" + n.steered.file) : Promise.resolve(null)]);
+      fetchBuf(dataBase()+"pairs/" + n.control.file),
+      n.steered ? fetchBuf(dataBase()+"pairs/" + n.steered.file) : Promise.resolve(null)]);
     S.pIdsC = new Int32Array(bc);
     S.pIdsS = bs ? new Int32Array(bs) : null;
     S.pIdsPair = i;
@@ -682,8 +756,8 @@ async function loadPairLayer(){
   S.pBusy = true;
   const D = S.pm.d_model;
   const [cb, db] = await Promise.all([
-    fetchBuf("data/pairs/" + a.control.file),
-    a.delta ? fetchBuf("data/pairs/" + a.delta.file) : Promise.resolve(null)]);
+    fetchBuf(dataBase()+"pairs/" + a.control.file),
+    a.delta ? fetchBuf(dataBase()+"pairs/" + a.delta.file) : Promise.resolve(null)]);
   S.pCtl = f16decode(cb);
   S.pDelta = db ? f16decode(db) : null;
   S.pCtlT = a.control.T;
@@ -1000,7 +1074,7 @@ function drawDeltaSide(){
            `</td></tr>`;
     } else {
       h += `<tr><td colspan="3" class="note" style="padding-top:10px">` +
-           `被推最多的维度（2048 维里变化最大的，同步窗口内均值）` +
+           `被推最多的维度（${S.m.d_model} 维里变化最大的，同步窗口内均值）` +
            `<br><b>这些维度不解释 token 的选择。</b>词条是该维权重最大的词，` +
            `是真的但不构成解释：净效果只占维度总运动的 0.0%–20.7%，` +
            `等效 587–831 维。详见 Finding 13</td></tr>`;
@@ -1372,7 +1446,7 @@ function renderSide(){
     const what = `这是二维投影的形状统计：散点相对自身尺度的离散度` +
                  `${(ratio*100).toFixed(0)}%（越大表示各点离中心远近差别越大，` +
                  `越小表示它们大致在同一个半径上）。` +
-                 `<b>它不告诉你信息被压进了多少维</b>——那要从 2048 维的 logit 变化去看` +
+                 `<b>它不告诉你信息被压进了多少维</b>——那要从 ${S.m.d_model} 维的 logit 变化去看` +
                  `（见「维度解读」里的说明）。`;
     if(upto < 2){
       // A single point has zero spread by construction, so the ratio is 0
@@ -1531,7 +1605,7 @@ $("#tabDelta").onclick = async () => {
     g.setTransform(S.dpr,0,0,S.dpr,0,0);
     g.clearRect(0,0,S.W,S.H);
     g.fillStyle = "#5d6d8a"; g.font = "14px monospace";
-    g.fillText("data/pairs/pairs.json 不存在 —— 这一屏还没有数据", 30, S.H/2);
+    g.fillText(dataBase()+"pairs/pairs.json 不存在 —— 这一屏还没有数据", 30, S.H/2);
     return;
   }
   // Only the layers that were kept, so the slider cannot land on a gap.
@@ -1674,6 +1748,7 @@ function orientRead(){
   try{ return localStorage.getItem(ORIENT_KEY) === "1"; }catch(e){ return false; }
 }
 function orientShow(){
+  applyModelFacts();
   $orient.classList.remove("hide");
   trace("orientation shown");
 }

@@ -98,9 +98,17 @@ def load_vocab(path: Path) -> Dict[int, str]:
     words would print as ``Ġgreater``; a reader comparing them against the
     generated text would reasonably call that a bug in the page.
     """
-    raw = json.loads(path.read_text())["model"]["vocab"]
-    inv = {int(i): t for t, i in raw.items()}
-    return {i: t.replace("Ġ", " ") for i, t in inv.items()}
+    raw = json.loads(path.read_text())
+    vocab = raw["model"]["vocab"]
+    inv = {int(i): t for t, i in vocab.items()}
+    # `model.vocab` stops at 151642. Everything from there on -- including
+    # <think> at 151667, which the trajectories actually emit -- lives in
+    # `added_tokens`. Reading only `model.vocab` therefore turned real tokens
+    # into "<id 151667>" in the output, which reads like a decode bug and is
+    # one: it is a vocab that stops 294 ids early.
+    for t in raw.get("added_tokens", []):
+        inv[int(t["id"])] = t["content"]
+    return {i: t.replace("\u0120", " ") for i, t in inv.items()}
 
 
 def load_dim_names(path: Optional[Path]) -> List[dict]:

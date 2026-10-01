@@ -121,3 +121,5 @@ datasets/models/
 # 隐空间观察台的二进制数据包：80MB 的原始 hidden state，属交付物不属源码，
 # 由 build_latent_bundle.py 重新生成。随网页一起分发，不进版本库。
 frontend/public/latent/data/
+frontend/public/latent/data06/
+.cache/pylibs/

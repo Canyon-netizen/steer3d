@@ -59,7 +59,10 @@ def is_readable(text: str) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--model-path", required=True)
+    ap.add_argument("--model-path", default="",
+                    help="Checkpoint dir. Required unless --readout is given, "
+                         "in which case only the tokenizer comes from it.")
+    args_model_required = False
     ap.add_argument("--device", default="cpu",
                     help="The unembedding is read once; CPU is faster than "
                          "moving 600 MB of weights to a busy GPU.")
@@ -68,19 +71,60 @@ def main() -> int:
                          "finding a readable piece for a dimension.")
     ap.add_argument("--names", type=int, default=6,
                     help="Readable tokens kept per dimension.")
+    ap.add_argument("--readout", default="",
+                    help="Read lm_head from an extract_readout.py .npz "
+                         "instead of loading the model. Same checkpoint, same "
+                         "matrix; only the tokenizer still comes from "
+                         "--model-path.")
+    ap.add_argument("--tokenizer", default="",
+                    help="Path to a HuggingFace tokenizer.json, used with "
+                         "--readout. Required in that mode.")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
+    if not args.readout and not args.model_path:
+        raise SystemExit("--model-path is required unless --readout is given")
+    if args.readout and not args.tokenizer:
+        raise SystemExit("--readout needs --tokenizer (a HuggingFace tokenizer.json)")
 
     t0 = time.time()
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-    tok = AutoTokenizer.from_pretrained(args.model_path)
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model_path, dtype="float32", device_map={"": args.device})
-    W = model.lm_head.weight.detach().float().cpu().numpy()   # (V, D)
-    vocab, d_model = W.shape
-    print(f"unembedding {W.shape}  loaded in {time.time()-t0:.1f}s")
-    print(f"  tied to embed_tokens: "
-          f"{getattr(model.config, 'tie_word_embeddings', None)}")
+    tied = None
+    if args.readout:
+        # The unembedding is the only thing this script needs from the model,
+        # and `extract_readout.py` already writes it to an .npz taken from the
+        # same checkpoint. Loading 1.5 GB of weights to re-read one matrix --
+        # and, on a machine whose home directory is a shared NFS mount, waiting
+        # tens of minutes for the imports -- is pure cost. Same matrix, same
+        # checkpoint; `--model-path` is then only used to find the tokenizer.
+        z = np.load(args.readout)
+        W = z["lm_head.weight"].astype(np.float32)
+        vocab, d_model = W.shape
+        # A real tokenizer, not a hand-inverted vocab dict: Qwen's BPE is
+        # byte-level, so `Ġgreater` has to come back as " greater" and a
+        # multi-byte character has to come back as that character. Building it
+        # from tokenizer.json alone is enough for PreTrainedTokenizerFast and
+        # keeps this path entirely local.
+        from transformers import PreTrainedTokenizerFast
+        tok = PreTrainedTokenizerFast(tokenizer_file=args.tokenizer)
+        print(f"unembedding {W.shape}  from readout {args.readout} "
+              f"in {time.time()-t0:.1f}s")
+        print(f"  tokenizer: {args.tokenizer}  vocab={len(tok)}")
+        # The readout npz does not carry the config, so this is not read from
+        # disk here. Both Qwen3 sizes tie the unembedding to the input
+        # embedding, and `analyse_divergence_logits` already relies on that
+        # (it verified lm_head.weight is bit-identical to embed_tokens.weight),
+        # but it is recorded as what it is rather than as a measured fact.
+        tied = None
+    else:
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+        tok = AutoTokenizer.from_pretrained(args.model_path)
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model_path, dtype="float32", device_map={"": args.device})
+        W = model.lm_head.weight.detach().float().cpu().numpy()   # (V, D)
+        vocab, d_model = W.shape
+        print(f"unembedding {W.shape}  loaded in {time.time()-t0:.1f}s")
+        tied = getattr(model.config, "tie_word_embeddings", None)
+    if not args.readout:
+        print(f"  tied to embed_tokens: {tied}")
 
     # argmax per dimension, in one pass over the (V, D) matrix.
     best_idx = np.argmax(W, axis=0)                 # (D,)
@@ -128,8 +172,13 @@ def main() -> int:
         "model_path": str(args.model_path),
         "d_model": d_model,
         "vocab": vocab,
-        "tied_word_embeddings": bool(
-            getattr(model.config, "tie_word_embeddings", False)),
+        # `tied` is set on both paths. Reading `model.config` here instead
+        # raised UnboundLocalError after all 1024 dimensions were already
+        # computed -- the same "only assigned in one branch" shape as the
+        # UnboundLocalError in measure_model_layer_norms.py, and just as fatal
+        # because the work is lost at the last line.
+        "tied_word_embeddings": bool(tied),
+        "source": "readout" if args.readout else "checkpoint",
         "n_without_readable_name": n_sparse,
         "definition": (
             "names are the tokens with the largest W_U[:, d]; a dimension's "
@@ -143,10 +192,14 @@ def main() -> int:
     print(f"\nwrote {out}  ({out.stat().st_size/1e6:.2f} MB)")
     print(f"  {n_sparse}/{d_model} dimensions had no readable token in the "
           f"top {args.depth}")
-    for d in (337, 512, 1024):
+    # Sample dimensions that exist. The list used to be the literal
+    # (337, 512, 1024), which is fine for a 2048-wide model and an IndexError
+    # for a 1024-wide one -- thrown on the last line, after the file was
+    # already written, so the run still exited non-zero on a good result.
+    for d in [x for x in (337, 512, 1024) if x < len(dims)]:
         e = dims[d]
-        print(f"  L? dim {d}: " + ", ".join(
-            f"{p['t']!r}({p['w']})" for p in e["top"][:4]))
+        print(f"  dim {d}: " + ", ".join(
+            f"{q['t']!r}({q['w']})" for q in e["top"][:4]))
     return 0
 
 
