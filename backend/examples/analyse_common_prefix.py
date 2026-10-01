@@ -54,6 +54,13 @@ def analyse(pid: str, npz_path: Path, json_path: Path, upto: int,
 
     rows: List[dict] = []
     n_repro = n_repro_stored = n_steps = 0
+    # Largest |read-out - stored| seen, per arm. Reported rather than hidden:
+    # the stored logits come from ``out.logits`` in the *model's* compute
+    # dtype, so a bfloat16 collection disagrees with an fp32 read-out by up to
+    # half a bf16 ULP (0.06 at logit 30) and that is not an error. A fixed
+    # 1e-3 threshold silently turned that into "0/10 match" on a bf16 dataset
+    # and "10/10" on an fp32 one, with nothing in the output saying which.
+    dev = {"control": 0.0, "steered": 0.0}
 
     for t in range(min(upto, k) + 1):
         entry: dict = {"t": t}
@@ -78,7 +85,11 @@ def analyse(pid: str, npz_path: Path, json_path: Path, upto: int,
             }
             n_steps += 1
             n_repro += int(per_arm[arm]["argmax"] == emitted)
-            n_repro_stored += int(abs(per_arm[arm]["logit_top1"] - st_l0) < 1e-3)
+            # The dtype-independent claim: the read-out picks the same token
+            # the model recorded as its own top-1. Exact under any compute
+            # dtype, so this is the check that can actually fail.
+            n_repro_stored += int(int(top.indices[0]) == st_id)
+            dev[arm] = max(dev[arm], abs(per_arm[arm]["logit_top1"] - st_l0))
 
         tok = per_arm["control"]["emitted"]
         # The steered arm's logit for the *shared* token, computed directly.
@@ -112,7 +123,10 @@ def analyse(pid: str, npz_path: Path, json_path: Path, upto: int,
         rows.append(entry)
 
     return {"id": pid, "k": k, "rows": rows, "n_steps": n_steps,
-            "n_repro": n_repro, "n_repro_stored": n_repro_stored}
+            "n_repro": n_repro, "n_repro_stored": n_repro_stored,
+            "max_logit_dev": dev,
+            # Half a ULP of bfloat16 at |logit| 30, the regime these run in.
+            "bf16_half_ulp_at_30": 30.0 * 2 ** -9}
 
 
 def main() -> int:
@@ -120,8 +134,15 @@ def main() -> int:
     ap.add_argument("--paired-dir", required=True)
     ap.add_argument("--readout", required=True)
     ap.add_argument("--vocab", required=True)
-    ap.add_argument("--upto", type=int, default=48,
-                    help="how many steps past the divergence to include")
+    ap.add_argument("--upto", type=int, default=8,
+                    help="how many steps PAST the divergence to include. This "
+                         "used to be an absolute step cap of 48 while the help "
+                         "text said 'past the divergence', so any problem whose "
+                         "divergence sat at step >= 48 raised StopIteration -- "
+                         "and raised it *after* the earlier problems had been "
+                         "analysed, discarding their results too. It only "
+                         "surfaced when a weaker steering strength pushed the "
+                         "divergence out to steps 50 and 86.")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
@@ -132,18 +153,31 @@ def main() -> int:
     results = []
     for npz_path in sorted(pdir.glob("pair_*.npz")):
         pid = npz_path.stem.replace("pair_", "")
-        upto = int(json.loads((pdir / f"pair_{pid}.json").read_text())
-                   ["paired"]["n_common_prefix"]) + 8
-        upto = min(upto, a.upto)
+        k_rec = int(json.loads((pdir / f"pair_{pid}.json").read_text())
+                    ["paired"]["n_common_prefix"])
+        # ``a.upto`` counts steps *past* the divergence, so the window ends at
+        # k + upto -- capped by however many steps the trajectory actually has.
+        n_avail = min(len(np.load(npz_path)["control_ids"]),
+                      len(np.load(npz_path)["steered_ids"]))
+        upto = min(k_rec + a.upto, n_avail - 1)
         r = analyse(pid, npz_path, pdir / f"pair_{pid}.json", upto, g, W, vocab)
         pre = [x for x in r["rows"] if not x["is_divergence_step"]]
-        at = next(x for x in r["rows"] if x["is_divergence_step"])
+        at = next((x for x in r["rows"] if x["is_divergence_step"]), None)
+        if at is None or not pre:
+            # A per-problem skip, recorded and reported. One bad problem must
+            # not take the other five down with it.
+            r["skipped"] = "no divergence step inside the analysed window"
+            results.append(r)
+            print(f"  {pid}  k={r['k']:3d}  跳过：{r['skipped']}")
+            continue
 
         r["summary"] = {
             "k": r["k"],
             "n_prefix_steps": len(pre),
             "readout_reproduces_emitted": f"{r['n_repro']}/{r['n_steps']}",
-            "readout_matches_stored_logits": f"{r['n_repro_stored']}/{r['n_steps']}",
+            "readout_argmax_is_stored_top1": f"{r['n_repro_stored']}/{r['n_steps']}",
+            "max_logit_dev_vs_stored": r["max_logit_dev"],
+            "bf16_half_ulp_at_30": r["bf16_half_ulp_at_30"],
             "prefix_arms_agree": sum(x["arms_agree"] for x in pre),
             "margin_control_first": pre[0]["margin_control"],
             "margin_control_last": pre[-1]["margin_control"],
@@ -165,7 +199,8 @@ def main() -> int:
         results.append(r)
         s = r["summary"]
         print(f"  {pid}  k={s['k']:3d}  读出复现 {s['readout_reproduces_emitted']}"
-              f"（对存储logit {s['readout_matches_stored_logits']}）"
+              f"（读出argmax==存储top1 {s['readout_argmax_is_stored_top1']}"
+              f"，logit最大偏差 {max(s['max_logit_dev_vs_stored'].values()):.4f}）"
               f"  margin_ctl 首{s['margin_control_first']:.2f} 末{s['margin_control_last']:.2f} "
               f"中位{s['margin_control_median']:.2f}")
         print(f"          前缀内 |dlogit| 中位 {s['dlogit_prefix_median_abs']:.2f} "
