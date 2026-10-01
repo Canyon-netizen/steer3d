@@ -25,6 +25,22 @@ python3 -m http.server 8899 --directory frontend/public
 | `vocab.json` | 完整 151936 词表（id → 文字） |
 | `dim_names.json` | 2048 个维度各自最偏向的词，由服务器上的模型算出 |
 
+## 两个模型
+
+左上角的下拉可以切换 **Qwen3-1.7B** 与 **Qwen3-0.6B**。两者层数相同（28 层）、
+只差宽度（2048 / 1024），做的是同一批 6 道题、同一个注入方向、同一强度。
+`data/` 是 1.7B，`data06/` 是 0.6B。
+
+导读里引用的宽度、参与维度数、净效果占比、随机方向基线**跟着当前模型一起换**。
+这些数字来自 `models.json`，而 `models.json` 由
+`backend/../.cache/build_model_registry.py` 从 `analyse_spread.py` 与
+`analyse_divergence_logits.py` 的输出生成——**不手写**，手写等于在实测结果旁边
+再放一份没人维护的副本。
+
+`.cache/two_model/verify_two_models.mjs` 专门验证这件事：既查渲染出的数字与
+`models.json` 一致，也查页面文本里**没有串用另一个模型的数字**，还带一个会红的
+负控。曾经因为一段没打上数据绑定的文字，让 0.6B 的视图显示着 1.7B 的结论。
+
 `data/pairs/` 是**干预 vs 对照**那一屏的数据，由
 `backend/examples/run_paired_steering.py` 采集、`build_paired_bundle.py` 打包。
 同一道题跑两遍，一遍不干预一遍在 L20 注入 steering 向量，两条是**独立**的
