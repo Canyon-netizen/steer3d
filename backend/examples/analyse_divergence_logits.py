@@ -1,0 +1,517 @@
+"""At the divergence step, say **why** one token won instead of the other.
+
+What the viewer could show before this file
+------------------------------------------
+Screens 1-4 establish that the two arms differ, by how much, in which
+directions, and *which* token each of them chose at the step where they parted.
+None of that is an explanation. "Control said ``greater``, steered said
+``exceeding``" is a fact about the output; the question the user actually
+asked -- *why this token and not that one* -- needs the read-out in the middle.
+
+The instrument: a logit lens, which is a **pure read-out**
+--------------------------------------------------------
+For Qwen3 the final stage is RMSNorm then an unembedding, with no
+mean-centering:
+
+    x(h)   = g ⊙ h / sqrt(mean(h²) + ε)          # g = model.norm.weight
+    logitᵥ = uᵥ · x(h)                            # uᵥ = lm_head row v
+
+Both ``g`` and ``u`` are constants of the checkpoint. So the logit of any
+candidate token at any stored layer is arithmetic over an ``.npz`` that is
+already on disk -- no forward pass, no KV cache, no prompt. That is the whole
+reason this analysis is affordable, and also the reason it is bounded: a lens
+read at layer L is *not* what the model computed, and the deepest layer this
+dataset stores is 26 of 28. Every number below is labelled as a lens number and
+``kl_to_final_lens`` is reported next to it as the scale of the approximation.
+
+The check that is easy to get backwards
+--------------------------------------
+"the lens predicts the token the arm actually emitted" is close to a tautology
+at layer 26 -- the true logits come from layer 28, and 26 is two blocks away.
+So the claim this file is built to test is narrower and falsifiable:
+
+    the *direction* of Δ decides the flip, not merely its size.
+
+Four read-outs of the same control residual at the divergence step, all at the
+deepest stored layer:
+
+    C1  Δ = 0                     → must reproduce the control's own token
+    C2  Δ = the real one          → must produce the steered arm's token
+    C3  Δ from a *different* problem, same layer and index
+    C4  Δ = random, norm-matched, several seeds
+
+C1 and C2 alone would be satisfied by a lens that simply echoes whatever it is
+handed. C3 and C4 are what make the number mean something: if a norm-matched
+random vector flips the token just as reliably, then "the steer caused this
+token" is not supported by this data, and the script says so.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import numpy as np
+import torch
+
+NORM_KEY = "model.norm.weight"
+HEAD_KEY = "lm_head.weight"
+# Qwen3 config.json: rms_norm_eps = 1e-06. Copied rather than re-read so that a
+# mismatch against the checkpoint is a visible literal to edit, not a default
+# that silently drifts.
+RMS_EPS = 1e-6
+
+
+# --------------------------------------------------------------------------
+# io
+# --------------------------------------------------------------------------
+def load_readout(path: Path) -> tuple:
+    z = np.load(path)
+    g = torch.from_numpy(z[NORM_KEY].astype(np.float32))
+    W = torch.from_numpy(z[HEAD_KEY].astype(np.float32))
+    return g, W
+
+
+def load_vocab(path: Path) -> Dict[int, str]:
+    """id -> surface form.
+
+    Qwen's BPE is byte-level, so the space is stored as ``Ġ``. Left as-is the
+    words would print as ``Ġgreater``; a reader comparing them against the
+    generated text would reasonably call that a bug in the page.
+    """
+    raw = json.loads(path.read_text())["model"]["vocab"]
+    inv = {int(i): t for t, i in raw.items()}
+    return {i: t.replace("Ġ", " ") for i, t in inv.items()}
+
+
+def load_dim_names(path: Optional[Path]) -> List[dict]:
+    if path is None or not path.is_file():
+        return []
+    return json.loads(path.read_text())["dims"]
+
+
+# --------------------------------------------------------------------------
+# the read-out
+# --------------------------------------------------------------------------
+def lens(h: torch.Tensor, g: torch.Tensor, W: torch.Tensor) -> torch.Tensor:
+    """Full-vocabulary lens logit vector for one residual state."""
+    x = g * h / torch.sqrt((h * h).mean() + RMS_EPS)
+    return W @ x
+
+
+def lens_rows(h: torch.Tensor, g: torch.Tensor, rows: torch.Tensor) -> torch.Tensor:
+    """Lens logits for a *subset* of tokens. Same formula, fewer columns."""
+    x = g * h / torch.sqrt((h * h).mean() + RMS_EPS)
+    return rows @ x
+
+
+def decompose(h: torch.Tensor, hp: torch.Tensor, g: torch.Tensor,
+              u: torch.Tensor) -> torch.Tensor:
+    """Per-dimension contribution to ``logit_u(hp) - logit_u(h)``.
+
+    Exact, not a first-order expansion: RMSNorm here is a diagonal scale, so
+    the difference of the read-outs is the sum of the per-coordinate
+    differences. The sum of this vector is checked against the directly
+    computed logit difference in ``verify``.
+    """
+    x = h / torch.sqrt((h * h).mean() + RMS_EPS)
+    xp = hp / torch.sqrt((hp * hp).mean() + RMS_EPS)
+    return g * u * (xp - x)
+
+
+def token_list(ids: List[int], vocab: Dict[int, str]) -> str:
+    out = []
+    for i in ids:
+        t = vocab.get(int(i))
+        out.append(t if t is not None else f"<id {i}>")
+    return repr("".join(out))
+
+
+# --------------------------------------------------------------------------
+# controls
+# --------------------------------------------------------------------------
+def counterfactual(base: torch.Tensor, delta: torch.Tensor, g: torch.Tensor,
+                   W: torch.Tensor, target: int) -> int:
+    """Which token wins when ``delta`` is added to ``base`` at the readout."""
+    return int(torch.argmax(lens(base + delta, g, W)))
+
+
+def flip_threshold(base: torch.Tensor, delta: torch.Tensor, g: torch.Tensor,
+                   W: torch.Tensor, target: int) -> Optional[float]:
+    """Smallest α in a 0..2 sweep at which ``target`` overtakes the control's
+    own choice.
+
+    Reported instead of a binary hit so that "α=1.0 is comfortably past the
+    flip" and "α=1.0 barely squeaked through" are distinguishable, and so the
+    same number can be computed for a random direction as a reference.
+    """
+    ctl = int(torch.argmax(lens(base, g, W)))
+    if ctl == target:
+        return 0.0
+    prev = False
+    for a in np.arange(0.0, 2.0001, 0.02):
+        win = int(torch.argmax(lens(base + float(a) * delta, g, W))) == target
+        if win and not prev:
+            return float(a)
+        prev = win
+    return None
+
+
+# --------------------------------------------------------------------------
+# per problem
+# --------------------------------------------------------------------------
+def analyse_one(pid: str, npz_path: Path, json_path: Path, g: torch.Tensor,
+                W: torch.Tensor, vocab: Dict[int, str], dim_names: List[dict],
+                n_random: int, seed: int) -> dict:
+    z = np.load(npz_path)
+    rec = json.loads(json_path.read_text())
+    layers = [int(x) for x in z["layers"]]
+    c_ids = [int(x) for x in z["control_ids"]]
+    s_ids = [int(x) for x in z["steered_ids"]]
+
+    k = int(rec["paired"]["n_common_prefix"])
+    if k >= min(len(c_ids), len(s_ids)):
+        return {"id": pid, "skipped": f"no divergence (n_common={k})"}
+    c_chosen, s_chosen = c_ids[k], s_ids[k]
+    if c_chosen == s_chosen:
+        return {"id": pid, "skipped": f"n_common={k} but ids agree there"}
+
+    def hs(arm: str, L: int) -> torch.Tensor:
+        return torch.from_numpy(z[f"{arm}_L{L}"][k].astype(np.float32))
+
+    out: dict = {
+        "id": pid,
+        "problem": rec.get("problem", "")[:80],
+        "step_index": k,
+        "common_tail": token_list(c_ids[max(0, k - 6):k], vocab),
+        "control_token": {"id": c_chosen, "text": vocab.get(c_chosen, f"<{c_chosen}>")},
+        "steered_token": {"id": s_chosen, "text": vocab.get(s_chosen, f"<{s_chosen}>")},
+        "per_layer": {},
+    }
+
+    # ---- lens walk over the stored layers --------------------------------
+    lens_store: Dict[tuple, torch.Tensor] = {}
+    for L in layers:
+        entry: dict = {}
+        for arm in ("control", "steered"):
+            lg = lens(hs(arm, L), g, W)
+            lens_store[(arm, L)] = lg
+            entry[arm] = {
+                "argmax": int(torch.argmax(lg)),
+                "logit_chosen": float(lg[c_chosen]),
+                "logit_steered_chosen": float(lg[s_chosen]),
+                "gap_steered_minus_control": float(lg[s_chosen] - lg[c_chosen]),
+                "top": [{"id": int(t), "text": vocab.get(int(t), ""),
+                         "logit": float(v)}
+                        for v, t in zip(*[x.tolist() for x in
+                                           torch.topk(lg, 8)])],
+            }
+        out["per_layer"][str(L)] = entry
+
+    # Fidelity of each partial read-out, measured against the *deepest stored*
+    # read-out. This is NOT fidelity against the model's true output, which
+    # would need layer 28; the name says so.
+    deep = max(layers)
+    for L in layers:
+        for arm in ("control", "steered"):
+            a = torch.log_softmax(lens_store[(arm, deep)], -1)
+            b = torch.log_softmax(lens_store[(arm, L)], -1)
+            kl = float((a.exp() * (a - b)).sum())
+            out["per_layer"][str(L)][arm]["kl_to_final_lens"] = kl
+
+    # ---- counterfactual controls at the deepest stored layer -------------
+    base = hs("control", deep)
+    real_delta = hs("steered", deep) - base
+    norm_real = float(real_delta.norm())
+
+    ctl_argmax = out["per_layer"][str(deep)]["control"]["argmax"]
+    ste_argmax = out["per_layer"][str(deep)]["steered"]["argmax"]
+    ctl_hits = (ctl_argmax == c_chosen)
+    ste_hits = (ste_argmax == s_chosen)
+
+    cf = {
+        "layer": deep,
+        "delta_norm": norm_real,
+        "C1_zero": {"argmax": counterfactual(base, torch.zeros_like(base), g, W, c_chosen),
+                    "predicts_control": None},
+        "C2_real": {"argmax": counterfactual(base, real_delta, g, W, s_chosen),
+                    "predicts_steered": None},
+        "C3_shuffled": [],
+        "C4_random": [],
+    }
+    cf["C1_zero"]["predicts_control"] = cf["C1_zero"]["argmax"] == c_chosen
+    cf["C2_real"]["predicts_steered"] = cf["C2_real"]["argmax"] == s_chosen
+    cf["flip_threshold_real"] = flip_threshold(base, real_delta, g, W, s_chosen)
+
+    # ---- the degeneracy that makes C2/C3/C4 vacuous ----------------------
+    # If the *control* base state, read at the deepest stored layer, already
+    # points at the steered arm's token, then C2 "predicting" the steered
+    # token is not evidence of anything: the target was the argmax before any
+    # delta was added, and so it will be the argmax after a random one too.
+    #
+    # This is not hypothetical. It is 2 of the 6 problems in this dataset, and
+    # with it unguarded the C4 "random" control scored 15/48 instead of 0/30 --
+    # a headline that would have read as "random perturbations reproduce the
+    # steered token" and supported exactly the wrong conclusion. A probe that
+    # a constant can satisfy must first check that the constant is not already
+    # satisfying it.
+    base_argmax = int(torch.argmax(lens(base, g, W)))
+    cf["base_argmax"] = base_argmax
+    cf["base_already_target"] = bool(base_argmax == s_chosen)
+    cf["informative"] = not cf["base_already_target"]
+
+    # ---- index-convention diagnostic -------------------------------------
+    # A2 failing does not by itself distinguish "the lens is unfaithful" from
+    # "hs is off by one". If the convention were wrong the lens would name a
+    # *neighbouring* token consistently, so record which offset it actually
+    # matches: a scattered pattern means noise, a constant +/-1 means a
+    # convention bug.
+    off = None
+    for d in (-1, 0, 1):
+        j = k + d
+        if 0 <= j < len(c_ids) and c_ids[j] == base_argmax:
+            off = d
+            break
+    out["lens_argmax_offset"] = off
+
+    # C1 doubles as a check on the index convention: if hs were off by one,
+    # the zero-delta read-out would name a different token and this goes False.
+    out["index_convention_ok"] = bool(ctl_hits)
+
+    return {"_out": out, "_cf": cf, "_base": base, "_delta": real_delta,
+            "_k": k, "_c_chosen": c_chosen, "_s_chosen": s_chosen,
+            "_lens_store": lens_store, "_layers": layers, "_deep": deep,
+            "_norm_real": norm_real, "_vocab": vocab, "_dims": dim_names,
+            "_n_random": n_random, "_seed": seed, "_npz": npz_path}
+
+
+def shuffled_control(state: dict, others: List[dict]) -> dict:
+    """C3: another problem's Δ, same layer and the same relative position.
+
+    The step index differs per problem (8..44), so the donor's Δ is taken at
+    *its own* divergence index. That is deliberate: a donor slice at a
+    matching absolute step would be a different kind of perturbation, and
+    mixing the two would make a failure ambiguous.
+    """
+    base = state["_base"]
+    hits, rows = 0, []
+    for o in others:
+        d = (o["_steered_at_deep"] - o["_control_at_deep"])
+        got = counterfactual(base, d, state["_g"], state["_W"], state["_s_chosen"])
+        ok = got == state["_s_chosen"]
+        hits += int(ok)
+        rows.append({"donor": o["_out"]["id"], "argmax": got, "predicted": ok,
+                     "text": state["_vocab"].get(got, "")})
+    return {"n": len(others), "hits": hits, "rows": rows}
+
+
+def random_control(state: dict) -> dict:
+    """C4: random direction, norm-matched. The direction is what is under test."""
+    g, W = state["_g"], state["_W"]
+    base, n = state["_base"], state["_norm_real"]
+    gen = torch.Generator().manual_seed(state["_seed"])
+    hits, thresh, rows = 0, [], []
+    for t in range(state["_n_random"]):
+        d = torch.randn(base.shape, generator=gen)
+        d = d / d.norm() * n
+        got = counterfactual(base, d, g, W, state["_s_chosen"])
+        ok = got == state["_s_chosen"]
+        hits += int(ok)
+        th = flip_threshold(base, d, g, W, state["_s_chosen"])
+        thresh.append(th)
+        rows.append({"seed_trials": t, "argmax": got, "predicted": ok,
+                     "text": state["_vocab"].get(got, ""), "flip_alpha": th})
+    fin = [t for t in thresh if t is not None]
+    return {"n": state["_n_random"], "hits": hits,
+            "median_flip_alpha": float(np.median(fin)) if fin else None,
+            "n_never_flipped": state["_n_random"] - len(fin),
+            "rows": rows}
+
+
+def verify(state: dict, out: dict) -> List[dict]:
+    """Explicit checks. Each one is a claim that could be False."""
+    g, W, dims = state["_g"], state["_W"], state["_dims"]
+    deep, k = state["_deep"], state["_k"]
+    base, delta = state["_base"], state["_delta"]
+    checks: List[dict] = []
+
+    def chk(name: str, ok: bool, detail: str) -> None:
+        checks.append({"name": name, "ok": bool(ok), "detail": detail})
+
+    # A1. The injection layer is flat *by construction*. If this is not
+    # bit-exact, the whole "the vector enters at L20" story is wrong, and every
+    # downstream number is measuring a different experiment.
+    z = np.load(state["_npz"])
+    inj = int(state.get("_inject_layer", 20))
+    if f"control_L{inj}" in z and f"steered_L{inj}" in z:
+        a = z[f"control_L{inj}"][k]
+        b = z[f"steered_L{inj}"][k]
+        chk(f"A1 L{inj} 两臂逐位相同（注入层按构造为平）",
+            bool(np.array_equal(a, b)),
+            f"max|diff|={float(np.abs(a.astype(np.float32) - b.astype(np.float32)).max()):.3e}")
+
+    # A2/A3. The lens at the deepest stored layer names each arm's own token.
+    chk("A2 对照臂 lens argmax == 实际选中的 token", out["index_convention_ok"],
+        f"lens={out['per_layer'][str(deep)]['control']['argmax']} "
+        f"actual={out['control_token']['id']}")
+    chk("A3 干预臂 lens argmax == 实际选中的 token",
+        out["per_layer"][str(deep)]["steered"]["argmax"] == out["steered_token"]["id"],
+        f"lens={out['per_layer'][str(deep)]['steered']['argmax']} "
+        f"actual={out['steered_token']['id']}")
+
+    # A4. The *between-arm* logit difference for each candidate must be exactly
+    # 0 at the injection layer -- that is what "the vector enters inside block
+    # 20" means -- and non-zero below it. The within-arm gap between the two
+    # candidates is a different quantity and is reported as a separate field;
+    # checking that one against 0 would be a category error.
+    deep_e = out["per_layer"][str(deep)]
+    inj_e = out["per_layer"][str(inj)]
+    for tag, key in (("control", "logit_chosen"), ("steered", "logit_steered_chosen")):
+        d_inj = inj_e["steered"][key] - inj_e["control"][key]
+        d_deep = deep_e["steered"][key] - deep_e["control"][key]
+        chk(f"A4 {tag} 候选词的臂间 logit 差：L{inj} 恰为 0，L{deep} 非 0",
+            d_inj == 0.0 and d_deep != 0.0,
+            f"L{inj}={d_inj:.6f}  L{deep}={d_deep:+.4f}")
+
+    # A5. The decomposition sums back to the directly computed logit change.
+    Wc = state["_W"]
+    rows = torch.stack([Wc[state["_c_chosen"]], Wc[state["_s_chosen"]]])
+    direct = (lens_rows(base + delta, g, rows) - lens_rows(base, g, rows))
+    decomp = torch.stack([decompose(base, base + delta, g, Wc[state["_c_chosen"]]),
+                          decompose(base, base + delta, g, Wc[state["_s_chosen"]])])
+    err = float((decomp.sum(1) - direct).abs().max())
+    chk("A5 逐维贡献求和 == 直接算的 logit 变化", err < 1e-3,
+        f"max|sum(contrib) - direct| = {err:.3e}")
+
+    return checks
+
+
+def name_for(dims: List[dict], i: int) -> str:
+    if i < len(dims) and dims[i].get("top"):
+        return ", ".join(t["t"] for t in dims[i]["top"][:3])
+    return ""
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--paired-dir", required=True)
+    ap.add_argument("--readout", required=True)
+    ap.add_argument("--vocab", required=True)
+    ap.add_argument("--dim-names", default="")
+    ap.add_argument("--inject-layer", type=int, default=20)
+    ap.add_argument("--top-dims", type=int, default=8)
+    ap.add_argument("--random-trials", type=int, default=8)
+    ap.add_argument("--seed", type=int, default=20261001)
+    ap.add_argument("--out", required=True)
+    a = ap.parse_args()
+
+    g, W = load_readout(Path(a.readout))
+    vocab = load_vocab(Path(a.vocab))
+    dims = load_dim_names(Path(a.dim_names) if a.dim_names else None)
+    pdir = Path(a.paired_dir)
+
+    results, checks_all, states = [], [], []
+    for npz_path in sorted(pdir.glob("pair_*.npz")):
+        pid = npz_path.stem.replace("pair_", "")
+        state = analyse_one(pid, npz_path, pdir / f"pair_{pid}.json", g, W,
+                            vocab, dims, a.random_trials, a.seed)
+        if "skipped" in state:
+            print(f"  {pid}: SKIP {state['skipped']}")
+            continue
+        out, cf = state["_out"], state["_cf"]
+        state["_g"], state["_W"] = g, W
+        state["_inject_layer"] = a.inject_layer
+        z = np.load(npz_path)
+        state["_control_at_deep"] = torch.from_numpy(
+            z[f"control_L{state['_deep']}"][state["_k"]].astype(np.float32))
+        state["_steered_at_deep"] = torch.from_numpy(
+            z[f"steered_L{state['_deep']}"][state["_k"]].astype(np.float32))
+        states.append(state)
+
+        out["controls"] = cf
+        out["checks"] = verify(state, out)
+        checks_all.extend(out["checks"])
+        results.append(out)
+        print(f"  {pid}  step {out['step_index']:3d}  "
+              f"{out['control_token']['text']!r} -> {out['steered_token']['text']!r}  "
+              f"|Δ|={cf['delta_norm']:.3f}  base已命中靶={cf['base_already_target']}  "
+              f"C2={cf['C2_real']['predicts_steered']}  offset={out['lens_argmax_offset']}")
+
+    # C3 / C4 need every problem's Δ, so they run after the per-problem pass.
+    for st, out in zip(states, results):
+        others = [o for o in states if o is not st]
+        out["controls"]["C3_shuffled"] = shuffled_control(st, others)
+        out["controls"]["C4_random"] = random_control(st)
+        c3, c4 = out["controls"]["C3_shuffled"], out["controls"]["C4_random"]
+        print(f"  {out['id']}  C3 shuffled {c3['hits']}/{c3['n']}   "
+              f"C4 random {c4['hits']}/{c4['n']}   "
+              f"random median flip α={c4['median_flip_alpha']}")
+
+    # ---- the decomposition, for the two tokens that actually decided it ----
+    for st, out in zip(states, results):
+        g_, W_, deep = st["_g"], st["_W"], st["_deep"]
+        base, delta = st["_base"], st["_delta"]
+        hp = base + delta
+        block: dict = {}
+        for tag, tid in (("won", st["_s_chosen"]), ("lost", st["_c_chosen"])):
+            c = decompose(base, hp, g_, W_[tid])
+            order = torch.argsort(c.abs(), descending=True)[:a.top_dims]
+            block[tag] = {
+                "token": {"id": tid, "text": st["_vocab"].get(tid, "")},
+                "dlogit": float(c.sum()),
+                "top_dims": [{"dim": int(i), "contribution": float(c[i]),
+                              "delta_x": float(c[i] / (g_[i] * W_[tid, i] + 1e-30)),
+                              "names": name_for(st["_dims"], int(i))}
+                             for i in order],
+            }
+        out["decomposition"] = {"layer": deep, **block}
+
+    # ---- verdict ----------------------------------------------------------
+    # Everything that involves "did the read-out land on the steered token" is
+    # counted only over the problems whose control base is not already sitting
+    # on the target. Mixing the two populations produced a wrong headline once
+    # already (see base_already_target above), so the two are reported apart.
+    inf = [r for r in results if r["controls"]["informative"]]
+    deg = [r for r in results if not r["controls"]["informative"]]
+    n = len(results)
+    agg = {
+        "n_problems": n,
+        "n_informative": len(inf),
+        "n_degenerate_base": len(deg),
+        "degenerate_ids": [r["id"] for r in deg],
+        "index_convention_ok": sum(r["index_convention_ok"] for r in results),
+        "lens_argmax_offsets": {r["id"]: r["lens_argmax_offset"] for r in results},
+        "C2_real_hits_informative": sum(
+            r["controls"]["C2_real"]["predicts_steered"] for r in inf),
+        "C3_shuffled_hits_informative": sum(
+            r["controls"]["C3_shuffled"]["hits"] for r in inf),
+        "C3_shuffled_total_informative": sum(
+            r["controls"]["C3_shuffled"]["n"] for r in inf),
+        "C4_random_hits_informative": sum(
+            r["controls"]["C4_random"]["hits"] for r in inf),
+        "C4_random_total_informative": sum(
+            r["controls"]["C4_random"]["n"] for r in inf),
+    }
+    print("\n=== 汇总 ===")
+    for kk, vv in agg.items():
+        print(f"  {kk:34s} {vv}")
+    fails = [c for c in checks_all if not c["ok"]]
+    print(f"\n=== 检查 {len(checks_all) - len(fails)}/{len(checks_all)} 通过 ===")
+    for c in fails:
+        print(f"  FAIL {c['name']}  {c['detail']}")
+
+    payload = {"schema": "divergence_logits_v1",
+               "rms_eps": RMS_EPS,
+               "inject_layer": a.inject_layer,
+               "aggregate": agg,
+               "checks": checks_all,
+               "problems": results}
+    Path(a.out).parent.mkdir(parents=True, exist_ok=True)
+    Path(a.out).write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+    print(f"\nwrote {a.out}")
+    return 0 if not fails else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

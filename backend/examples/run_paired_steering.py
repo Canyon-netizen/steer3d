@@ -220,9 +220,21 @@ def main(args) -> int:
     model, tok = load_model(args.model_path, args.device, args.dtype)
     layers = sorted({int(x) for x in args.layers.split(",")})
     n_layers = model.config.num_hidden_layers
-    bad = [L for L in layers if not (0 <= L < n_layers)]
+    # ``hidden_states`` has n_layers + 1 entries, not n_layers: [0] is the
+    # embedding output (the input to block 0) and [n_layers] is the output of
+    # the last block, which is the residual the real logits are computed from.
+    # The upper bound is therefore inclusive.
+    #
+    # Getting this wrong is not a harmless validation error. [n_layers] is the
+    # only index at which a logit read-out is the model's own computation
+    # rather than a two-blocks-short approximation, and it is the layer the
+    # "why did it pick this token" analysis needs to be exact rather than
+    # bounded. The old ``< n_layers`` silently refused to keep it.
+    bad = [L for L in layers if not (0 <= L <= n_layers)]
     if bad:
-        print(f"ERROR: layers {bad} outside 0..{n_layers - 1}")
+        print(f"ERROR: layers {bad} outside 0..{n_layers} "
+              f"(hidden_states has {n_layers + 1} entries; "
+              f"{n_layers} is the last one and is the exact read-out point)")
         return 2
     print(f"model={args.model_path}  L={n_layers} d={model.config.hidden_size}")
     print(f"layers kept: {layers}   budget: {args.max_new_tokens}   "

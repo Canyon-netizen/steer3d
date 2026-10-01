@@ -468,6 +468,79 @@ def test_layer_index_convention():
     check(off_delta == 0.0, f"clear() 之后完全不改变（{off_delta:.6f}）")
 
 
+def test_layer_upper_bound_is_inclusive():
+    """`hidden_states[n_layers]` is a valid index and must be accepted.
+
+    The tuple has ``n_layers + 1`` entries, so the old ``L < n_layers`` check
+    refused the one index that matters: ``hidden_states[n_layers]`` is the
+    residual the model's real logits are computed from, and reading a logit
+    there is arithmetic rather than a two-blocks-short approximation. The
+    refusal was a validation error, so it looked like a typo rather than a
+    scope decision -- and nothing in the other 51 checks would have noticed.
+    """
+    print("\n[8] main(): hidden_states 上界是闭区间（L28 合法）")
+
+    n = 28
+    saved = {k: getattr(P, k) for k in ("load_model", "load_problems", "run_one")}
+    ran: list = []
+
+    P.load_model = lambda *a, **k: (_MockModel(n_layers=n), _MockTok())
+    P.load_problems = lambda path, limit: [{"id": "p", "prompt": "P", "correct": None}]
+
+    def fake_run_one(model, tok, prompt, budget, layers, steer_vec, layer,
+                     log_every=256):
+        ran.append(tuple(layers))
+        # The layers `main()` resolved must be the layers the stream carries;
+        # handing back a fixed set would hide a filter that dropped the last
+        # layer between validation and the analysis.
+        return _stream_with_text("<think>t</think>\\boxed{1}", layers=tuple(layers))
+
+    P.run_one = fake_run_one
+    real_build_prompt = P.build_prompt
+    P.build_prompt = lambda tok, problem: problem
+    stub_reg = SimpleNamespace(
+        load=lambda: True, load_error="", load_layer_scales=lambda p: 28,
+        layer_rms=lambda L: 1.0, has_rms=lambda L: True,
+        unit_vector=lambda d: np.zeros(8, dtype=np.float32),
+        scaled=lambda d, s, L: np.ones(8, dtype=np.float32))
+    saved_mod = sys.modules.get("core.steering")
+    sys.modules["core.steering"] = SimpleNamespace(
+        SteeringRegistry=lambda *a, **k: stub_reg)
+
+    def _args(layers: str, outdir):
+        return SimpleNamespace(
+            model_path="mock", device="cpu", dtype="float32", problems="",
+            limit=1, max_new_tokens=4, layers=layers,
+            direction="confidence_up", strength=0.2, layer=1, outdir=str(outdir))
+
+    ok_dir, bad_dir = _TMPDIR / "l28_ok", _TMPDIR / "l28_bad"
+    for d in (ok_dir, bad_dir):
+        if d.exists():
+            shutil.rmtree(d)
+
+    try:
+        rc_ok = P.main(_args(f"4,12,20,26,{n}", ok_dir))
+        ran_ok = list(ran)          # snapshot before the rejection case runs
+        ran.clear()
+        rc_bad = P.main(_args(f"4,12,20,26,{n + 1}", bad_dir))
+    finally:
+        for k, v in saved.items():
+            setattr(P, k, v)
+        P.build_prompt = real_build_prompt
+        if saved_mod is not None:
+            sys.modules["core.steering"] = saved_mod
+
+    check(rc_ok == 0, f"L{n}（末层）被接受 (rc={rc_ok})")
+    # main() decodes twice, once per arm, so the layer list has to survive into
+    # both calls -- a filter that kept the last layer for one arm only would
+    # still produce a plausible-looking file for the other.
+    check(ran_ok == [(4, 12, 20, 26, n), (4, 12, 20, 26, n)],
+          f"两臂都带着末层进了 run_one (got {ran_ok})")
+    check(rc_bad == 2, f"L{n + 1} 越界被拒 (rc={rc_bad})")
+    check(not any(bad_dir.glob("*")) if bad_dir.exists() else True,
+          "越界时不落任何文件（不是跑一半才失败）")
+
+
 def main() -> int:
     test_alignment()
     test_eos_truncation()
@@ -476,6 +549,7 @@ def main() -> int:
     test_proj_fraction()
     test_main_record_assembly()
     test_layer_index_convention()
+    test_layer_upper_bound_is_inclusive()
     print()
     if FAILURES:
         print(f"{len(FAILURES)} FAILED: {FAILURES}")
