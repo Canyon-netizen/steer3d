@@ -1665,18 +1665,6 @@ logit 变化，`A5` 逐题核对）。把**净效果**与**绝对运动量**并�
 在 L26 测到的 6.9–11.8% 一致，并且同样指向同一个结论：剩下 83%–90% 是网络
 自己在响应，不是被加进去的那个向量。
 
-- **Finding 14 does not establish that the divergence step is random.** It
-  establishes that the divergence step is not *marked* by anything in the
-  trajectory — no jump in ‖Δ‖, no erosion of the margin (5/6), no larger logit
-  shift (3/6 had a *smaller* one). With n = 6 and one steering direction, "no
-  signal" and "a signal I did not measure" are still different claims, and only
-  the first is supported. A sweep over steering directions would be what
-  separates them.
-- **Finding 14's inference about the viewer is about layout, not code.** The
-  page juxtaposes "the residual stream was pushed 25-34%" with "the two arms
-  chose different tokens". Nothing in the code asserts a causal link; the link
-  is implied by adjacency, which is why fixing it is an editorial decision and
-  not a bug fix.
 
 ### 对"为什么是这个词"这个问题，本轮能给的答案
 
@@ -1829,3 +1817,15 @@ Finding 13 的 16% 随机方向基线是同一件事的另一个侧面：**同�
 - 只覆盖到分叉步 + 8 步。分叉之后的轨迹没有逐步分析，而那才是"干预把推理带偏了
   没有"的地方。
 - n = 6，且都是同一模型、同一题型家族、同一个注入方向。
+- **Finding 14 does not establish that the divergence step is random.** It
+  establishes that the divergence step is not *marked* by anything in the
+  trajectory — no jump in ‖Δ‖, no erosion of the margin (5/6), no larger logit
+  shift (3/6 had a *smaller* one). With n = 6 and one steering direction, "no
+  signal" and "a signal I did not measure" are still different claims, and only
+  the first is supported. A sweep over steering directions would be what
+  separates them.
+- **Finding 14's inference about the viewer is about layout, not code.** The
+  page juxtaposes "the residual stream was pushed 25-34%" with "the two arms
+  chose different tokens". Nothing in the code asserts a causal link; the link
+  is implied by adjacency, which is why fixing it is an editorial decision and
+  not a bug fix.
