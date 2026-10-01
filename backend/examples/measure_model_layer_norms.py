@@ -63,8 +63,21 @@ def main() -> int:
     td = {"bfloat16": torch.bfloat16, "float16": torch.float16,
           "float32": torch.float32}[args.dtype]
     tok = AutoTokenizer.from_pretrained(args.model_path)
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model_path, dtype=td, device_map={"": args.device})
+    # `device_map={"": device}` and `.to(device)` put the weights in exactly the
+    # same place, but only the first works when `accelerate` is absent, and
+    # transformers raises a hard ValueError instead of falling back. This node
+    # has no accelerate and nothing here shards across devices, so degrade to
+    # the dependency-free form — the same fix as `run_intervention.load_model`,
+    # and duplicated here because this script loads the model itself instead of
+    # calling that helper.
+    try:
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model_path, dtype=td, device_map={"": args.device})
+    except ValueError as exc:
+        if "accelerate" not in str(exc):
+            raise
+        model = AutoModelForCausalLM.from_pretrained(args.model_path, dtype=td)
+        model = model.to(args.device)
     model.eval()
 
     raw = json.loads(Path(args.problem_file).read_text())
@@ -75,6 +88,14 @@ def main() -> int:
             problems = [dict(v, label=v.get("id", k)) if isinstance(v, dict)
                         else {"label": k, "prompt": str(v)}
                         for k, v in raw.items()]
+    else:
+        # A bare list of problems is the format `run_long_cot.load_problems`
+        # accepts and the one the paired collector is invoked with, so it is the
+        # most likely thing a caller passes. It used to fall through to
+        # `UnboundLocalError: local variable 'problems' referenced before
+        # assignment` -- an unbound local on the *common* path, which is the
+        # kind of bug no amount of testing the dict form would have found.
+        problems = raw
     problems = problems[: args.limit]
 
     n_layers = model.config.num_hidden_layers

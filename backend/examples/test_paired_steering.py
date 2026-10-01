@@ -342,6 +342,8 @@ def test_main_record_assembly():
         strength = 0.2
         layer = 1
         outdir = ""
+        vectors_dir = ""
+        layer_profiles = ""
 
     outdir = _TMPDIR / "paired"
     if outdir.exists():
@@ -551,7 +553,8 @@ def test_layer_upper_bound_is_inclusive():
         return SimpleNamespace(
             model_path="mock", device="cpu", dtype="float32", problems="",
             limit=1, max_new_tokens=4, layers=layers,
-            direction="confidence_up", strength=0.2, layer=1, outdir=str(outdir))
+            direction="confidence_up", strength=0.2, layer=1, outdir=str(outdir),
+            vectors_dir="", layer_profiles="")
 
     ok_dir, bad_dir = _TMPDIR / "l28_ok", _TMPDIR / "l28_bad"
     for d in (ok_dir, bad_dir):
@@ -571,6 +574,15 @@ def test_layer_upper_bound_is_inclusive():
             sys.modules["core.steering"] = saved_mod
 
     check(rc_ok == 0, f"L{n}（末层）被接受 (rc={rc_ok})")
+    # A steering vector belongs to one model's residual space, so which
+    # vectors and whose layer norms produced a run has to be in the output.
+    # Otherwise two runs of "the same" experiment are indistinguishable in the
+    # artefact, and the 1.7B default silently applies to whatever ran next.
+    if ok_dir.exists():
+        for f in sorted(ok_dir.glob("pair_*.json")):
+            rec = json.loads(f.read_text())
+            check("vectors_dir" in rec and "layer_profiles" in rec,
+                  f"{f.name}: 记录了用的向量目录与 layer profiles")
     # main() decodes twice, once per arm, so the layer list has to survive into
     # both calls -- a filter that kept the last layer for one arm only would
     # still produce a plausible-looking file for the other.

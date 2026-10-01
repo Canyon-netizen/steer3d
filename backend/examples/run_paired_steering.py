@@ -293,13 +293,21 @@ def main(args) -> int:
     vec: Optional[np.ndarray] = None
     if args.strength > 0:
         from core.steering import SteeringRegistry
-        reg = SteeringRegistry(
-            Path("output/steering_vectors")
-            if Path("output/steering_vectors").is_dir() else None)
+        # A steering vector is a vector in one model's residual space: the
+        # 1.7B one is 2048-d and cannot be applied to a 0.6B model at all, and
+        # the paired layer norms are per-model too. Both paths used to be
+        # hardcoded relative to the cwd, so the only way to run a second model
+        # was to swap directories underneath the script -- which makes the run
+        # unreproducible, because nothing in the output records which model's
+        # vectors were used. `model_path` is recorded in the JSON, and now the
+        # vectors have to be passed explicitly to match it.
+        vdir = Path(args.vectors_dir) if args.vectors_dir else Path("output/steering_vectors")
+        reg = SteeringRegistry(vdir if vdir.is_dir() else None)
         if not reg.load():
             print(f"ERROR: {reg.load_error}")
             return 1
-        n_cal = reg.load_layer_scales(Path("output/layer_profiles.json"))
+        lprof = Path(args.layer_profiles) if args.layer_profiles else Path("output/layer_profiles.json")
+        n_cal = reg.load_layer_scales(lprof if lprof.is_file() else None)
         rms = reg.layer_rms(args.layer)
         print(f"direction={args.direction} strength={args.strength} "
               f"inject@L{args.layer}  ‖h‖(L{args.layer})={rms:.2f} "
@@ -357,6 +365,9 @@ def main(args) -> int:
             "inject_layer": args.layer,
             "direction": args.direction,
             "strength": args.strength,
+            "vectors_dir": str(vdir) if args.vectors_dir else "output/steering_vectors",
+            "layer_profiles": str(args.layer_profiles) if args.layer_profiles
+                              else "output/layer_profiles.json",
             "max_new_tokens": args.max_new_tokens,
             "n_steps": {"control": ctl["n_steps"]},
             "closed_think": {"control": ctl["closed_think"]},
@@ -436,6 +447,11 @@ def cli() -> int:
     ap.add_argument("--strength", type=float, default=0.2)
     ap.add_argument("--layer", type=int, default=20, help="injection layer")
     ap.add_argument("--outdir", default="output/paired")
+    ap.add_argument("--vectors-dir", default="",
+                    help="steering vectors for THIS model; the default is "
+                         "1.7B's and cannot be used on a different d_model")
+    ap.add_argument("--layer-profiles", default="",
+                    help="per-layer residual norms for THIS model")
     a = ap.parse_args()
     return main(a)
 
