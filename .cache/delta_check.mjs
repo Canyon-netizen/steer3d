@@ -270,6 +270,14 @@ if (p.layers.includes(p.inject_layer)) {
   chk(/注入/.test(injSide) && /L\d+/.test(injSide),
       "注入块那一屏写明了为什么是平的",
       (injSide.match(/进入<\/b>该块的残差[^<]*/) || [""])[0].slice(0, 60));
+  // With every dimension at exactly 0.00, ranking them and drawing ten equal
+  // bars would present "nothing happened" as "the ten most affected
+  // dimensions". The page must say the arms are bit-identical instead.
+  chk(!/▲#\d+/.test(injSide) && !/▼#\d+/.test(injSide),
+      "注入块那一屏不列出「被推最多的维度」",
+      /没有任何维度被推动/.test(injSide) ? "改为说明两条流逐位相同" : "仍列了维度");
+  chk(/没有任何维度被推动/.test(injSide),
+      "注入块那一屏明说没有维度被推动（不是「变化都很小」）");
   S.pLayer = p.layers.find(L => L > p.inject_layer) ?? p.layers[p.layers.length - 1];
   await api.loadPairLayer();
 }

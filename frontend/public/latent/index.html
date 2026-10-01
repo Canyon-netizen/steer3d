@@ -741,24 +741,37 @@ function drawDeltaSide(){
   const td = a.top_dims || [];
   if(td.length){
     const shown = td.slice(0,10);
-    h += `<tr><td colspan="3" class="note" style="padding-top:10px">` +
-         `被推最多的维度（取自 2048 维里变化最大的，同步窗口内的均值）` +
-         `<br>条长按本表内最大变化归一，括号里是绝对变化量</td></tr>`;
-    // `d.delta` is an *absolute* change in that dimension's activation
-    // (100.69, -77.48, …), not a fraction. Multiplying it by 100 and handing
-    // the result to CSS as a width percentage produces 10068% — the row
-    // overflows its cell, every bar saturates to full width, and the
-    // dimension names are pushed out of the panel entirely. Scale against the
-    // largest change in this table instead, and print the real number.
-    const maxAbs = Math.max(...shown.map(d => Math.abs(d.delta))) || 1;
-    for(const d of shown){
-      const w = Math.abs(d.delta) / maxAbs * 100;
-      const up = d.delta >= 0;
-      const names = (d.names||[]).slice(0,4).map(esc).join("、") || "—";
-      h += `<tr><td class="n" style="color:${up?"#ff8fa3":"#3ddc97"};width:52px">${up?"▲":"▼"}#${d.dim}</td>
-        <td class="bar"><div style="width:${Math.max(3,w)}%;background:${up?"#ff8fa3":"#3ddc97"}"></div></td>
-        <td class="n" style="width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${names}">${names}
-          <span class="note">${d.delta>=0?"+":""}${d.delta.toFixed(1)}</span></td></tr>`;
+    const maxAbs = Math.max(...shown.map(d => Math.abs(d.delta))) || 0;
+    if(maxAbs === 0){
+      // Every listed dimension moved by exactly 0.00, because the two arms are
+      // bit-identical over the whole window. Ranking them and drawing ten
+      // equal bars would present "nothing happened" as "here are the ten most
+      // affected dimensions". Say what is true instead.
+      h += `<tr><td colspan="3" class="note" style="padding-top:10px">` +
+           `被推最多的维度</td></tr>` +
+           `<tr><td class="note" colspan="3" style="color:#8891a4">` +
+           `这一层在同步窗口内没有任何维度被推动 —— 两条流逐位相同，` +
+           `所以不存在"哪些维度变化最大"这个问题（不是"变化都很小"，是精确为 0）。` +
+           `</td></tr>`;
+    } else {
+      h += `<tr><td colspan="3" class="note" style="padding-top:10px">` +
+           `被推最多的维度（取自 2048 维里变化最大的，同步窗口内的均值）` +
+           `<br>条长按本表内最大变化归一，括号里是绝对变化量</td></tr>`;
+      // `d.delta` is an *absolute* change in that dimension's activation
+      // (100.69, -77.48, …), not a fraction. Multiplying it by 100 and handing
+      // the result to CSS as a width percentage produces 10068% — the row
+      // overflows its cell, every bar saturates to full width, and the
+      // dimension names are pushed out of the panel entirely. Scale against the
+      // largest change in this table instead, and print the real number.
+      for(const d of shown){
+        const w = Math.abs(d.delta) / maxAbs * 100;
+        const up = d.delta >= 0;
+        const names = (d.names||[]).slice(0,4).map(esc).join("、") || "—";
+        h += `<tr><td class="n" style="color:${up?"#ff8fa3":"#3ddc97"};width:52px">${up?"▲":"▼"}#${d.dim}</td>
+          <td class="bar"><div style="width:${Math.max(3,w)}%;background:${up?"#ff8fa3":"#3ddc97"}"></div></td>
+          <td class="n" style="width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${names}">${names}
+            <span class="note">${d.delta>=0?"+":""}${d.delta.toFixed(1)}</span></td></tr>`;
+      }
     }
   }
   tb.innerHTML = h;
