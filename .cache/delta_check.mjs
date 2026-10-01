@@ -38,7 +38,7 @@ const IDS = ["pbar","pmsg","selTraj","probText","rngTok","rngLayer","valLayer",
   "valTok","mainTitle","mainSub","tblTop","genTxt","layerStory","stRaw","stEnt",
   "stNorm","stMove","stD","sideTitle","dbg","tip","app","loading","btnPlay",
   "btnDepth","tabXY","tabBar","tabDim","tabDelta","selPair","cv","cvD",
-  "pairRow","pairNote","legendDelta","legendDelta2","deltaCap","layerStory","trajPanel"];
+  "pairRow","pairNote","legendDelta","legendDelta2","deltaCap","layerStory","trajPanel","genTxt"];
 const elements = {};
 for (const id of IDS) {
   elements[id] = {
@@ -180,6 +180,68 @@ for (const r of PAIR_SWEEP.slice(0, 8)) {
       "每题侧栏读数与该题自己的 json 一致（没有拿错题对拍）",
       mism.length ? mism.map(r => `${r.want}: ${r.shown}% vs ${r.json}%`).join("; ")
                   : results.map(r => `${r.want} ${r.shown}%`).join("  "));
+}
+
+// The divergence row: the token that actually came out different. This is
+// the payoff of the whole screen, and it is the one thing that cannot be
+// synthesised from the control arm alone -- `pIdsS` was loaded since the
+// bundle shipped it and then never read, so every token on screen 4 used to be
+// the control arm's. Check it against pairs.json rather than the DOM alone.
+{
+  const V = fs.readFileSync(path.join(DATA, "vocab.json"), "utf8");
+  const vocab = JSON.parse(V).ids;
+  const rows = [];
+  for (let i = 0; i < api.S.pm.pairs.length; i++) {
+    elements.selPair.value = String(i);
+    if (typeof elements.selPair.onchange === "function") elements.selPair.onchange();
+    await api.loadPairLayer();
+    const pp = api.S.pm.pairs[api.S.pi];
+    api.S.pLayer = pp.layers.find(L => L > pp.inject_layer) ?? pp.layers[pp.layers.length - 1];
+    await api.loadPairLayer();
+    api.S.tok = 0;
+    api.S.view = "DELTA";   // render() only writes the delta panels in this view
+    api.render();
+    const side = elements.tblTop.innerHTML;
+    const txt  = elements.genTxt.innerHTML;
+    // Anchor on the "分叉点" header and read forward from there. Searching the
+    // whole sidebar for the first 对照/干预 label matches whatever came before
+    // it, which is how three of six pairs came back `undefined` and one came
+    // back with a token from the shared prefix.
+    const anchor = side.indexOf("分叉点");
+    const tail = anchor >= 0 ? side.slice(anchor) : "";
+    const grab = (label) => {
+      const m = tail.match(new RegExp("<td class=\"n\"[^>]*>" + label + "<\\/td>" +
+                                      "[\\s\\S]*?<td class=\"tok\"[^>]*>([^<]*)<"));
+      return m ? m[1].trim() : null;   // Qwen BPE tokens legitimately carry a
+    };                                  // leading space (" greater"), so trim.
+    const dc = grab("对照");
+    const ds = grab("干预");
+    // Ground truth straight from the shipped id files.
+    const g = path.join(DATA, "pairs", pp.arms._ids.control.file);
+    const h = path.join(DATA, "pairs", pp.arms._ids.steered.file);
+    const bufC = fs.readFileSync(g), bufS = fs.readFileSync(h);
+    const c = new Int32Array(bufC.buffer, bufC.byteOffset, bufC.length / 4);
+    const s2 = new Int32Array(bufS.buffer, bufS.byteOffset, bufS.length / 4);
+    const k = pp.n_common_prefix;
+    rows.push({ id: pp.id, k,
+      domC: dc, domS: ds,
+      truthC: (c[k] < vocab.length ? vocab[c[k]] : "#" + c[k]).trim(),
+      truthS: (s2[k] < vocab.length ? vocab[s2[k]] : "#" + s2[k]).trim(),
+      hasAnchor: anchor >= 0,
+      idsDiffer: c[k] !== s2[k],
+      hasText: /共同部分/.test(txt) && /对照/.test(txt) && /干预/.test(txt) });
+  }
+  const wrong = rows.filter(r => r.domC !== r.truthC || r.domS !== r.truthS);
+  chk(wrong.length === 0,
+      "分叉点显示的两个 token 与数据文件一致",
+      wrong.length ? wrong.map(r => `${r.id}: 页面 ${r.domC}/${r.domS} vs 数据 ${r.truthC}/${r.truthS}`).join("; ")
+                   : rows.map(r => `${r.id} 第${r.k}步 ${r.truthC}→${r.truthS}`).join("  "));
+  chk(rows.every(r => r.hasAnchor), "每题都渲染出了分叉点区块", `${rows.filter(r => r.hasAnchor).length}/${rows.length}`);
+  chk(rows.every(r => r.hasText), "「生成的文本」显示两臂对照（不是残留的对照臂文本）",
+      `${rows.filter(r => r.hasText).length}/${rows.length}`);
+  chk(rows.every(r => r.idsDiffer),
+      "每题在 n_common_prefix 处两个 id 确实不同（否则分叉点是编的）",
+      rows.filter(r => !r.idsDiffer).map(r => r.id).join(",") || `${rows.length} 题全部为真分叉`);
 }
 
 // Back to pair 0 for the detailed arithmetic checks below.

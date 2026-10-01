@@ -240,7 +240,7 @@ const S = {
   pm: null, pi: 0, pLayer: 0,
   pCtl: null, pDelta: null, pT: 0, pCtlT: 0, pPrefix: 0,
   pMean: null, pComp: null, pProjC: null, pProjD: null,
-  pUnit: null, pUnitProj: null, pIdsC: null, pIdsS: null, pBusy: false,
+  pUnit: null, pUnitProj: null, pIdsC: null, pIdsS: null, pIdsPair: null, pBusy: false,
   pMeta: null, pStrideComp: 0,
 };
 
@@ -494,12 +494,19 @@ async function loadPair(i){
   $("#rngLayer").value = S.pLayer;
   $("#selPair").value = i;
   const n = p.arms["_ids"];
-  if(n && n.control && !S.pIdsC){
+  // Reload whenever the pair changes. The `!S.pIdsC` guard here meant the id
+  // arrays were fetched for the first pair only and then reused forever, so
+  // switching problems kept showing problem 1's tokens under problem 5's
+  // title — and the divergence row indexed a different problem's sequence
+  // with this problem's step number. Track which pair the arrays belong to
+  // rather than testing whether they happen to exist.
+  if(n && n.control && S.pIdsPair !== i){
     const [bc, bs] = await Promise.all([
       fetchBuf("data/pairs/" + n.control.file),
       n.steered ? fetchBuf("data/pairs/" + n.steered.file) : Promise.resolve(null)]);
     S.pIdsC = new Int32Array(bc);
     S.pIdsS = bs ? new Int32Array(bs) : null;
+    S.pIdsPair = i;
   }
   await loadPairLayer();
   // The token slider's range belongs to the pair, not to the unsteered
@@ -564,6 +571,34 @@ function pairTok(){
   const k = S.tok;
   if(k >= S.pIdsC.length) return "";
   return S.vocab && S.vocab[S.pIdsC[k]] || ("#" + S.pIdsC[k]);
+}
+
+// The steered arm's own token at index k. Loaded since the bundle shipped it
+// (arms._ids.steered) and then never read: every token on this screen was the
+// *control* arm's, so the page could show how far the representation had moved
+// but not what came out differently as a result.
+function pairTokS(k){
+  if(!S.pIdsS || k < 0 || k >= S.pIdsS.length) return "";
+  return S.vocab && S.vocab[S.pIdsS[k]] || ("#" + S.pIdsS[k]);
+}
+
+// The first step at which the two streams chose different tokens, and the two
+// tokens. `n_common_prefix` is exactly that index when both streams are long
+// enough to have one; when a stream ended first there is nothing to show and
+// this returns null rather than a fabricated pair.
+function divergence(){
+  const p = S.pm && S.pm.pairs[S.pi];
+  if(!p || !S.pIdsC || !S.pIdsS) return null;
+  const k = p.n_common_prefix;
+  if(!(k < S.pIdsC.length && k < S.pIdsS.length)) return null;
+  // Guard: a prefix count that does not actually match the data would make
+  // this print two identical tokens under a "they diverged here" heading.
+  if(S.pIdsC[k] === S.pIdsS[k]) return null;
+  const from = Math.max(0, k - 6);
+  return { k,
+           tail: Array.from(S.pIdsC.slice(from, k)).map(id => S.vocab[id] || ("#"+id)).join(""),
+           ctl: S.vocab[S.pIdsC[k]] || ("#"+S.pIdsC[k]),
+           ste: S.vocab[S.pIdsS[k]] || ("#"+S.pIdsS[k]) };
 }
 
 /* ---- 第 4 屏：干预 vs 对照 ----
@@ -765,6 +800,31 @@ function drawDeltaSide(){
   if(pf != null)
     h += `<tr><td class="note">沿干预方向的比例</td><td class="tok">${(pf*100).toFixed(1)}%` +
          `<span class="note">（第 0–${Math.max(0, rel.length - 1)} 步的均值，不是第 ${S.tok} 步）</span></td></tr>`;
+
+  // The payoff row: the token that actually came out different. Everything
+  // above describes the representation; this is the consequence, in the
+  // model's own words. Without it the screen answers "how far did it move" and
+  // stops, which is half the question.
+  const dv = divergence();
+  if(dv){
+    const relLast = rel.length ? rel[dv.k - 1] : null;
+    h += `<tr><td colspan="3" class="note" style="padding-top:12px">` +
+         `分叉点：第 ${dv.k} 步，两条流在这里选了不同的词</td></tr>` +
+         `<tr><td class="note" colspan="3" class="tok" style="white-space:pre-wrap;` +
+         `word-break:break-all;color:var(--dim)">…${esc(dv.tail)}</td></tr>` +
+         `<tr><td class="n" style="color:var(--dim2);width:46px">对照</td>` +
+         `<td class="tok" colspan="2" style="font-size:13px">${esc(dv.ctl)}</td></tr>` +
+         `<tr><td class="n" style="color:var(--acc);width:46px">干预</td>` +
+         `<td class="tok" colspan="2" style="font-size:13px;color:var(--acc)">${esc(dv.ste)}</td></tr>` +
+         `<tr><td class="note" colspan="3" style="color:#8891a4">` +
+         (relLast != null
+           ? `在选这个词之前一步，残差流已经被推了 ${(relLast*100).toFixed(1)}%。` +
+             `换词是位移的结果，不是原因 —— 上面的图是原因。`
+           : `换词发生在残差位移之后。注意：两臂的 token 不同，**不等于**干预改变了` +
+             `答案的含义，有些只是同义改写或排版差异（对照左右两题就是例子）。`) +
+         `</td></tr>`;
+  }
+
   const td = a.top_dims || [];
   if(td.length){
     const shown = td.slice(0,10);
@@ -1065,6 +1125,40 @@ function renderTop(){
 
 function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
 
+/* Two texts, side by side, stopping at the divergence.
+   `#genTxt` used to be written only by renderSide(), which the DELTA branch
+   returns before reaching — so in screen 4 the "生成的文本" panel showed
+   whatever the last unsteered view left there, under a heading that invites
+   you to read it as *this* problem's output. It is now written for the pair:
+   both arms up to the fork, then each arm's own continuation. */
+function renderPairText(){
+  const p = S.pm && S.pm.pairs[S.pi];
+  const el = $("#genTxt");
+  if(!p || !S.pIdsC || !S.pIdsS){
+    el.innerHTML = '<span style="color:#8891a4">配对数据未载入</span>';
+    return;
+  }
+  const T = (arr, from, to) => {
+    let s = "";
+    for(let k=from;k<to && k<arr.length;k++) s += esc(S.vocab[arr[k]] || ("#"+arr[k]));
+    return s;
+  };
+  const k = p.n_common_prefix;
+  const head = T(S.pIdsC, 0, k);
+  const tailC = T(S.pIdsC, k, Math.min(k + 40, S.pIdsC.length));
+  const tailS = T(S.pIdsS, k, Math.min(k + 40, S.pIdsS.length));
+  const mark = t => `<b style="color:${t.c}">${esc(t.s)}</b>`;
+  el.innerHTML =
+    `<div style="margin-bottom:8px;color:var(--dim)">共同部分（第 0–${k} 步）<br>${head}</div>` +
+    `<div style="margin-bottom:6px"><span style="color:var(--dim2)">对照 ▸ </span>` +
+      `<span style="color:#8891a4">${head.slice(-14)}</span>${mark({c:"var(--dim2)", s:tailC})}</div>` +
+    `<div><span style="color:var(--acc)">干预 ▸ </span>` +
+      `<span style="color:#8891a4">${head.slice(-14)}</span>${mark({c:"var(--acc)", s:tailS})}</div>` +
+    `<div style="margin-top:6px;font-size:10.5px;color:#8891a4">` +
+      `各显示分叉后 ${Math.min(40, S.pIdsC.length - k)} 个 token。` +
+      `两臂的 token 不同，不等于答案的含义不同。</div>`;
+}
+
 function renderSide(){
   const t = S.m.trajectories[S.ti], ti = tokInfo(S.tok);
   $("#stRaw").textContent = ti.s ? JSON.stringify(ti.s).slice(1,-1) : "#"+ti.id;
@@ -1154,6 +1248,7 @@ function render(){
       : "";
     $("#mainSub").textContent += injNote;
     if(S.pm) drawDeltaSide();
+    if(S.pm) renderPairText();
     // `#layerStory` is written only by renderSide(), which this branch returns
     // before ever reaching. Left alone it kept describing the *unsteered*
     // trajectory — the panel confidently said "L7：…" while the user was
@@ -1192,6 +1287,7 @@ function render(){
   }
   $("#pairRow").style.display = "none";
   $("#trajPanel").style.display = "";
+  renderSide();
   $("#legendDelta").style.display = "none";
   $("#legendDelta2").style.display = "none";
   const t = S.m.trajectories[S.ti];
