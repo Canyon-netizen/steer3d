@@ -30,7 +30,13 @@
   .val{font-family:var(--mono);color:var(--acc);float:right}
   input[type=range]{-webkit-appearance:none;height:4px;background:var(--line);border-radius:3px;outline:none;margin:6px 0}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--acc);cursor:pointer;border:2px solid var(--bg)}
-  canvas{display:block;border-radius:8px;background:#080b11;cursor:crosshair}
+  canvas{display:block;border-radius:8px;background:#080b11;cursor:crosshair;
+         /* A flex item's default min-height is its intrinsic size, so a canvas
+            refuses to shrink below the 300x150 it was created at. With two
+            stacked canvases that floor pushes the second one off the bottom
+            of the panel — measured at 9% visible in a 1600x1100 window, i.e.
+            the delta plot was effectively not on screen at all. */
+         min-height:0}
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:6px}
   .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
   table{width:100%;border-collapse:collapse;font-size:12px}
@@ -876,9 +882,14 @@ function drawBar(){
     g.fillStyle = isTop ? "#5cc8ff" : "#8fa0bb";
     g.font = (isTop?"600 ":"") + "12px monospace";
     g.fillText(tokStr(id), 6, y+rowH*0.68);
-    const w = Math.max(1, (v-lo)/span) * wBar;
+    const w = (v-lo)/span * wBar;
+    // The floor is on the *pixel* width, not on the ratio. Ratio is in [0,1]
+    // by construction, so `Math.max(1, ratio)` is always 1 — every bar came
+    // out full width and the chart stopped encoding the score at all. That is
+    // the same class of mistake as measuring (v-best) against a (best-lo)
+    // denominator, which is what made all 28 bars zero-width before.
     g.fillStyle = isTop ? "#5cc8ff" : "#2f3d55";
-    g.fillRect(wName+70, y+rowH*0.2, w, rowH*0.55);
+    g.fillRect(wName+70, y+rowH*0.2, Math.max(2, w), rowH*0.55);
     g.fillStyle = isTop ? "#5cc8ff" : "#5d6d8a";
     g.font = "10px monospace";
     g.fillText(v.toFixed(2), wName+76+w, y+rowH*0.68);
@@ -1023,6 +1034,27 @@ function render(){
       ? p.problem.slice(0, 70) + " · 两条流同步到第 " + p.n_common_prefix + " 步"
       : "";
     if(S.pm) drawDeltaSide();
+    // The unsteered stats block still shows whatever the last non-delta view
+    // left there — ‖h‖ read 144.9 for L14 of the unsteered trajectory while
+    // the delta view was displaying L20 of a different problem, where the
+    // real value is 952.79. Either update it or blank it; a stale number that
+    // looks current is worse than no number.
+    if(S.pCtl && S.tok < S.pCtlT && S.pMeta){
+      let nrm = 0;
+      const o = S.tok * S.pm.d_model;
+      for(let d=0; d<S.pm.d_model; d++){ const x=S.pCtl[o+d]; nrm += x*x; }
+      $("#stNorm").textContent = Math.sqrt(nrm).toFixed(1) + "（对照臂）";
+      const rel = (S.pMeta.stats && S.pMeta.stats.rel_shift || [])[S.tok];
+      $("#stMove").textContent = rel != null
+        ? (rel*100).toFixed(2) + "%（被干预推走）" : "—";
+      $("#stRaw").textContent = S.pIdsC && S.pIdsC[S.tok] != null
+        ? (S.vocab ? S.vocab[S.pIdsC[S.tok]]
+                   : "#" + S.pIdsC[S.tok]) : "—";
+      $("#stEnt").textContent = "—（配对数据不含熵）";
+    } else {
+      $("#stNorm").textContent = "—"; $("#stMove").textContent = "—";
+      $("#stRaw").textContent = "—";  $("#stEnt").textContent = "—";
+    }
     health();
     return;
   }
