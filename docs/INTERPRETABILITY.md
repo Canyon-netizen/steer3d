@@ -1039,6 +1039,111 @@ round-trip tested in `--self-test`; `run_paired_steering.py` additionally
 stores both token streams in full, so the question is answerable without
 re-running this study.
 
+## Finding 12: 干预在表示上留下了什么痕迹，以及它解释不了多少
+
+Finding 11 结束时，能说的仍然只是"输出的 token 序列变了"。这个 finding 第一次
+测**表示本身**：同一道题跑两遍独立的贪心流，一遍不干预，一遍在 L20 注入
+`confidence_up` 向量，然后把两条流在同一步的残差流相减。
+
+6 道题 × 2 臂 × 1024 步，原始 2048 维向量全量保留（fp16），层取
+{4, 12, 20, 26}。
+
+### 共同前缀：两条流同步到第几步
+
+| problem | 1983 | 1984 | 1985 | 1986 | 1987 | 1988 |
+|---|---|---|---|---|---|---|
+| 共同前缀（步） | 27 | 15 | 8 | 23 | 44 | 16 |
+
+中位 19.5，范围 8–44。**分叉之后两条流各跑各的，"同一个位置的对照"不再
+存在**，所以 Δ 只在前缀窗口内有定义。这一点在页面上是硬约束而不是提示：
+滑块越过窗口时侧栏不显示任何百分比。
+
+### 注入点及其上游：Δ 精确为 0
+
+| 层 | L4 | L12 | **L20（注入块）** | L26 |
+|---|---|---|---|---|
+| 6 题的 rel_shift 最大值 | 0.000000 | 0.000000 | **0.000000** | 0.2502 – 0.3433 |
+
+L4 / L12 / L20 在全部 6 题、全部同步步上都是**逐位相同**。这不是干预失败，
+是索引约定：`output_hidden_states` 由 `@capture_outputs` 装饰器收集，它把第 0
+个块的**输入**作为第 0 项预置，之后每项记前一个块的输出，所以第 L 项就是
+**进入** block L 的残差；而向量是在 block 20 的 forward 内部加的，在该记录值
+取到**之后**。第一行可能出现变化的是 L21。
+
+在真模型上用 50.0 的探针直接验证（float32 / CPU），排除"钩子没触发"这一
+可能：
+
+```
+hs[19]  max|Δ| =  0.000000
+hs[20]  max|Δ| =  0.000000   ← 注入块，精确为零
+hs[21]  max|Δ| = 49.914597   ← 效应在这一项
+```
+
+**把注入层那一行读成"干预没起作用"，是把索引当成结果。** 这条此前写在
+`ResidualSteerer` 的 docstring 里是错的（"the block's *output*"），代码注释
+也会以同样的方式误导读者。
+
+### 下游：确实动了，而且动得不小
+
+| problem | 共同前缀 | rel_shift 均值 | rel_shift 最大 | 夹角最小 | 沿干预方向的比例 |
+|---|---|---|---|---|---|
+| 1983 | 27 | 0.2763 | 0.5147 | 0.8616 | 10.7% |
+| 1984 | 15 | 0.2849 | 0.5308 | 0.8522 | 9.3% |
+| 1985 | 8 | 0.3433 | 0.5614 | 0.8356 | 6.9% |
+| 1986 | 23 | 0.2784 | 0.5198 | 0.8585 | 10.8% |
+| 1987 | 44 | 0.2502 | 0.5512 | 0.8409 | 11.8% |
+| 1988 | 16 | 0.2805 | 0.5108 | 0.8628 | 9.2% |
+
+0.2 倍残差范数的剂量，在下游第 6 层把残差流推了 **25%–34%**，夹角最小到
+0.836（约 33°）。6 题一致，没有反例。
+
+### 最有意思的一列是最后那列
+
+`proj_fraction` 是 Δ 在**注入方向本身**上的投影占比。全部 6 题落在
+**6.9% – 11.8%**。
+
+也就是说：在注入点下游，真正"沿着你要求的方向"走的部分不到八分之一，
+**其余 88%–93% 是连带改变**。你注入的是一个方向，模型把它变成的却是一次
+大范围的状态重组。
+
+这正是"演示"和"断言"之间那道线。写"我们把置信度方向推了 20%"是对注入的
+描述；写"下游表征朝置信方向移动了 10.7%"是对结果的描述 —— 而后者才是这个
+数据集支持的强度。
+
+### 答案级效应在这个预算下依然不可测
+
+6 题 × 2 臂共 12 条流，**没有一条在 1024 步内闭合 `</think>`**。因此
+`answer` 全部为 `null`，来源标记 `unknown` —— 这是 `strict=True` 的正确
+行为：不从未闭合的截断推理里兜底抠一个整数（那是 1987 那个假信号的来源）。
+
+这与 Finding 11 在 6506 步下的结论一致：**这个模型在 AIME 上通常不会在
+1024 步内想完**。本 finding 支持的是表征层面的断言，不是答案层面的。
+
+### 口径说明
+
+本数据在 **CPU float32** 下采集（采集节点上可用的 torch 是 `2.14.1+cpu`，
+`CUDA_VISIBLE_DEVICES` 对它无效）。配对对比在同一个 float32 权重、同一套
+贪心解码下进行，Δ 是同一模型内部的差，**对比本身有效**。但
+`first_diverged`、逐 step 的 `rel_shift` 这类量对数值精度敏感，与 Finding 11
+的 GPU bf16 数字**不可横向比较**。1987 在两处都给出 43 与 44 这样的接近值，
+是巧合而非互相印证。
+
+### 一个被数据推翻的先前结论
+
+本 finding 一开始还推翻了本仓库此前写进 README 的一条结论。那条结论说"不要
+让浏览器从两条 fp16 流相减 Δ，因为 fp16 相减会把信号埋进量化噪声，实测 SNR
+低到 3.4"。在真实数据上重算：
+
+| 路线 | 恢复 Δ 的 SNR（6 题 × L26） |
+|---|---|
+| 直接读 `delta` 文件 | 5593 – 5785 |
+| 浏览器相减两条 fp16 流 | **精确，误差 0** |
+
+两条流**本身就是 fp16 存的**，`fp16 → float32 → 相减` 不引入任何新的舍入。
+那张 SNR 表描述的是另一个情形（float32 算出的量先量化再相减），它本身没错，
+但不属于这份数据。存 Δ 的真实理由因此改为**体积**：每层每题 0.1MB 对
+"多发一条臂" 的 4.2MB。
+
 ## The user's GGUF control vectors
 
 `~/test/vectors` holds llama.cpp `controlvector` files (method
@@ -1201,6 +1306,31 @@ per-layer, are the three changes that would most improve these vectors.
 
 ## What is not established
 
+- **Finding 12 shows the intervention moved the representation, not that it
+  moved it *because* of confidence.** The Δ at L26 is real and large
+  (25–34% of ‖h‖, 6/6 problems), but only 6.9–11.8% of it lies along the
+  injected direction. The remaining ~88–93% is collateral reorganisation that
+  this design cannot attribute. A mechanism claim would need a null: the same
+  dose applied in a random direction of matched norm, and a report of how much
+  of *that* Δ also lands off-axis. Without it, "the steer did what it was asked
+  and much more" is a description, not a result.
+- **Finding 12 is four layers.** {4, 12, 20, 26} straddles the injection point
+  but does not sample the 16 layers in between. The claim "the effect appears
+  downstream of the injection" is therefore supported at exactly one point
+  (L26), not as a profile. A layer sweep is what would show whether the effect
+  grows, plateaus, or decays with distance — and Finding 10 already showed
+  that effect size is not monotone in layer.
+- **Finding 12's n = 6 and every problem is the same model on the same task
+  family.** Common prefixes range 8–44, so the shorter problems contribute
+  proportionally less; the per-problem means are not equally well determined.
+  No test statistic is reported because there is no paired null to test
+  against — the two arms differ by construction.
+- **The 32k and 1024 collections are not comparable number-for-number.** The
+  paired collection ran on CPU float32 (the only torch available on the
+  capture node was `2.14.1+cpu`), while Finding 11 ran on GPU bfloat16.
+  `first_diverged_step` and per-step `rel_shift` are precision-sensitive. The
+  near-coincidence of 1987's divergence step (44 here, 43 there) is a
+  coincidence, not mutual corroboration.
 - **Finding 8 measures the runner-up, not the whole distribution.** The
   sign-agreement curve compares the chosen token against its top-1
   alternative. A step where the top-4 are nearly tied would look decisive
