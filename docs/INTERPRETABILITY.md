@@ -504,21 +504,43 @@ The zero-strength control is exact on all 72 runs — verbatim overlap
 identically 1.000, token agreement identically 1.000 — so none of this is
 the hook, the template, or the teacher forcing.
 
-### 9a: the existing data cannot answer whether the answer changed
+### 9a: the answer-level effect is not measurable, and effect sizes are
+### length-dependent
 
-**This is a limitation of the runs already on disk, not a finding.** Every
-one of the 168 traces is truncated at 60 steps, so `</think>` never closes:
-`closed_think` is 0/168 and the mean reasoning body is 221 characters. The
-model never reaches its final answer, so answer agreement is unmeasurable —
-only 7 of 168 runs contain any extractable answer at all, and 0 of those
-differ.
+Two results from a 1024-token rerun of the same 24 problems at the same dose
+(`--max-new-tokens 1024`, 96 runs, `confidence_up` and `confidence_down` at
+0 and 0.2):
 
-Reporting "the answer never changed" off this data would be exactly the
-error this file keeps retracting: a measurement that was never made. The
-honest statement is that token-level and reasoning-level effects are
-established, and the answer-level effect is **not yet measured** because the
-traces are too short to contain an answer. Re-running with
-`--max-new-tokens 1024` is what closes it; see Reproducing.
+**The answer-level effect cannot be measured at all.** Raising the budget
+from 60 to 1024 tokens extended the mean reasoning body from 221 to 3,258
+characters — the model was clearly thinking far longer — and `</think>` still
+never closed: **0 of 96**. Only 12 of 96 runs contain any extractable number
+at all. So this is not "the answer never changed"; it is "the answer never
+appeared". The 9a section of the viewer says exactly that.
+
+**Every effect size in this file is a function of generation length.** Same
+dose, same problems, same direction:
+
+| run | max tokens | token agreement | mean logit KL | verbatim overlap |
+|---|---|---|---|---|
+| short | 60 | 0.9399 | 0.1358 | 0.060 |
+| long | 1024 | 0.9953 | 0.0005 | 0.592 |
+
+The 6%-of-tokens-differ figure quoted in Findings 3b, 6 and elsewhere is
+**specific to short generations**. The reason is not subtle: the opening
+tokens of a chain of thought ("Okay", "So") are genuinely uncertain and are
+divergent under steering, and in a 60-token window they are a large fraction
+of the trace. Over 1024 tokens the model is mostly continuing reasoning that
+is already determined, which a 20%-of-state-norm vector does not overturn.
+
+So "the intervention changes 6% of tokens" and "the intervention changes
+0.5% of tokens" are both true, of different runs. **Quoting an effect size
+without the token budget is not a complete statement**, which retroactively
+qualifies every agreement number in this document.
+
+The reasoning-level effects survive this correction, because they are not
+rate-based: the traces still diverge near their first clause, and the
+divergence onset is a position, not a fraction.
 
 ## Reproducing
 
@@ -1066,9 +1088,15 @@ per-layer, are the three changes that would most improve these vectors.
   negative — intervening where the decision is legible is *not* where
   steering works best.
 - **The answer-level effect of steering is not measured** (Finding 9a). The
-  traces on disk are truncated at 60 steps and contain no completed chain of
+  traces are truncated at 60 steps and contain no completed chain of
   thought. Everything about *how the reasoning changes* is established;
-  whether the final answer changes is not.
+  whether the final answer changes is not. Raising the budget to 1024
+  tokens did not help: 0 of 96 traces close `</think>`.
+- **Every agreement and KL number in this file is tied to a token budget**
+  (Finding 9a). 60 tokens gives 0.94 / 0.136; 1024 gives 0.995 / 0.0005 for
+  the same dose and the same problems. The short-budget numbers were used
+  throughout the earlier sections and are quoted there without the budget;
+  they should be read as "at 60 tokens".
 - **Findings 2 and 4 are single-prompt.** The dose-response shape and the
   L12 destruction cliff both rest on n = 1. What carries over from the
   corpus is the layer geometry underneath them — the 80× growth and the
