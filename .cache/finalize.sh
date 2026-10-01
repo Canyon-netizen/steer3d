@@ -52,14 +52,21 @@ echo "=== 5. 体积 ==="
 du -sh "$DATA" "$DATA/pairs" 2>/dev/null
 ls "$DATA/pairs" | wc -l | xargs echo "  pairs 文件数:"
 
-echo "=== 6. 打 tar ==="
+echo "=== 6. 证据文档随包分发 ==="
+# 页面里说"详见 INTERPRETABILITY.md Finding 13/14"。只把 tar 下下来的人手上
+# 没有 docs/，那句话就指向一个不存在的文件——证据被指到了却摸不到。
+# 不做 md->html 转换：2000 多行带表格的实测记录，转错一行比没有更糟。
+cp "$REPO/docs/INTERPRETABILITY.md" "$REPO/frontend/public/latent/INTERPRETABILITY.md"
+ls -la "$REPO/frontend/public/latent/INTERPRETABILITY.md"
+
+echo "=== 7. 打 tar ==="
 cd "$REPO/frontend/public"
 tar czf "$REPO/.cache/latent_viewer.tar.gz" latent
 cd "$REPO"
 ls -la .cache/latent_viewer.tar.gz
 shasum -a 256 .cache/latent_viewer.tar.gz | tee .cache/latent_viewer.sha256
 
-echo "=== 7. 上传到 obs（zju-57 的 s3fs） ==="
+echo "=== 8. 上传到 obs（zju-57 的 s3fs） ==="
 if [ "$UPLOAD" = "0" ]; then
   echo "  跳过（--no-upload）"
 else

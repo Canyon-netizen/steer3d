@@ -33,6 +33,7 @@ const files = [
   'index.html', 'README.md', 'data/manifest.json', 'data/vocab.json',
   'data/dim_names.json', 'data/pairs/pairs.json',
   'data/divergence_readout.json', 'data06/divergence_readout.json',
+  'INTERPRETABILITY.md',
 ];
 for (const f of files) chk(existsSync(join(ROOT, f)), `包内有 ${f}`);
 
@@ -202,6 +203,19 @@ chk(dvl.text && dvl.text.includes(`第 ${q.k} 步`),
     `面板写明分叉步 = ${q.k}`);
 chk(dvl.text && dvl.text.includes((Lq.c[0].g - Lq.c[1].g).toFixed(2)),
     `面板写出第一二名差距 ${(Lq.c[0].g - Lq.c[1].g).toFixed(2)}`);
+
+// The page tells the reader to consult INTERPRETABILITY.md for Findings 13/14.
+// In the working tree that link always resolves because docs/ sits next door;
+// inside the tarball it resolves only if the file was actually shipped. A
+// dangling pointer to the evidence is worse than no pointer.
+const linkOk = await page.eval(`(()=>{
+  const a=[...document.querySelectorAll('a[href*="INTERPRETABILITY"]')];
+  return {n:a.length, hrefs:[...new Set(a.map(x=>x.getAttribute('href')))]};})()`);
+chk(linkOk.n > 0, `页面上的证据链接存在（${linkOk.n} 处）`, linkOk.hrefs.join(' '));
+for (const h of linkOk.hrefs) {
+  const r = await fetch(`http://localhost:8923/latent/${h}`, { method: 'HEAD' });
+  chk(r.ok, `证据链接在包内可打开：${h}`, 'HTTP ' + r.status);
+}
 
 chk(exceptions.length === 0, '无未捕获异常', exceptions.slice(0, 2).join(' | '));
 chk(netfail.length === 0, '无资源加载失败/中止', netfail.slice(0, 3).join(' | '));

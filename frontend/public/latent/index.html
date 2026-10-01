@@ -14,9 +14,21 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
   .wrap{display:grid;grid-template-columns:300px 1fr 320px;gap:12px;padding:12px;height:100vh;box-sizing:border-box}
+  /* height:100vh is deliberate where there is room: the right column scrolls
+     internally so the three columns stay viewport-tall and side by side. The
+     failure mode of a short window is handled by the FLOORS on the two
+     scrollable regions below -- with those, a column that cannot fit its
+     content makes the document grow and scroll, which a reader can deal with.
+     Letting the grid be `min-height:100vh` instead solves the same problem but
+     costs the desktop layout entirely: measured at 1600px the right column's
+     band went from 405px to 2489px, i.e. the internal scroller stopped being
+     one and the column became a single 2489px ribbon. */
   .col{display:flex;flex-direction:column;gap:12px;min-height:0}
+  /* Same reasoning for the two canvases: a 900px-tall window previously left
+     the main scatter at 65px of usable width once the fixed side columns took
+     their share, and nothing told the reader that was intentional. */
+  .panel.grow{flex:1;display:flex;flex-direction:column;min-height:320px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:0}
-  .panel.grow{flex:1;display:flex;flex-direction:column}
   h1{font-size:15px;font-weight:600;letter-spacing:.3px}
   h2{font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
   .sub{font-size:11px;color:var(--dim2);margin-top:3px}
@@ -161,6 +173,28 @@
     .gitem{flex-direction:column;gap:2px}
     .gterm{flex:0 0 auto}
     #orientFoot{flex-wrap:wrap;padding:9px 14px}
+  }
+  /* Below ~1100px the three-column grid has no honest answer left: 300px + 320px
+     plus gaps and padding is 668px, so the middle column -- the actual scatter
+     plot -- was down to 74px at 768 and 65px below 720. Worse, the grid's
+     intrinsic width put a 747px floor on the document, so on a 390px phone the
+     right column (which holds the "why this word" readout) sat at x=427,
+     entirely off-screen and unreachable.
+     Measured across nine widths rather than assumed; see
+     .cache/divergence/measure_responsive.mjs.
+     One column, natural order (controls, then the view, then the reading),
+     and the page simply gets taller instead of narrower. */
+  @media (max-width:1100px){
+    .wrap{grid-template-columns:1fr;min-height:0;height:auto;padding:10px}
+    .col{min-height:0}
+    /* The scroller's 300px floor was sized for a side column. Stacked, the
+       readout is the page's main content, so cap it and let the document grow. */
+    .wrap > .col:nth-child(3) > .panel.grow > div[style*="overflow-y"]{min-height:0;max-height:60vh}
+    .panel.grow{min-height:0}
+    /* Canvases get an explicit height: in a stacked column `flex:1` resolves
+       against an auto-height parent and collapses to the canvas' attribute
+       height, which is smaller than the plot deserves. */
+    .panel.grow canvas{min-height:300px}
   }
 </style>
 </head>
@@ -341,7 +375,15 @@
 
     <div class="panel grow">
       <h2 id="sideTitle">top-64 候选词</h2>
-      <div style="flex:1;overflow-y:auto;min-height:0">
+      <!-- min-height was 0, which made this the single most shrinkable thing in
+           the column: on a 800px-tall window the band measured 105px, and on a
+           640px one it measured 0 -- the whole right column collapsed to a sliver
+           while the fixed panels above and below kept their height. The 1596px
+           of content never shrank, so every reader below ~1000px of viewport
+           height had to scroll a 0-105px window to see anything. A floor here
+           is what makes the layout fail loudly (page scrolls) instead of
+           silently. -->
+      <div style="flex:1 1 auto;overflow-y:auto;min-height:300px">
         <table id="tblTop"></table>
       </div>
       <div class="note" style="margin-top:8px">
@@ -349,8 +391,9 @@
         （上面「残差流被推了」那一行），但文本改口并不是被这个位移推出来的：
         6 题里有 <span data-f="near">4 题</span>在真正改口之前就出现过<b>更险的一步</b>，同范数的<b>随机
         方向</b>也有 <span data-f="c4">16%</span> 的机会扳出同样的词。准确的说法是——改口那一刻的判决
-        本来就薄，而那个「薄」与干预关系不大。详见 docs/INTERPRETABILITY.md
-        Finding 14。<span><b>第 4 屏</b>的「为什么最后吐出的是这个词」
+        本来就薄，而那个「薄」与干预关系不大。详见
+        <a href="INTERPRETABILITY.md" target="_blank" rel="noopener"
+           style="color:var(--acc)">INTERPRETABILITY.md Finding 14</a>。<span><b>第 4 屏</b>的「为什么最后吐出的是这个词」
         给的是那一刻候选词的打分——它回答「当时在比哪两个词、差多少」，
         <b>不</b>回答「是这次位移把它掰过去的」，后者已被上面这段否掉。</span>
       </div>
@@ -1243,7 +1286,8 @@ function drawDeltaSide(){
          `<tr><td class="note" colspan="3" style="color:#8891a4">` +
          (relLast != null
            ? `换词<b>不是</b>位移的结果 —— 理由见本面板下方。` +
-             `详见 docs/INTERPRETABILITY.md Finding 14`
+             `详见 <a href="INTERPRETABILITY.md" target="_blank" rel="noopener"` +
+             ` style="color:var(--acc)">INTERPRETABILITY.md Finding 14</a>`
            : `换词发生在残差位移之后。注意：两臂的 token 不同，**不等于**干预改变了` +
              `答案的含义，有些只是同义改写或排版差异（对照左右两题就是例子）。`) +
          `</td></tr>`;
