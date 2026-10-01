@@ -115,6 +115,18 @@
         <label>配对题目</label>
         <select id="selPair" style="flex:1"></select>
         <div class="sub" id="pairNote"></div>
+        <div class="note" style="margin-top:8px">
+          <b>这一屏在做什么：</b>同一道题让模型跑两遍。一遍什么都不做（<b>对照</b>，灰），
+          一遍在 L20 往残差流里加一个「推高自信」的方向（<b>干预</b>，绿）。
+          上面那张图画两条路在隐空间里的位置；下面那张图画<b>每一步被推了多远、朝哪个方向</b>。
+          右侧写的是当前那一步的具体数字。
+          <br><br>
+          <b>为什么上下两张图刻度不同：</b>残差流本身在深层能有几千的长度，而 1% 的扰动只有几十，
+          画在同一张图上扰动就是一个看不见的点。所以下面单独用自己的刻度。
+          <br><br>
+          <b>灰掉的右侧是什么：</b>两条流只在开头若干步选出同一个词，之后就各走各的了。
+          「位移 Δ」在那一步之后没有定义 —— 不是"没变化"，是"已经不是同一条路，没法比"。
+        </div>
       </div>
       <div class="stat"><span>原始向量维度</span><span id="stD">2048</span></div>
       <div class="stat"><span>该 token 原始 token</span><span id="stRaw">—</span></div>
