@@ -130,10 +130,29 @@ const inj = await page.eval(`(()=>{
            pushed: (side.match(/被推了<\\/td><td class="tok"><b[^>]*>([\\d.]+)%/)||[])[1] || null };
 })()`);
 say('  侧栏: ' + inj.sideHead);
-const layersNamed = [...(inj.sideText + ' ' + inj.sub).matchAll(/L(\d+)/g)].map(m => +m[1]);
+// Two different namespaces share the "L<n>" spelling: the layer *slider* (the
+// layers this bundle ships, 4/12/20/26) and the readout layers in the
+// divergence panel (which also include the post-norm final layer 28). L28 is a
+// real layer -- `hidden_states[n_layers]` sits after model.norm, so 28 is where
+// the argmax is actually decided -- but there is no L28 position on the
+// slider. Scanning both with one list flagged the readout chips as bogus
+// pointers, which is the check being wrong rather than the page. So: the
+// slider-pointer scan excludes the readout block, and the readout block gets
+// its own assertion against the layers the data actually ships.
+const dvBlock = inj.sideText.indexOf('为什么最后吐出的是这个词');
+const dvText = dvBlock >= 0 ? inj.sideText.slice(dvBlock) : '';
+const navText = dvBlock >= 0 ? inj.sideText.slice(0, dvBlock) : inj.sideText;
+const layersNamed = [...(navText + ' ' + inj.sub).matchAll(/L(\d+)/g)].map(m => +m[1]);
 const bogus = layersNamed.filter(L => !avail.includes(L));
 chk(bogus.length === 0, '注入块的指路指向真实存在的层',
     bogus.length ? '指向了 L' + bogus.join(',L') : '提到 ' + [...new Set(layersNamed)].join('/'));
+if (dvText) {
+  const readoutLayers = [...dvText.matchAll(/L(\d+)/g)].map(m => +m[1]);
+  chk(readoutLayers.length > 0, '读出面板里出现了层号');
+  chk(/层滑块不是一回事|不是左边那根/.test(dvText),
+      '读出层与层滑块在文案上被区分开',
+      dvText.slice(0, 60));
+}
 chk(!/L21/.test(inj.sideText + inj.sub), '不再出现不存在的 L21');
 chk(inj.pushed === '0.00' || inj.pushed === '0.0' || inj.pushed === '0',
     '注入块读数仍精确为 0%', inj.pushed);
@@ -202,10 +221,15 @@ chk(!/L(?!26)\d/.test(l26.story || '') && /不适用|配对/.test(l26.story || '
 
 // Out-of-range token slider must still refuse to show a per-step number.
 const tokInfo = await page.dragRange('#rngTok', 0, 30);
+// `full` is the assertion target; the slice is only what the log prints. Using
+// the head as the target is how this file's own comment describes the failure
+// it was written to avoid, and the divergence block re-entered it by pushing
+// the sentence past character 260.
 const oor = await page.eval(`(()=>{const side=document.querySelector('#tblTop')?.innerHTML||'';
-  return {text: side.replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ').trim().slice(0,260),
+  const full = side.replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ').trim();
+  return {full, text: full.slice(0,260),
           hasPct: /被推了<\\/td><td class="tok"><b/.test(side)};})()`);
-chk(/无对照可比/.test(oor.text), '越界时说明没有可比的对照', oor.text.slice(0, 90));
+chk(/无对照可比/.test(oor.full), '越界时说明没有可比的对照', oor.full.slice(0, 90));
 chk(oor.hasPct === false, '越界时不显示该步的百分数');
 
 // ---- The divergence row: does it show THIS pair's tokens? ----------------
@@ -298,7 +322,7 @@ chk(oor.hasPct === false, '越界时不显示该步的百分数');
             hasDimsCaveat:/这些维度不解释 token 的选择/.test(t),
             hasCancel:/0\.0%[–-]20\.7%/.test(t),
             oldFooter:/干预向量就是要把这些分数重新排序/.test(t),
-            newFooter:/这张表不解释/.test(t),
+            newFooter:/这里的位移量不解释/.test(t),
             tail:[...document.querySelectorAll('td.note')]
                   .filter(e=>/这些维度不解释/.test(e.innerHTML))
                   .map(e=>e.innerHTML.length + ' >>> ' + e.innerHTML)};})()`);
@@ -312,7 +336,9 @@ chk(oor.hasPct === false, '越界时不显示该步的百分数');
   chk(notes.hasDimsCaveat, '维度区写明这些维度不解释 token 的选择');
   chk(!notes.oldFooter, '删掉「干预向量就是要把这些分数重新排序」（Finding 14 已否掉）',
       String(notes.oldFooter));
-  chk(notes.newFooter, '表下说明改成「这张表不解释为什么是这个 token」');
+  chk(notes.newFooter, '表下说明不再声称页面上没有解释（改为限定「位移量」）');
+  chk(!/这张表不解释/.test(await page.eval(`document.body.innerText`)),
+      '旧的矛盾句「这张表不解释为什么是这个 token」已消失');
   chk(notes.hasCancel, '维度区给出净效果/总运动 0.0%–20.7% 的抵消比例');
   for (const t of [].concat(notes.tail)) say('  维度警告: ' + String(t));
   {

@@ -345,12 +345,14 @@
         <table id="tblTop"></table>
       </div>
       <div class="note" style="margin-top:8px">
-        <b>这张表不解释「为什么是这个 token」。</b>干预确实持续把残差推走
+        <b>这里的位移量不解释「为什么是这个词」。</b>干预确实持续把残差推走
         （上面「残差流被推了」那一行），但文本改口并不是被这个位移推出来的：
         6 题里有 <span data-f="near">4 题</span>在真正改口之前就出现过<b>更险的一步</b>，同范数的<b>随机
         方向</b>也有 <span data-f="c4">16%</span> 的机会扳出同样的词。准确的说法是——改口那一刻的判决
         本来就薄，而那个「薄」与干预关系不大。详见 docs/INTERPRETABILITY.md
-        Finding 14。
+        Finding 14。<span><b>第 4 屏</b>的「为什么最后吐出的是这个词」
+        给的是那一刻候选词的打分——它回答「当时在比哪两个词、差多少」，
+        <b>不</b>回答「是这次位移把它掰过去的」，后者已被上面这段否掉。</span>
       </div>
     </div>
 
@@ -396,6 +398,11 @@ const S = {
   pMean: null, pComp: null, pProjC: null, pProjD: null,
   pUnit: null, pUnitProj: null, pIdsC: null, pIdsS: null, pIdsPair: null, pBusy: false,
   pMeta: null, pStrideComp: 0,
+
+  // 分叉步的候选词读出。页面原来只给出两条流各自吐出的那个词（两个标签），
+  // 那是「变了什么」，不是「为什么变这个」。这份数据给出那一刻模型给每个
+  // 候选词打了多高的分，以及前缀每一步第 1 名和第 2 名差多少。
+  dv: null, dvLayer: 28,
 };
 
 const DEC = new TextDecoder("utf-8");
@@ -700,6 +707,22 @@ async function loadPairMeta(){
     try{ S.pUnit = f16decode(await fetchBuf(dataBase()+"pairs/" + S.pm.steer_unit)); }
     catch(e){ trace("steer_unit missing: " + e.message); }
   }
+  // 读出数据是可选的：缺了只是第 4 屏少一块解释，不该让整块面板失败。
+  try{
+    const dr = await fetch(dataBase()+"divergence_readout.json");
+    if(dr.ok){
+      S.dv = await dr.json();
+      // 按这份数据自己声明的层来定默认层，别写死 28 —— 两个模型的层数相同
+      // 是当前的巧合，不是契约。
+      const fl = S.dv.final_layer;
+      // `layers` is a list of strings and `final_layer` is a number. Storing the
+      // number made `x === S.dvLayer` compare "28" === 28, which is false for
+      // every entry -- so the selected layer never highlighted, on first paint
+      // or after a click. A state that is right while the control that shows it
+      // is not: the reader could not tell which layer they were looking at.
+      if((S.dv.layers || []).indexOf(String(fl)) >= 0) S.dvLayer = String(fl);
+    }else trace("divergence_readout.json: HTTP " + dr.status);
+  }catch(e){ trace("divergence_readout unavailable: " + e.message); }
   return true;
 }
 
@@ -977,6 +1000,167 @@ function drawDelta(){
   gd.fillText("每一步的位移 Δ（独立刻度，与上图不同量纲）", 10, 16);
 }
 
+/* ---- 分叉步的候选词读出 -------------------------------------------------
+   页面原来在分叉点只给出两条流各自吐出的那个词。那回答的是「变了什么」，
+   不是「为什么变这个」。这里是模型做决定那一刻，各候选词的实际得分：
+   L28 是模型最终用来选词的那次读出，浅层的读出指向的是别的问题，
+   所以层是可以切的，而且必须说清浅层和末层差多少（KL）。 */
+function dvText(id){
+  return (S.vocab && S.vocab[id]) || ("#" + id);
+}
+
+function dvRows(list, emittedId, maxG, accent){
+  let h = "";
+  list.forEach(function(t, i){
+    const isEm = (t.i === emittedId);
+    const w = maxG > 0 ? Math.max(2, t.g / maxG * 100) : 2;
+    // Was #3c4a63 on a #161d2b track: the two are within a few points of each
+    // other, so ranks 2..6 drew full-width bars nobody could see. The chart
+    // looked like it showed a winner and a row of stubs, which is exactly the
+    // "it answers a different question than you think" failure. Visible slate,
+    // still recessive against the accent colours.
+    const col = i === 0 ? "#ffd479" : (isEm ? accent : "#6f83a3");
+    // 排名 + 条 + 词 + 分。词条本身要能点出全文，所以留 title。
+    h += `<div style="display:flex;align-items:center;gap:6px;margin:1px 0">` +
+         `<span class="note" style="width:12px;text-align:right;flex:0 0 auto">${i+1}</span>` +
+         `<span style="flex:0 0 34%;height:9px;background:#161d2b;border-radius:2px;overflow:hidden">` +
+         `<i style="display:block;height:100%;width:${w}%;background:${col}"></i></span>` +
+         `<span class="tok" style="flex:1 1 auto;font-size:12px;white-space:pre;` +
+         `overflow:hidden;text-overflow:ellipsis${isEm ? `;color:${accent};font-weight:600` : ""}">` +
+         `${esc(dvText(t.i))}${isEm ? " ←" : ""}</span>` +
+         `<span class="note" style="flex:0 0 auto;font-variant-numeric:tabular-nums">${t.g.toFixed(2)}</span>` +
+         `</div>`;
+  });
+  return h;
+}
+
+// 前缀每一步「第 1 名 − 第 2 名」的差距。差距小 = 那一步本来就快翻牌了。
+function dvSpark(margin){
+  const n = margin.length;
+  if(n < 2) return "";
+  const W = 240, H = 34, P = 3;
+  let mx = 0;
+  margin.forEach(r => { if(r.c > mx) mx = r.c; if(r.s > mx) mx = r.s; });
+  mx = mx > 0 ? mx : 1;
+  const px = i => P + i / (n - 1) * (W - 2 * P);
+  const py = v => H - P - (v / mx) * (H - 2 * P);
+  const cPts = margin.map((r,i) => `${px(i).toFixed(1)},${py(r.c).toFixed(1)}`).join(" ");
+  const sPts = margin.map((r,i) => `${px(i).toFixed(1)},${py(r.s).toFixed(1)}`).join(" ");
+  const di = margin.findIndex(r => r.d);
+  const dot = di >= 0
+    ? `<circle cx="${px(di).toFixed(1)}" cy="${py(margin[di].c).toFixed(1)}" r="3" fill="#ff8fa3"/>` +
+      `<line x1="${px(di).toFixed(1)}" y1="0" x2="${px(di).toFixed(1)}" y2="${H}" stroke="#ff8fa3" stroke-width="1" stroke-dasharray="2 2" opacity="0.6"/>`
+    : "";
+  return `<svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" ` +
+         `style="display:block;height:${H}px;margin-top:4px" aria-label="前缀各步第 1 名与第 2 名的分差">` +
+         `<polyline points="${sPts}" fill="none" stroke="#3ddc97" stroke-width="1" opacity="0.75"/>` +
+         `<polyline points="${cPts}" fill="none" stroke="#8fa0bb" stroke-width="1.4"/>` +
+         dot + `</svg>`;
+}
+
+function renderDivergenceReadout(){
+  const wrap = inner => `<tr><td colspan="3">${inner}</td></tr>`;
+  const p = S.pm && S.pm.pairs[S.pi];
+  if(!S.dv) return wrap(`<div class="note" style="padding-top:12px">` +
+    `候选词读出数据未载入，这一块解释缺失（不影响上面「被推了多远」那些数）。</div>`);
+  if(!p || !S.dv.problems[p.id]) return wrap(`<div class="note" style="padding-top:12px">` +
+    `这份数据里没有题目 ${p ? p.id : "?"} 的读出。</div>`);
+
+  const q = S.dv.problems[p.id];
+  const layers = (S.dv.layers || []).map(String);
+  // Coerce here too, not only where the value is set: the comparison below is
+  // strict, so a numeric layer id silently disables the highlight instead of
+  // raising anything.
+  const wantL = String(S.dvLayer);
+  const L = (q.layers && q.layers[wantL]) ? wantL
+          : (q.layers && q.layers[String(S.dv.final_layer)]) ? String(S.dv.final_layer)
+          : layers[layers.length - 1];
+  const Ld = q.layers[L] || {};
+  const finL = String(S.dv.final_layer);
+  const maxG = Math.max(
+    (Ld.c || []).reduce((a,t) => Math.max(a, t.g), 0),
+    (Ld.s || []).reduce((a,t) => Math.max(a, t.g), 0));
+
+  // Kept to the top 5 of 8 shipped. The margin argument needs only #1 and #2,
+  // and this panel's scroll band is ~305-405px: every extra row per arm pushes
+  // the steered arm's #1 -- the single most load-bearing number on the screen --
+  // out of view. The full eight are in divergence_readout.json. A regression
+  // check measures both arms' first rows against the band's bottom edge.
+  const NCAND = 5;
+  let h = `<div data-dvblock="1" style="padding-top:2px">`;
+  h += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">` +
+       `<div style="font-size:13px;font-weight:600">为什么最后吐出的是这个词，而不是另一个</div></div>`;
+  h += `<div class="note" style="margin:2px 0 4px;font-size:10.5px">` +
+       `同一句前缀（第 ${q.k} 步之前完全一样）分别喂给两条流。分数是原始打分，` +
+       `只看谁比谁高，<b>不是概率</b>。带 ← 的是各自真正吐出的词。` +
+       `<b>下面这些是「读出层」，不是左边那根层滑块</b>（滑块只有 ` +
+       `${(S.pm.pairs[S.pi].layers || []).join('/')}）。` +
+       `</div>`;
+
+  // 层选择。L28 是真正用来选词的那次读出，浅层不是。
+  h += `<div style="display:flex;gap:3px;flex-wrap:wrap;margin:0 0 6px">`;
+  layers.forEach(function(x){
+    const on = (x === L);
+    const isF = (x === finL);
+    h += `<button data-dvl="${x}" class="${on ? "on" : ""}" ` +
+         `style="width:auto;padding:3px 7px;font-size:11px">L${x}` +
+         (isF ? "·最终" : "") + `</button>`;
+  });
+  h += `</div>`;
+
+  h += `<div style="font-size:11px;color:#8891a4">对照臂（灰）</div>`;
+  h += dvRows((Ld.c || []).slice(0, NCAND), q.c_id, maxG, "#8fa0bb");
+  h += `<div style="font-size:11px;color:var(--acc);margin-top:6px">干预臂（绿）</div>`;
+  h += dvRows((Ld.s || []).slice(0, NCAND), q.s_id, maxG, "#3ddc97");
+
+  // 一句话结论：两边第一名各领先第二名多少。
+  const cm = (Ld.c && Ld.c[1]) ? Ld.c[0].g - Ld.c[1].g : null;
+  const sm = (Ld.s && Ld.s[1]) ? Ld.s[0].g - Ld.s[1].g : null;
+  const su = q.sum || {};
+  if(cm != null && sm != null && L === finL){
+    h += `<div class="note" style="margin-top:10px;padding:7px 9px;` +
+         `background:#131a28;border-left:2px solid #ffd479;border-radius:0 4px 4px 0">` +
+         `<b>这一步本来就是险的。</b>对照臂第 1 名只领先第 2 名 <b>${cm.toFixed(2)}</b> 分，` +
+         `干预臂是 <b>${sm.toFixed(2)}</b> 分 —— 换句话说，模型在改口前就已经` +
+         `几乎在「${esc(dvText((Ld.c[1]||{}).i))}」和「${esc(dvText((Ld.c[0]||{}).i))}」之间打平，` +
+         `没有哪个词是稳稳的胜者。</div>`;
+  }
+
+  // 前缀各步的领先幅度
+  if((q.margin || []).length > 1){
+    h += `<div style="font-size:11.5px;color:#8891a4;margin-top:12px">` +
+         `前面每一步，第一名领先第二名多少（越低越接近改口）</div>`;
+    h += dvSpark(q.margin);
+    h += `<div class="note" style="font-size:10.5px;color:#7b869c">` +
+         `灰＝对照臂，绿＝干预臂，竖虚线＝真正分叉的那一步。` +
+         `全程中位数：对照 ${su.m_c_med != null ? su.m_c_med.toFixed(2) : "—"} 分，` +
+         `最低到过 ${su.m_c_min != null ? su.m_c_min.toFixed(2) : "—"} 分。</div>`;
+  }
+
+  // 告诫：这一块最容易让人过度解读，所以把三件会限制结论的事写在这里。
+  const bits = [];
+  if(Ld.kl != null && L !== finL)
+    bits.push(`<b>L${L} 的读出和最终读出相差 ${Ld.kl.toFixed(1)}</b>，浅层指向的是别的问题，` +
+              `别拿它当"模型当时在想什么"`);
+  else if(Ld.kl != null)
+    bits.push(`L${L} 是最终读出，和模型实际输出同一个口径`);
+  if(su.m_c_min != null && su.m_c_last != null)
+    bits.push(`改口之前的第 ${Math.max(0, q.k-1)} 步，两词只差 <b>${su.m_c_last.toFixed(2)}</b> 分，` +
+              `比分叉那一步（${cm != null ? cm.toFixed(2) : "—"}）还小 —— ` +
+              `<b>险不是干预造成的，是本来如此</b>`);
+  if(su.dlg_med != null && su.dlg_at != null)
+    bits.push(`分叉那一步的 logit 变化 ${su.dlg_at.toFixed(2)}，前缀中位数是 ${su.dlg_med.toFixed(2)}；` +
+              `同范数的 128 个随机方向里，有 <b>${S.dv.c4_random_hits}</b> 的比例能扳出同样的词`);
+  bits.push(`两条流吐出不同的词，<b>不等于答案的含义变了</b>，有些只是同义改写`);
+  h += `<div class="note" style="margin-top:10px;font-size:11px;color:#8891a4;` +
+       `border-top:1px solid var(--line);padding-top:8px">` +
+       `<b style="color:#b9c4d6">别过度解读：</b><br>· ${bits.join("<br>· ")}` +
+       `</div>`;
+
+  h += `</div>`;
+  return wrap(h);
+}
+
 function drawDeltaSide(){
   const p = S.pm && S.pm.pairs[S.pi];
   const el = $("#sideTitle"), tb = $("#tblTop");
@@ -997,7 +1181,13 @@ function drawDeltaSide(){
   // under step 500's token: a correct-looking panel about the wrong step.
   // Beyond the window there is simply no comparison, and it has to say so.
   const inWindow = rel.length > 0 && S.tok < rel.length;
-  let h = "";
+  // The "why this word" block goes first. This panel's scroll window is 460px
+  // against ~1780px of content, and the block is ~940px of it: parked at the
+  // bottom, a reader arriving at screen 4 saw only its two-line heading and had
+  // to discover that the answer existed below the fold *inside* a small inner
+  // scroller. Everything here answers "what changed"; this answers "why", and
+  // it is the question the screen exists for.
+  let h = renderDivergenceReadout();
   h += `<tr><td class="note">注入</td><td class="tok">${p.direction} @ ${p.strength} → L${p.inject_layer}</td></tr>`;
   h += `<tr><td class="note">两条流同步到</td><td class="tok">第 ${p.n_common_prefix} 步</td></tr>`;
   if(S.pLayer <= p.inject_layer){
@@ -1101,6 +1291,11 @@ function drawDeltaSide(){
     }
   }
   tb.innerHTML = h;
+  // 层按钮在 innerHTML 之后才存在，事件只能在写入后绑。
+  const chips = tb.querySelectorAll("[data-dvl]");
+  for(let i=0;i<chips.length;i++){
+    chips[i].onclick = () => { S.dvLayer = chips[i].dataset.dvl; drawDeltaSide(); };
+  }
 }
 /* ---- 浏览器端投影：这一层自己的 PCA 基 ---- */
 function project(tok, layer){
