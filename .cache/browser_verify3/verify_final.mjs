@@ -179,6 +179,70 @@ const oor = await page.eval(`(()=>{const side=document.querySelector('#tblTop')?
 chk(/无对照可比/.test(oor.text), '越界时说明没有可比的对照', oor.text.slice(0, 90));
 chk(oor.hasPct === false, '越界时不显示该步的百分数');
 
+// ---- The divergence row: does it show THIS pair's tokens? ----------------
+// The bug this catches is not hypothetical: the id arrays used to be fetched
+// for the first pair only, so every other problem displayed problem 1's
+// tokens under its own title. Check pair 5 specifically, and compare against
+// the shipped .bin files rather than against the page's own claims.
+{
+  const truth = await page.eval(`(async () => {
+    const mf = await (await fetch('data/pairs/pairs.json')).json();
+    const V = (await (await fetch('data/vocab.json')).json()).ids;
+    const read = async (f) => new Int32Array(await (await fetch('data/pairs/'+f)).arrayBuffer());
+    const out = [];
+    for (const p of mf.pairs) {
+      const c = await read(p.arms._ids.control.file);
+      const s = await read(p.arms._ids.steered.file);
+      const k = p.n_common_prefix;
+      out.push({ id: p.id, k,
+        ctl: (V[c[k]] ?? '#'+c[k]).trim(), ste: (V[s[k]] ?? '#'+s[k]).trim() });
+    }
+    return out;
+  })()`);
+  const rowsSeen = [];
+  const opts = await page.eval(`document.querySelector('#selPair').options.length`);
+  for (let i = 0; i < opts; i++) {
+    await page.eval(`(()=>{const s=document.querySelector('#selPair');
+      s.value='${i}';
+      s.dispatchEvent(new Event('change'));
+      return 0;})()`);
+    await sleep(900);
+    const r = await page.eval(`(()=>{const h=document.querySelector('#tblTop').innerHTML;
+      const a=h.indexOf('分叉点');
+      if(a<0) return {anchor:false};
+      const t=h.slice(a);
+      const g=(l)=>{const m=t.match(new RegExp('<td class="n"[^>]*>'+l+'<\\/td>[\\s\\S]*?<td class="tok"[^>]*>([^<]*)<'));
+        return m?m[1].trim():null;};
+      // 用 [0-9] 而不是 \\d：本文件把 eval 代码写在 Node 模板字符串里，
+      // 单反斜杠 \\d 会被模板字面量吃成字面字母 d，正则就永远不匹配。
+      return {anchor:true, step:(t.match(/分叉点：第 ([0-9]+) 步/)||[])[1]||null,
+              ctl:g('对照'), ste:g('干预'),
+              title:document.querySelector('#selPair').selectedOptions[0].textContent.trim()};})()`);
+    rowsSeen.push({ i, ...r });
+  }
+  const bad = [];
+  truth.forEach((t, i) => {
+    const seen = rowsSeen[i];
+    if (!seen || !seen.anchor) { bad.push(`${t.id}: 没有分叉点区块`); return; }
+    if (String(t.k) !== String(seen.step)) bad.push(`${t.id}: 步号 ${seen.step} != ${t.k}`);
+    if (t.ctl !== seen.ctl || t.ste !== seen.ste)
+      bad.push(`${t.id}: 页面 ${seen.ctl}/${seen.ste} != 数据 ${t.ctl}/${t.ste}`);
+  });
+  chk(bad.length === 0, '逐题分叉点与 id 文件一致（没有串题）',
+      bad.length ? bad.slice(0, 3).join('; ')
+                 : truth.map(t => `${t.id}@${t.k} ${t.ctl}→${t.ste}`).join('  '));
+  await page.eval(`(()=>{const s=document.querySelector('#selPair');
+    s.value='4'; s.dispatchEvent(new Event('change')); return 0;})()`);
+  await sleep(900);
+  const txt = await page.eval(`(()=>{const e=document.querySelector('#genTxt');
+    return {hasC:/对照/.test(e.innerHTML), hasS:/干预/.test(e.innerHTML),
+            head:/共同部分/.test(e.innerHTML)};})()`);
+  chk(txt.hasC && txt.hasS && txt.head, '「生成的文本」显示两臂对照',
+      `共同部分=${txt.head} 对照=${txt.hasC} 干预=${txt.hasS}`);
+  await page.screenshot(`${OUT}/final-04-divergence-pair5.png`);
+  say('  shot -> final-04-divergence-pair5.png');
+}
+
 await page.screenshot(`${OUT}/final-01-L26-dims.png`);
 say('  shot -> final-01-L26-dims.png');
 await dragTo(injected);
