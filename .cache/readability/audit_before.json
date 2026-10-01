@@ -1,0 +1,244 @@
+{
+  "tag": "before",
+  "url": "http://127.0.0.1:8944/latent/index.html",
+  "indexSha": "302d1c030d6e2b02",
+  "browser": "HeadlessChrome/148.0.7778.96",
+  "viewport": "1600x1000",
+  "dpr": 1,
+  "visibleBlockCount": 46,
+  "visibleText": [
+    "[0] h1 @(25,25)  Qwen3-1.7B 隐空间观察台",
+    "[1] div.sub @(25,52)  拖动层滑块或播放 token，隐空间里的点是",
+    "[2] strong @(25,54)  实时用该层自己的 PCA 基从原始 2048 维向量算出来",
+    "[3] div.sub @(25,52)  的，不是预渲染图。",
+    "[4] h2 @(25,143)  题目",
+    "[5] h2 @(25,302)  视图",
+    "[6] button#tabXY.on @(25,328)  隐空间 2D",
+    "[7] button#tabBar @(95,328)  候选词",
+    "[8] button#tabDim @(165,328)  维度解读",
+    "[9] button#tabDelta @(235,328)  干预 vs 对照",
+    "[10] label @(25,386)  当前层",
+    "[11] span#valLayer.val @(279,386)  L14",
+    "[12] div.sub @(25,433)  L0 = embedding 输出，Lk = 第 k−1 个 block 的输出（即第 k 个 block 的输入）",
+    "[13] label @(25,478)  当前 token",
+    "[14] span#valTok.val @(292,478)  0",
+    "[15] button#btnPlay @(25,532)  ▶ 播放",
+    "[16] button#btnDepth @(165,532)  深度轨迹",
+    "[17] span @(25,578)  原始向量维度",
+    "[18] span#stD @(270,578)  2048",
+    "[19] span @(25,604)  该 token 原始 token",
+    "[20] span#stRaw @(248,604)  <think>",
+    "[21] span @(25,630)  熵 / top1 概率",
+    "[22] span#stEnt @(205,630)  0.001 / 1.000",
+    "[23] span @(25,656)  ‖h‖ 当前层",
+    "[24] span#stNorm @(263,656)  144.9",
+    "[25] span @(25,683)  相对 embedding 移动",
+    "[26] span#stMove @(248,683)  1078.1%",
+    "[27] b @(25,718)  怎么读：",
+    "[28] div.note @(25,716)  点云是这一层所有 token 的隐状态。亮色 = 刚生成的 token。 拖动层滑块会看到点云从松散逐渐收紧——这是残差流把不同 token 挤到少数几个「方向」上的过程。",
+    "[29] h2#mainTitle @(337,28)  隐空间 2D 投影 · L14",
+    "[30] div#mainSub.sub @(1084,28)  1983_I_1 · <think> · 共 1024 步",
+    "[31] span @(337,957)  当前 token",
+    "[32] span @(416,957)  已生成 token",
+    "[33] span @(507,957)  未生成 token（淡显）",
+    "[34] span @(641,957)  深度轨迹（跨层）",
+    "[35] span @(754,957)  PC1/PC2 轴",
+    "[36] h2 @(1281,25)  这一层在做什么",
+    "[37] div#layerStory.note @(1281,51)  L14：目前只有第 1 步这一个点，算不出离散度（单点的方差恒为 0）。把 token 滑块往后拖几个点，这里就会给出这一层点云的收拢程度。",
+    "[38] h2#sideTitle @(1281,143)  top-64 候选词 · 第 0 步",
+    "[39] b @(1281,748)  这张表不解释「为什么是这个 token」。",
+    "[40] div.note @(1281,746)  干预确实持续把残差推走 （上面「残差流被推了」那一行），但文本改口并不是被这个位移推出来的： 6 题里有 4 题在真正改口之前就出现过",
+    "[41] b @(1292,802)  更险的一步",
+    "[42] div.note @(1281,746)  ，同范数的",
+    "[43] b @(1402,802)  随机 方向",
+    "[44] div.note @(1281,746)  也有 16% 的机会扳出同样的词。准确的说法是——改口那一刻的判决 本来就薄，而那个「薄」与干预关系不大。详见 docs/INTERPRETABILITY.md Finding 14。",
+    "[45] h2 @(1281,911)  生成的文本"
+  ],
+  "sentences": {
+    "app": {
+      "count": 32,
+      "median": 19,
+      "max": 98,
+      "longestText": "干预确实持续把残差推走 （上面「残差流被推了」那一行），但文本改口并不是被这个位移推出来的： 6 题里有 4 题在真正改口之前就出现过更险的一步，同范数的随机 方向也有 16% 的机会扳出同样的词",
+      "longestFrom": "div.note",
+      "over40": 8
+    },
+    "orientation": {
+      "count": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  "terms": [
+    {
+      "term": "token",
+      "anchor": "模型一次写的一个词的碎片",
+      "onScreen": true,
+      "at": "h1 @(25,25)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "熵",
+      "anchor": "模型有多犹豫",
+      "onScreen": true,
+      "at": "h2 @(25,302)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "top1 概率",
+      "anchor": "排名第一的那个词有多大概率被选中",
+      "onScreen": true,
+      "at": "h2 @(25,302)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "候选词",
+      "anchor": "模型此刻心里排队的字",
+      "onScreen": true,
+      "at": "h2 @(25,302)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "层",
+      "anchor": "一次加工工序",
+      "onScreen": true,
+      "at": "h1 @(25,25)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "维度",
+      "anchor": "一份状态里数字的个数",
+      "onScreen": true,
+      "at": "h2 @(25,302)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "投影",
+      "anchor": "压成 2 个数字",
+      "onScreen": true,
+      "at": "h2#mainTitle @(337,28)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "PCA",
+      "anchor": "最能解释差异的方向",
+      "onScreen": true,
+      "at": "h1 @(25,25)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "PC1",
+      "anchor": "它找到的前两根轴",
+      "onScreen": true,
+      "at": "h2#mainTitle @(337,28)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "PC2",
+      "anchor": "它找到的前两根轴",
+      "onScreen": true,
+      "at": "h2#mainTitle @(337,28)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "embedding",
+      "anchor": "查表把词变成一串数字",
+      "onScreen": true,
+      "at": "h2 @(25,302)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "隐空间",
+      "anchor": "模型脑子里那份",
+      "onScreen": true,
+      "at": "h1 @(25,25)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "残差流",
+      "anchor": "新加上去的那部分",
+      "onScreen": true,
+      "at": "h2 @(25,302)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "残差",
+      "anchor": "新加上去的那部分",
+      "onScreen": true,
+      "at": "h2 @(25,302)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "范数",
+      "anchor": "草稿有多长",
+      "onScreen": true,
+      "at": "h2#sideTitle @(1281,143)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "干预",
+      "anchor": "人为往草稿里推一把",
+      "onScreen": true,
+      "at": "h2 @(25,302)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "对照",
+      "anchor": "什么都不做地跑一遍",
+      "onScreen": true,
+      "at": "h2 @(25,302)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "位移",
+      "anchor": "被推了多远",
+      "onScreen": true,
+      "at": "h2#sideTitle @(1281,143)",
+      "inContext": "panel",
+      "explainedHere": false
+    },
+    {
+      "term": "logit",
+      "anchor": "还没归一化的原始打分",
+      "onScreen": false,
+      "at": "",
+      "inContext": "",
+      "explainedHere": false
+    },
+    {
+      "term": "block",
+      "anchor": "一次加工工序",
+      "onScreen": true,
+      "at": "h2 @(25,302)",
+      "inContext": "panel",
+      "explainedHere": false
+    }
+  ],
+  "termsExplained": 0,
+  "termsOnScreen": 19,
+  "layout": {
+    "pageVOver": 0,
+    "pageHOver": 0,
+    "panelMaxVOver": 0,
+    "panelMaxHOver": 0,
+    "hOver": [],
+    "bleed": []
+  }
+}

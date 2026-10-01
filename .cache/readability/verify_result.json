@@ -1,0 +1,937 @@
+{
+  "hash": "dd6c5df698c8a45c",
+  "passed": 186,
+  "failed": 0,
+  "results": [
+    {
+      "ok": true,
+      "label": "A1 #orientation 存在",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "A2 默认未隐藏",
+      "extra": "hide=false display=flex"
+    },
+    {
+      "ok": true,
+      "label": "A3a 浮层有实际尺寸",
+      "extra": "1600x1000"
+    },
+    {
+      "ok": true,
+      "label": "A3 浮层完整落在视口内",
+      "extra": "{\"x\":0,\"y\":0,\"w\":1600,\"h\":1000} vs 1600x1000"
+    },
+    {
+      "ok": true,
+      "label": "A4 标题在视口内且未被裁剪",
+      "extra": "{\"x\":374,\"y\":22,\"w\":852,\"h\":36}"
+    },
+    {
+      "ok": true,
+      "label": "A5 一句话在视口内（打开就能读到第一句）",
+      "extra": "{\"x\":374,\"y\":66,\"w\":852,\"h\":79}"
+    },
+    {
+      "ok": true,
+      "label": "A6 底部按钮在视口内（读者知道怎么关）",
+      "extra": "{\"x\":0,\"y\":944,\"w\":1600,\"h\":56}"
+    },
+    {
+      "ok": true,
+      "label": "A7 长文确实靠 #orientScroll 自己滚动（不是被截断）",
+      "extra": "scrollHeight-clientHeight=1548"
+    },
+    {
+      "ok": true,
+      "label": "A8 浮层自身不滚动",
+      "extra": "vOver=0"
+    },
+    {
+      "ok": true,
+      "label": "A9 导读层内无横向越界（逐元素量）",
+      "extra": "0 个元素越界"
+    },
+    {
+      "ok": true,
+      "label": "A10 浮层不撑出页面级滚动条",
+      "extra": "vOver=0 hOver=0"
+    },
+    {
+      "ok": true,
+      "label": "B-0 首屏取到的是导读层本身（浮层底下的页面文字已被遮挡判据排除）",
+      "extra": "63 块，样例 h1#orientTitle"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"token\" 首次可见处带白话解释",
+      "extra": "@div y=325"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"熵\" 首次可见处带白话解释",
+      "extra": "@div y=386"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"top1 概率\" 首次可见处带白话解释",
+      "extra": "@div y=418"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"候选词\" 首次可见处带白话解释",
+      "extra": "@div y=543"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"层\" 首次可见处带白话解释",
+      "extra": "@div y=575"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"维度\" 首次可见处带白话解释",
+      "extra": "@div y=635"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"投影\" 首次可见处带白话解释",
+      "extra": "@div y=635"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"PCA\" 首次可见处带白话解释",
+      "extra": "@div y=696"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"PC1\" 首次可见处带白话解释",
+      "extra": "@div y=696"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"embedding\" 首次可见处带白话解释",
+      "extra": "@div y=728"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"隐空间\" 首次可见处带白话解释",
+      "extra": "@gitem[隐空间] y=861"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"PC2\" 首次可见处带白话解释",
+      "extra": "@div y=696"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"token\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"熵\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"top1 概率\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"候选词\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"层\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"维度\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"投影\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"PCA\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"PC1\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"embedding\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"隐空间\" 的首次出现带白话解释",
+      "extra": "@gitem[隐空间]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"残差流\" 的首次出现带白话解释",
+      "extra": "@gitem[残差流]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"残差\" 的首次出现带白话解释",
+      "extra": "@gitem[残差流]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"范数\" 的首次出现带白话解释",
+      "extra": "@gitem[范数]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"干预\" 的首次出现带白话解释",
+      "extra": "@gitem[干预 对照]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"对照\" 的首次出现带白话解释",
+      "extra": "@gitem[干预 对照]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"位移\" 的首次出现带白话解释",
+      "extra": "@gitem[位移]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"logit\" 的首次出现带白话解释",
+      "extra": "@gitem[logit]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"block\" 的首次出现带白话解释",
+      "extra": "@gitem[层]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"PC2\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B3 首屏确实带解释的术语 ≥ 8（非空跑）",
+      "extra": "首屏术语 12 个 / 全表 20 个"
+    },
+    {
+      "ok": true,
+      "label": "B4 全部 20 个术语均就地解释",
+      "extra": "20/20"
+    },
+    {
+      "ok": true,
+      "label": "B5 词条表里的词在导读层正文中都出现",
+      "extra": "全部出现"
+    },
+    {
+      "ok": true,
+      "label": "C0 默认 token 0 的原词已读到",
+      "extra": "<think>"
+    },
+    {
+      "ok": true,
+      "label": "C1 默认 token 0 的熵/top1 概率已读到",
+      "extra": "0.001 / 1.000"
+    },
+    {
+      "ok": true,
+      "label": "C2 导读层写着这个真实读数",
+      "extra": "0.001 / 1.000"
+    },
+    {
+      "ok": true,
+      "label": "C3 导读层写着 <think>",
+      "extra": "<think>"
+    },
+    {
+      "ok": true,
+      "label": "C4 第 5 步原词已读到",
+      "extra": "'s"
+    },
+    {
+      "ok": true,
+      "label": "C5 第 5 步熵/top1 概率已读到",
+      "extra": "0.530 / 0.777"
+    },
+    {
+      "ok": true,
+      "label": "C6 导读层写着第 5 步的真实读数",
+      "extra": "0.530 / 0.777"
+    },
+    {
+      "ok": true,
+      "label": "C7 导读层写着第 1 候选词",
+      "extra": "'s"
+    },
+    {
+      "ok": true,
+      "label": "C8 候选词表第 1/2 名已读到",
+      "extra": "'s / me"
+    },
+    {
+      "ok": true,
+      "label": "C9 导读层写着第 2 候选词",
+      "extra": "me"
+    },
+    {
+      "ok": true,
+      "label": "C10 原始向量维度 2048",
+      "extra": "2048"
+    },
+    {
+      "ok": true,
+      "label": "C11 导读层写着 2048",
+      "extra": "2048"
+    },
+    {
+      "ok": true,
+      "label": "C12 层滑块上限 27（=28 道工序）",
+      "extra": "max=27"
+    },
+    {
+      "ok": true,
+      "label": "C13 导读层写着 28 道工序",
+      "extra": "28"
+    },
+    {
+      "ok": true,
+      "label": "C14 干预 vs 对照真的只有 6 道题",
+      "extra": "n=6"
+    },
+    {
+      "ok": true,
+      "label": "C15 题号区间 1983–1988",
+      "extra": "1983_I_1..1988_I_1"
+    },
+    {
+      "ok": true,
+      "label": "C16 干预层 20 / 强度 0.2",
+      "extra": "L20 / 0.2"
+    },
+    {
+      "ok": true,
+      "label": "C17 数据边界写明 n=6 与题号区间",
+      "extra": "只有 6 道题做过\"干预 vs 对照\"（题号 1983 到 1988 连续 6 道），而且全是同一族的美式数学竞赛题。 "
+    },
+    {
+      "ok": true,
+      "label": "C18 数据边界写明只有 1 个模型",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "C19 数据边界写明唯一干预方向/层/强度",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "C20 本页不主张的 4 种说法都在",
+      "extra": "条数=4"
+    },
+    {
+      "ok": true,
+      "label": "C21 第 1 条否证带真实数字",
+      "extra": "「干预把候选词的分数重新排了一遍，所以能解释模型为什么选这个词。」否掉的依据：改"
+    },
+    {
+      "ok": true,
+      "label": "D1 点「我读完了」后浮层隐藏",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "D2 localStorage 记下已读",
+      "extra": "1"
+    },
+    {
+      "ok": true,
+      "label": "D3 关闭后页面无横向越界",
+      "extra": "0"
+    },
+    {
+      "ok": true,
+      "label": "D4 重新打开页面不再弹（记住了）",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "D5 「📖 导读」按钮可见可点（随时重读）",
+      "extra": "{\"x\":74,\"y\":87,\"w\":51,\"h\":17}"
+    },
+    {
+      "ok": true,
+      "label": "D6 点按钮能重新打开导读",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "D7 重置按钮清掉 localStorage",
+      "extra": "null"
+    },
+    {
+      "ok": true,
+      "label": "D8 重置后浮层仍打开",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "D9 重置后再打开页面默认又弹（可复验）",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "D10 ?orient=off 能强制不弹（脚本与截图用）",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "E1 关闭后页面仍无级联滚动",
+      "extra": "vOver=0 hOver=0"
+    },
+    {
+      "ok": true,
+      "label": "E2 导读层开/关，.wrap 与各 panel 的几何与溢出逐字段相同",
+      "extra": "11 个元素完全一致"
+    },
+    {
+      "ok": true,
+      "label": "E3 面板纵向溢出不超过 HEAD 基线（scrollHeight-clientHeight）",
+      "extra": "0 个溢出"
+    },
+    {
+      "ok": true,
+      "label": "E4 无横向越界（元素右边界 vs 父容器右边界）",
+      "extra": "0 个越界"
+    },
+    {
+      "ok": true,
+      "label": "E5 导读层正文不横向越界（靠 max-width + 换行，不是靠裁剪）",
+      "extra": "hOverSelf=0 hOverVsParent=-350"
+    },
+    {
+      "ok": true,
+      "label": "E6 每条词条自身不溢出（长解释不靠裁剪显示）",
+      "extra": "16 个词条均无溢出"
+    },
+    {
+      "ok": true,
+      "label": "F1 页面首屏英文行话都进了词条表",
+      "extra": "见到: token,PCA,embedding,block,PC1,PC2 | 全有词条"
+    },
+    {
+      "ok": true,
+      "label": "F2 词条表没有空条目（每条都是页面真在用的词）",
+      "extra": "20 条全部在用"
+    },
+    {
+      "ok": true,
+      "label": "F3 每条词条都有白话解释和「在哪儿看」",
+      "extra": "14 条词条合格"
+    },
+    {
+      "ok": true,
+      "label": "F4 词条数 ≥ 14（20 个术语合并成 14 条）",
+      "extra": "词条数=14"
+    },
+    {
+      "ok": true,
+      "label": "负控 gloss 确实报红",
+      "extra": "红 2 / 绿 0"
+    },
+    {
+      "ok": true,
+      "label": "负控 number 确实报红",
+      "extra": "红 1 / 绿 0"
+    },
+    {
+      "ok": true,
+      "label": "负控 hidden 确实报红",
+      "extra": "红 3 / 绿 0"
+    },
+    {
+      "ok": true,
+      "label": "Z 页面无未捕获异常",
+      "extra": "0"
+    },
+    {
+      "ok": true,
+      "label": "Z1 转义自检：浏览器里跑的正则确实含 \\d 而不是字母 d",
+      "extra": "{\"src\":\"/第 (\\\\d+) 步/\",\"hit\":true}"
+    },
+    {
+      "ok": true,
+      "label": "A1 #orientation 存在",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "A2 默认未隐藏",
+      "extra": "hide=false display=flex"
+    },
+    {
+      "ok": true,
+      "label": "A3a 浮层有实际尺寸",
+      "extra": "1280x800"
+    },
+    {
+      "ok": true,
+      "label": "A3 浮层完整落在视口内",
+      "extra": "{\"x\":0,\"y\":0,\"w\":1280,\"h\":800} vs 1280x800"
+    },
+    {
+      "ok": true,
+      "label": "A4 标题在视口内且未被裁剪",
+      "extra": "{\"x\":214,\"y\":22,\"w\":852,\"h\":36}"
+    },
+    {
+      "ok": true,
+      "label": "A5 一句话在视口内（打开就能读到第一句）",
+      "extra": "{\"x\":214,\"y\":66,\"w\":852,\"h\":79}"
+    },
+    {
+      "ok": true,
+      "label": "A6 底部按钮在视口内（读者知道怎么关）",
+      "extra": "{\"x\":0,\"y\":744,\"w\":1280,\"h\":56}"
+    },
+    {
+      "ok": true,
+      "label": "A7 长文确实靠 #orientScroll 自己滚动（不是被截断）",
+      "extra": "scrollHeight-clientHeight=1748"
+    },
+    {
+      "ok": true,
+      "label": "A8 浮层自身不滚动",
+      "extra": "vOver=0"
+    },
+    {
+      "ok": true,
+      "label": "A9 导读层内无横向越界（逐元素量）",
+      "extra": "0 个元素越界"
+    },
+    {
+      "ok": true,
+      "label": "A10 浮层不撑出页面级滚动条",
+      "extra": "vOver=0 hOver=0"
+    },
+    {
+      "ok": true,
+      "label": "B-0 首屏取到的是导读层本身（浮层底下的页面文字已被遮挡判据排除）",
+      "extra": "55 块，样例 h1#orientTitle"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"token\" 首次可见处带白话解释",
+      "extra": "@div y=325"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"熵\" 首次可见处带白话解释",
+      "extra": "@div y=386"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"top1 概率\" 首次可见处带白话解释",
+      "extra": "@div y=418"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"候选词\" 首次可见处带白话解释",
+      "extra": "@div y=543"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"层\" 首次可见处带白话解释",
+      "extra": "@div y=575"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"维度\" 首次可见处带白话解释",
+      "extra": "@div y=635"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"投影\" 首次可见处带白话解释",
+      "extra": "@div y=635"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"PCA\" 首次可见处带白话解释",
+      "extra": "@div y=696"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"PC1\" 首次可见处带白话解释",
+      "extra": "@div y=696"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"PC2\" 首次可见处带白话解释",
+      "extra": "@div y=696"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"token\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"熵\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"top1 概率\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"候选词\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"层\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"维度\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"投影\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"PCA\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"PC1\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"embedding\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"隐空间\" 的首次出现带白话解释",
+      "extra": "@gitem[隐空间]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"残差流\" 的首次出现带白话解释",
+      "extra": "@gitem[残差流]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"残差\" 的首次出现带白话解释",
+      "extra": "@gitem[残差流]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"范数\" 的首次出现带白话解释",
+      "extra": "@gitem[范数]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"干预\" 的首次出现带白话解释",
+      "extra": "@gitem[干预 对照]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"对照\" 的首次出现带白话解释",
+      "extra": "@gitem[干预 对照]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"位移\" 的首次出现带白话解释",
+      "extra": "@gitem[位移]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"logit\" 的首次出现带白话解释",
+      "extra": "@gitem[logit]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"block\" 的首次出现带白话解释",
+      "extra": "@gitem[层]"
+    },
+    {
+      "ok": true,
+      "label": "B2 导读层里 \"PC2\" 的首次出现带白话解释",
+      "extra": "@div"
+    },
+    {
+      "ok": true,
+      "label": "B3 首屏确实带解释的术语 ≥ 8（非空跑）",
+      "extra": "首屏术语 10 个 / 全表 20 个"
+    },
+    {
+      "ok": true,
+      "label": "B4 全部 20 个术语均就地解释",
+      "extra": "20/20"
+    },
+    {
+      "ok": true,
+      "label": "B5 词条表里的词在导读层正文中都出现",
+      "extra": "全部出现"
+    },
+    {
+      "ok": true,
+      "label": "C0 默认 token 0 的原词已读到",
+      "extra": "<think>"
+    },
+    {
+      "ok": true,
+      "label": "C1 默认 token 0 的熵/top1 概率已读到",
+      "extra": "0.001 / 1.000"
+    },
+    {
+      "ok": true,
+      "label": "C2 导读层写着这个真实读数",
+      "extra": "0.001 / 1.000"
+    },
+    {
+      "ok": true,
+      "label": "C3 导读层写着 <think>",
+      "extra": "<think>"
+    },
+    {
+      "ok": true,
+      "label": "C4 第 5 步原词已读到",
+      "extra": "'s"
+    },
+    {
+      "ok": true,
+      "label": "C5 第 5 步熵/top1 概率已读到",
+      "extra": "0.530 / 0.777"
+    },
+    {
+      "ok": true,
+      "label": "C6 导读层写着第 5 步的真实读数",
+      "extra": "0.530 / 0.777"
+    },
+    {
+      "ok": true,
+      "label": "C7 导读层写着第 1 候选词",
+      "extra": "'s"
+    },
+    {
+      "ok": true,
+      "label": "C8 候选词表第 1/2 名已读到",
+      "extra": "'s / me"
+    },
+    {
+      "ok": true,
+      "label": "C9 导读层写着第 2 候选词",
+      "extra": "me"
+    },
+    {
+      "ok": true,
+      "label": "C10 原始向量维度 2048",
+      "extra": "2048"
+    },
+    {
+      "ok": true,
+      "label": "C11 导读层写着 2048",
+      "extra": "2048"
+    },
+    {
+      "ok": true,
+      "label": "C12 层滑块上限 27（=28 道工序）",
+      "extra": "max=27"
+    },
+    {
+      "ok": true,
+      "label": "C13 导读层写着 28 道工序",
+      "extra": "28"
+    },
+    {
+      "ok": true,
+      "label": "C14 干预 vs 对照真的只有 6 道题",
+      "extra": "n=6"
+    },
+    {
+      "ok": true,
+      "label": "C15 题号区间 1983–1988",
+      "extra": "1983_I_1..1988_I_1"
+    },
+    {
+      "ok": true,
+      "label": "C16 干预层 20 / 强度 0.2",
+      "extra": "L20 / 0.2"
+    },
+    {
+      "ok": true,
+      "label": "C17 数据边界写明 n=6 与题号区间",
+      "extra": "只有 6 道题做过\"干预 vs 对照\"（题号 1983 到 1988 连续 6 道），而且全是同一族的美式数学竞赛题。 "
+    },
+    {
+      "ok": true,
+      "label": "C18 数据边界写明只有 1 个模型",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "C19 数据边界写明唯一干预方向/层/强度",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "C20 本页不主张的 4 种说法都在",
+      "extra": "条数=4"
+    },
+    {
+      "ok": true,
+      "label": "C21 第 1 条否证带真实数字",
+      "extra": "「干预把候选词的分数重新排了一遍，所以能解释模型为什么选这个词。」否掉的依据：改"
+    },
+    {
+      "ok": true,
+      "label": "D1 点「我读完了」后浮层隐藏",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "D2 localStorage 记下已读",
+      "extra": "1"
+    },
+    {
+      "ok": true,
+      "label": "D3 关闭后页面无横向越界",
+      "extra": "0"
+    },
+    {
+      "ok": true,
+      "label": "D4 重新打开页面不再弹（记住了）",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "D5 「📖 导读」按钮可见可点（随时重读）",
+      "extra": "{\"x\":74,\"y\":87,\"w\":51,\"h\":17}"
+    },
+    {
+      "ok": true,
+      "label": "D6 点按钮能重新打开导读",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "D7 重置按钮清掉 localStorage",
+      "extra": "null"
+    },
+    {
+      "ok": true,
+      "label": "D8 重置后浮层仍打开",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "D9 重置后再打开页面默认又弹（可复验）",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "D10 ?orient=off 能强制不弹（脚本与截图用）",
+      "extra": ""
+    },
+    {
+      "ok": true,
+      "label": "E1 关闭后页面仍无级联滚动",
+      "extra": "vOver=0 hOver=0"
+    },
+    {
+      "ok": true,
+      "label": "E2 导读层开/关，.wrap 与各 panel 的几何与溢出逐字段相同",
+      "extra": "11 个元素完全一致"
+    },
+    {
+      "ok": true,
+      "label": "E3 面板纵向溢出不超过 HEAD 基线（scrollHeight-clientHeight）",
+      "extra": "div.panel:1 | 基线 1"
+    },
+    {
+      "ok": true,
+      "label": "E4 无横向越界（元素右边界 vs 父容器右边界）",
+      "extra": "0 个越界"
+    },
+    {
+      "ok": true,
+      "label": "E5 导读层正文不横向越界（靠 max-width + 换行，不是靠裁剪）",
+      "extra": "hOverSelf=0 hOverVsParent=-190"
+    },
+    {
+      "ok": true,
+      "label": "E6 每条词条自身不溢出（长解释不靠裁剪显示）",
+      "extra": "16 个词条均无溢出"
+    },
+    {
+      "ok": true,
+      "label": "F1 页面首屏英文行话都进了词条表",
+      "extra": "见到: token,PCA,embedding,block,PC1,PC2 | 全有词条"
+    },
+    {
+      "ok": true,
+      "label": "F2 词条表没有空条目（每条都是页面真在用的词）",
+      "extra": "20 条全部在用"
+    },
+    {
+      "ok": true,
+      "label": "F3 每条词条都有白话解释和「在哪儿看」",
+      "extra": "14 条词条合格"
+    },
+    {
+      "ok": true,
+      "label": "F4 词条数 ≥ 14（20 个术语合并成 14 条）",
+      "extra": "词条数=14"
+    },
+    {
+      "ok": true,
+      "label": "负控 gloss 确实报红",
+      "extra": "红 2 / 绿 0"
+    },
+    {
+      "ok": true,
+      "label": "负控 number 确实报红",
+      "extra": "红 1 / 绿 0"
+    },
+    {
+      "ok": true,
+      "label": "负控 hidden 确实报红",
+      "extra": "红 3 / 绿 0"
+    },
+    {
+      "ok": true,
+      "label": "Z 页面无未捕获异常",
+      "extra": "0"
+    },
+    {
+      "ok": true,
+      "label": "Z1 转义自检：浏览器里跑的正则确实含 \\d 而不是字母 d",
+      "extra": "{\"src\":\"/第 (\\\\d+) 步/\",\"hit\":true}"
+    }
+  ]
+}

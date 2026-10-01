@@ -21,6 +21,13 @@
   h2{font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
   .sub{font-size:11px;color:var(--dim2);margin-top:3px}
   select,button,input[type=range]{width:100%;font-family:inherit}
+  /* 导读入口做成**行内**按钮，不另起一行。按钮的行内盒必须 ≤ 所在行的行高，
+     否则它会把这一行撑高：padding+border 让左上面板在 1280x800 下多出 3px
+     （实测 div.panel 溢出 1px→4px、div.col 0→3；HEAD 基线 1px 是页面原有的）。
+     line-height:1.4 + 上下 border 共 17.4px，正好落在 .sub 的 11px×1.6=17.6px 里。 */
+  #btnOrient{display:inline-block;width:auto;padding:0 5px;margin-left:5px;
+             font-size:11px;line-height:1.4;vertical-align:baseline;
+             color:var(--acc);background:var(--panel2)}
   select,button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:12.5px;cursor:pointer}
   select:hover,button:hover{border-color:var(--acc)}
   button.on{background:#0e3a52;border-color:var(--acc);color:#cdeeff}
@@ -102,6 +109,52 @@
   .dbar{height:9px;background:var(--panel2);border-radius:2px;position:relative;min-width:60px}
   .dbar>div{position:absolute;top:0;height:100%;border-radius:2px}
   .dbar>u{position:absolute;top:-2px;width:1px;height:13px;background:var(--dim2)}
+  /* ---- 导读层（orientation layer）------------------------------------
+     给"不懂机器学习"的读者的一段开场说明。它是 position:fixed 的整屏浮层，
+     不进 .wrap 的文档流，所以关掉它之后页面的排版与加它之前逐像素一致——
+     verify_readability.mjs 会在开/关两种状态下各量一次 .wrap 与各 panel 的
+     几何来核对这句话。滚动只发生在 #orientScroll 自己身上。
+     宽度一律用 max-width + flex，不用固定 px：内容比容器宽时宁可换行，
+     也不允许把右边界顶出可视区（表格 613px 塞进 294px 面板那个坑）。 */
+  #orientation{position:fixed;inset:0;z-index:200;background:#080b11;
+               display:flex;flex-direction:column}
+  #orientScroll{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;min-height:0}
+  #orientBody{max-width:900px;margin:0 auto;padding:22px 24px 12px;
+              font-size:15px;line-height:1.9;overflow-wrap:anywhere}
+  #orientBody h1{font-size:19px;letter-spacing:0;margin-bottom:8px}
+  #orientBody h2{font-size:12px;letter-spacing:1.2px;margin:24px 0 8px}
+  #orientBody p{margin:0 0 8px}
+  .olead{font-size:16px;border-left:3px solid var(--acc);
+         padding:9px 12px;background:#0e1420;border-radius:0 8px 8px 0}
+  .ex{margin:0 0 10px;padding:10px 12px;background:var(--panel);
+      border:1px solid var(--line);border-radius:8px}
+  .ex>div{margin:3px 0}
+  .ex b{font-family:var(--mono);color:var(--acc)}
+  /* 术语的第一次出现必须就地跟着白话解释：判据就是下面这条渲染出来的样式。
+     verify 脚本找的是"某术语首次可见处所在的块里有没有 .inline-gloss"。 */
+  .inline-gloss{font-style:normal;color:var(--acc2)}
+  .gitem{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}
+  .gitem:last-child{border-bottom:0}
+  .gterm{flex:0 0 138px;font-family:var(--mono);font-size:12.5px;color:var(--acc2);
+         overflow-wrap:anywhere}
+  .gdef{flex:1 1 auto;min-width:0}
+  .gdef .where{display:block;margin-top:2px;font-size:12px;color:var(--dim2)}
+  .noitem{margin:0 0 9px;padding:9px 11px;background:#1a1418;
+          border:1px solid #3a2630;border-radius:8px}
+  .noitem .claim{display:block;margin-bottom:3px;color:var(--hot)}
+  .lim{margin:0 0 6px;padding-left:18px}
+  #orientFoot{flex:0 0 auto;display:flex;gap:10px;align-items:center;
+              padding:10px 24px;border-top:1px solid var(--line);background:#080b11}
+  #orientFoot button{width:auto;flex:0 0 auto;padding:8px 16px}
+  #orientFoot .sp{flex:1 1 auto}
+  #orientFoot .hint{font-size:11.5px;color:var(--dim2)}
+  /* 窄屏时术语与解释换行，不靠挤压：138px 的固定轨道在手机上放不下。 */
+  @media (max-width:720px){
+    #orientBody{padding:16px 14px 10px;font-size:14.5px}
+    .gitem{flex-direction:column;gap:2px}
+    .gterm{flex:0 0 auto}
+    #orientFoot{flex-wrap:wrap;padding:9px 14px}
+  }
 </style>
 </head>
 <body>
@@ -112,13 +165,84 @@
   <div class="sub" id="pmsg">manifest.json</div>
 </div>
 
+<!-- ========== 导读层 =================================================
+     第一次打开时盖在整屏上，读完关掉并记在 localStorage。内容分五块：
+     一句话 / 真实数字的走法 / 术语白话表 / 本页不主张的 4 种说法 / 数据边界。
+     术语的**第一次**出现必须就地有白话解释（.inline-gloss），不是"页面上
+     某处有"——verify_readability.mjs 按"首次可见处所在块"来查这一条。
+     ============================================================ -->
+<div id="orientation" class="hide">
+ <div id="orientScroll">
+  <div id="orientBody">
+
+   <h1 id="orientTitle">第一次打开这个页面？先读完这一页</h1>
+   <p class="olead">一个只会写数学题的 AI，每写一个字之前脑子里那份"笔记"长什么样——这个页面把它摊开给你看，还能让你亲手推它一把，看它会不会改口。</p>
+
+   <h2>一 · 这台机器在做什么</h2>
+   <p>它读一道数学竞赛题，一个字一个字地把答案写出来。写每个字之前，它都要在内部先算一遍"下一个字最可能是哪个"。这个页面把那份内部计算的结果画出来给你看，并且让你自己拨着看。</p>
+
+   <h2>二 · 用页面上真实的数字走一遍</h2>
+   <div class="ex">
+    <div>页面刚打开时，左边「当前 <i class="inline-gloss">token</i>」是 <b>0</b>，模型正准备写 <b>&lt;think&gt;</b>。同名的<i class="inline-gloss">token = 模型一次写的一个词的碎片</i>，页面上所有 `'s`、`.` 这样的小片段都是它。</div>
+    <div>此时左边有一行，写着「<i class="inline-gloss">熵 = 模型有多犹豫，0 是铁了心，越大越拿不定主意</i>」。</div>
+    <div>同一行后面是「<i class="inline-gloss">top1 概率 = 排名第一的那个词有多大概率被选中</i>」。</div>
+    <div>这一行现在显示 <b>0.001 / 1.000</b>。意思是：它 100% 确定要写这个词。</div>
+    <div>把「当前 token」滑块拖到第 <b>5</b> 步：它正在写 <b>'s</b>，同一行变成 <b>0.530 / 0.777</b>。意思是十个机会里它选 's 七次半，剩下几次它在犹豫。</div>
+    <div>这一刻右上角「top-64 <i class="inline-gloss">候选词 = 模型此刻心里排队的字，按分数从高到低</i>」表里，第 1 名是 <b>'s</b>，第 2 名是 <b>me</b>。</div>
+    <div>中间那张图上每一个点，是"这一<i class="inline-gloss">层 = 一次加工工序，共 28 道（L0 到 L27）</i>所有 token 的状态"被压成平面坐标画出来的位置。</div>
+    <div>那份状态是 <b>2048</b> 个数字<i class="inline-gloss">（维度 = 一份状态里数字的个数）</i>，画到纸上时<i class="inline-gloss">（投影 = 压成 2 个数字，好落在纸上）</i>只留 2 个。所以图上挨得近，不代表内部状态一样。</div>
+    <div>那 2 个数字是用 <i class="inline-gloss">PCA = 找"最能解释差异的方向"的算法</i>挑的，<i class="inline-gloss">PC1 / PC2 = 它找到的前两根轴</i>，也就是图上那两根红箭头。</div>
+    <div>拖左边「当前层」的滑块，能看这份状态在 28 道工序里怎么一步步变形。L0 是每个词的出厂编号，<i class="inline-gloss">embedding = 查表把词变成一串数字</i>，越往后越不一样。</div>
+   </div>
+
+   <h2>三 · 你会在这页上遇到的词</h2>
+   <div class="gitem" data-term="隐空间"><div class="gterm">隐空间<br>隐状态</div><div class="gdef"><span class="plain">模型脑子里那份"笔记"本身。它不是文字，是一串数字。</span><span class="where">在哪儿看：页面大标题、左侧「怎么读」那段、右侧「这一层在做什么」。</span></div></div>
+   <div class="gitem" data-term="token"><div class="gterm">token</div><div class="gdef"><span class="plain">模型一次写的一个词的碎片，不是完整的词。</span><span class="where">在哪儿看：左边「当前 token」滑块；中间图上方那行「1983_I_1 · 's · 共 1024 步」。</span></div></div>
+   <div class="gitem" data-term="候选词"><div class="gterm">候选词</div><div class="gdef"><span class="plain">模型此刻心里排队的字，按分数从高到低排成一张表。</span><span class="where">在哪儿看：右上「top-64 候选词」表。</span></div></div>
+   <div class="gitem" data-term="维度"><div class="gterm">维度</div><div class="gdef"><span class="plain">一份状态里有几个数字，这里是 2048。</span><span class="where">在哪儿看：左边「原始向量维度」。</span></div></div>
+   <div class="gitem" data-term="投影"><div class="gterm">投影</div><div class="gdef"><span class="plain">把 2048 个数字压成 2 个数字，好画在纸上。</span><span class="where">在哪儿看：中间图标题「隐空间 2D 投影 · L14」。</span></div></div>
+   <div class="gitem" data-term="PCA"><div class="gterm">PCA / PC1 / PC2</div><div class="gdef"><span class="plain">找"最能解释差异的方向"的算法；前两根轴叫 PC1、PC2。</span><span class="where">在哪儿看：顶部副标题；图例里的「PC1/PC2 轴」。</span></div></div>
+   <div class="gitem" data-term="层"><div class="gterm">层 / block</div><div class="gdef"><span class="plain">一次加工工序，一共有 28 道（L0 到 L27）。</span><span class="where">在哪儿看：左边「当前层 L14」滑块，以及它下面那行 L0 / Lk 的说明。</span></div></div>
+   <div class="gitem" data-term="embedding"><div class="gterm">embedding</div><div class="gdef"><span class="plain">查表把一个词变成一串数字，模型内部的出厂编号。</span><span class="where">在哪儿看：左边「相对 embedding 移动」。</span></div></div>
+   <div class="gitem" data-term="残差流"><div class="gterm">残差流 / 残差</div><div class="gdef"><span class="plain">模型只有一份草稿，每道工序加工完就把加工结果加到草稿上；"残差"就是这次新加上去的那部分。</span><span class="where">在哪儿看：左边「怎么读」那段；右上候选词表下面那段。</span></div></div>
+   <div class="gitem" data-term="熵"><div class="gterm">熵 / top1 概率</div><div class="gdef"><span class="plain">熵 = 有多犹豫（0 是铁了心）；top1 概率 = 排第一的那个词有多大概率被选中。</span><span class="where">在哪儿看：左边「熵 / top1 概率」那一行。</span></div></div>
+   <div class="gitem" data-term="范数"><div class="gterm">范数 ‖h‖</div><div class="gdef"><span class="plain">那份草稿有多长，用一个数字表示：数字越大，那一层的状态被改得越多。</span><span class="where">在哪儿看：左边「‖h‖ 当前层」。</span></div></div>
+   <div class="gitem" data-term="干预 对照"><div class="gterm">干预 / 对照</div><div class="gdef"><span class="plain">干预 = 人为往草稿里推一把；对照 = 同一道题什么都不做地跑一遍，用来和它比。两个词必须合在一起看，只有一个没有意义。</span><span class="where">在哪儿看：左边第 4 个按钮「干预 vs 对照」，绿色那条线是干预，灰色那条是对照。</span></div></div>
+   <div class="gitem" data-term="位移"><div class="gterm">位移 Δ</div><div class="gdef"><span class="plain">被推了多远、朝哪个方向。</span><span class="where">在哪儿看：「干预 vs 对照」下面那张图，以及图例里的「每一步的位移 Δ」。</span></div></div>
+   <div class="gitem" data-term="logit"><div class="gterm">logit</div><div class="gdef"><span class="plain">候选词还没归一化的原始打分，只有相对大小有意义。</span><span class="where">在哪儿看：右边「这一层在做什么」那段（把 token 滑块拖过第 1 步就会出现）。</span></div></div>
+
+   <h2>四 · 本页不主张的 4 种说法</h2>
+   <p>下面这些是新手最自然会形成的理解。它们在这个页面上<i class="inline-gloss">曾经被当成结论写出来过，后来被实测数据否掉了</i>，所以现在不主张。</p>
+   <div class="noitem"><span class="claim">「干预把候选词的分数重新排了一遍，所以能解释模型为什么选这个词。」</span>否掉的依据：改口时真正变了的 logit，只占整份状态被推动量的 <b>0.0%–20.7%</b>；真正参与的维度是 <b>587–831</b> / 2048。两个量级不是一回事，解释不成立。</div>
+   <div class="noitem"><span class="claim">「换一个词，是因为草稿被挪了位置。」</span>否掉的依据：逐个词拆开看，位移与改口的关系不是这样，而且方向还写反了。</div>
+   <div class="noitem"><span class="claim">「状态已经被压到少数几个方向上，其余维度都清零了。」</span>否掉的依据：页面上那个"收拢程度"的数字来自 2D 散点的形状，从 2 个数推不出 2048 个数被压成了几个。</div>
+   <div class="noitem"><span class="claim">「干预是把答案推向某个方向。」</span>否掉的依据：逐个词拆开有三种机制——两头一起发力、只压低败者、只抬高胜者，没有单一机制。</div>
+
+   <h2>五 · 这些数字的边界</h2>
+   <ul class="lim">
+    <li>只有 <b>6</b> 道题做过"干预 vs 对照"（题号 1983 到 1988 连续 6 道），而且全是同一族的美式数学竞赛题。</li>
+    <li>只有 <b>1</b> 个模型：Qwen3-1.7B。</li>
+    <li>只有 <b>1</b> 个干预方向（第 20 层往残差流里推"推高自信"，强度 0.2），换别的方向没测过。</li>
+    <li>所以这些是"在这一小块地方看到了什么"，不是"对所有模型、所有题都成立"。</li>
+   </ul>
+
+  </div>
+ </div>
+ <div id="orientFoot">
+  <button id="orientClose" class="on">我读完了，开始看</button>
+  <button id="orientReset">重置：下次打开再弹一次</button>
+  <div class="sp"></div>
+  <div class="hint">关掉之后这一页不会再挡你；随时点左上的「📖 导读」重读。</div>
+ </div>
+</div>
+
 <div class="wrap" id="app" style="visibility:hidden">
 
   <!-- ========== 左：控制 ========== -->
   <div class="col">
     <div class="panel">
       <h1>Qwen3-1.7B 隐空间观察台</h1>
-      <div class="sub">拖动层滑块或播放 token，隐空间里的点是<strong style="color:var(--acc)">实时用该层自己的 PCA 基从原始 2048 维向量算出来</strong>的，不是预渲染图。</div>
+      <div class="sub">拖动层滑块或播放 token，隐空间里的点是<strong style="color:var(--acc)">实时用该层自己的 PCA 基从原始 2048 维向量算出来</strong>的，不是预渲染图。<button id="btnOrient" title="重新打开导读">📖 导读</button></div>
     </div>
 
     <div class="panel" id="trajPanel">
@@ -388,6 +512,8 @@ async function boot(){
   $("#app").style.visibility = "visible";
   $("#loading").classList.add("hide");
   trace("overlay hidden");
+  // 遮罩收掉之后再弹导读层，否则浮层会盖住"正在加载…"
+  if(orientAuto) orientShow();
   layout();
   health();
   window.addEventListener("resize", layout);
@@ -1521,6 +1647,45 @@ async function report(text){
   try{
     await fetch("http://localhost:8918/audit", {method:"POST", body:text});
   }catch(e){ /* audit is best-effort */ }
+}
+
+/* ---- 导读层 ---------------------------------------------------------
+   首次打开弹一次（读完后关掉，记在 localStorage）；左上的「📖 导读」随时
+   重读；?orient=show 强制打开，?orient=reset 清掉记录，?orient=off 不弹。
+   浮层是 position:fixed 的，不进 .wrap 的文档流，所以它开或关，底下页面的
+   排版是同一份。selftest 模式默认不弹：它是给既有的几何断言用的，多一层
+   浮层没有意义，只会让那套脚本多一个变量。
+   延后到 boot() 里、加载遮罩消失之后才显示，否则会盖住"正在加载…"。 */
+const ORIENT_KEY = "qwen3-latent-orientation-read-v1";
+const $orient = $("#orientation");
+let orientAuto = false;
+
+function orientRead(){
+  try{ return localStorage.getItem(ORIENT_KEY) === "1"; }catch(e){ return false; }
+}
+function orientShow(){
+  $orient.classList.remove("hide");
+  trace("orientation shown");
+}
+function orientHide(remember){
+  if(remember){ try{ localStorage.setItem(ORIENT_KEY, "1"); }catch(e){} }
+  $orient.classList.add("hide");
+  trace("orientation hidden, remembered=" + remember);
+}
+
+$("#orientClose").onclick  = () => orientHide(true);
+$("#btnOrient").onclick    = () => orientShow();
+$("#orientReset").onclick  = () => {
+  try{ localStorage.removeItem(ORIENT_KEY); }catch(e){}
+  orientShow();
+  trace("orientation reset");
+};
+{
+  const q = new URLSearchParams(location.search);
+  if(q.get("orient") === "reset"){ try{ localStorage.removeItem(ORIENT_KEY); }catch(e){} }
+  const force = q.get("orient") === "show" || location.hash === "#orientation";
+  const off   = q.get("orient") === "off" || /[?&]selftest=1/.test(location.search);
+  orientAuto = force || (!orientRead() && !off);
 }
 
 if(/[?&]selftest=1/.test(location.search)){
