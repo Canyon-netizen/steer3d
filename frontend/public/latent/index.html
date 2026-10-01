@@ -740,15 +740,25 @@ function drawDeltaSide(){
          `<span class="note">（第 0–${Math.max(0, rel.length - 1)} 步的均值，不是第 ${S.tok} 步）</span></td></tr>`;
   const td = a.top_dims || [];
   if(td.length){
-    h += `<tr><td colspan="3" class="note" style="padding-top:10px">被推最多的维度（取自 2048 维里变化最大的，同步窗口内的均值）</td></tr>`;
-    const lo = td[td.length-1].delta;
-    for(const d of td.slice(0,10)){
-      const pct = Math.abs(d.delta) * 100;
+    const shown = td.slice(0,10);
+    h += `<tr><td colspan="3" class="note" style="padding-top:10px">` +
+         `被推最多的维度（取自 2048 维里变化最大的，同步窗口内的均值）` +
+         `<br>条长按本表内最大变化归一，括号里是绝对变化量</td></tr>`;
+    // `d.delta` is an *absolute* change in that dimension's activation
+    // (100.69, -77.48, …), not a fraction. Multiplying it by 100 and handing
+    // the result to CSS as a width percentage produces 10068% — the row
+    // overflows its cell, every bar saturates to full width, and the
+    // dimension names are pushed out of the panel entirely. Scale against the
+    // largest change in this table instead, and print the real number.
+    const maxAbs = Math.max(...shown.map(d => Math.abs(d.delta))) || 1;
+    for(const d of shown){
+      const w = Math.abs(d.delta) / maxAbs * 100;
       const up = d.delta >= 0;
       const names = (d.names||[]).slice(0,4).map(esc).join("、") || "—";
-      h += `<tr><td class="n" style="color:${up?"#ff8fa3":"#3ddc97"};width:46px">${up?"▲":"▼"}#${d.dim}</td>
-        <td class="bar"><div style="width:${Math.max(3,pct)}%;background:${up?"#ff8fa3":"#3ddc97"}"></div></td>
-        <td class="n" style="width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${names}">${names}</td></tr>`;
+      h += `<tr><td class="n" style="color:${up?"#ff8fa3":"#3ddc97"};width:52px">${up?"▲":"▼"}#${d.dim}</td>
+        <td class="bar"><div style="width:${Math.max(3,w)}%;background:${up?"#ff8fa3":"#3ddc97"}"></div></td>
+        <td class="n" style="width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${names}">${names}
+          <span class="note">${d.delta>=0?"+":""}${d.delta.toFixed(1)}</span></td></tr>`;
     }
   }
   tb.innerHTML = h;

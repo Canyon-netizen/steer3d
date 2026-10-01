@@ -280,6 +280,32 @@ chk(!/#\d{6,}/.test(side), "侧栏没有裸数字 token id",
 chk((side.match(/(▲|▼)#\d+/g) || []).length > 0, "维度带方向箭头（升/降）",
     (side.match(/(▲|▼)#\d+/g) || []).slice(0,4).join(" "));
 
+// The dimension bars are laid out with `width: X%` where X is a bare number
+// from the DOM. `d.delta` is an *absolute* change (100.69, -77.48, …), so the
+// obvious `Math.abs(d.delta) * 100` hands CSS 10068% — every bar saturates to
+// full width and the dimension names get pushed out of the panel. Assert on
+// the rendered widths so that cannot come back silently.
+// `tblTop` is reused by more than one screen, so re-reading it here
+// would measure whichever table happened to render last (the candidate-word
+// screen, whose bars are top-1 probabilities). Use the sidebar snapshot
+// taken right after the delta render instead.
+const barWidths = [...side.matchAll(/width:([\d.]+)%;background/g)]
+  .map(m => parseFloat(m[1]));
+chk(barWidths.length > 0, "维度条有渲染出的宽度",
+    `${barWidths.length} 根，最大 ${Math.max(...barWidths).toFixed(1)}%`);
+chk(barWidths.every(w => w >= 0 && w <= 100),
+    "所有维度条宽度落在 0–100%（没有把绝对值当百分比）",
+    barWidths.length ? `范围 ${Math.min(...barWidths).toFixed(1)}–${Math.max(...barWidths).toFixed(1)}%`
+                     : "没有条");
+chk(new Set(barWidths.map(w => w.toFixed(1))).size > 1,
+    "维度条长度有区分（不是全部一样长）",
+    [...new Set(barWidths.map(w => w.toFixed(0)))].slice(0,6).join(", "));
+// And the names must still be inside the table, not squeezed out of it.
+const nameCells = [...side.matchAll(/title="([^"]*)"[^>]*>([^<]*)</g)]
+  .map(m => m[2].trim()).filter(t => t && t !== "—");
+chk(nameCells.length > 0, "维度词名仍渲染在单元格里",
+    nameCells.slice(0,3).map(s => s.slice(0, 14)).join(" / "));
+
 say("");
 say(fails.length ? `${fails.length} 项失败: ${fails.join(" | ")}` : "全部通过");
 process.exit(fails.length ? 1 : 0);
