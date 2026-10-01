@@ -82,15 +82,17 @@ python3 backend/examples/build_dim_dictionary.py \
     --out frontend/public/latent/data/dim_names.json
 ```
 
-配对数据（需要 GPU，在服务器上跑）：
+配对数据（在服务器上跑；本机 CPU 也够，只是慢，见下）：
 
 ```bash
-# 先跑接线自检，30 项断言
+# 先跑接线自检（44 项断言，其中一组会真的驱动 main() 跑完整流程）
 python3 backend/examples/test_paired_steering.py
 
-python3 backend/examples/run_paired_steering.py \
-    --model-path <Qwen3-1.7B> --problems output/problem_index.json \
-    --limit 4 --max-new-tokens 1024 \
+# CPU 版：32 核机器上约 4.7 tok/s，6 题 × 2 臂 × 1024 步 ≈ 45 分钟
+PYTHONPATH=/path/to/pylibs python3 backend/examples/run_paired_steering.py \
+    --model-path <Qwen3-1.7B> --device cpu --dtype float32 \
+    --problems output/problem_index.json \
+    --limit 6 --max-new-tokens 1024 \
     --layers 4,12,20,26 --layer 20 \
     --direction confidence_up --strength 0.2 --outdir output/paired
 
@@ -101,3 +103,17 @@ python3 backend/examples/build_paired_bundle.py \
 层选 `{4, 12, 20, 26}` 是有意的：刻意跨过注入点 L20，好回答"注入之前动
 了吗 / 注入点本身 / 传了多远"这三个不同的问题。只答其中一个，就会把
 steering 的演示写成 steering 的断言。
+
+### 一个必须写明的口径差异
+
+本包里的配对数据是在 **CPU float32** 下采的，不是 GPU bfloat16。原因很现实：
+采集节点上能用的那份 torch 是 `2.14.1+cpu`（`CUDA_VISIBLE_DEVICES` 对它无效）。
+
+这件事的影响范围是**有边界的**，别过度声明：
+
+- **配对对比本身完全有效。** 两条臂在同一份 float32 权重、同一套贪心解码下
+  跑，Δ 是同一个模型内部的差。
+- **但第 4 屏的绝对数值不能和 32k GPU 研究（Finding 11）横向比。**
+  `first_diverged_step`、`rel_shift` 这类量对数值精度敏感，bf16 与 fp32 下
+  贪心解码会在不同步数上分叉。两个来源的数字各自内部自洽，跨来源不可比。
+- 文档里凡是引用 GPU 数字的地方都标注了来源，不要把它们和本页的数据混着读。

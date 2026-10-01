@@ -691,21 +691,36 @@ function drawDeltaSide(){
                    (S.pLayer === p.inject_layer ? "（注入点）" : "");
   const st = a.stats || {};
   const rel = st.rel_shift || [], cos = st.cosine || [], pf = st.proj_fraction;
-  const m = Math.min(S.tok, rel.length - 1);
+  // `rel`/`cos` only have one entry per step the two arms actually share. The
+  // token slider, though, runs over the whole control trajectory — 1023 steps
+  // here, against a 27-step common prefix. Clamping the index and then
+  // labelling the row with the slider position would put step 26's numbers
+  // under step 500's token: a correct-looking panel about the wrong step.
+  // Beyond the window there is simply no comparison, and it has to say so.
+  const inWindow = rel.length > 0 && S.tok < rel.length;
   let h = "";
   h += `<tr><td class="note">注入</td><td class="tok">${p.direction} @ ${p.strength} → L${p.inject_layer}</td></tr>`;
   h += `<tr><td class="note">两条流同步到</td><td class="tok">第 ${p.n_common_prefix} 步</td></tr>`;
-  if(m >= 0 && rel.length){
+  if(inWindow){
+    const m = S.tok;
     const pct = rel[m]*100, c = cos[m];
-    h += `<tr><td class="note">第 ${S.tok} 步 token</td><td class="tok">${esc(pairTok())}</td></tr>`;
+    h += `<tr><td class="note">第 ${m} 步 token</td><td class="tok">${esc(pairTok())}</td></tr>`;
     h += `<tr><td class="note">残差流被推了</td><td class="tok"><b style="color:var(--acc)">${pct.toFixed(2)}%</b>（相对它自己的长度）</td></tr>`;
     h += `<tr><td class="note">移动后夹角</td><td class="tok">${(Math.acos(Math.max(-1,Math.min(1,c)))*180/Math.PI).toFixed(2)}°</td></tr>`;
-    if(pf != null)
-      h += `<tr><td class="note">沿干预方向的比例</td><td class="tok">${(pf*100).toFixed(1)}%</td></tr>`;
+  } else {
+    const why = !rel.length
+      ? "这一层没有共同前缀，两条流在第一步就选了不同的 token"
+      : `滑块在第 ${S.tok} 步，但两条流只同步到第 ${rel.length - 1} 步；` +
+        `分叉之后各跑各的，没有"同一个位置的对照"可言`;
+    h += `<tr><td class="note" colspan="3" style="color:#8891a4">` +
+         `第 ${S.tok} 步无对照可比 —— ${why}。<br>把 token 滑块拉回 0–${Math.max(0, rel.length - 1)}。</td></tr>`;
   }
+  if(pf != null)
+    h += `<tr><td class="note">沿干预方向的比例</td><td class="tok">${(pf*100).toFixed(1)}%` +
+         `<span class="note">（第 0–${Math.max(0, rel.length - 1)} 步的均值，不是第 ${S.tok} 步）</span></td></tr>`;
   const td = a.top_dims || [];
   if(td.length){
-    h += `<tr><td colspan="3" class="note" style="padding-top:10px">被推最多的维度（取自 2048 维里变化最大的）</td></tr>`;
+    h += `<tr><td colspan="3" class="note" style="padding-top:10px">被推最多的维度（取自 2048 维里变化最大的，同步窗口内的均值）</td></tr>`;
     const lo = td[td.length-1].delta;
     for(const d of td.slice(0,10)){
       const pct = Math.abs(d.delta) * 100;
@@ -1121,8 +1136,17 @@ $("#tabDelta").onclick = async () => {
   S.view="DELTA"; syncTabs();
   const ok = await loadPairMeta();
   if(!ok){
-    $("#mainTitle").textContent = "干预 vs 对照";
-    $("#mainSub").textContent = "这次打包里没有配对数据（data/pairs/pairs.json 不存在）";
+    // No paired data in this bundle. Say so plainly instead of showing an
+    // empty panel — an empty plot and a missing dataset look identical on
+    // screen, and "the intervention changed nothing" is the wrong reading.
+    syncTabs(); restoreUnsteeredSliders();
+    $("#mainTitle").textContent = "干预 vs 对照 · 本次数据包未包含";
+    $("#mainSub").textContent = "需要先跑 run_paired_steering.py 采一批配对数据";
+    const g = $("#cv").getContext("2d");
+    g.setTransform(S.dpr,0,0,S.dpr,0,0);
+    g.clearRect(0,0,S.W,S.H);
+    g.fillStyle = "#5d6d8a"; g.font = "14px monospace";
+    g.fillText("data/pairs/pairs.json 不存在 —— 这一屏还没有数据", 30, S.H/2);
     return;
   }
   // Only the layers that were kept, so the slider cannot land on a gap.
