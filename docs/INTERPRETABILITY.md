@@ -932,8 +932,9 @@ The zero-vector control is the check that makes any of the rest readable:
 | 1985 | 1.0000 | 0.00000 | none |
 | 1986 | 1.0000 | 0.00000 | none |
 | 1987 | 1.0000 | 0.00000 | none |
+| 1988 | 1.0000 | 0.00000 | none |
 
-5 of 5, exact — bit-identical token streams, not "close". A shadow fed a
+6 of 6, exact — bit-identical token streams, not "close". A shadow fed a
 zero vector reproduces the primary step for step, so every difference reported
 below is attributable to the injection and not to the measurement apparatus.
 
@@ -941,39 +942,40 @@ below is attributable to the injection and not to the measurement apparatus.
 
 | problem | control | steered | agreement | mean KL | first divergence |
 |---|---|---|---|---|---|
-| 1983 | 3410 steps, closed | 3410, closed | 0.9235 | 0.1136 | 26 |
-| 1984 | 6312, closed | 6507, **open** | 0.9199 | 0.1099 | 14 |
-| 1985 | 6507, open | 6507, open | 0.9802 | 0.0340 | 3 |
-| 1986 | 3941, closed | 6507, **open** | 0.9556 | 0.0707 | 22 |
-| 1987 | 6507, open | 6507, open | 0.9139 | 0.1330 | 43 |
+| 1983 | 3792 steps, closed | 3409, closed | 0.9235 | 0.1136 | 26 |
+| 1984 | 6311, closed | 6506, **open** | 0.9199 | 0.1099 | 14 |
+| 1985 | 6506, open | 6506, open | 0.9802 | 0.0340 | 3 |
+| 1986 | 3941, closed | 6506, **open** | 0.9556 | 0.0707 | 22 |
+| 1987 | 6506, open | 6506, open | 0.9139 | 0.1330 | 43 |
+| 1988 | 6506, open | 6506, open | 0.9619 | 0.0712 | 15 |
 
 Two things are established. **Divergence is early** — first disagreement at
-step 3 to 43, median 22, out of sequences up to 6507 long. And **the effect
+step 3 to 43, median 18.5, out of sequences up to 6506 long. And **the effect
 decays with length**: the same dose and the same problems gave 0.995 / 0.0005
-at 1024 tokens (Finding 9a) and give 0.9386 / 0.0922 here. This is the same
+at 1024 tokens (Finding 9a) and give 0.9425 / 0.0887 here. This is the same
 budget-dependence the earlier sections carry, now extended 6× further along
 the curve, and it is a caution against reading any short-budget agreement
 number as a property of the intervention rather than of the budget.
 
 ### The answer-level effect: still not measurable
 
-| | chain closed | answer known |
+| | chain closed | answer usable |
 |---|---|---|
-| control | 3 / 5 | 3 / 5 |
-| steered | 1 / 5 | 1 / 5 |
+| control | 3 / 6 | 3 / 6 |
+| steered | 1 / 6 | 1 / 6 |
 
-Fisher exact **p = 0.52**. The direction of that gap is suggestive — the
+Fisher exact **p = 0.55**. The direction of that gap is suggestive — the
 steered arm leaves `</think>` open on both problems whose control chain closed
-— but n = 5 supports nothing, and the honest reading is that **at 6507 steps
+— but n = 6 supports nothing, and the honest reading is that **at 6506 steps
 this model on AIME usually does not finish deliberating**, so the question
-"did the intervention change the answer" is still not reachable. Two problems
-(1983, 1984 on the control side) have a comparable answer on both arms; 1983
-agrees (60 → 60). One agreement out of one comparison is not a result.
+"did the intervention change the answer" is still not reachable. Exactly one
+problem (1983) has a usable answer on both arms, and it agrees: 60 → 60. One
+agreement out of one comparison is not a result.
 
 Any statement of the form "steering makes the model reason longer" has to be
-handled with the same care. The steered arm produces more characters on 3 of 5
-problems, but 4 of 5 steered chains were forced to run the full 6507 steps
-while 2 of 5 control chains stopped early — the extra length is largely the
+handled with the same care. The steered arm produces more characters on 3 of 6
+problems, but 5 of 6 steered chains were forced to run the full 6506 steps
+while 3 of 6 control chains stopped early — the extra length is largely the
 mechanical consequence of not closing, not a measured behavioural effect. The
 only problem where both arms closed is 1983, at 7507 → 6988 characters:
 n = 1.
@@ -988,7 +990,9 @@ The summary table for 1987 reads:
 ```
 
 *"The intervention moved the answer from 1 to 2."* That is a clean,
-attractive, publishable sentence, and **both numbers are noise.**
+attractive, publishable sentence, and **both numbers are noise.** (1988 is
+the same shape: 0 and 0, both scraped from unclosed chains. They happen to
+match, which is why it is the one that did not get noticed.)
 
 `extract_answer` tries `ANSWER_RE`, then `BOXED_RE`, then `TAIL_INT_RE` — the
 last integer in the text. Neither arm closed `</think>`, so the answer segment
@@ -1232,15 +1236,15 @@ per-layer, are the three changes that would most improve these vectors.
   11). At 60 steps the traces contain no completed chain of thought; at
   1024 tokens 0 of 96 traces close `</think>`. Raising the budget to 32k and
   sizing it from a calibration run (Finding 11) does reopen the question —
-  chains do close, at 3037 and 5658 steps — but 3 of 5 control chains still
-  fail to close inside 6507 steps, so only 2 of 5 problems have a comparable
-  answer on both arms. The effect remains unmeasured, now for a different and
+  chains do close, at 3037 and 5658 steps — but 3 of 6 control chains still
+  fail to close inside 6506 steps, so exactly one problem has a usable answer
+  on both arms. The effect remains unmeasured, now for a different and
   more interesting reason: not that the budget is too small to ever reach an
   answer, but that this model on AIME spends several thousand tokens of
   deliberation and the intervention is small.
-- **The 32k study is 5 problems, and its one interesting contrast is not
-  significant** (Finding 11). 3/5 control chains close versus 1/5 steered,
-  Fisher exact p = 0.52. It is reported as a hypothesis — "the confidence
+- **The 32k study is 6 problems, and its one interesting contrast is not
+  significant** (Finding 11). 3/6 control chains close versus 1/6 steered,
+  Fisher exact p = 0.55. It is reported as a hypothesis — "the confidence
   direction may lengthen deliberation" — and nothing more. The per-step
   match bits that would separate compounding divergence from early
   divergence followed by re-synchronisation were not persisted by the run

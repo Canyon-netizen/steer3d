@@ -90,6 +90,7 @@
         <button id="tabXY" class="on">隐空间 2D</button>
         <button id="tabBar">候选词</button>
         <button id="tabDim">维度解读</button>
+        <button id="tabDelta">干预 vs 对照</button>
       </div>
       <div class="row">
         <label>当前层 <span class="val" id="valLayer">L14</span></label>
@@ -103,6 +104,11 @@
       <div class="row" style="display:flex;gap:6px">
         <button id="btnPlay">▶ 播放</button>
         <button id="btnDepth">深度轨迹</button>
+      </div>
+      <div class="row" id="pairRow" style="display:none">
+        <label>配对题目</label>
+        <select id="selPair" style="flex:1"></select>
+        <div class="sub" id="pairNote"></div>
       </div>
       <div class="stat"><span>原始向量维度</span><span id="stD">2048</span></div>
       <div class="stat"><span>该 token 原始 token</span><span id="stRaw">—</span></div>
@@ -123,13 +129,19 @@
         <h2 style="margin:0" id="mainTitle">隐空间 2D 投影 · L14</h2>
         <div class="sub" id="mainSub"></div>
       </div>
-      <canvas id="cv" style="flex:1;width:100%"></canvas>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-height:0">
+        <div class="sub" id="deltaCap" style="display:none"></div>
+        <canvas id="cv" style="flex:1;width:100%"></canvas>
+        <canvas id="cvD" style="flex:1;width:100%;display:none"></canvas>
+      </div>
       <div class="legend">
         <span><i style="background:#5cc8ff"></i>当前 token</span>
         <span><i style="background:#4a5a78"></i>已生成 token</span>
         <span><i style="background:#2a3348"></i>未生成 token（淡显）</span>
         <span><i style="background:#ffb454"></i>深度轨迹（跨层）</span>
         <span><i style="background:#ff6b81"></i>PC1/PC2 轴</span>
+        <span id="legendDelta" style="display:none"><i style="background:#3ddc97"></i>干预后轨迹</span>
+        <span id="legendDelta2" style="display:none"><i style="background:#ff6b81"></i>每一步的位移 Δ</span>
       </div>
     </div>
   </div>
@@ -184,6 +196,15 @@ const S = {
   // 用 raw[idx*1] 之外没有的独立缓存：浏览器端投影结果
   projCache: new Map(), dimNames: null, tokText: null,
   W: 0, H: 0, dpr: 1,
+
+  // ---- 干预 vs 对照 -------------------------------------------------
+  // 独立的题集：同一道题跑两遍。control 和 delta 各是一个 (T, 2048) 的
+  // fp16 矩阵；干预后的那一条在浏览器里现算 control + delta。
+  pm: null, pi: 0, pLayer: 0,
+  pCtl: null, pDelta: null, pT: 0, pCtlT: 0, pPrefix: 0,
+  pMean: null, pComp: null, pProjC: null, pProjD: null,
+  pUnit: null, pUnitProj: null, pIdsC: null, pIdsS: null, pBusy: false,
+  pMeta: null, pStrideComp: 0,
 };
 
 const DEC = new TextDecoder("utf-8");
@@ -358,6 +379,307 @@ function tokInfo(k){
   return {id:-1, s:"", ent:null, top1:null, think:false};
 }
 
+/* ================= 干预 vs 对照 =================
+   两条流是分开跑的，不是 teacher-forced 的 shadow：同一道题、同一套
+   prompt、同一个贪心解码，唯一区别是第 20 层的残差有没有被推一把。
+
+   delta 是服务器端在 float32 里算完再存的。浏览器**不要**用两条 fp16
+   流相减来得到它 —— fp16 的量化误差是 0.022·‖h‖，而 delta 本身只有
+   rel_shift·‖h‖，相减的结果里信号和噪声一个量级。manifest 里每个层
+   都记了两种做法的 SNR。 */
+
+async function loadPairMeta(){
+  if(S.pm) return true;
+  try{
+    const r = await fetch("data/pairs/pairs.json");
+    if(!r.ok) return false;
+    S.pm = await r.json();
+  }catch(e){ trace("pairs.json unavailable: " + e.message); return false; }
+
+  const sel = $("#selPair");
+  S.pm.pairs.forEach((p,i)=>{
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = `${p.id}  共同前缀 ${p.n_common_prefix} 步` +
+                    (p.answer && p.answer.control != null
+                      ? `  答案 ${p.answer.control}` : "  未闭合");
+    sel.appendChild(o);
+  });
+  sel.onchange = () => loadPair(+sel.value);
+  trace("pair manifest " + S.pm.pairs.length);
+
+  // PCA 基与无干预的那一套**共用**（build_paired_bundle 用的是 pca_00.bin）。
+  // 重新拟合一次会把同一条轨迹放进另一张 2-D 图里，"点云被推走了"就会
+  // 变成两个投影之间的差别而不是干预的差别。
+  const [pb, mb] = await Promise.all([
+    fetchBuf("data/pca_00.bin"), fetchBuf("data/mean_00.bin")]);
+  const D = S.pm.d_model;
+  S.pComp = new Float32Array(pb);                    // (L, D, 2)
+  S.pMean = new Float32Array(mb);                    // (L, D)
+  S.pStrideComp = D * 2;
+  trace("pair basis loaded");
+  if(S.pm.steer_unit){
+    try{ S.pUnit = f16decode(await fetchBuf("data/pairs/" + S.pm.steer_unit)); }
+    catch(e){ trace("steer_unit missing: " + e.message); }
+  }
+  return true;
+}
+
+async function loadPair(i){
+  if(!S.pm) return;
+  const p = S.pm.pairs[i];
+  S.pi = i; S.pLayer = p.layers.indexOf(20) >= 0 ? 20 : p.layers[0];
+  $("#selPair").value = i;
+  const n = p.arms["_ids"];
+  if(n && n.control && !S.pIdsC){
+    const [bc, bs] = await Promise.all([
+      fetchBuf("data/pairs/" + n.control.file),
+      n.steered ? fetchBuf("data/pairs/" + n.steered.file) : Promise.resolve(null)]);
+    S.pIdsC = new Int32Array(bc);
+    S.pIdsS = bs ? new Int32Array(bs) : null;
+  }
+  await loadPairLayer();
+}
+
+async function loadPairLayer(){
+  const p = S.pm && S.pm.pairs[S.pi];
+  if(!p) return;
+  const a = p.arms[String(S.pLayer)];
+  if(!a || !a.control){ $("#deltaCap").textContent = "该题没有这一层的数据"; return; }
+  S.pBusy = true;
+  const D = S.pm.d_model;
+  const [cb, db] = await Promise.all([
+    fetchBuf("data/pairs/" + a.control.file),
+    a.delta ? fetchBuf("data/pairs/" + a.delta.file) : Promise.resolve(null)]);
+  S.pCtl = f16decode(cb);
+  S.pDelta = db ? f16decode(db) : null;
+  S.pCtlT = a.control.T;
+  S.pPrefix = a.delta ? a.delta.T : 0;
+  S.pT = a.delta ? a.delta.T : a.control.T;
+  S.pProjC = new Float32Array(a.control.T * 2);
+  S.pProjD = S.pDelta ? new Float32Array(S.pT * 2) : null;
+  S.pMeta = a;
+  projectPair();
+  S.pBusy = false;
+  render();
+}
+
+function projectPair(){
+  const D = S.pm.d_model, L = S.pLayer;
+  const co = L * S.pStrideComp, mo = L * D;
+  for(let k=0;k<S.pCtlT;k++){
+    const o = k*D;
+    let a=0, b=0;
+    for(let d=0;d<D;d++){
+      const x = S.pCtl[o+d] - S.pMean[mo+d];
+      a += x * S.pComp[co+2*d];
+      b += x * S.pComp[co+2*d+1];
+    }
+    S.pProjC[2*k] = a; S.pProjC[2*k+1] = b;
+  }
+  for(let k=0;k<S.pT;k++){
+    const o = k*D;
+    let a=0, b=0;
+    for(let d=0;d<D;d++){
+      // 均值在这里抵消：proj(Δ) 与原点无关，所以 delta 不需要自己的基。
+      const x = S.pDelta[o+d];
+      a += x * S.pComp[co+2*d];
+      b += x * S.pComp[co+2*d+1];
+    }
+    S.pProjD[2*k] = a; S.pProjD[2*k+1] = b;
+  }
+}
+
+function pairTok(){
+  const p = S.pm && S.pm.pairs[S.pi];
+  if(!p || !S.pIdsC) return "";
+  const k = S.tok;
+  if(k >= S.pIdsC.length) return "";
+  return S.vocab && S.vocab[S.pIdsC[k]] || ("#" + S.pIdsC[k]);
+}
+
+/* ---- 第 4 屏：干预 vs 对照 ----
+   上下两块，各有各的刻度。这是必须的：残差流在 L26 的坐标跨度是 1980，
+   而 1% 的扰动只有 20 左右，画在同一张图上 Δ 就是一个看不见的点。 */
+function drawDelta(){
+  const p = S.pm && S.pm.pairs[S.pi];
+  const g = $("#cv").getContext("2d");
+  g.setTransform(S.dpr,0,0,S.dpr,0,0);
+  g.clearRect(0,0,S.W,S.H);
+  if(!p || S.pBusy || !S.pCtl){
+    g.fillStyle = "#5d6d8a"; g.font = "14px monospace";
+    g.fillText("正在载入配对向量…", 30, S.H/2);
+    return;
+  }
+  const D = S.pm.d_model;
+
+  /* ---- 上：两条轨迹在同一坐标系里 ---- */
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  for(let k=0;k<S.pCtlT;k++){
+    const x=S.pProjC[2*k], y=S.pProjC[2*k+1];
+    if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+    if(k<S.pT){                                  // 干预后的位置
+      const xs=x+S.pProjD[2*k], ys=y+S.pProjD[2*k+1];
+      if(xs<x0)x0=xs; if(xs>x1)x1=xs; if(ys<y0)y0=ys; if(ys>y1)y1=ys;
+    }
+  }
+  const pad = 0.06*(Math.max(x1-x0,y1-y0)||1);
+  x0-=pad; x1+=pad; y0-=pad; y1+=pad;
+  const sx = w => (w-x0)/(x1-x0)*S.W;
+  const sy = w => S.H - (w-y0)/(y1-y0)*S.H;
+
+  g.strokeStyle="#161d2b"; g.lineWidth=1;
+  for(let i=0;i<=5;i++){
+    g.beginPath(); g.moveTo(S.W*i/5,0); g.lineTo(S.W*i/5,S.H); g.stroke();
+    g.beginPath(); g.moveTo(0,S.H*i/5); g.lineTo(S.W,S.H*i/5); g.stroke();
+  }
+  // 未参与比较的步：Δ 在那里没有定义
+  if(S.pPrefix < S.pCtlT){
+    const X = sx(S.pProjC[2*Math.max(0,S.pPrefix-1)]);
+    g.fillStyle="rgba(20,26,40,0.55)"; g.fillRect(X,0,S.W-X,S.H);
+    g.strokeStyle="#8fa0bb"; g.setLineDash([5,4]);
+    g.beginPath(); g.moveTo(X,0); g.lineTo(X,S.H); g.stroke(); g.setLineDash([]);
+    g.fillStyle="#8fa0bb"; g.font="11px monospace";
+    g.fillText("两条流在这里之后不再同步 →", Math.min(X+6, S.W-190), 16);
+  }
+  // 对照（全轨迹淡显）
+  g.fillStyle="#2f3d55";
+  for(let k=0;k<S.pCtlT;k+=2) g.fillRect(sx(S.pProjC[2*k])-0.7, sy(S.pProjC[2*k+1])-0.7, 1.4, 1.4);
+  // 干预后：逐点连到它对应的对照点
+  if(S.pDelta){
+    g.strokeStyle="rgba(61,220,151,0.30)"; g.lineWidth=1;
+    for(let k=0;k<S.pT;k++){
+      g.beginPath();
+      g.moveTo(sx(S.pProjC[2*k]), sy(S.pProjC[2*k+1]));
+      g.lineTo(sx(S.pProjC[2*k]+S.pProjD[2*k]), sy(S.pProjC[2*k+1]+S.pProjD[2*k+1]));
+      g.stroke();
+    }
+    g.fillStyle="#3ddc97";
+    for(let k=0;k<S.pT;k+=2){
+      g.beginPath();
+      g.arc(sx(S.pProjC[2*k]+S.pProjD[2*k]), sy(S.pProjC[2*k+1]+S.pProjD[2*k+1]), 2.0, 0, 7);
+      g.fill();
+    }
+  }
+  // 当前步
+  if(S.tok < S.pCtlT){
+    const cx=sx(S.pProjC[2*S.tok]), cy=sy(S.pProjC[2*S.tok+1]);
+    g.fillStyle="#8fa0bb"; g.beginPath(); g.arc(cx,cy,3,0,7); g.fill();
+    if(S.pDelta && S.tok < S.pT){
+      const dx=sx(S.pProjC[2*S.tok]+S.pProjD[2*S.tok]);
+      const dy=sy(S.pProjC[2*S.tok+1]+S.pProjD[2*S.tok+1]);
+      g.fillStyle="#5cc8ff"; g.beginPath(); g.arc(dx,dy,4.5,0,7); g.fill();
+    }
+  }
+  g.fillStyle="#8fa0bb"; g.font="11px monospace";
+  g.fillText("对照（灰） vs 干预后（绿）· 同一个 PCA 基", 10, S.H-10);
+
+  /* ---- 下：每一步被推了多远、朝哪个方向 ---- */
+  const gd = $("#cvD").getContext("2d");
+  const r2 = $("#cvD").getBoundingClientRect();
+  const W2 = Math.max(320, r2.width), H2 = Math.max(200, r2.height);
+  gd.setTransform(S.dpr,0,0,S.dpr,0,0);
+  gd.clearRect(0,0,W2,H2);
+  if(!S.pDelta){
+    gd.fillStyle="#5d6d8a"; gd.font="14px monospace";
+    gd.fillText("这一层没有 Δ 数据（干预前后的 token 在这一步就分开了）", 24, H2/2);
+    return;
+  }
+  let dx0=1e9,dx1=-1e9,dy0=1e9,dy1=-1e9;
+  for(let k=0;k<S.pT;k++){
+    const x=S.pProjD[2*k], y=S.pProjD[2*k+1];
+    if(x<dx0)dx0=x; if(x>dx1)dx1=x; if(y<dy0)dy0=y; if(y>dy1)dy1=y;
+  }
+  // 干预方向也要投影进来，作为"推的方向"的参考轴
+  if(S.pUnit){
+    const co = S.pLayer * S.pStrideComp;
+    let ua=0, ub=0;
+    for(let d=0;d<D;d++){ ua += S.pUnit[d]*S.pComp[co+2*d]; ub += S.pUnit[d]*S.pComp[co+2*d+1]; }
+    dx0=Math.min(dx0,0); dx1=Math.max(dx1,0); dy0=Math.min(dy0,0); dy1=Math.max(dy1,0);
+    S.pUnitProj=[ua,ub];
+  }
+  const pd = 0.10*(Math.max(dx1-dx0, dy1-dy0)||1);
+  dx0-=pd; dx1+=pd; dy0-=pd; dy1+=pd;
+  const dxs = w => (w-dx0)/(dx1-dx0)*W2;
+  const dys = w => H2 - (w-dy0)/(dy1-dy0)*H2;
+
+  gd.strokeStyle="#161d2b"; gd.lineWidth=1;
+  for(let i=0;i<=5;i++){
+    gd.beginPath(); gd.moveTo(W2*i/5,0); gd.lineTo(W2*i/5,H2); gd.stroke();
+    gd.beginPath(); gd.moveTo(0,H2*i/5); gd.lineTo(W2,H2*i/5); gd.stroke();
+  }
+  gd.strokeStyle="#ff6b81"; gd.setLineDash([4,4]);
+  if(dx0<0&&dx1>0){ gd.beginPath(); gd.moveTo(dxs(0),0); gd.lineTo(dxs(0),H2); gd.stroke(); }
+  if(dy0<0&&dy1>0){ gd.beginPath(); gd.moveTo(0,dys(0)); gd.lineTo(W2,dys(0)); gd.stroke(); }
+  gd.setLineDash([]);
+  // 干预方向按当前坐标跨度归一化后画成参考箭头
+  const reach = Math.max(Math.abs(dx0),Math.abs(dx1),
+                         Math.abs(dy0),Math.abs(dy1))*0.85;
+  gd.fillStyle="#ff6b81";
+  for(let k=0;k<S.pT;k++){
+    gd.beginPath(); gd.arc(dxs(S.pProjD[2*k]), dys(S.pProjD[2*k+1]), 1.7, 0, 7); gd.fill();
+  }
+  if(S.pUnitProj){
+    const ux=dxs(S.pUnitProj[0]*reach), uy=dys(S.pUnitProj[1]*reach);
+    gd.strokeStyle="#ffb454"; gd.lineWidth=2;
+    gd.beginPath(); gd.moveTo(dxs(0),dys(0)); gd.lineTo(ux,uy); gd.stroke();
+    const ang=Math.atan2(uy-dys(0), ux-dxs(0));
+    gd.beginPath();
+    gd.moveTo(ux,uy);
+    gd.lineTo(ux-7*Math.cos(ang-0.4), uy-7*Math.sin(ang-0.4));
+    gd.lineTo(ux-7*Math.cos(ang+0.4), uy-7*Math.sin(ang+0.4));
+    gd.closePath(); gd.fillStyle="#ffb454"; gd.fill();
+    gd.fillStyle="#ffb454"; gd.font="11px monospace";
+    gd.fillText("干预方向", Math.min(ux+8, W2-70), uy-4);
+  }
+  if(S.tok < S.pT){
+    gd.strokeStyle="#5cc8ff"; gd.lineWidth=1.5;
+    gd.beginPath(); gd.arc(dxs(S.pProjD[2*S.tok]), dys(S.pProjD[2*S.tok+1]), 5, 0, 7); gd.stroke();
+  }
+  gd.fillStyle="#8fa0bb"; gd.font="11px monospace";
+  gd.fillText("每一步的位移 Δ（独立刻度，与上图不同量纲）", 10, 16);
+}
+
+function drawDeltaSide(){
+  const p = S.pm && S.pm.pairs[S.pi];
+  const el = $("#sideTitle"), tb = $("#tblTop");
+  if(!p || !S.pMeta){
+    el.textContent = "干预 vs 对照";
+    tb.innerHTML = '<tr><td class="note">选择一个配对题目</td></tr>';
+    return;
+  }
+  const a = S.pMeta;
+  el.textContent = "干预 vs 对照 · L" + S.pLayer +
+                   (S.pLayer === p.inject_layer ? "（注入点）" : "");
+  const st = a.stats || {};
+  const rel = st.rel_shift || [], cos = st.cosine || [], pf = st.proj_fraction;
+  const m = Math.min(S.tok, rel.length - 1);
+  let h = "";
+  h += `<tr><td class="note">注入</td><td class="tok">${p.direction} @ ${p.strength} → L${p.inject_layer}</td></tr>`;
+  h += `<tr><td class="note">两条流同步到</td><td class="tok">第 ${p.n_common_prefix} 步</td></tr>`;
+  if(m >= 0 && rel.length){
+    const pct = rel[m]*100, c = cos[m];
+    h += `<tr><td class="note">第 ${S.tok} 步 token</td><td class="tok">${esc(pairTok())}</td></tr>`;
+    h += `<tr><td class="note">残差流被推了</td><td class="tok"><b style="color:var(--acc)">${pct.toFixed(2)}%</b>（相对它自己的长度）</td></tr>`;
+    h += `<tr><td class="note">移动后夹角</td><td class="tok">${(Math.acos(Math.max(-1,Math.min(1,c)))*180/Math.PI).toFixed(2)}°</td></tr>`;
+    if(pf != null)
+      h += `<tr><td class="note">沿干预方向的比例</td><td class="tok">${(pf*100).toFixed(1)}%</td></tr>`;
+  }
+  const td = a.top_dims || [];
+  if(td.length){
+    h += `<tr><td colspan="3" class="note" style="padding-top:10px">被推最多的维度（取自 2048 维里变化最大的）</td></tr>`;
+    const lo = td[td.length-1].delta;
+    for(const d of td.slice(0,10)){
+      const pct = Math.abs(d.delta) * 100;
+      const up = d.delta >= 0;
+      const names = (d.names||[]).slice(0,4).map(esc).join("、") || "—";
+      h += `<tr><td class="n" style="color:${up?"#ff8fa3":"#3ddc97"};width:46px">${up?"▲":"▼"}#${d.dim}</td>
+        <td class="bar"><div style="width:${Math.max(3,pct)}%;background:${up?"#ff8fa3":"#3ddc97"}"></div></td>
+        <td class="n" style="width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${names}">${names}</td></tr>`;
+    }
+  }
+  tb.innerHTML = h;
+}
 /* ---- 浏览器端投影：这一层自己的 PCA 基 ---- */
 function project(tok, layer){
   const key = tok*1000 + layer;
@@ -401,11 +723,21 @@ function embedDist(tok, layer){
 
 /* ================= 画布 ================= */
 function layout(){
-  const cv = $("#cv");
   S.dpr = window.devicePixelRatio || 1;
-  const r = cv.getBoundingClientRect();
-  S.W = Math.max(320, r.width); S.H = Math.max(240, r.height);
-  cv.width = S.W*S.dpr; cv.height = S.H*S.dpr;
+  const delt = S.view === "DELTA";
+  for(const [id, on] of [["#cv", true], ["#cvD", delt]]){
+    const cv = $(id);
+    cv.style.display = on ? "block" : "none";
+    if(!on) continue;
+    const r = cv.getBoundingClientRect();
+    cv.width  = Math.max(320, r.width)  * S.dpr;
+    cv.height = Math.max(200, r.height) * S.dpr;
+  }
+  const r = $("#cv").getBoundingClientRect();
+  S.W = Math.max(320, r.width);
+  S.H = delt ? Math.max(200, r.height) : Math.max(240, r.height);
+  $("#cv").width  = S.W * S.dpr;
+  $("#cv").height = S.H * S.dpr;
   render();
 }
 
@@ -509,6 +841,13 @@ function drawBar(){
   rows.sort((a,b)=>b[0]-a[0]);
   const best = rows[0][0];
   const top = rows.slice(0, 28);
+  // The bar must span from the *lowest* value on the axis to the highest.
+  // Measuring (v - best) against a (best - lo) denominator gives a numerator
+  // that is <= 0 for every row, so Math.max(0, ...) collapsed all 28 bars to
+  // zero width — the words and scores drew fine, so the view looked alive
+  // while showing no bars at all.
+  const lo = rows[27][0];
+  const span = (best - lo) || 1;
   const pad = 24, rowH = (S.H-pad*2)/top.length;
   const wName = Math.min(150, S.W*0.28), wBar = S.W - wName - 120;
   top.forEach(([v,id],i)=>{
@@ -517,7 +856,7 @@ function drawBar(){
     g.fillStyle = isTop ? "#5cc8ff" : "#8fa0bb";
     g.font = (isTop?"600 ":"") + "12px monospace";
     g.fillText(tokStr(id), 6, y+rowH*0.68);
-    const w = Math.max(0, (v-best)/ (best - rows[27][0] + 1e-6)) * wBar;
+    const w = Math.max(1, (v-lo)/span) * wBar;
     g.fillStyle = isTop ? "#5cc8ff" : "#2f3d55";
     g.fillRect(wName+70, y+rowH*0.2, w, rowH*0.55);
     g.fillStyle = isTop ? "#5cc8ff" : "#5d6d8a";
@@ -629,7 +968,13 @@ function renderSide(){
     m0 = Math.sqrt(m0/upto);
     const ratio = sd/(m0+1e-9);
     let story;
-    if(S.layer === 0){
+    if(upto < 2){
+      // A single point has zero spread by construction, so the ratio is 0
+      // and the "already differentiated" branch below would announce that
+      // the representations have visibly separated — from a population of
+      // one. Say what is actually true instead.
+      story = "L"+S.layer+"：目前只有第 1 步这一个点，算不出离散度（单点的方差恒为 0）。把 token 滑块往后拖几个点，这里就会给出这一层点云的收拢程度。";
+    } else if(S.layer === 0){
       story = "L0 是 embedding 本身的输出。token 之间几乎完全线性可分，所以点云铺得开、分得散——还没有任何「推理」发生。";
     } else if(ratio > 0.55){
       story = "L"+S.layer+"：点云离中心的离散度只有 "+ (ratio*100).toFixed(0) +"%（越接近 0 越集中）。<b>状态已经被压到少数几个方向上了</b>——这正是残差流在做的工作：把这一层认为重要的信息写成少数几维，其余清零。";
@@ -643,6 +988,27 @@ function renderSide(){
 function render(){
   trace("render enter");
   if(!S.m) return;
+  const delta = S.view === "DELTA";
+  if(delta){
+    if(!S.pBusy && S.pm) drawDelta();
+    $("#pairRow").style.display = "flex";
+    $("#legendDelta").style.display = "inline";
+    $("#legendDelta2").style.display = "inline";
+    const p = S.pm && S.pm.pairs[S.pi];
+    $("#valLayer").textContent = "L"+S.pLayer +
+      (p && S.pLayer === p.inject_layer ? " ←注入点" : "");
+    $("#valTok").textContent = S.tok;
+    $("#mainTitle").textContent = "同一条题，两种走法 · L"+S.pLayer;
+    $("#mainSub").textContent = p
+      ? p.problem.slice(0, 70) + " · 两条流同步到第 " + p.n_common_prefix + " 步"
+      : "";
+    if(S.pm) drawDeltaSide();
+    health();
+    return;
+  }
+  $("#pairRow").style.display = "none";
+  $("#legendDelta").style.display = "none";
+  $("#legendDelta2").style.display = "none";
   const t = S.m.trajectories[S.ti];
   $("#valLayer").textContent = "L"+S.layer;
   $("#valTok").textContent = S.tok;
@@ -660,15 +1026,55 @@ function render(){
 }
 
 /* ================= 事件 ================= */
-$("#rngLayer").oninput = e => { S.layer = +e.target.value; render(); };
+$("#rngLayer").oninput = e => {
+  if(S.view === "DELTA"){
+    // The paired runs only kept four layers, so the slider snaps to the
+    // nearest one that actually has data rather than to a value that would
+    // render an empty panel.
+    const ls = (S.pm && S.pm.pairs[S.pi] && S.pm.pairs[S.pi].layers) || [];
+    const want = +e.target.value;
+    let best = ls[0];
+    for(const L of ls) if(Math.abs(L-want) < Math.abs(best-want)) best = L;
+    S.pLayer = best; e.target.value = best;
+    loadPairLayer();
+  } else { S.layer = +e.target.value; render(); }
+};
 $("#rngTok").oninput   = e => { S.tok = +e.target.value; render(); };
-$("#tabXY").onclick  = () => { S.view="XY";  syncTabs(); render(); };
-$("#tabBar").onclick = () => { S.view="BAR"; syncTabs(); render(); };
-$("#tabDim").onclick = () => { S.view="DIM"; syncTabs(); render(); };
+function restoreUnsteeredSliders(){
+  $("#rngLayer").min = 0;
+  $("#rngLayer").max = S.m.n_layers - 1;
+  $("#rngLayer").step = 1;
+  $("#rngLayer").value = S.layer;
+  const t = S.m.trajectories[S.ti];
+  $("#rngTok").max = Math.max(0, t.n_tokens_shipped - 1);
+  if(S.tok > t.n_tokens_shipped - 1) S.tok = t.n_tokens_shipped - 1;
+  $("#rngTok").value = S.tok;
+}
+$("#tabXY").onclick  = () => { S.view="XY";  syncTabs(); restoreUnsteeredSliders(); layout(); };
+$("#tabBar").onclick = () => { S.view="BAR"; syncTabs(); restoreUnsteeredSliders(); layout(); };
+$("#tabDim").onclick = () => { S.view="DIM"; syncTabs(); restoreUnsteeredSliders(); layout(); };
+$("#tabDelta").onclick = async () => {
+  S.view="DELTA"; syncTabs();
+  const ok = await loadPairMeta();
+  if(!ok){
+    $("#mainTitle").textContent = "干预 vs 对照";
+    $("#mainSub").textContent = "这次打包里没有配对数据（data/pairs/pairs.json 不存在）";
+    return;
+  }
+  // Only the layers that were kept, so the slider cannot land on a gap.
+  const p = S.pm.pairs[S.pi] || S.pm.pairs[0];
+  const ls = p.layers;
+  $("#rngLayer").min = ls[0]; $("#rngLayer").max = ls[ls.length-1];
+  $("#rngLayer").step = 1;
+  if(!S.pi && S.pm.pairs.length) await loadPair(0);
+  $("#rngTok").max = Math.max(0, (S.pCtlT||1) - 1);
+  layout();
+};
 function syncTabs(){
   $("#tabXY").classList.toggle("on", S.view==="XY");
   $("#tabBar").classList.toggle("on", S.view==="BAR");
   $("#tabDim").classList.toggle("on", S.view==="DIM");
+  $("#tabDelta").classList.toggle("on", S.view==="DELTA");
 }
 $("#btnPlay").onclick = () => {
   S.playing = !S.playing;

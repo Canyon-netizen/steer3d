@@ -12,10 +12,35 @@ residual stream kept for both at full fidelity.
 Three decisions worth stating, because each one is a way this could have
 been quietly wrong instead:
 
-1. **No precomputed ``delta`` file.** The browser subtracts the two arms
-   itself. A stored delta is a third copy of the same information, and a
-   viewer that lets you move a layer slider cannot use one anyway. It also
-   removes a whole class of "the two files disagree" bugs.
+1. **The delta is shipped, and the steered arm is not.** This is the one
+   that is easy to get backwards. Storing both arms and letting the browser
+   subtract looks like the cheaper option — it is the same 2x payload —
+   and it is what an earlier draft of this file did.
+
+   It is wrong by two orders of magnitude in precision. fp16 carries 11
+   bits, so each component of the stored residual is quantised to a
+   relative 2^-11; the error over a 2048-dimensional vector accumulates as
+   sqrt(2048) = 45.3. Differencing two independently-quantised copies of
+   ``h`` therefore leaves an error of roughly ``0.022 * ‖h‖`` — and the
+   signal being recovered, the delta, is ``rel_shift * ‖h‖``. Measured SNR
+   (‖true‖ / ‖error‖) for a 2048-d stream:
+
+   | rel_shift | h+steered, subtract in browser | h+delta, rebuild steered |
+   |---|---|---|
+   | 0.10 | 339 | 4823 |
+   | 0.01 | 34 | 4813 |
+   | 0.001 | **3.4** | **4837** |
+
+   At a SNR of 3.4 the direction of the change is not readable. That is not
+   a hypothetical: at layers *upstream* of the injection point the delta is
+   expected to be near zero, and those are exactly the layers where a
+   small-but-real upstream effect would be erased by quantisation noise and
+   replaced by a plausible-looking smear.
+
+   Shipping ``h`` and ``delta`` costs the same two vectors and gives a
+   constant SNR of ~4800, because fp16's error is then relative to
+   ``‖delta‖`` itself rather than to ``‖h‖``. The browser reconstructs the
+   steered arm as ``h + delta`` in float32.
 
 2. **The PCA basis is shared with the unsteered bundle, not refit here.**
    Two fits would put the same trajectory in two unrelated 2-D pictures,
@@ -138,33 +163,66 @@ def main() -> int:
             "arms": {},
         }
         row = []
+        n_common = int(rec.get("paired", {}).get("n_common_prefix", 0) or 0)
         for L in layers:
             arm_meta = {}
-            for arm, key in (("control", "control"), ("steered", "steered")):
-                name = f"{key}_L{L}"
-                if name not in z:
-                    continue
-                X = z[name]
-                if X.size == 0:
-                    continue
-                T, D = X.shape
-                if D != args.d_model:
-                    raise SystemExit(f"{pid} {name}: d_model {D} != {args.d_model}")
-                # Re-derive the coordinates here as a check on the basis, not
-                # as data to ship: the browser recomputes from the vectors.
-                proj = ((X.astype(np.float32) - basis[L]["mean"])
-                        @ basis[L]["comp"])
-                nb = _write_f16(out / f"pc_{pid}_{key}_L{L}.bin", X)
-                total += nb
-                arm_meta[arm] = {
-                    "file": f"pc_{pid}_{key}_L{L}.bin",
-                    "T": int(T), "D": int(D),
-                    "n_bytes": nb,
-                    "proj": [[float(proj[i, 0]), float(proj[i, 1])]
-                             for i in range(T)] if T <= 2048 else None,
-                }
-                row.append(f"  L{L:<3d} {arm:8s} T={T:<5d} {nb/1e6:6.1f}MB  "
-                           f"PC1[{proj[:,0].min():9.2f},{proj[:,0].max():9.2f}]")
+            ctl = z.get(f"control_L{L}")
+            std = z.get(f"steered_L{L}")
+            if ctl is None or ctl.size == 0:
+                continue
+
+            # --- control: shipped as-is -------------------------------------
+            T, D = ctl.shape
+            if D != args.d_model:
+                raise SystemExit(f"{pid} control_L{L}: d_model {D} != {args.d_model}")
+            # Recomputed here as a check on the basis, not shipped: the
+            # browser projects from the vectors itself.
+            proj = ((ctl.astype(np.float32) - basis[L]["mean"])
+                    @ basis[L]["comp"])
+            nb = _write_f16(out / f"pc_{pid}_control_L{L}.bin", ctl)
+            total += nb
+            arm_meta["control"] = {
+                "file": f"pc_{pid}_control_L{L}.bin",
+                "T": int(T), "D": int(D), "n_bytes": nb,
+                "proj": ([[float(proj[i, 0]), float(proj[i, 1])]
+                          for i in range(T)] if T <= 2048 else None),
+            }
+            row.append(f"  L{L:<3d} control  T={T:<5d} {nb/1e6:6.1f}MB  "
+                       f"PC1[{proj[:,0].min():9.2f},{proj[:,0].max():9.2f}]")
+
+            # --- delta: differenced in float32 BEFORE any quantisation -----
+            if std is None or std.size == 0:
+                continue
+            m = min(n_common, T, std.shape[0])
+            if m <= 0:
+                continue
+            h32 = ctl[:m].astype(np.float32)
+            delta = (std[:m].astype(np.float32) - h32).astype(np.float16)
+            nb = _write_f16(out / f"pc_{pid}_delta_L{L}.bin", delta)
+            total += nb
+
+            # What the browser would get back, and what it would have got
+            # from differencing the two stored arms instead. Reporting both
+            # is the point: the second number is why the delta is shipped.
+            hq = h32.astype(np.float16).astype(np.float32)
+            recon = hq + delta.astype(np.float32)
+            snr_recon = float(np.linalg.norm(h32) /
+                              max(np.linalg.norm(recon - h32), 1e-30))
+            naive = std[:m].astype(np.float16).astype(np.float32) - hq
+            snr_naive = float(np.linalg.norm(h32) /
+                              max(np.linalg.norm(naive - h32), 1e-30))
+            arm_meta["delta"] = {
+                "file": f"pc_{pid}_delta_L{L}.bin",
+                "T": int(m), "D": args.d_model, "n_bytes": nb,
+                "covers": f"the first {m} steps — the two arms only match "
+                          f"token-for-token up to the divergence point",
+                "steered_reconstructed_as": "control (float32) + delta (float32)",
+                "reconstruction_snr": snr_recon,
+                "snr_if_differencing_stored_arms": snr_naive,
+            }
+            row.append(f"  L{L:<3d} delta    T={m:<5d} {nb/1e6:6.1f}MB  "
+                       f"重建 SNR={snr_recon:8.0f}  "
+                       f"(若相减两条流 只有 {snr_naive:6.1f})")
 
             e = rec.get("paired", {}).get("per_layer", {}).get(str(L), {})
             if e:
@@ -214,14 +272,20 @@ def main() -> int:
         total += _write_f16(out / "steer_unit.bin", unit / n)
 
     mf = {
-        "note": "paired control/steered; browser recomputes the projection and "
-                "the delta from the raw vectors",
+        "note": "paired control/delta; the browser recomputes the projection "
+                "and reconstructs the steered arm as control + delta",
         "d_model": args.d_model,
         "basis": {"source": "pca_00.bin / mean_00.bin from the unsteered bundle",
                   "orientation": "components stored component-major, one unit "
                                  "vector per column",
-                  "delta_projection": "proj(steered) - proj(control); the mean "
-                                      "cancels, so the delta needs no origin"},
+                  "delta_projection": "proj(h + delta) - proj(h) = proj(delta); "
+                                      "the mean cancels, so a delta needs no "
+                                      "origin of its own"},
+        "delta_policy": "delta is differenced server-side in float32 and stored "
+                        "as fp16. Do not derive it in the browser by "
+                        "subtracting two stored arms: fp16 quantisation of h "
+                        "leaves ~0.022*||h|| of error, and each arm's file "
+                        "reports the SNR both ways.",
         "steer_unit": "steer_unit.bin" if unit is not None else None,
         "pairs": entries,
     }
