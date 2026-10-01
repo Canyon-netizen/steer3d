@@ -457,15 +457,24 @@ function health(){
   // on every render saturates the browser's 6-connections-per-origin pool
   // with POSTs, and the next data fetch then queues forever — the
   // self-test hung on exactly that, loading trajectory 1 after ~30 renders.
-  if(S.quiet) return;
+  if(S.quiet || !AUDIT_ON) return;
   const now = performance.now();
   if(S._lastHealth === document.title && now - S._lastAt < 400) return;
   S._lastHealth = document.title; S._lastAt = now;
   try{
-    fetch("http://localhost:8918/audit", {method:"POST", body:document.title})
-      .catch(()=>{});
+    fetch(AUDIT_URL, {method:"POST", body:document.title}).catch(()=>{});
   }catch(e){}
 }
+
+/* ---- 开发用健康上报，默认关闭 -----------------------------------------
+   这段是我本机开发时的心跳/自检回传，硬编码着 localhost:8918。它在交付包里
+   一直原样存在，直到对**下载下来的 tar 包**做净室验收时才被抓出来：页面在
+   用户机器上会向 8918 端口发 POST，对方多半什么都没有，于是每次都 ERR_ABORTED。
+   更糟的不是失败，而是**万一对方端口上有别的服务**，页面会静默把 document.title
+   发过去。交付物不该内置指向未知本地端口的出站请求，所以默认关闭；开发时用
+   ?audit=1 打开。 */
+const AUDIT_ON = /[?&]audit=1/.test(location.search);
+const AUDIT_URL = "http://localhost:8918/audit";
 
 async function boot(){
   const base = "data/";
@@ -1644,8 +1653,9 @@ async function selftest(){
 // already used up the budget — the final summary was the one that got
 // dropped, which is exactly the line that mattered.
 async function report(text){
+  if(!AUDIT_ON) return;
   try{
-    await fetch("http://localhost:8918/audit", {method:"POST", body:text});
+    await fetch(AUDIT_URL, {method:"POST", body:text});
   }catch(e){ /* audit is best-effort */ }
 }
 

@@ -47,7 +47,12 @@ cdp.on(m => {
   }
 });
 
-await page.nav(URL);
+// ?orient=reset first. This script now clicks "我读完了", which sets a
+// localStorage flag -- so a second run in the same browser profile starts with
+// the guide already dismissed and the check below fails for a reason that has
+// nothing to do with the page. A harness must not depend on undeclared
+// ambient state; the previous run's side effect is part of the state.
+await page.nav(URL + '?orient=reset');
 await sleep(4500);
 
 // The orientation layer is a fixed full-screen overlay, so every click below
