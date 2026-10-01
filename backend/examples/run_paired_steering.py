@@ -84,20 +84,35 @@ def run_one(model, tok, prompt: str, budget: int, layers: List[int],
     a vector was set. A control that skipped the hook machinery entirely
     would be a control that also tested "does having the hooks change
     anything", quietly.
+
+    The **final** residual is additionally kept in float32 under ``hs_last``.
+    That layer is the one the real logits are computed from, so it is the only
+    place where a storage format can silently change an answer: at
+    ``‖h‖ ≈ 10³`` the fp16 spacing is ~0.5, and after 2048 unembedding
+    coordinates that is worth several logits — enough to move an argmax across
+    a close pair of candidates. Measured on this data, an fp16 final layer
+    disagreed with the token the model actually emitted on 2 of 6 problems,
+    one of them by 2.4 logits, which is not a rounding curiosity. It costs
+    ~8 KB per token to stop guessing, and the whole "why this token" read-out
+    rests on that one vector.
     """
     steerer = ResidualSteerer(model, layer)
     if steer_vec is not None:
         steerer.set_vector(steer_vec)
 
+    n_layers = int(model.config.num_hidden_layers)
     ids: List[int] = []
     # {layer: (steps, d)} preallocated; steps grows, d is fixed.
     store = {L: [] for L in layers}
+    store_last: List[np.ndarray] = []
 
     def last_residual(out) -> None:
         for L in layers:
             # hidden_states is a tuple of length n_layers+1, each (1, T, D).
             # [0] drops batch, [-1] takes the newest position only.
             store[L].append(out.hidden_states[L][0, -1, :].to(torch.float32).cpu().numpy())
+        store_last.append(
+            out.hidden_states[n_layers][0, -1, :].to(torch.float32).cpu().numpy())
 
     t0 = time.time()
     with steerer, torch.inference_mode():
@@ -136,11 +151,14 @@ def run_one(model, tok, prompt: str, budget: int, layers: List[int],
     hs = {L: (np.stack(store[L][:len(ids)]).astype(np.float16) if len(ids)
               else np.zeros((0, d), dtype=np.float16))
           for L in layers}
+    hs_last = (np.stack(store_last[:len(ids)]).astype(np.float32) if len(ids)
+               else np.zeros((0, d), dtype=np.float32))
     return {
         "text": text,
         "ids": ids,
         "n_steps": len(ids),
         "hs": hs,
+        "hs_last": hs_last,
         "closed_think": "</think>" in text,
     }
 
@@ -349,6 +367,12 @@ def main(args) -> int:
             control_ids=np.asarray(ctl["ids"], dtype=np.int32),
             steered_ids=(np.asarray(st["ids"], dtype=np.int32) if st
                          else np.zeros(0, np.int32)),
+            # float32, and the same index convention as everything else:
+            # hs_last[i] is the final residual at the position that predicted
+            # ids[i]. This is the vector the true logits come from.
+            control_last32=ctl["hs_last"],
+            steered_last32=(st["hs_last"] if st else np.zeros((0, int(
+                model.config.hidden_size)), dtype=np.float32)),
             unit=(unit.astype(np.float32) if unit is not None
                   else np.zeros(1, np.float32)),
             layers=np.asarray(layers, dtype=np.int32),

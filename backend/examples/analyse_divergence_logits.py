@@ -138,20 +138,23 @@ def counterfactual(base: torch.Tensor, delta: torch.Tensor, g: torch.Tensor,
 
 
 def flip_threshold(base: torch.Tensor, delta: torch.Tensor, g: torch.Tensor,
-                   W: torch.Tensor, target: int) -> Optional[float]:
-    """Smallest α in a 0..2 sweep at which ``target`` overtakes the control's
-    own choice.
+                   W: torch.Tensor, won: int, lost: int) -> Optional[float]:
+    """Smallest α in a 0..2 sweep at which ``won`` overtakes ``lost``.
 
-    Reported instead of a binary hit so that "α=1.0 is comfortably past the
-    flip" and "α=1.0 barely squeaked through" are distinguishable, and so the
-    same number can be computed for a random direction as a reference.
+    Restricted to those two tokens rather than taking a full-vocabulary argmax
+    for each α, for two reasons. It is the race that actually decided the
+    output, and a 151936-wide argmax per step of a 100-step sweep, times five
+    donors times 64 random directions times six problems, is about forty
+    thousand full matvecs -- minutes of compute to answer a question about two
+    numbers. The full-vocabulary argmax is still computed once per control
+    (see ``counterfactual``), so "did the whole distribution move" stays
+    answerable.
     """
-    ctl = int(torch.argmax(lens(base, g, W)))
-    if ctl == target:
-        return 0.0
+    rows = torch.stack([W[won], W[lost]])
     prev = False
     for a in np.arange(0.0, 2.0001, 0.02):
-        win = int(torch.argmax(lens(base + float(a) * delta, g, W))) == target
+        lg = lens_rows(base + float(a) * delta, g, rows)
+        win = bool(lg[0] > lg[1])
         if win and not prev:
             return float(a)
         prev = win
@@ -242,7 +245,8 @@ def analyse_one(pid: str, npz_path: Path, json_path: Path, g: torch.Tensor,
     }
     cf["C1_zero"]["predicts_control"] = cf["C1_zero"]["argmax"] == c_chosen
     cf["C2_real"]["predicts_steered"] = cf["C2_real"]["argmax"] == s_chosen
-    cf["flip_threshold_real"] = flip_threshold(base, real_delta, g, W, s_chosen)
+    cf["flip_threshold_real"] = flip_threshold(base, real_delta, g, W,
+                                            s_chosen, c_chosen)
 
     # ---- the degeneracy that makes C2/C3/C4 vacuous ----------------------
     # If the *control* base state, read at the deepest stored layer, already
@@ -283,7 +287,9 @@ def analyse_one(pid: str, npz_path: Path, json_path: Path, g: torch.Tensor,
             "_k": k, "_c_chosen": c_chosen, "_s_chosen": s_chosen,
             "_lens_store": lens_store, "_layers": layers, "_deep": deep,
             "_norm_real": norm_real, "_vocab": vocab, "_dims": dim_names,
-            "_n_random": n_random, "_seed": seed, "_npz": npz_path}
+            "_n_random": n_random, "_seed": seed, "_npz": npz_path,
+            "_unit": (torch.from_numpy(z["unit"].astype(np.float32))
+                      if "unit" in z and z["unit"].size == base.numel() else None)}
 
 
 def shuffled_control(state: dict, others: List[dict]) -> dict:
@@ -318,7 +324,8 @@ def random_control(state: dict) -> dict:
         got = counterfactual(base, d, g, W, state["_s_chosen"])
         ok = got == state["_s_chosen"]
         hits += int(ok)
-        th = flip_threshold(base, d, g, W, state["_s_chosen"])
+        th = flip_threshold(base, d, g, W, state["_s_chosen"],
+                            state["_c_chosen"])
         thresh.append(th)
         rows.append({"seed_trials": t, "argmax": got, "predicted": ok,
                      "text": state["_vocab"].get(got, ""), "flip_alpha": th})
@@ -467,6 +474,64 @@ def main() -> int:
             }
         out["decomposition"] = {"layer": deep, **block}
 
+    # ---- the direction null, and how much of Δ is the injected vector ----
+    # At the exact read-out layer the counterfactual is well defined: add a
+    # vector to the control's final residual, read out the real logits. So the
+    # question "did *this* direction promote the winner" has a real null --
+    # norm-matched random directions, same read-out, same arithmetic.
+    #
+    # What this deliberately does NOT do is re-claim C2. At the read-out layer
+    # C2 is true by construction (Δ is *defined* as the difference of the two
+    # final residuals), so a 6/6 there is arithmetic, not evidence. The
+    # percentile of the real logit shift inside the random-direction null is
+    # the part that could have come out the other way.
+    for st, out in zip(states, results):
+        g_, W_, base, delta = st["_g"], st["_W"], st["_base"], st["_delta"]
+        won, lost = st["_s_chosen"], st["_c_chosen"]
+        rows = torch.stack([W_[won], W_[lost]])
+        real_shift = (lens_rows(base + delta, g_, rows)
+                      - lens_rows(base, g_, rows))
+
+        gen = torch.Generator().manual_seed(st["_seed"] + 991)
+        null = []
+        for _ in range(st["_n_random"]):
+            d = torch.randn(base.shape, generator=gen)
+            d = d / d.norm() * st["_norm_real"]
+            null.append((lens_rows(base + d, g_, rows)
+                         - lens_rows(base, g_, rows)))
+        null = torch.stack(null)                       # (N, 2)
+
+        def pct(j: int) -> float:
+            v = float(real_shift[j])
+            col = null[:, j]
+            return float((col <= v).float().mean() * 100.0)
+
+        out["direction_null"] = {
+            "n": st["_n_random"],
+            "real_dlogit_won": float(real_shift[0]),
+            "real_dlogit_lost": float(real_shift[1]),
+            "null_dlogit_won_mean": float(null[:, 0].mean()),
+            "null_dlogit_won_sd": float(null[:, 0].std()),
+            "null_dlogit_lost_mean": float(null[:, 1].mean()),
+            "null_dlogit_lost_sd": float(null[:, 1].std()),
+            "percentile_won": pct(0),
+            "percentile_lost": pct(1),
+        }
+
+        # How much of the move at the read-out point is the injected vector
+        # itself, carried through the blocks above it, rather than the network
+        # reorganising in response to it. These are very different stories and
+        # only the second one means "the model re-thought".
+        u = st["_unit"]
+        if u is not None:
+            un = u / max(float(u.norm()), 1e-8)
+            proj = float(delta @ un)
+            out["along_injected_vector"] = {
+                "delta_norm": st["_norm_real"],
+                "proj": proj,
+                "sq_fraction": float(proj ** 2 / max(st["_norm_real"] ** 2, 1e-12)),
+            }
+
     # ---- verdict ----------------------------------------------------------
     # Everything that involves "did the read-out land on the steered token" is
     # counted only over the problems whose control base is not already sitting
@@ -492,6 +557,12 @@ def main() -> int:
             r["controls"]["C4_random"]["hits"] for r in inf),
         "C4_random_total_informative": sum(
             r["controls"]["C4_random"]["n"] for r in inf),
+        "direction_null_won_percentiles": {
+            r["id"]: r.get("direction_null", {}).get("percentile_won")
+            for r in results},
+        "sq_fraction_along_injected": {
+            r["id"]: r.get("along_injected_vector", {}).get("sq_fraction")
+            for r in results},
     }
     print("\n=== 汇总 ===")
     for kk, vv in agg.items():

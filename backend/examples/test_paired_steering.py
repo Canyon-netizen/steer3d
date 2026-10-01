@@ -127,9 +127,14 @@ def _stream_with_text(text, n_layers=28, d=8, layers=(0, 1, 2)):
     `main()` reads the generated text to recover the answer, so a test that
     only ever feeds it digit tokens can never exercise the unclosed-chain
     path -- which is the path that was broken.
+
+    ``hs_last`` mirrors ``hs`` but in float32, because that is the whole point
+    of it: a stub that stored it in fp16 would let a dtype regression through
+    every test in this file.
     """
     hs = {L: np.zeros((1, d), dtype=np.float16) for L in layers}
     return {"text": text, "ids": [1], "n_steps": 1, "hs": hs,
+            "hs_last": np.zeros((1, d), dtype=np.float32),
             "closed_think": "</think>" in text}
 
 
@@ -150,6 +155,19 @@ def test_alignment():
         vals = [float(out["hs"][L][i][0]) for i in range(n)]
         check(vals == [float(i + 1) for i in range(n)],
               f"L{L}: hs[i] carries pass i+1  -> {vals[:3]}...")
+
+    # hs_last is the vector the true logits are read from, so its dtype and its
+    # index convention are both load-bearing. Checking only the shape would let
+    # an fp16 regression through, and checking only the convention would let a
+    # cast through; the two are asserted together because a single mistake
+    # (cast the whole thing, or slice the wrong end) breaks both at once.
+    check(out["hs_last"].shape == (n, 8),
+          f"hs_last shape {out['hs_last'].shape} == ({n}, 8)")
+    check(out["hs_last"].dtype == np.float32,
+          f"hs_last is float32, not {out['hs_last'].dtype}")
+    last_vals = [float(out["hs_last"][i][0]) for i in range(n)]
+    check(last_vals == [float(i + 1) for i in range(n)],
+          f"hs_last[i] carries pass i+1  -> {last_vals[:3]}...")
 
 
 def test_eos_truncation():
@@ -373,6 +391,16 @@ def test_main_record_assembly():
                   f"{pid}: closed chain reports a real source ({src!r})")
 
         npz = outdir / f"pair_{pid}.npz"
+        if npz.exists():
+            zz = np.load(npz)
+            check("control_last32" in zz, f"{pid}: final layer kept in float32")
+            if "control_last32" in zz:
+                check(zz["control_last32"].dtype == np.float32,
+                      f"{pid}: control_last32 is float32 "
+                      f"(got {zz['control_last32'].dtype})")
+                check(zz["control_last32"].shape[0]
+                      == len(rec["control"]["ids"]),
+                      f"{pid}: last32 rows == len(control ids)")
         check(npz.exists(), f"{pid}: vectors written")
         if npz.exists():
             with np.load(npz) as z:
