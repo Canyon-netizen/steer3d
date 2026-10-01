@@ -688,7 +688,7 @@ function drawDeltaSide(){
   }
   const a = S.pMeta;
   el.textContent = "干预 vs 对照 · L" + S.pLayer +
-                   (S.pLayer === p.inject_layer ? "（注入点）" : "");
+                   (S.pLayer === p.inject_layer ? "（注入块）" : "");
   const st = a.stats || {};
   const rel = st.rel_shift || [], cos = st.cosine || [], pf = st.proj_fraction;
   // `rel`/`cos` only have one entry per step the two arms actually share. The
@@ -701,6 +701,15 @@ function drawDeltaSide(){
   let h = "";
   h += `<tr><td class="note">注入</td><td class="tok">${p.direction} @ ${p.strength} → L${p.inject_layer}</td></tr>`;
   h += `<tr><td class="note">两条流同步到</td><td class="tok">第 ${p.n_common_prefix} 步</td></tr>`;
+  if(S.pLayer <= p.inject_layer){
+    // Say it here, where the zeros are, not only in the header.
+    h += `<tr><td class="note" colspan="3" style="color:#8891a4">` +
+         (S.pLayer === p.inject_layer
+          ? `L${S.pLayer} 显示的是<b>进入</b>该块的残差，向量是在块内部加的，` +
+            `所以这一行按构造就是平的。第一行可能出现变化的是 L${S.pLayer + 1}。`
+          : `L${S.pLayer} 在注入点上游，干预还没经过这里，平是预期的。`) +
+         `</td></tr>`;
+  }
   if(inWindow){
     const m = S.tok;
     const pct = rel[m]*100, c = cos[m];
@@ -1060,6 +1069,18 @@ function render(){
     $("#mainSub").textContent = p
       ? p.problem.slice(0, 70) + " · 两条流同步到第 " + p.n_common_prefix + " 步"
       : "";
+    // A flat zero line at the injection layer is the *indexing*, not a failed
+    // intervention: `hidden_states[L]` is the residual entering block L, and
+    // the vector is added inside block `inject_layer`, one index too late for
+    // that row to show anything. Measured with a 50.0 probe on Qwen3-1.7B,
+    // max|Δ| at hs[20] is 0.000000 and at hs[21] is 49.91. Saying so beats
+    // letting a working steer read as a no-op.
+    const injNote = (p && S.pLayer <= p.inject_layer)
+      ? (S.pLayer === p.inject_layer
+          ? "　这一层是注入块：显示的是进入该块的残差，干预还没发生在这里 —— 看 L" + (S.pLayer + 1)
+          : "　这一层在注入点上游，按构造不会有变化")
+      : "";
+    $("#mainSub").textContent += injNote;
     if(S.pm) drawDeltaSide();
     // The unsteered stats block still shows whatever the last non-delta view
     // left there — ‖h‖ read 144.9 for L14 of the unsteered trajectory while

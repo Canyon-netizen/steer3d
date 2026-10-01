@@ -99,11 +99,36 @@ def load_model(model_path: str, device: str, dtype: str = "bfloat16"):
 class ResidualSteerer:
     """Adds a fixed vector to the residual stream entering `layer`.
 
-    Installed as a forward-pre-hook so the vector lands on the *input*
-    of the chosen block, which is the convention every steering paper
-    uses (and the one ``compute_steering_vectors.py`` matched, since it
-    reads ``hidden_states[layer]`` = the block's *output*... see
-    ``--inject-at`` below for the two conventions).
+    Installed as a forward-pre-hook, so the vector lands on the *input* of the
+    chosen block — the convention every steering paper uses, and the one
+    ``compute_steering_vectors.py`` matched, since it reads
+    ``hidden_states[layer]``.
+
+    What ``hidden_states[layer]`` actually is
+    -----------------------------------------
+    **The residual entering block ``layer``, not its output.** An earlier
+    version of this docstring claimed "output", and that is wrong in a way
+    that does not announce itself: the claim makes the injection layer look
+    like the most interesting row in a table when it is guaranteed to be the
+    emptiest one.
+
+    ``output_hidden_states`` is captured by transformers' ``@capture_outputs``
+    decorator, which prepends the first block's *input* as entry 0 and then
+    records each block's output. So entry ``i`` is the input to block ``i`` —
+    which for ``i == layer`` is the value *before* this hook ever runs.
+
+    Measured on Qwen3-1.7B, injecting 50.0 into the input of block 20
+    (float32, CPU)::
+
+        hs[17]  max|Δ| =  0.000000
+        hs[19]  max|Δ| =  0.000000
+        hs[20]  max|Δ| =  0.000000   <-- the injected block, exactly zero
+        hs[21]  max|Δ| = 49.914597   <-- the effect, one index later
+
+    So a "rel_shift == 0" row at the injection layer is a property of the
+    indexing, not evidence that the intervention did nothing, and the first
+    index that can show anything is ``layer + 1``. Reading it the other way
+    round is how a working steer gets reported as a no-op.
     """
 
     def __init__(self, model, layer: int):

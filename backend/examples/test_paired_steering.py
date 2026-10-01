@@ -383,6 +383,91 @@ def test_main_record_assembly():
                                 f"(missing {sorted(need - keys)})")
 
 
+# ---------------------------------------------------------------------------
+# 7. The layer-index convention, against a real nn.Module with real hooks
+# ---------------------------------------------------------------------------
+# Section 6's fixture writes `closed_think: "</think>" in text` by hand, so it
+# cannot catch a wrong claim about *which* layer index the steer shows up in.
+# This one builds an actual ModuleList, installs the actual ResidualSteerer,
+# and records outputs the way transformers' `@capture_outputs` does — which is
+# the thing under test. If the convention ever shifts, this goes red instead of
+# quietly turning the injection layer into the most boring row in the table.
+def test_layer_index_convention():
+    print("\n[7] hidden_states[L] is the residual ENTERING block L")
+    from run_intervention import ResidualSteerer
+
+    D, NL, INJ = 6, 6, 3
+
+    class Block(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            # set_vector reads block.parameters() for dtype/device, so the
+            # fixture has to be a real parameterised block, not a bare lambda.
+            self.w = torch.nn.Parameter(torch.eye(D))
+
+        def forward(self, x):
+            # Linear, and deliberately NOT saturating: a tanh here would
+            # squash the 50.0 probe into 0.15 and leave the threshold
+            # assertions testing tanh rather than the thing under test. It is
+            # still layer-dependent, so a stale cached value cannot masquerade
+            # as "the hook never fired".
+            return (x @ self.w) * 0.5 + 0.1
+
+    class Net(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.model = torch.nn.Module()
+            self.model.layers = torch.nn.ModuleList([Block() for _ in range(NL)])
+
+    net = Net()
+    x0 = torch.full((1, 1, D), 0.3)
+
+    def trace(n, x):
+        """Reproduce @capture_outputs: entry 0 is block 0's *input*, entry i
+        is block i-1's output == block i's input."""
+        hs = [x]
+        h = x
+        for i, blk in enumerate(n.model.layers):
+            h = blk(h)
+            if i < NL - 1:
+                hs.append(h)
+        return hs
+
+    base = trace(net, x0)
+
+    vec = np.zeros(D, dtype=np.float32)
+    vec[0] = 50.0
+    steerer = ResidualSteerer(net, INJ)
+    steerer.set_vector(vec)
+    with steerer:
+        mod = trace(net, x0)
+
+    deltas = [float((mod[i] - base[i]).abs().max()) for i in range(NL)]
+
+    check(deltas[0] == 0.0, f"hs[0] (embeddings) 未受影响 (got {deltas[0]:.6f})")
+    for i in range(1, INJ):
+        check(deltas[i] == 0.0,
+              f"hs[{i}] 在注入块上游，未受影响 (got {deltas[i]:.6f})")
+    # The whole point: the injected block's own entry is the value *entering*
+    # it, captured before the pre-hook runs.
+    check(deltas[INJ] == 0.0,
+          f"hs[{INJ}]（注入块本身）精确为零 —— 这是索引约定，不是干预失效 "
+          f"(got {deltas[INJ]:.6f})")
+    check(deltas[INJ + 1] > 1.0,
+          f"hs[{INJ + 1}] 出现变化 (got {deltas[INJ + 1]:.4f})")
+
+    # And the steerer has to actually be doing something, or every zero above
+    # would be vacuously true.
+    check(max(deltas) > 1.0, f"注入确实生效（最大 {max(deltas):.4f}）")
+
+    # A steerer with no vector must leave the trace bit-identical to the base.
+    steerer.clear()
+    with steerer:
+        off = trace(net, x0)
+    off_delta = max(float((off[i] - base[i]).abs().max()) for i in range(NL))
+    check(off_delta == 0.0, f"clear() 之后完全不改变（{off_delta:.6f}）")
+
+
 def main() -> int:
     test_alignment()
     test_eos_truncation()
@@ -390,6 +475,7 @@ def main() -> int:
     test_analyze_divergence()
     test_proj_fraction()
     test_main_record_assembly()
+    test_layer_index_convention()
     print()
     if FAILURES:
         print(f"{len(FAILURES)} FAILED: {FAILURES}")
