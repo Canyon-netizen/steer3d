@@ -101,6 +101,12 @@ LAMBDA_REL = [1e-4, 1e-3, 1e-2, 1e-1]
 N_RANDOM = 200
 SEED = 20261003
 OBSERVABLES = ["entropy"]
+# 两种目标处理。`failed_obs_forensics` 查出：creativity 那行的 +0.74 几乎
+# 全是**轨迹间**差（轨迹间 rho 0.8655 / 轨迹内 0.1843），而且一条「轨迹编号
+# 奇偶」的语义假观测量就复现出 0.7239。⇒ 必须把那把刀用在自己的结果上：
+# `demean_within_traj` 把每条轨迹的目标减去它自己的均值，于是探针**只能**
+# 解释轨迹内偏离。留一轨迹本该已经挡住轨迹间均值，但「本该」不是证据。
+TARGET_TRANSFORMS = ["raw", "demean_within_traj"]
 
 
 # ================================================================ 装置自检
@@ -339,6 +345,7 @@ def main():
     res["per_layer"] = {}
     for layer in LAYERS:
         tl = time.time()
+        res["per_layer"][str(layer)] = {}      # 目标诊断要写在这里，先建好
         H, meta = collect_layer(layer, STRIDE)
         n_traj = len(H)
         with np.errstate(**_ERR):
@@ -363,7 +370,41 @@ def main():
             side = json.loads(f.with_suffix(".json").read_text())
             e = np.asarray([t["entropy"] for t in side["tokens"]], np.float64)[::STRIDE]
             ent.append(e)
-        ym = float(np.mean([e.mean() for e in ent]))
+
+        # 用 failed_obs_forensics 那把尺子先验证明目标是好的，而不是口头断言。
+        # lag_invariance = obs(t+Δ) 与 obs(t) 恰好相等的步占比；它高说明这个
+        # 量在 Δ 尺度上根本不变，探针测不到东西。entropy 在 Δ=20 应当很低。
+        lag_inv = {}
+        for delta in DELTAS:
+            if delta == 0:
+                lag_inv[str(delta)] = 0.0
+                continue
+            num = den = 0
+            for e in ent:
+                if len(e) - delta < 50:
+                    continue
+                num += int((e[delta:] == e[:-delta]).sum())
+                den += len(e) - delta
+            lag_inv[str(delta)] = num / den
+        # ICC（轨迹间方差占比）：~0 表示逐步在变，~1 表示其实是轨迹级标签
+        gm = float(np.mean([e.mean() for e in ent]))
+        ss_between = sum(len(e) * (e.mean() - gm) ** 2 for e in ent)
+        ss_total = sum(float(((e - gm) ** 2).sum()) for e in ent)
+        icc = ss_between / ss_total if ss_total > 0 else float("nan")
+        res["per_layer"][str(layer)]["target_diagnostics"] = {
+            "icc_between_traj": icc,
+            "lag_invariance_frac_equal": lag_inv,
+            "n_traj_zero_within_traj_variance": int(sum(
+                1 for e in ent if float(np.std(e)) == 0.0)),
+            "max_n_distinct_per_traj": int(max(len(np.unique(e)) for e in ent)),
+            "criterion": "ICC≈0 且 lag_invariance 低 ⇒ 目标是逐步量，可以拿来测",
+        }
+        td = res["per_layer"][str(layer)]["target_diagnostics"]
+        print(f"--- L{layer} 目标诊断: ICC={icc:.4f} "
+              f"lag_inv@20={lag_inv.get('20', float('nan')):.4f} "
+              f"max_distinct/traj={td['max_n_distinct_per_traj']} "
+              f"恒定轨迹={td['n_traj_zero_within_traj_variance']}/{n_traj}",
+              flush=True)
 
         rows = []
         print(
@@ -372,7 +413,9 @@ def main():
             + f"  pca_var_cum={var_cum:.4f}",
             flush=True,
         )
-        for delta in DELTAS:
+        for transform, delta in [
+            (t, d) for t in TARGET_TRANSFORMS for d in DELTAS
+        ]:
             # Δ 大会把短轨迹吃光。空数组的 y.mean() 是 NaN，会污染全局中心化，
             # 所以这里先按最小步数筛掉，并把**筛掉的数量记进分母**。
             MIN_STEPS = 50
@@ -380,10 +423,15 @@ def main():
                 i for i in range(n_traj)
                 if len(ent[i]) - (delta if delta > 0 else 0) >= MIN_STEPS
             ]
-            Ys = [
-                (ent[i][delta:] if delta > 0 else ent[i]).astype(np.float64)[:, None] - ym
-                for i in keep
-            ]
+            Ys = []
+            for i in keep:
+                yy = (ent[i][delta:] if delta > 0 else ent[i]).astype(np.float64)
+                if transform == "demean_within_traj":
+                    # 减去这条轨迹自己的均值：探针此后**只能**解释轨迹内偏离，
+                    # 轨迹间差一律被拿掉。这是把 failed_obs_forensics 的批评
+                    # 用在自己结果上的那把刀。
+                    yy = yy - yy.mean()
+                Ys.append(yy[:, None])
             Xs = [Xp[i][: len(y)] for i, y in zip(keep, Ys)]
             for lam_rel in LAMBDA_REL:
                 ws, oof_r, oof_r2, fold_r = _loo_ridge_fit(Xs, Ys, K_PCA, lam_rel)
@@ -404,6 +452,7 @@ def main():
                             for k in axes}
                 row = {
                     "delta": delta, "lambda_rel": lam_rel,
+                    "target_transform": transform,
                     "n_traj_used": len(keep),
                     "n_traj_dropped_short": n_traj - len(keep),
                     "min_steps_per_traj": MIN_STEPS,
@@ -452,7 +501,7 @@ def main():
                     }
                 rows.append(row)
                 print(
-                    f"L{layer} Δ={delta:<4d} lam={lam_rel:<7g} "
+                    f"L{layer} [{transform[:6]}] Δ={delta:<4d} lam={lam_rel:<7g} "
                     f"oofR={oof_r:+.4f} oofRshuf={oof_r_shuf:+.4f} cos="
                     + " ".join(f"{k[:5]}:{v:.3f}" for k, v in row["cos_axes_median"].items())
                     + f" ceil={np.mean(list(ceiling.values())):.3f}"
