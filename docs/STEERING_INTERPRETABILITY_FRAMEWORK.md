@@ -414,7 +414,108 @@ caution、creativity、reasoning 任何一条上**。也就是说：
 量级，方向学对了 R² 仍是 −289），改用尺度无关的**样本外 Pearson**；
 以及 `cos` 必须在原空间比（投回后归一化），否则得到的 `cos > 1`。
 
+### 4.6 10 个逐 token 观测量 × 4 条轴：两条测出来，两条测不出
+
+`python3 .cache/rolesverify/probe_axes.py`（详见
+`.cache/rolesverify/PROBE_AXES_REPORT.md`）。观测量来自
+`.cache/rolesverify/obs_extract.py`（14 个候选预登记后筛出 10 个可用，
+4 个对照全部按预期落榜）；装置复用 §4.5 已通过玩具自检的 PCA / 留一轨迹
+岭回归。**只用轨迹内去均值口径**（§4.5.2 的教训）。
+
+三条统计约束：
+
+1. **零假设取搜索后的最大值**：统计量是 `max_j max_a |cos(w_j, a)|`，
+   零假设用 400 个随机方向各自的最大值，所以 p 已经为「9 个候选 × 4 条轴」
+   的搜索付过钱。
+2. **有效自由度是 9 不是 10**：`backtrack_topk`↔`backtrack_frac` 的
+   |ρ| = 0.965（同一观测量的两种权重），搜索时排除其一。
+   另 `top1_prob_renorm` 与 entropy 的 |ρ| = 0.985（重述），排除后为 8。
+3. **加一个 `step_frac` 对照目标**（不计入搜索，只当尺子）。
+
+#### 4.6.1 对照先说：位置轴是能被测出来的
+
+| | Δ=0 | Δ=20 | Δ=400 | OOF Pearson |
+|---|---|---|---|---|
+| `step_frac` 对 `reasoning_deep` 的 cos | 0.628 | 0.625 | **0.614** | **+0.71 ~ +0.78** |
+| `step_frac` 对 `confidence` 的 cos | 0.011 | 0.012 | 0.001 | — |
+| `step_frac` 对 `caution` 的 cos | 0.002 | 0.002 | 0.025 | — |
+
+`step_frac = t/(T−1)` **正是 `reasoning_deep` 的定义分组**，所以这一行同时是
+装置的阳性对照。结论有两层：
+
+* 装置**有分辨力**：它能在样本外以 0.62 的余弦稳定测出「轨迹位置」这个方向，
+  而且**在 Δ=400 都不衰减**（0.614）—— 因为 `h_t` 确实编码了「已经处理了多少
+  token」，位置量对它是可预测的。
+* 于是「`reasoning_deep` 测不出行为」这句话要改写：**不是测不出，
+  是除了位置之外没有别的可测行为**（见 4.6.3）。
+
+#### 4.6.2 测出来的两条（λ=0.01，轨迹内去均值）
+
+| 轴 | Δ | 最优候选 | cos | `step_frac` 对照 | p（已付搜索成本） |
+|---|---|---|---|---|---|
+| **confidence** | 0 | `top1_prob_renorm`（=熵的重述） | **0.412** | 0.011 | 0.000 |
+| | 1 | 同上 | 0.233 | 0.012 | 0.000 |
+| | 20 | — | **0.039** | 0.012 | **0.229（不显著）** |
+| **caution** | 0 | **`backtrack_topk`** | **0.308** | 0.002 | 0.000 |
+| | 1 | `top1_prob_renorm` | 0.233 | 0.001 | 0.000 |
+| | 20 | `rep_ngram4` | **0.011** | 0.002 | 0.000 |
+
+> **`caution` 有了一条非循环的读出方向：回退标记。**
+> `backtrack_topk` = top-64 候选里出现修订类 token（wait / actually /
+> alternatively 一类）的比例。它与 caution 的余弦 0.308，是位置对照（0.002）
+> 的 154 倍。
+>
+> **为什么这条不是又一个循环**：`caution` 的定义分组是 `self_check_regex`
+> （在**实际输出**里匹配），而 `backtrack_topk` 量的是**下一步 top-64 候选里**
+> 有没有修订 token —— 一个在分布内、一个在已生成文本里。实测两者的标记词表
+> 重叠只有 **0.116**。20 步后对齐塌到 0.011，与 `confidence` 同样的衰减形状。
+>
+> `confidence` 那条与 §4.5 一致（熵的读出方向 Δ=0 是 0.412、Δ=20 塌到 0.039
+> 且不再显著）。
+
+#### 4.6.3 测不出来的两条（都是带分母的阴性结论）
+
+| 轴 | Δ=0 最优候选 | cos | 位置对照 | 判决 |
+|---|---|---|---|---|
+| **creativity** | 0 | `backtrack_topk` | 0.039 | 对照 0.057 → **不超** |
+| | 20 | `latex_mass` | 0.073 | 对照 0.085 → **不超** |
+| | 100 | `latex_mass` | 0.077 | 对照 0.088 → **不超** |
+| **reasoning_deep** | 0 | `rep_ngram4` | 0.339 | 对照 0.628 → **不超** |
+| | 20 | `rep_frac_topk` | 0.521 | 对照 0.625 → **不超** |
+| | 400 | `rep_frac_topk` | 0.163 | 对照 0.614 → **不超** |
+
+* **`reasoning_deep` 在每一个 Δ、每一层上都不超过位置对照。**
+  中途 `rep_frac_topk` 曾给出 cos 0.547、p=0.000、三层一致的漂亮结果
+  （「reasoning = 复用已产出的 token」），**被专门加进去的 `step_frac`
+  对照否掉了**：对照在同一格是 0.625，而 `rep_frac_topk` 的轨迹内
+  |ρ_t| = 0.442 —— 它本来就是位置斜坡的一个弱代理。
+  ⇒ **「reasoning_deep 就是一个轨迹位置轴」现在有了阳性对照式的证明**，
+  比 §4.4 的假观测量论证（比值 1.0000000000000004）更强：不是「信号可以
+  被无意义斜坡复现」，而是「我们能以 0.62 的余弦测出位置轴本身，
+  而所有合法观测量都够不着它」。
+* **`creativity` 在全部 5 个 Δ × 3 层 × 9 个候选下都不超过位置对照。**
+  它是四条轴里唯一**从未**有过任何超对照读出的一条。
+
+#### 4.6.4 这批结果对框架意味着什么
+
+| 轴 | 状态 | 读出方向 |
+|---|---|---|
+| `confidence` | **已测** | 熵 / top-1 概率（token 局部） |
+| `caution` | **本轮新测** | 回退标记（token 局部，非循环） |
+| `creativity` | 未测 | 9 个候选 × 5 个 Δ × 3 层全部不超对照 |
+| `reasoning_deep` | **已判定为位置轴** | 无位置以外的可测行为 |
+
+**主张四从「一个方向的必要条件」推进到「两个方向拿到了非循环的读出方向，
+另两个拿到了带分母的阴性结论」** —— 4 条独立轴里 2 条测出、2 条明确测不出，
+且两条测不出的原因都已经用**对照**而不是论证确定下来了。
+
+**一个必须说清的边界**：`caution` 这条只到「读出方向」这一层。
+`backtrack_topk` 与 `caution` 轴的余弦是 0.308，不是 1.0 ——
+它解释了约 9.5% 的方向成分（0.308²）。所以说的是
+「caution 的实现里有回退标记这一项」，不是「caution 就是回退标记」。
+
 ---
+
 
 ## 5. 附带：为什么「读出分歧」这类指标也不行
 
@@ -492,7 +593,16 @@ caution、creativity、reasoning 任何一条上**。也就是说：
 > `creativity` 那一行是同一类伪影。撤回的同时得到一条干净的阴性结论：
 > `creativity` 与熵在逐步层面几乎没有关系（0.017，原始值的 18%）。
 >
-> **(c) 一条关于「词表不够」的负面事实**：Δ=20 残差流里有一个方向确实能预测
+> **(c) 主张四推进到「2 条测出、2 条明确测不出」（§4.6）**。
+> 4 条独立轴里，`confidence` 的读出方向是**熵 / top-1 概率**，
+> `caution` 的读出方向是**回退标记**（top-64 候选里出现修订类 token，
+> 与 caution 的定义分组实测重叠只有 0.116 ⇒ 非循环），两条都是 token 局部、
+> 20 步后塌到 0.04/0.01。
+> 另两条拿到的是**带分母的阴性结论**：`reasoning_deep` 在每个 Δ、每层上
+> 都不超过位置对照（0.61–0.65），**已被判定为一个轨迹位置轴**；
+> `creativity` 在 9 个候选 × 5 个 Δ × 3 层下**从未**有过任何超对照读出。
+>
+> **(d) 一条关于「词表不够」的负面事实**：Δ=20 残差流里有一个方向确实能预测
 > 未来的熵（样本外 r +0.09 vs 打乱 +0.006），但它在三层里**没有稳定地落在
 > 4 条命名轴的任何一条上**（L12/L14 → reasoning，L20 → creativity）。
 > 所以这 4 条轴**不是残差流的完备描述** —— 「可解释性做不好」不只是标注不够细，
@@ -512,8 +622,12 @@ python3 .cache/strengthscan/linearity_law.py       # 主张二 + 三：强度定
 python3 .cache/strengthscan/verify_linearity.py    # 独立复算，不 import 上面的
 python3 .cache/rolesverify/heldout_recheck.py      # 主张四的独立复现 + 随机方向对照
 python3 .cache/rolesverify/heldout_lag.py           # 主张四：时间切分的延迟曲线
-python3 .cache/rolesverify/probe_readout.py         # 主张四：读出方向探针（充分性）
+python3 .cache/rolesverify/probe_readout.py         # 主张四：读出方向探针（熵）
+python3 .cache/rolesverify/obs_extract.py            # 10 个逐 token 观测量 + 4 个对照
+python3 .cache/rolesverify/probe_axes.py             # 主张四：9 候选 × 4 轴 + 位置对照
+python3 .cache/rolesverify/failed_obs_forensics.py   # §4.4 更正：假观测量对照实验
 python3 .cache/rolesverify/layer_side_forensics.py  # §2.1：层语义与注入侧的口径核对
+python3 .cache/rolesverify/verify_layer_convention.py  # 层口径守卫（不变量 4 条 + 状态行）
 ```
 
 `linearity_law.py` 与 `verify_linearity.py` 是**两份独立实现**，

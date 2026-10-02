@@ -1,0 +1,861 @@
+{
+  "arrays": {
+    "names": {
+      "dtype": "<U16",
+      "meaning": "column order of obs",
+      "shape": [
+        10
+      ]
+    },
+    "obs": {
+      "axis0": "concatenated steps, ordered by trajectory then step; slice with traj_id",
+      "axis1": "candidate observable, see column_order",
+      "dtype": "float32",
+      "shape": [
+        69155,
+        10
+      ]
+    },
+    "step": {
+      "dtype": "int32",
+      "meaning": "0-based step index within its own trajectory",
+      "shape": [
+        69155
+      ]
+    },
+    "traj_T": {
+      "dtype": "int32",
+      "meaning": "step count of each trajectory, in order",
+      "shape": [
+        48
+      ]
+    },
+    "traj_id": {
+      "dtype": "int32",
+      "meaning": "0-based index into trajectories",
+      "shape": [
+        69155
+      ]
+    },
+    "traj_names": {
+      "dtype": "<U64",
+      "meaning": "basename of each npz, in order",
+      "shape": [
+        48
+      ]
+    }
+  },
+  "caveats_carried_over": {
+    "rho_vs_in_think_underpowered": "obs_extract.json post_screen_caveats: in_think is constant on 45 of 48 trajectories, so any correlation with the think-block boundary rests on 3 trajectories.",
+    "top1_prob_renorm_redundant": "top1_prob_renorm is |rho| = 0.985 against entropy and is a restatement of it. It is exported because it is in summary.usable and the delivered verdicts were not changed, but the probe should treat it as a duplicate of entropy, not as an independent column."
+  },
+  "column_order": {
+    "0": "rep_top1",
+    "1": "rep_ngram4",
+    "2": "rep_frac_topk",
+    "3": "backtrack_topk",
+    "4": "backtrack_frac",
+    "5": "digit_mass",
+    "6": "op_mass",
+    "7": "newline_mass",
+    "8": "latex_mass",
+    "9": "top1_prob_renorm"
+  },
+  "determinism": {
+    "meta_bytes": "json.dump(sort_keys=True), no wall-clock field",
+    "npz_bytes": "assembled by hand with a fixed 1980-01-01 member timestamp and sorted member order, because np.savez stamps members with the current time and would change the md5 on every run",
+    "reproduce": "rm obs_series.npz obs_series_meta.json && python3 obs_series_export.py"
+  },
+  "entropy_redundancy_note": {
+    "exceeding_0.8": [
+      "top1_prob_renorm"
+    ],
+    "per_candidate_abs_rho_vs_entropy": {
+      "backtrack_frac": 0.4622,
+      "backtrack_topk": 0.3849,
+      "digit_mass": 0.4518,
+      "latex_mass": 0.055,
+      "newline_mass": 0.1944,
+      "op_mass": 0.1707,
+      "rep_frac_topk": 0.0743,
+      "rep_ngram4": 0.2613,
+      "rep_top1": 0.2191,
+      "top1_prob_renorm": 0.9849
+    },
+    "question": "among the 10 usable candidates, which have |rho| > 0.8 against entropy?"
+  },
+  "generated_by": ".cache/rolesverify/obs_series_export.py",
+  "n_columns": 10,
+  "n_steps_total": 69155,
+  "n_trajectories": 48,
+  "redundancy_matrix": {
+    "abs_rho_pooled": [
+      [
+        1.0,
+        0.324,
+        0.3456,
+        -0.053,
+        -0.0722,
+        0.17,
+        0.0571,
+        0.0378,
+        -0.0348,
+        0.1855
+      ],
+      [
+        0.324,
+        1.0,
+        0.1564,
+        -0.1019,
+        -0.1121,
+        0.1622,
+        0.0163,
+        -0.0219,
+        -0.0045,
+        0.2382
+      ],
+      [
+        0.3456,
+        0.1564,
+        1.0,
+        0.2235,
+        0.2087,
+        0.0405,
+        0.0945,
+        0.1137,
+        -0.158,
+        -0.1729
+      ],
+      [
+        -0.053,
+        -0.1019,
+        0.2235,
+        1.0,
+        0.9658,
+        -0.3264,
+        -0.1208,
+        0.053,
+        -0.2668,
+        -0.4238
+      ],
+      [
+        -0.0722,
+        -0.1121,
+        0.2087,
+        0.9658,
+        1.0,
+        -0.3624,
+        -0.1423,
+        0.0489,
+        -0.2941,
+        -0.5006
+      ],
+      [
+        0.17,
+        0.1622,
+        0.0405,
+        -0.3264,
+        -0.3624,
+        1.0,
+        0.0336,
+        -0.0314,
+        0.0188,
+        0.5283
+      ],
+      [
+        0.0571,
+        0.0163,
+        0.0945,
+        -0.1208,
+        -0.1423,
+        0.0336,
+        1.0,
+        0.4383,
+        0.4725,
+        -0.04
+      ],
+      [
+        0.0378,
+        -0.0219,
+        0.1137,
+        0.053,
+        0.0489,
+        -0.0314,
+        0.4383,
+        1.0,
+        0.2991,
+        -0.0781
+      ],
+      [
+        -0.0348,
+        -0.0045,
+        -0.158,
+        -0.2668,
+        -0.2941,
+        0.0188,
+        0.4725,
+        0.2991,
+        1.0,
+        0.0896
+      ],
+      [
+        0.1855,
+        0.2382,
+        -0.1729,
+        -0.4238,
+        -0.5006,
+        0.5283,
+        -0.04,
+        -0.0781,
+        0.0896,
+        1.0
+      ]
+    ],
+    "abs_rho_within_traj_mean": [
+      [
+        1.0,
+        0.3133,
+        0.3492,
+        0.0906,
+        0.1065,
+        0.1705,
+        0.1022,
+        0.0552,
+        0.0666,
+        0.2188
+      ],
+      [
+        0.3133,
+        1.0,
+        0.1377,
+        0.1203,
+        0.1316,
+        0.1617,
+        0.1041,
+        0.0704,
+        0.0672,
+        0.2662
+      ],
+      [
+        0.3492,
+        0.1377,
+        1.0,
+        0.1982,
+        0.1851,
+        0.1945,
+        0.2121,
+        0.2122,
+        0.1682,
+        0.1723
+      ],
+      [
+        0.0906,
+        0.1203,
+        0.1982,
+        1.0,
+        0.9651,
+        0.2756,
+        0.1449,
+        0.1377,
+        0.1796,
+        0.3769
+      ],
+      [
+        0.1065,
+        0.1316,
+        0.1851,
+        0.9651,
+        1.0,
+        0.3075,
+        0.1812,
+        0.1319,
+        0.2059,
+        0.4502
+      ],
+      [
+        0.1705,
+        0.1617,
+        0.1945,
+        0.2756,
+        0.3075,
+        1.0,
+        0.2298,
+        0.167,
+        0.1403,
+        0.46
+      ],
+      [
+        0.1022,
+        0.1041,
+        0.2121,
+        0.1449,
+        0.1812,
+        0.2298,
+        1.0,
+        0.3766,
+        0.3814,
+        0.267
+      ],
+      [
+        0.0552,
+        0.0704,
+        0.2122,
+        0.1377,
+        0.1319,
+        0.167,
+        0.3766,
+        1.0,
+        0.2344,
+        0.2037
+      ],
+      [
+        0.0666,
+        0.0672,
+        0.1682,
+        0.1796,
+        0.2059,
+        0.1403,
+        0.3814,
+        0.2344,
+        1.0,
+        0.2238
+      ],
+      [
+        0.2188,
+        0.2662,
+        0.1723,
+        0.3769,
+        0.4502,
+        0.46,
+        0.267,
+        0.2037,
+        0.2238,
+        1.0
+      ]
+    ],
+    "definition_pooled": "|Spearman rho| over all 69155 steps pooled",
+    "definition_within": "mean over trajectories of |Spearman rho| computed inside each trajectory; a pair is skipped for a trajectory only if one series is constant there",
+    "n_effective_independent_columns_within": 9,
+    "order": [
+      "rep_top1",
+      "rep_ngram4",
+      "rep_frac_topk",
+      "backtrack_topk",
+      "backtrack_frac",
+      "digit_mass",
+      "op_mass",
+      "newline_mass",
+      "latex_mass",
+      "top1_prob_renorm"
+    ],
+    "pairs_above_0.8_pooled": [
+      [
+        "backtrack_topk",
+        "backtrack_frac",
+        0.9658
+      ]
+    ],
+    "pairs_above_0.8_within": [
+      [
+        "backtrack_topk",
+        "backtrack_frac",
+        0.9651
+      ]
+    ],
+    "pairwise_max_within": 0.9651,
+    "pairwise_median_within": 0.1851,
+    "what": "|Spearman rho| between every pair of usable candidates. This tells the probe how much independent search space it really has: a pair above 0.8 is effectively one observable, not two."
+  },
+  "renormalisation_convention": "every *_mass / *_renorm column is a TOP-64-INTERNAL share: logits are log-sum-exp normalised across the 64 stored slots only, so a column sums to 1 over slots, not over the vocabulary. Measured on this dataset the truncation bias against the sidecar true top1_prob is mean|gap| = 1.9e-05 (see obs_extract.json renormalisation_convention), so the values are numerically close to true probabilities HERE, but they are not probabilities by definition.",
+  "rep_frac_topk_rho_with_t": {
+    "answer": "within-trajectory. 0.442294 is rho_with_t_within_mean_abs, the mean over 48 trajectories of the within-trajectory Spearman against the step index. The pooled value across all 69155 steps is 0.503404, which is the larger of the two.",
+    "descriptor": "moderate_trend",
+    "n_traj_within_defined": 48,
+    "pooled": 0.503404,
+    "question": "is |rho| = 0.442 pooled or within-trajectory?",
+    "within_traj_mean_abs": 0.442294,
+    "within_traj_mean_signed": 0.442294
+  },
+  "sanity_checks": {
+    "example_1_repeat_fraction": {
+      "definition": "|{i in 0..63 : topk_indices[t][i] already occurs in token_ids[0..t-1]}| / 64",
+      "observable": "rep_frac_topk",
+      "steps": [
+        {
+          "generated_token_id": 1654,
+          "generated_token_surface": "We",
+          "matching_topk_ids": [],
+          "n_topk_ids_already_in_prefix": 0,
+          "prefix_len": 0,
+          "prefix_token_ids": [],
+          "step": 0,
+          "value": 0.0
+        },
+        {
+          "generated_token_id": 525,
+          "generated_token_surface": " are",
+          "matching_topk_ids": [],
+          "n_topk_ids_already_in_prefix": 0,
+          "prefix_len": 1,
+          "prefix_token_ids": [
+            1654
+          ],
+          "step": 1,
+          "value": 0.0
+        },
+        {
+          "generated_token_id": 2661,
+          "generated_token_surface": " given",
+          "matching_topk_ids": [
+            525
+          ],
+          "n_topk_ids_already_in_prefix": 1,
+          "prefix_len": 2,
+          "prefix_token_ids": [
+            1654,
+            525
+          ],
+          "step": 2,
+          "value": 0.015625
+        },
+        {
+          "generated_token_id": 279,
+          "generated_token_surface": " the",
+          "matching_topk_ids": [],
+          "n_topk_ids_already_in_prefix": 0,
+          "prefix_len": 3,
+          "prefix_token_ids": [
+            1654,
+            525,
+            2661
+          ],
+          "step": 3,
+          "value": 0.0
+        },
+        {
+          "generated_token_id": 2701,
+          "generated_token_surface": " following",
+          "matching_topk_ids": [],
+          "n_topk_ids_already_in_prefix": 0,
+          "prefix_len": 4,
+          "prefix_token_ids": [
+            1654,
+            525,
+            2661,
+            279
+          ],
+          "step": 4,
+          "value": 0.0
+        }
+      ],
+      "trajectory": "aime__1983__1983_I_1__no_think",
+      "values_first5": [
+        0.0,
+        0.0,
+        0.015625,
+        0.0,
+        0.0
+      ]
+    },
+    "example_2_digit_mass": {
+      "definition": "sum over the 64 top-k slots whose token id decodes to a pure digit of exp(logit - logsumexp(top64 logits))",
+      "digit_slots_and_shares": [
+        {
+          "share": 0.11268391975482664,
+          "slot": 2,
+          "surface": "1",
+          "token_id": 16
+        },
+        {
+          "share": 8.106631090947333e-10,
+          "slot": 24,
+          "surface": "0",
+          "token_id": 15
+        },
+        {
+          "share": 1.2431921421762945e-10,
+          "slot": 44,
+          "surface": "4",
+          "token_id": 19
+        },
+        {
+          "share": 9.681990138351155e-11,
+          "slot": 49,
+          "surface": "2",
+          "token_id": 17
+        },
+        {
+          "share": 8.544326307949492e-11,
+          "slot": 52,
+          "surface": "5",
+          "token_id": 20
+        },
+        {
+          "share": 6.65432801944867e-11,
+          "slot": 55,
+          "surface": "3",
+          "token_id": 18
+        },
+        {
+          "share": 5.872423865945336e-11,
+          "slot": 58,
+          "surface": "6",
+          "token_id": 21
+        }
+      ],
+      "lse64_top64": 40.43316854997245,
+      "n_digit_slots": 7,
+      "observable": "digit_mass",
+      "step": 9,
+      "trajectory": "aime__1983__1983_I_1__no_think",
+      "value": 0.11268392099733963
+    },
+    "how_to_verify": "for any row, rebuild the value from the npz token ids and the npz topk arrays using the definition in the entry; the two worked examples below are reproducible by hand"
+  },
+  "schema_version": "1",
+  "source": {
+    "extractor": "obs_extract.py (imported, not reimplemented)",
+    "meta": "obs_series_meta.json",
+    "note": "obs_extract.py and obs_extract.json were NOT modified by this export. Before writing the npz the export recomputed the full summary statistics for all 14 candidates and asserted they match the delivered obs_extract.json to 1e-9, so the exported rows are provably the same numbers that were screened.",
+    "npz": "obs_series.npz",
+    "screening_report": "obs_extract.json"
+  },
+  "trajectory_table": [
+    {
+      "T": 784,
+      "index": 0,
+      "row_end": 784,
+      "row_offset": 0,
+      "traj_name": "aime__1983__1983_I_1__no_think"
+    },
+    {
+      "T": 1024,
+      "index": 1,
+      "row_end": 1808,
+      "row_offset": 784,
+      "traj_name": "aime__1983__1983_I_1__think"
+    },
+    {
+      "T": 1024,
+      "index": 2,
+      "row_end": 2832,
+      "row_offset": 1808,
+      "traj_name": "aime__1984__1984_I_1__no_think"
+    },
+    {
+      "T": 1024,
+      "index": 3,
+      "row_end": 3856,
+      "row_offset": 2832,
+      "traj_name": "aime__1984__1984_I_1__think"
+    },
+    {
+      "T": 940,
+      "index": 4,
+      "row_end": 4796,
+      "row_offset": 3856,
+      "traj_name": "aime__1985__1985_I_1__no_think"
+    },
+    {
+      "T": 1024,
+      "index": 5,
+      "row_end": 5820,
+      "row_offset": 4796,
+      "traj_name": "aime__1985__1985_I_1__think"
+    },
+    {
+      "T": 471,
+      "index": 6,
+      "row_end": 6291,
+      "row_offset": 5820,
+      "traj_name": "aime__1986__1986_I_1__no_think"
+    },
+    {
+      "T": 1024,
+      "index": 7,
+      "row_end": 7315,
+      "row_offset": 6291,
+      "traj_name": "aime__1986__1986_I_1__think"
+    },
+    {
+      "T": 2048,
+      "index": 8,
+      "row_end": 9363,
+      "row_offset": 7315,
+      "traj_name": "aime__1987__1987_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 9,
+      "row_end": 11411,
+      "row_offset": 9363,
+      "traj_name": "aime__1987__1987_I_1__think"
+    },
+    {
+      "T": 2048,
+      "index": 10,
+      "row_end": 13459,
+      "row_offset": 11411,
+      "traj_name": "aime__1988__1988_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 11,
+      "row_end": 15507,
+      "row_offset": 13459,
+      "traj_name": "aime__1988__1988_I_1__think"
+    },
+    {
+      "T": 692,
+      "index": 12,
+      "row_end": 16199,
+      "row_offset": 15507,
+      "traj_name": "aime__1989__1989_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 13,
+      "row_end": 18247,
+      "row_offset": 16199,
+      "traj_name": "aime__1989__1989_I_1__think"
+    },
+    {
+      "T": 834,
+      "index": 14,
+      "row_end": 19081,
+      "row_offset": 18247,
+      "traj_name": "aime__1990__1990_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 15,
+      "row_end": 21129,
+      "row_offset": 19081,
+      "traj_name": "aime__1990__1990_I_1__think"
+    },
+    {
+      "T": 1257,
+      "index": 16,
+      "row_end": 22386,
+      "row_offset": 21129,
+      "traj_name": "aime__1991__1991_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 17,
+      "row_end": 24434,
+      "row_offset": 22386,
+      "traj_name": "aime__1991__1991_I_1__think"
+    },
+    {
+      "T": 1522,
+      "index": 18,
+      "row_end": 25956,
+      "row_offset": 24434,
+      "traj_name": "aime__1992__1992_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 19,
+      "row_end": 28004,
+      "row_offset": 25956,
+      "traj_name": "aime__1992__1992_I_1__think"
+    },
+    {
+      "T": 2048,
+      "index": 20,
+      "row_end": 30052,
+      "row_offset": 28004,
+      "traj_name": "aime__1994__1994_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 21,
+      "row_end": 32100,
+      "row_offset": 30052,
+      "traj_name": "aime__1994__1994_I_1__think"
+    },
+    {
+      "T": 693,
+      "index": 22,
+      "row_end": 32793,
+      "row_offset": 32100,
+      "traj_name": "aime__2000__2000_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 23,
+      "row_end": 34841,
+      "row_offset": 32793,
+      "traj_name": "aime__2000__2000_I_1__think"
+    },
+    {
+      "T": 393,
+      "index": 24,
+      "row_end": 35234,
+      "row_offset": 34841,
+      "traj_name": "aime__2002__2002_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 25,
+      "row_end": 37282,
+      "row_offset": 35234,
+      "traj_name": "aime__2002__2002_I_1__think"
+    },
+    {
+      "T": 578,
+      "index": 26,
+      "row_end": 37860,
+      "row_offset": 37282,
+      "traj_name": "aime__2004__2004_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 27,
+      "row_end": 39908,
+      "row_offset": 37860,
+      "traj_name": "aime__2004__2004_I_1__think"
+    },
+    {
+      "T": 265,
+      "index": 28,
+      "row_end": 40173,
+      "row_offset": 39908,
+      "traj_name": "aime__2010__2010_I_1__no_think"
+    },
+    {
+      "T": 1960,
+      "index": 29,
+      "row_end": 42133,
+      "row_offset": 40173,
+      "traj_name": "aime__2010__2010_I_1__think"
+    },
+    {
+      "T": 347,
+      "index": 30,
+      "row_end": 42480,
+      "row_offset": 42133,
+      "traj_name": "aime__2012__2012_I_1__no_think"
+    },
+    {
+      "T": 1449,
+      "index": 31,
+      "row_end": 43929,
+      "row_offset": 42480,
+      "traj_name": "aime__2012__2012_I_1__think"
+    },
+    {
+      "T": 1733,
+      "index": 32,
+      "row_end": 45662,
+      "row_offset": 43929,
+      "traj_name": "aime__2014__2014_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 33,
+      "row_end": 47710,
+      "row_offset": 45662,
+      "traj_name": "aime__2014__2014_I_1__think"
+    },
+    {
+      "T": 460,
+      "index": 34,
+      "row_end": 48170,
+      "row_offset": 47710,
+      "traj_name": "aime__2016__2016_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 35,
+      "row_end": 50218,
+      "row_offset": 48170,
+      "traj_name": "aime__2016__2016_I_1__think"
+    },
+    {
+      "T": 720,
+      "index": 36,
+      "row_end": 50938,
+      "row_offset": 50218,
+      "traj_name": "aime__2020__2020_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 37,
+      "row_end": 52986,
+      "row_offset": 50938,
+      "traj_name": "aime__2020__2020_I_1__think"
+    },
+    {
+      "T": 2048,
+      "index": 38,
+      "row_end": 55034,
+      "row_offset": 52986,
+      "traj_name": "aime__2021__2021_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 39,
+      "row_end": 57082,
+      "row_offset": 55034,
+      "traj_name": "aime__2021__2021_I_1__think"
+    },
+    {
+      "T": 757,
+      "index": 40,
+      "row_end": 57839,
+      "row_offset": 57082,
+      "traj_name": "aime__2022__2022_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 41,
+      "row_end": 59887,
+      "row_offset": 57839,
+      "traj_name": "aime__2022__2022_I_1__think"
+    },
+    {
+      "T": 345,
+      "index": 42,
+      "row_end": 60232,
+      "row_offset": 59887,
+      "traj_name": "aime__2023__2023_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 43,
+      "row_end": 62280,
+      "row_offset": 60232,
+      "traj_name": "aime__2023__2023_I_1__think"
+    },
+    {
+      "T": 2048,
+      "index": 44,
+      "row_end": 64328,
+      "row_offset": 62280,
+      "traj_name": "aime__2024__2024_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 45,
+      "row_end": 66376,
+      "row_offset": 64328,
+      "traj_name": "aime__2024__2024_I_1__think"
+    },
+    {
+      "T": 731,
+      "index": 46,
+      "row_end": 67107,
+      "row_offset": 66376,
+      "traj_name": "aime__2025__2025_I_1__no_think"
+    },
+    {
+      "T": 2048,
+      "index": 47,
+      "row_end": 69155,
+      "row_offset": 67107,
+      "traj_name": "aime__2025__2025_I_1__think"
+    }
+  ]
+}

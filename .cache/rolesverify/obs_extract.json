@@ -1,0 +1,1544 @@
+{
+  "schema_version": "2",
+  "generated_by": ".cache/rolesverify/obs_extract.py",
+  "run_wallclock_s": 123.99,
+  "environment": {
+    "python_version": "3.9.6 (default, Aug 25 2026, 21:26:21) \n[Clang 21.0.0 (clang-2100.3.34.2)]",
+    "python_version_short": "3.9.6",
+    "executable": "/Library/Developer/CommandLineTools/usr/bin/python3",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "machine": "arm64",
+    "packages": {
+      "numpy": {
+        "present": true,
+        "version": "2.0.2"
+      },
+      "scipy": {
+        "present": true,
+        "version": "1.13.1"
+      },
+      "tokenizers": {
+        "present": false,
+        "error": "ModuleNotFoundError: No module named 'tokenizers'"
+      },
+      "transformers": {
+        "present": false,
+        "error": "ModuleNotFoundError: No module named 'transformers'"
+      },
+      "torch": {
+        "present": true,
+        "version": "2.8.0"
+      }
+    },
+    "tokenizer_backend": "raw_vocab_json_byte_bpe_fallback",
+    "tokenizer_backend_reason": "neither tokenizers nor transformers is importable in this interpreter, so token identity is resolved by direct id->surface-string lookup over vocab.json plus added_tokens_decoder. No encoder is needed: every observable here classifies a token id that is ALREADY given, so a BPE encode() implementation is never required. torch and model weights are never imported.",
+    "torch_imported_by_this_script": false
+  },
+  "vocab_meta": {
+    "n_vocab_json": 151643,
+    "n_added_tokens": 26,
+    "n_added_tokens_not_in_vocab": 26,
+    "n_ids_total": 151669,
+    "max_id": 151668
+  },
+  "class_definitions": {
+    "digit": "decoded surface, spaces stripped, all chars in 0-9",
+    "op": "surface stripped, all chars in =+-*/()^$\\  (note - and / also occur in prose: pre-registered noise)",
+    "newline": "surface contains a real newline",
+    "latex": "surface contains any of $ } { ^ _ \\ or 'frac'",
+    "marker_words": [
+      "actually",
+      "again",
+      "ah",
+      "alternatively",
+      "assume",
+      "back",
+      "but",
+      "check",
+      "correct",
+      "correction",
+      "hence",
+      "hmm",
+      "hold",
+      "hold on",
+      "however",
+      "instead",
+      "let me",
+      "meanwhile",
+      "never",
+      "no",
+      "not",
+      "oh",
+      "oops",
+      "rather",
+      "re-check",
+      "recheck",
+      "reconsider",
+      "redo",
+      "so",
+      "suppose",
+      "therefore",
+      "thus",
+      "unless",
+      "verify",
+      "wait",
+      "wrong"
+    ],
+    "selfcheck_regex": "\\b(wait|actually|hmm|hold on|let me check|let me verify|recheck|double[- ]check|second thought|alternatively|but wait)\\b"
+  },
+  "marker_vocab_overlap_with_selfcheck_regex": 0.11643835616438356,
+  "renormalisation_convention": {
+    "lse64_mean": 43.65059032859399,
+    "lse64_p05": 32.621223559786316,
+    "lse64_p95": 55.500000003729966,
+    "top1_renorm_mean": 0.9153426337617327,
+    "top1_sidecar_true_prob_mean": 0.9153241135143905,
+    "renorm_minus_true_mean_gap": 1.852024734227964e-05,
+    "coverage_evidence_vs_true_top1_prob": {
+      "n_steps_compared": 69155,
+      "mean_abs_gap": 1.9034531618199865e-05,
+      "p99_abs_gap": 0.0003208098984664037,
+      "max_abs_gap": 0.023472543648658528,
+      "frac_steps_where_renorm_UNDERSTATES_true_prob": 0.6474730677463668,
+      "spearman_renorm_vs_true": 0.965818573569282,
+      "spearman_one_minus_true_top1_vs_entropy": 0.9705613995369261
+    },
+    "interpretation": "top1_prob_renorm is DEFINITIONALLY a top-64-internal share, not a probability, and it is labelled that way everywhere in this file. MEASURED, however: on this model at this decoding setting the top-64 slice captures essentially the whole next-token mass. Mean |renorm - true top1_prob| = 1.90e-05 over 69155 steps, and the renormalised value UNDERSTATES the true probability on 64.7% of steps, so the truncation bias is not merely small here, it has no consistent sign. The practical consequence is that for THIS dataset the *_mass observables can be read as near-probabilities, but that is an empirical property of a very peaked model on math CoT and must not be assumed to transfer to a flatter distribution or a different decode. Toy check toyD_* demonstrates the mechanism directly: two logit vectors with the same top-1 logit and wildly different suppressed tails give the same renormalised share while logZ64 differs."
+  },
+  "toy_selfcheck": {
+    "n_checks": 29,
+    "n_failed": 0,
+    "all_passed": true,
+    "note": "expected values for the repeat patterns and the class masses are derived by hand from the synthetic token sequences and from logits chosen as logs of small integers (so the top-64-internal shares are exact rationals). Nothing is read back from the extractor to build an expectation.",
+    "vocab_probe": {
+      "ids_used": {
+        "one": 16,
+        "plus": 10,
+        "equals": 28,
+        "newline": 198,
+        "wait": 11489
+      },
+      "n_newline_token_ids": 1,
+      "n_wait_token_ids": 3,
+      "n_neutral_filler": 200
+    },
+    "checks": [
+      {
+        "check": "toy_neutral_filler_available",
+        "got": true,
+        "want": true,
+        "ok": true
+      },
+      {
+        "check": "toy_neutral_filler_is_class_free",
+        "got": 0.0,
+        "want": 0,
+        "ok": true
+      },
+      {
+        "check": "decode_digit_id_is_digit",
+        "got": "1",
+        "want": "1",
+        "ok": true
+      },
+      {
+        "check": "decode_plus_is_plus",
+        "got": "+",
+        "want": "+",
+        "ok": true
+      },
+      {
+        "check": "decode_added_token_kept_literal",
+        "got": true,
+        "want": true,
+        "ok": true
+      },
+      {
+        "check": "toyA_renorm_row_sums_to_1",
+        "got": 0.0,
+        "want": 0.0,
+        "ok": true
+      },
+      {
+        "check": "toyA_top1_share_exact_3_over_4",
+        "got": 0.7500000000000001,
+        "want": 0.75,
+        "ok": true
+      },
+      {
+        "check": "toyA_second_share_exact_1_over_4",
+        "got": 0.25,
+        "want": 0.25,
+        "ok": true
+      },
+      {
+        "check": "toyA_digit_mass_exact_1",
+        "got": 1.0,
+        "want": 1.0,
+        "ok": true
+      },
+      {
+        "check": "toyA_marker_mass_exact_0",
+        "got": 0.0,
+        "want": 0.0,
+        "ok": true
+      },
+      {
+        "check": "toyA_op_mass_exact_0",
+        "got": 0.0,
+        "want": 0.0,
+        "ok": true
+      },
+      {
+        "check": "toyA_rep_top1_pattern",
+        "got": "000111111111",
+        "want": "000111111111",
+        "ok": true
+      },
+      {
+        "check": "toyA_rep_ngram4_pattern",
+        "got": "000000111111",
+        "want": "000000111111",
+        "ok": true
+      },
+      {
+        "check": "toyA_rep_frac_topk_full_pattern",
+        "got": [
+          0.0,
+          0.015625,
+          0.015625,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125
+        ],
+        "want": [
+          0.0,
+          0.015625,
+          0.015625,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125,
+          0.03125
+        ],
+        "ok": true
+      },
+      {
+        "check": "toyA_rep_frac_topk_t11_is_two_over_64",
+        "got": 0.03125,
+        "want": 0.03125,
+        "ok": true
+      },
+      {
+        "check": "toyB_digit_mass_all_digit",
+        "got": 1.0,
+        "want": 1.0,
+        "ok": true
+      },
+      {
+        "check": "toyB_digit_mass_all_op",
+        "got": 0.0,
+        "want": 0.0,
+        "ok": true
+      },
+      {
+        "check": "toyB_op_mass_all_op",
+        "got": 1.0,
+        "want": 1.0,
+        "ok": true
+      },
+      {
+        "check": "toyB_digit_mass_mixed_exact_2_over_3",
+        "got": 0.6666666666666667,
+        "want": 0.6666666666666666,
+        "ok": true
+      },
+      {
+        "check": "toyB_op_mass_mixed_exact_1_over_3",
+        "got": 0.33333333333333337,
+        "want": 0.3333333333333333,
+        "ok": true
+      },
+      {
+        "check": "toyB_all_class_mass_exact_zero_on_neutral",
+        "got": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "want": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "ok": true
+      },
+      {
+        "check": "toyC_marker_mass_on_wait_step_exact_2_over_3",
+        "got": 0.6666666666666667,
+        "want": 0.6666666666666666,
+        "ok": true
+      },
+      {
+        "check": "toyC_backtrack_topk_detected",
+        "got": true,
+        "want": true,
+        "ok": true
+      },
+      {
+        "check": "toyC_newline_mass_on_newline_step_exact_1",
+        "got": 1.0,
+        "want": 1.0,
+        "ok": true
+      },
+      {
+        "check": "toyC_newline_mass_elsewhere_exact_0",
+        "got": 0.0,
+        "want": 0.0,
+        "ok": true
+      },
+      {
+        "check": "toyC_backtrack_topk_absent_on_newline_step",
+        "got": false,
+        "want": false,
+        "ok": true
+      },
+      {
+        "check": "toyD_renorm_share_saturates_despite_missing_tail",
+        "got": true,
+        "want": true,
+        "ok": true
+      },
+      {
+        "check": "toyD_renorm_cannot_see_tail_magnitude",
+        "got": true,
+        "want": true,
+        "ok": true
+      },
+      {
+        "check": "toyD_logZ64_does_see_tail_magnitude",
+        "got": true,
+        "want": true,
+        "ok": true
+      }
+    ]
+  },
+  "data_diagnostics": {
+    "n_traj": 48,
+    "n_token_id_mismatch_between_npz_and_sidecar": 0,
+    "step_len_min": 265,
+    "step_len_max": 2048,
+    "step_len_median": 1846,
+    "n_steps_total": 69155,
+    "NOTE_on_shape": "the briefing said every npz has 784 steps; measured lengths vary, see step_len_* above",
+    "sidecar_is_self_check_true_steps": 0,
+    "sidecar_is_self_check_total_steps": 69155,
+    "regex_selfcheck_true_steps": 391,
+    "regex_selfcheck_total_steps": 69155,
+    "sidecar_selfcheck_column_is_degenerate": true,
+    "finding_self_check": "The sidecar column is_self_check is identically false across all 48 trajectories, while prior scripts (v1_observables_anchors.py, v2_corr.py, v8_circularity.py) recompute the flag from a regex on the decoded text. Both are screened here as separate controls because only the regex version is the actual caution grouping predicate.",
+    "in_think_frac_per_traj_min": 0.0,
+    "in_think_frac_per_traj_max": 1.0,
+    "n_forced_zero_ngram4_steps": 144
+  },
+  "threshold_basis": {
+    "method": "null calibration by within-trajectory permutation. For each candidate the per-step series is shuffled inside each trajectory 100 times; this destroys step ordering and autocorrelation while preserving the marginal distribution, which is the correct null for an autocorrelated step series. The threshold is the 99th percentile of the resulting |rho| distribution, pooled over all candidates and permutations.",
+    "n_permutations_per_candidate": 100,
+    "n_candidates": 14,
+    "n_permutations_total": 1400,
+    "rho_with_t_threshold_abs_null_p99": 0.03118947323945499,
+    "rho_vs_selfcheck_threshold_abs_null_p99": 0.02883905173915877,
+    "ceiling_floor_determinism_abs": 0.99,
+    "ceiling_floor_restatement_abs": 0.6,
+    "sign_consistency_requirement": 0.9,
+    "variance_rule": ">0.5 of trajectories constant, or <0.5 of trajectories with non-zero within-traj variance, => no_variance. This is a structural criterion, not a noise level: shuffling cannot change within-traj variance, so a constant-per-traj observable is rejected at any noise setting.",
+    "determinism_rule": "mean within-traj |rho with t| >= ceiling floor 0.99 AND >= null p99 0.0312 AND sign consistency >= 0.90 across trajectories",
+    "circularity_rule": "mean within-traj |rho vs self_check regex| >= restatement floor 0.60 AND >= null p99 0.0288, OR marker-vocabulary overlap with that regex >= 0.50 (measured structural overlap 0.116)",
+    "why_two_kinds_of_floor": "The null p99 and the ceiling floor answer different questions. The null p99 (0.0312) says 'this is not noise': it is the significance level, and it is reported per candidate as rho_with_t_significant_vs_null. The ceiling floor (0.99) says 'this is the same thing': a deterministic function of t must have |rho| = 1 by construction, and a restatement of the grouping predicate must have |rho| -> 1. Using the null p99 ALONE as the rejection bar would have been far too aggressive -- it would reject any candidate that merely trends with step index, which is an overclaim, and would have flagged most of this family as circular. Both are recorded per candidate so a graded relationship is visible rather than hidden behind a binary verdict.",
+    "note": "no threshold was set by looking at which candidate looked most promising; the null is built before verdicts are assigned, and all 14 candidates are reported"
+  },
+  "multiple_comparisons": {
+    "n_candidates": 14,
+    "n_criteria_per_candidate": 3,
+    "n_decision_tests": 42,
+    "per_test_alpha": 0.01,
+    "family_wise_alpha": 0.03,
+    "pre_registration": "all 14 candidates were registered with a mechanism argument before any statistic was computed, and every one of them is reported below with its verdict. None was added, reweighted or dropped after seeing results, and no candidate was selected for being the most correlated.",
+    "reported": "all 14 candidates, no filtering"
+  },
+  "n_candidates": 14,
+  "candidates": [
+    {
+      "name": "rep_top1",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.8751355650350662,
+      "sd": 0.330567524100978,
+      "p05": 0.0,
+      "p50": 1.0,
+      "p95": 1.0,
+      "within_traj_sd_mean": 0.34814485661226585,
+      "within_traj_sd_median": 0.33292257553071947,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": 0.301494663779547,
+      "rho_with_t_within_mean_abs": 0.301494663779547,
+      "rho_with_t_within_min_abs": 0.21155598394606487,
+      "rho_with_t_pooled": 0.3214193015623978,
+      "rho_with_t_sign_consistency": 1.0,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 2,
+      "frac_binary": true,
+      "acf_lag1": 0.33602485426241296,
+      "acf_lag5": 0.24732117557996722,
+      "acf_lag20": 0.171995369373113,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": -0.049298561569462225,
+          "within_traj_mean_abs_rho": 0.049298561569462225,
+          "pooled_rho": -0.027524129412374452,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": -0.027418434807686354,
+          "within_traj_mean_abs_rho": 0.031940927391057146,
+          "pooled_rho": 0.028029320375201873,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": -0.21911239461885526,
+          "within_traj_mean_abs_rho": 0.22020436246265848,
+          "pooled_rho": -0.18509311211239612,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 0.301494663779547,
+          "within_traj_mean_abs_rho": 0.301494663779547,
+          "pooled_rho": 0.2887781470866935,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": 0.21540692491093447,
+          "within_traj_mean_abs_rho": 0.21630619925679062,
+          "pooled_rho": 0.17781594347754603,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "moderate_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "repetition",
+      "kind": "binary",
+      "mechanism_argument": "Degenerate looping is a per-token event. At step t the model draws argmax_t; if argmax_t already sits in the generated prefix token_ids[0:t] the model has copied rather than advanced. The mechanism is a set-membership test against a set that grows one element per step, so the rate must vary step to step. Nothing in the definition reads the step index t.",
+      "label_circular_risk": false,
+      "verdict": "usable",
+      "verdict_reason": "passes all three screens. Step-wise variation: non-zero within-trajectory variance in 1.000 of trajectories (mean within-traj sd 0.3481). Not a function of t: mean within-traj |rho with t| = 0.3015, below the ceiling floor 0.99 (descriptor 'moderate_trend'; exceeds the measured null p99 = 0.0312: True). Not label-circular: mean within-traj |rho vs self_check| = 0.0493, below the restatement floor 0.60 and the null p99 = 0.0288.",
+      "post_hoc_rho_vs_entropy": -0.21911239461885526,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": -0.027418434807686354,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "rep_ngram4",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.4238305256308293,
+      "sd": 0.4941677269890793,
+      "p05": 0.0,
+      "p50": 0.0,
+      "p95": 1.0,
+      "within_traj_sd_mean": 0.4634385960199219,
+      "within_traj_sd_median": 0.4836453573167898,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": 0.27036657807760517,
+      "rho_with_t_within_mean_abs": 0.27036657807760517,
+      "rho_with_t_within_min_abs": 0.018465346247737446,
+      "rho_with_t_pooled": 0.32331951940496206,
+      "rho_with_t_sign_consistency": 1.0,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 2,
+      "frac_binary": true,
+      "acf_lag1": 0.6755136002979812,
+      "acf_lag5": 0.24854965585538746,
+      "acf_lag20": 0.14043422931833435,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": -0.03903000608992592,
+          "within_traj_mean_abs_rho": 0.03980493409877542,
+          "pooled_rho": -0.03306238319193118,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": 0.0552827084373399,
+          "within_traj_mean_abs_rho": 0.0552827084373399,
+          "pooled_rho": -0.03779351327098772,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": -0.261346710892556,
+          "within_traj_mean_abs_rho": 0.261346710892556,
+          "pooled_rho": -0.23403732333616115,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 0.27036657807760517,
+          "within_traj_mean_abs_rho": 0.27036657807760517,
+          "pooled_rho": 0.2781607123123075,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": 0.25339412221742824,
+          "within_traj_mean_abs_rho": 0.25339412221742824,
+          "pooled_rho": 0.22873291147188377,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "moderate_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "repetition",
+      "kind": "binary",
+      "mechanism_argument": "Repetition in math CoT is phrase-level, not token-level: the model re-runs 'so we get 12 + 5 = 17' verbatim. A 4-gram over token ids ending at t is the shortest window that cannot fire on ordinary symbol-by-symbol arithmetic (where adjacent token ids differ each step) but does fire on phrase re-runs. The set of earlier 4-grams grows one entry per step, so this is again a step-local decision. For t<3 the window is incomplete and the value is forced to 0; those steps are counted and reported separately.",
+      "label_circular_risk": false,
+      "verdict": "usable",
+      "verdict_reason": "passes all three screens. Step-wise variation: non-zero within-trajectory variance in 1.000 of trajectories (mean within-traj sd 0.4634). Not a function of t: mean within-traj |rho with t| = 0.2704, below the ceiling floor 0.99 (descriptor 'moderate_trend'; exceeds the measured null p99 = 0.0312: True). Not label-circular: mean within-traj |rho vs self_check| = 0.0398, below the restatement floor 0.60 and the null p99 = 0.0288.",
+      "post_hoc_rho_vs_entropy": -0.261346710892556,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": 0.0552827084373399,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "rep_frac_topk",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.24080688308871376,
+      "sd": 0.1278997921270406,
+      "p05": 0.046875,
+      "p50": 0.234375,
+      "p95": 0.46875,
+      "within_traj_sd_mean": 0.110679950192634,
+      "within_traj_sd_median": 0.11259358298263625,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": 0.44229445900294184,
+      "rho_with_t_within_mean_abs": 0.44229445900294184,
+      "rho_with_t_within_min_abs": 0.22151274600741366,
+      "rho_with_t_pooled": 0.5034043680519823,
+      "rho_with_t_sign_consistency": 1.0,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 48,
+      "frac_binary": false,
+      "acf_lag1": 0.4212368688506805,
+      "acf_lag5": 0.30709534276630834,
+      "acf_lag20": 0.2776927154104501,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": -0.04600098508871743,
+          "within_traj_mean_abs_rho": 0.046651823452806725,
+          "pooled_rho": -0.032172231339750994,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": 0.005737138963297167,
+          "within_traj_mean_abs_rho": 0.06265430894982056,
+          "pooled_rho": 0.15962368426738258,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": 0.07427423190746836,
+          "within_traj_mean_abs_rho": 0.17418238463754346,
+          "pooled_rho": 0.17750018506865745,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 0.44229445900294184,
+          "within_traj_mean_abs_rho": 0.44229445900294184,
+          "pooled_rho": 0.41088669472469846,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": -0.08419701200296083,
+          "within_traj_mean_abs_rho": 0.16566679404592363,
+          "pooled_rho": -0.186869191341041,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "moderate_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "repetition",
+      "kind": "continuous",
+      "mechanism_argument": "Binary repetition is too coarse: it is 0 for most of a healthy trajectory and 1 only at a total collapse. The continuous version counts how many of the top-64 CANDIDATES at step t already occur in the generated prefix. On arithmetic the top-64 is crowded with digits, operators and re-used variable names, so the count is a graded measure of how much of the model's remaining probability mass is spent re-emitting its own past. Continuous, so it retains resolution everywhere rather than only at collapse.",
+      "label_circular_risk": false,
+      "verdict": "usable",
+      "verdict_reason": "passes all three screens. Step-wise variation: non-zero within-trajectory variance in 1.000 of trajectories (mean within-traj sd 0.1107). Not a function of t: mean within-traj |rho with t| = 0.4423, below the ceiling floor 0.99 (descriptor 'moderate_trend'; exceeds the measured null p99 = 0.0312: True). Not label-circular: mean within-traj |rho vs self_check| = 0.0467, below the restatement floor 0.60 and the null p99 = 0.0288.",
+      "post_hoc_rho_vs_entropy": 0.07427423190746836,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": 0.005737138963297167,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "backtrack_topk",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.3694020678186682,
+      "sd": 0.482646401203307,
+      "p05": 0.0,
+      "p50": 0.0,
+      "p95": 1.0,
+      "within_traj_sd_mean": 0.45713432549171124,
+      "within_traj_sd_median": 0.459829349441772,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": 0.033944057622889066,
+      "rho_with_t_within_mean_abs": 0.09688318706779926,
+      "rho_with_t_within_min_abs": 0.005151058379406839,
+      "rho_with_t_pooled": 0.09320626386249338,
+      "rho_with_t_sign_consistency": 0.625,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 2,
+      "frac_binary": true,
+      "acf_lag1": 0.32572581732349554,
+      "acf_lag5": 0.07416149652811153,
+      "acf_lag20": 0.02924357478436085,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": 0.09447400067910215,
+          "within_traj_mean_abs_rho": 0.09447400067910215,
+          "pooled_rho": 0.09852227301730937,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": 0.18002697559682343,
+          "within_traj_mean_abs_rho": 0.18002697559682343,
+          "pooled_rho": 0.1935717261787069,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": 0.3849030221932093,
+          "within_traj_mean_abs_rho": 0.3849030221932093,
+          "pooled_rho": 0.43085014171634844,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 0.033944057622889066,
+          "within_traj_mean_abs_rho": 0.09688318706779926,
+          "pooled_rho": 0.04321745788360061,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": -0.3739455695550276,
+          "within_traj_mean_abs_rho": 0.3739455695550276,
+          "pooled_rho": -0.42138259822960267,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "weak_but_significant_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "backtrack",
+      "kind": "binary",
+      "mechanism_argument": "Revising a derivation is a lexical event: 'wait', 'actually', 'no', 'instead'. If any of a pre-registered marker vocabulary appears in the top-64 at step t, the model is at a step where it is considering undoing what it just wrote. This is decided per step by content, not by position. CAVEAT PRE-REGISTERED: the marker vocabulary overlaps the caution-contrast self_check regex, so this candidate is at genuine risk of label circularity and the screen is expected to be able to catch that.",
+      "label_circular_risk": false,
+      "verdict": "usable",
+      "verdict_reason": "passes all three screens. Step-wise variation: non-zero within-trajectory variance in 1.000 of trajectories (mean within-traj sd 0.4571). Not a function of t: mean within-traj |rho with t| = 0.0969, below the ceiling floor 0.99 (descriptor 'weak_but_significant_trend'; exceeds the measured null p99 = 0.0312: True). Not label-circular: mean within-traj |rho vs self_check| = 0.0945, below the restatement floor 0.60 and the null p99 = 0.0288.",
+      "post_hoc_rho_vs_entropy": 0.3849030221932093,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": 0.18002697559682343,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "backtrack_frac",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.03459032245620845,
+      "sd": 0.1666306535161359,
+      "p05": 0.0,
+      "p50": 0.0,
+      "p95": 0.0627019151549434,
+      "within_traj_sd_mean": 0.13396311455695076,
+      "within_traj_sd_median": 0.1337713345131622,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": 0.042752740958538336,
+      "rho_with_t_within_mean_abs": 0.10395267722783574,
+      "rho_with_t_within_min_abs": 4.2596009047994955e-05,
+      "rho_with_t_pooled": 0.10347842921157817,
+      "rho_with_t_sign_consistency": 0.6875,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 25544,
+      "frac_binary": false,
+      "acf_lag1": -0.00045678280989281533,
+      "acf_lag5": 0.0033571344358060543,
+      "acf_lag20": -0.0003648623306998757,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": 0.1514562227001129,
+          "within_traj_mean_abs_rho": 0.1514562227001129,
+          "pooled_rho": 0.14615764367100653,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": 0.17144710976167812,
+          "within_traj_mean_abs_rho": 0.17144710976167812,
+          "pooled_rho": 0.18459988511362996,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": 0.46221895031621346,
+          "within_traj_mean_abs_rho": 0.46221895031621346,
+          "pooled_rho": 0.5111743654117531,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 0.042752740958538336,
+          "within_traj_mean_abs_rho": 0.10395267722783574,
+          "pooled_rho": 0.053869469561878346,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": -0.45191176808972866,
+          "within_traj_mean_abs_rho": 0.45191176808972866,
+          "pooled_rho": -0.502766266039229,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "weak_but_significant_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "backtrack",
+      "kind": "continuous",
+      "mechanism_argument": "Same mechanism as backtrack_topk but weighted by renormalised top-64 mass, so it distinguishes 'one marker id in the tail' from 'the marker is what the model is actually about to say'. The mass version should be less bursty and better powered.",
+      "label_circular_risk": false,
+      "verdict": "usable",
+      "verdict_reason": "passes all three screens. Step-wise variation: non-zero within-trajectory variance in 1.000 of trajectories (mean within-traj sd 0.134). Not a function of t: mean within-traj |rho with t| = 0.1040, below the ceiling floor 0.99 (descriptor 'weak_but_significant_trend'; exceeds the measured null p99 = 0.0312: True). Not label-circular: mean within-traj |rho vs self_check| = 0.1515, below the restatement floor 0.60 and the null p99 = 0.0288.",
+      "post_hoc_rho_vs_entropy": 0.46221895031621346,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": 0.17144710976167812,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "digit_mass",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.15837912656315234,
+      "sd": 0.3643927033990049,
+      "p05": 0.0,
+      "p50": 0.0,
+      "p95": 0.9999999999999963,
+      "within_traj_sd_mean": 0.3364276639726387,
+      "within_traj_sd_median": 0.34091757805570505,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": 0.09200652167057406,
+      "rho_with_t_within_mean_abs": 0.11558463864911844,
+      "rho_with_t_within_min_abs": 0.00028503712026425464,
+      "rho_with_t_pooled": 0.0811417527437437,
+      "rho_with_t_sign_consistency": 0.8541666666666666,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 20800,
+      "frac_binary": false,
+      "acf_lag1": 0.19239831473160876,
+      "acf_lag5": 0.045526684002767305,
+      "acf_lag20": 0.02633644957228067,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": -0.04775242338877453,
+          "within_traj_mean_abs_rho": 0.04775242338877453,
+          "pooled_rho": -0.053568806742414175,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": -0.013465949497471258,
+          "within_traj_mean_abs_rho": 0.04389784595230695,
+          "pooled_rho": -0.1493288746854508,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": -0.45177156422491455,
+          "within_traj_mean_abs_rho": 0.45177156422491455,
+          "pooled_rho": -0.5214085105220531,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 0.09200652167057406,
+          "within_traj_mean_abs_rho": 0.11558463864911844,
+          "pooled_rho": 0.08864095789708769,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": 0.4128297394636407,
+          "within_traj_mean_abs_rho": 0.4128297394636407,
+          "pooled_rho": 0.4825030469624645,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "weak_but_significant_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "numeric",
+      "kind": "continuous",
+      "mechanism_argument": "Mathematical reasoning is a mode of text in which a large and step-varying fraction of next-token mass lands on digit tokens. The degree varies with the arithmetic: expanding a product, carrying a digit, checking a residue, or sliding into prose all shift it. Because it is a soft mass, it resolves every step and is not the same event as a digit being present at all.",
+      "label_circular_risk": false,
+      "verdict": "usable",
+      "verdict_reason": "passes all three screens. Step-wise variation: non-zero within-trajectory variance in 1.000 of trajectories (mean within-traj sd 0.3364). Not a function of t: mean within-traj |rho with t| = 0.1156, below the ceiling floor 0.99 (descriptor 'weak_but_significant_trend'; exceeds the measured null p99 = 0.0312: True). Not label-circular: mean within-traj |rho vs self_check| = 0.0478, below the restatement floor 0.60 and the null p99 = 0.0288.",
+      "post_hoc_rho_vs_entropy": -0.45177156422491455,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": -0.013465949497471258,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "op_mass",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.13160862398412979,
+      "sd": 0.3293834621951268,
+      "p05": 0.0,
+      "p50": 3.208575742649263e-12,
+      "p95": 0.9999999974771396,
+      "within_traj_sd_mean": 0.32233825747270844,
+      "within_traj_sd_median": 0.3573890545485793,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": 0.04675989472921618,
+      "rho_with_t_within_mean_abs": 0.10886321124861857,
+      "rho_with_t_within_min_abs": 0.00017449879898108256,
+      "rho_with_t_pooled": -0.04415646374005865,
+      "rho_with_t_sign_consistency": 0.625,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 51212,
+      "frac_binary": false,
+      "acf_lag1": -0.0738896920365522,
+      "acf_lag5": 0.03246135842142997,
+      "acf_lag20": 0.01723519739748347,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": -0.0633571278181864,
+          "within_traj_mean_abs_rho": 0.07038068588252278,
+          "pooled_rho": -0.08064233207096212,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": -0.31718010135787933,
+          "within_traj_mean_abs_rho": 0.31718010135787933,
+          "pooled_rho": -0.4157192391242902,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": 0.17073640083812044,
+          "within_traj_mean_abs_rho": 0.26437117960392126,
+          "pooled_rho": 0.03180314751070775,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 0.04675989472921618,
+          "within_traj_mean_abs_rho": 0.10886321124861857,
+          "pooled_rho": 0.06414894183299265,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": -0.14551437300365241,
+          "within_traj_mean_abs_rho": 0.2405694291879109,
+          "pooled_rho": -0.00996697287367913,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "weak_but_significant_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "numeric",
+      "kind": "continuous",
+      "mechanism_argument": "The complementary mode: operator and grouping tokens (= + - * / ( ) ^ $ \\) carry the algebra, prose carries the explanation. The balance between them is a genuine step-local decision that tracks the model moving between 'compute' and 'explain'. PRE-REGISTERED CAVEAT: '-' and '/' also occur in ordinary prose, so this is a noisy proxy for symbolic work, and the screen should be read with that in mind.",
+      "label_circular_risk": false,
+      "verdict": "usable",
+      "verdict_reason": "passes all three screens. Step-wise variation: non-zero within-trajectory variance in 1.000 of trajectories (mean within-traj sd 0.3223). Not a function of t: mean within-traj |rho with t| = 0.1089, below the ceiling floor 0.99 (descriptor 'weak_but_significant_trend'; exceeds the measured null p99 = 0.0312: True). Not label-circular: mean within-traj |rho vs self_check| = 0.0704, below the restatement floor 0.60 and the null p99 = 0.0288.",
+      "post_hoc_rho_vs_entropy": 0.17073640083812044,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": -0.31718010135787933,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "newline_mass",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.0420033372504783,
+      "sd": 0.18878979530646267,
+      "p05": 0.0,
+      "p50": 6.339760028414284e-19,
+      "p95": 0.14804258798599446,
+      "within_traj_sd_mean": 0.19553204023616236,
+      "within_traj_sd_median": 0.18917584722691866,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": 0.04153815011098776,
+      "rho_with_t_within_mean_abs": 0.07261887989295768,
+      "rho_with_t_within_min_abs": 0.0034217993555902453,
+      "rho_with_t_pooled": -0.0443901575948453,
+      "rho_with_t_sign_consistency": 0.7083333333333334,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 36396,
+      "frac_binary": false,
+      "acf_lag1": 0.0002900301021345585,
+      "acf_lag5": -0.02756976951657304,
+      "acf_lag20": -0.006952174113282197,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": 0.011763870618051762,
+          "within_traj_mean_abs_rho": 0.04124285968186653,
+          "pooled_rho": -0.0007278526509967332,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": -0.2849916360048131,
+          "within_traj_mean_abs_rho": 0.2849916360048131,
+          "pooled_rho": -0.35918777618043596,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": 0.1944199175073825,
+          "within_traj_mean_abs_rho": 0.19677830233850344,
+          "pooled_rho": 0.07169996673418853,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 0.04153815011098776,
+          "within_traj_mean_abs_rho": 0.07261887989295768,
+          "pooled_rho": 0.04508012885932622,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": -0.17926235427319528,
+          "within_traj_mean_abs_rho": 0.18068452972188154,
+          "pooled_rho": -0.06218043047994355,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "weak_but_significant_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "structure",
+      "kind": "continuous",
+      "mechanism_argument": "Line breaks are the model's own decision about layout of the derivation, and they come at content-driven moments: opening a new line of working, separating a claim from its check, closing a block. So a mass on newline tokens should pulse rather than ramp smoothly with t, and its within-trajectory variance should be clearly non-zero.",
+      "label_circular_risk": false,
+      "verdict": "usable",
+      "verdict_reason": "passes all three screens. Step-wise variation: non-zero within-trajectory variance in 1.000 of trajectories (mean within-traj sd 0.1955). Not a function of t: mean within-traj |rho with t| = 0.0726, below the ceiling floor 0.99 (descriptor 'weak_but_significant_trend'; exceeds the measured null p99 = 0.0312: True). Not label-circular: mean within-traj |rho vs self_check| = 0.0412, below the restatement floor 0.60 and the null p99 = 0.0288.",
+      "post_hoc_rho_vs_entropy": 0.1944199175073825,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": -0.2849916360048131,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "latex_mass",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.07014661615397508,
+      "sd": 0.25172519569090707,
+      "p05": 0.0,
+      "p50": 1.2664164015195023e-14,
+      "p95": 0.9999917498858574,
+      "within_traj_sd_mean": 0.20647682428833822,
+      "within_traj_sd_median": 0.2104551475016385,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": -0.007805719892182518,
+      "rho_with_t_within_mean_abs": 0.11906728304429459,
+      "rho_with_t_within_min_abs": 0.003595173369457474,
+      "rho_with_t_pooled": -0.16208798295195578,
+      "rho_with_t_sign_consistency": 0.5208333333333334,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 44128,
+      "frac_binary": false,
+      "acf_lag1": 0.026726012762093864,
+      "acf_lag5": 0.06053104959287812,
+      "acf_lag20": 0.03785531136185104,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": -0.06768606642095629,
+          "within_traj_mean_abs_rho": 0.07166267110794669,
+          "pooled_rho": -0.0817376127073956,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": -0.3141715906093196,
+          "within_traj_mean_abs_rho": 0.3141715906093196,
+          "pooled_rho": -0.4918095160750501,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": 0.05496457199127175,
+          "within_traj_mean_abs_rho": 0.22006556892323034,
+          "pooled_rho": -0.11047275478123111,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": -0.007805719892182518,
+          "within_traj_mean_abs_rho": 0.11906728304429459,
+          "pooled_rho": -0.02744774314750076,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": -0.015085336494147722,
+          "within_traj_mean_abs_rho": 0.1941853948729935,
+          "pooled_rho": 0.14266316107715582,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "weak_but_significant_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "structure",
+      "kind": "continuous",
+      "mechanism_argument": "Same argument for the LaTeX/structural character set ($, {, }, ^, _, \\frac). The model switches into and out of typeset mode as the derivation changes from narrative to expression, and those transitions are content-driven.",
+      "label_circular_risk": false,
+      "verdict": "usable",
+      "verdict_reason": "passes all three screens. Step-wise variation: non-zero within-trajectory variance in 1.000 of trajectories (mean within-traj sd 0.2065). Not a function of t: mean within-traj |rho with t| = 0.1191, below the ceiling floor 0.99 (descriptor 'weak_but_significant_trend'; exceeds the measured null p99 = 0.0312: True). Not label-circular: mean within-traj |rho vs self_check| = 0.0717, below the restatement floor 0.60 and the null p99 = 0.0288.",
+      "post_hoc_rho_vs_entropy": 0.05496457199127175,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": -0.3141715906093196,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "top1_prob_renorm",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.9153426337617327,
+      "sd": 0.16066529742125443,
+      "p05": 0.5233011224362494,
+      "p50": 0.9999038417725685,
+      "p95": 0.9999999999984581,
+      "within_traj_sd_mean": 0.15192504645668814,
+      "within_traj_sd_median": 0.153618402566858,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": 0.035438374061056294,
+      "rho_with_t_within_mean_abs": 0.1381696823865672,
+      "rho_with_t_within_min_abs": 0.001769206359564079,
+      "rho_with_t_pooled": -0.03233065992225504,
+      "rho_with_t_sign_consistency": 0.5208333333333334,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 63546,
+      "frac_binary": false,
+      "acf_lag1": 0.24128679276555198,
+      "acf_lag5": 0.09924433993133464,
+      "acf_lag20": 0.04241122039952303,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": -0.08308147740292347,
+          "within_traj_mean_abs_rho": 0.08308147740292347,
+          "pooled_rho": -0.08472767468389918,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": -0.0461440384495215,
+          "within_traj_mean_abs_rho": 0.10558964733741893,
+          "pooled_rho": -0.12209395857066425,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": -0.9848607059816744,
+          "within_traj_mean_abs_rho": 0.9848607059816744,
+          "pooled_rho": -0.9911604190353887,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 0.035438374061056294,
+          "within_traj_mean_abs_rho": 0.1381696823865672,
+          "pooled_rho": 0.004374636562007974,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": 0.9462296703052931,
+          "within_traj_mean_abs_rho": 0.9462296703052931,
+          "pooled_rho": 0.965818573569282,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "weak_but_significant_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "concentration",
+      "kind": "continuous",
+      "mechanism_argument": "Concentration of the top-64 head. A decided step (a digit the model is sure of) and an undecided step (choosing between formulations) are separated by this quantity, and the fraction of such decisions changes step to step as the derivation proceeds. RENORMALISATION CAVEAT: this is the top-64-internal share, NOT the true top1 probability in the sidecar; the JSON reports both and the measured logZ64 coverage so the inflation is visible.",
+      "label_circular_risk": false,
+      "verdict": "usable",
+      "verdict_reason": "passes all three screens. Step-wise variation: non-zero within-trajectory variance in 1.000 of trajectories (mean within-traj sd 0.1519). Not a function of t: mean within-traj |rho with t| = 0.1382, below the ceiling floor 0.99 (descriptor 'weak_but_significant_trend'; exceeds the measured null p99 = 0.0312: True). Not label-circular: mean within-traj |rho vs self_check| = 0.0831, below the restatement floor 0.60 and the null p99 = 0.0288.",
+      "post_hoc_rho_vs_entropy": -0.9848607059816744,
+      "post_hoc_redundant_with_entropy": true,
+      "post_hoc_rho_vs_in_think": -0.0461440384495215,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "step_frac",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.5,
+      "sd": 0.2888777215573619,
+      "p05": 0.049829018075232046,
+      "p50": 0.5,
+      "p95": 0.9501709819247679,
+      "within_traj_sd_mean": 0.28896387771091825,
+      "within_traj_sd_median": 0.28883210674058873,
+      "frac_traj_within_var_gt_0": 1.0,
+      "rho_with_t_within_mean": 1.0,
+      "rho_with_t_within_mean_abs": 1.0,
+      "rho_with_t_within_min_abs": 0.9999999999999998,
+      "rho_with_t_pooled": 0.8655662932783228,
+      "rho_with_t_sign_consistency": 1.0,
+      "n_traj_rho_with_t_defined": 48,
+      "frac_constant_traj": 0.0,
+      "n_distinct_values": 19377,
+      "frac_binary": false,
+      "acf_lag1": 1.0,
+      "acf_lag5": 1.0,
+      "acf_lag20": 1.0,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": 0.014483947771575422,
+          "within_traj_mean_abs_rho": 0.030093061828267504,
+          "pooled_rho": 0.015004521008771645,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": -0.6297986395399292,
+          "within_traj_mean_abs_rho": 0.6297986395399292,
+          "pooled_rho": -0.037563135860400734,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": -0.0353217770348238,
+          "within_traj_mean_abs_rho": 0.13577696568272882,
+          "pooled_rho": -0.0049023121268267945,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 1.0,
+          "within_traj_mean_abs_rho": 1.0,
+          "pooled_rho": 1.0,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": 0.0413117701837728,
+          "within_traj_mean_abs_rho": 0.13461996581144964,
+          "pooled_rho": 0.008594560993813102,
+          "n_traj_within_defined": 48,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "near_deterministic",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "control",
+      "kind": "control",
+      "mechanism_argument": "CONTROL, expected REJECTED as not_usable_deterministic_in_t. step_frac := t/(T-1) is an affine function of the step index by definition. It was used as the observable for reasoning_deep, so any correlation between the reasoning_deep direction and step_frac is tautological. Screening it here is the positive control that the screen has the power to reject a t-deterministic observable.",
+      "label_circular_risk": false,
+      "verdict": "not_usable_deterministic_in_t",
+      "verdict_reason": "mean within-traj |rho with step index| = 1.0000 is at the correlation ceiling (floor 0.99) and far above the measured null p99 = 0.0312, with sign consistency 1.000: the observable is a monotone function of t, so any correlation it produces with a direction is an artefact of step position.",
+      "post_hoc_rho_vs_entropy": -0.0353217770348238,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": -0.6297986395399292,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "in_think",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.6285590340539368,
+      "sd": 0.48319349218351654,
+      "p05": 0.0,
+      "p50": 1.0,
+      "p95": 1.0,
+      "within_traj_sd_mean": 0.022725897039866664,
+      "within_traj_sd_median": 0.0,
+      "frac_traj_within_var_gt_0": 0.0625,
+      "rho_with_t_within_mean": -0.6297986395399292,
+      "rho_with_t_within_mean_abs": 0.6297986395399292,
+      "rho_with_t_within_min_abs": 0.45263993309429507,
+      "rho_with_t_pooled": 0.18310073896749188,
+      "rho_with_t_sign_consistency": 1.0,
+      "n_traj_rho_with_t_defined": 3,
+      "frac_constant_traj": 0.9375,
+      "n_distinct_values": 2,
+      "frac_binary": true,
+      "acf_lag1": 0.997646400619435,
+      "acf_lag5": 0.9881939540330281,
+      "acf_lag20": 0.9521662797649547,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": 0.033518263875558445,
+          "within_traj_mean_abs_rho": 0.033518263875558445,
+          "pooled_rho": 0.05557207366567206,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": 1.0,
+          "within_traj_mean_abs_rho": 1.0,
+          "pooled_rho": 0.9999999999999998,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": 0.06060631720965819,
+          "within_traj_mean_abs_rho": 0.11173257307621491,
+          "pooled_rho": 0.13023582020526225,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": -0.6297986395399292,
+          "within_traj_mean_abs_rho": 0.6297986395399292,
+          "pooled_rho": -0.037563135860400734,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": -0.07298075258227207,
+          "within_traj_mean_abs_rho": 0.11146577385353591,
+          "pooled_rho": -0.1436598054438075,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "strong_trend",
+      "rho_with_t_significant_vs_null": true,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "control",
+      "kind": "control",
+      "mechanism_argument": "CONTROL, expected REJECTED as not_usable_no_variance. in_think is a single contiguous <think> block: the sidecar marks every step inside the block true and every step outside false, so within a trajectory it is a single step function with no internal structure. It was the observable for creativity, but within any one trajectory it is constant, so it carries no within-trajectory information at all.",
+      "label_circular_risk": false,
+      "verdict": "not_usable_no_variance",
+      "verdict_reason": "frac_constant_traj=0.938 and only 0.062 of trajectories have non-zero within-trajectory variance, so the observable carries no step-level structure.",
+      "post_hoc_rho_vs_entropy": 0.06060631720965819,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": 1.0,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "self_check_regex",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.005653965729159135,
+      "sd": 0.07498052878904835,
+      "p05": 0.0,
+      "p50": 0.0,
+      "p95": 0.0,
+      "within_traj_sd_mean": 0.04567121431928048,
+      "within_traj_sd_median": 0.042854756952787273,
+      "frac_traj_within_var_gt_0": 0.5625,
+      "rho_with_t_within_mean": 0.014483947771575422,
+      "rho_with_t_within_mean_abs": 0.030093061828267504,
+      "rho_with_t_within_min_abs": 0.0001917930904537471,
+      "rho_with_t_pooled": 0.030762426476143547,
+      "rho_with_t_sign_consistency": 0.7407407407407407,
+      "n_traj_rho_with_t_defined": 27,
+      "frac_constant_traj": 0.4375,
+      "n_distinct_values": 2,
+      "frac_binary": true,
+      "acf_lag1": -0.007580087714622435,
+      "acf_lag5": -0.007587485097552409,
+      "acf_lag20": 0.005242624322067759,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": 1.0,
+          "within_traj_mean_abs_rho": 1.0,
+          "pooled_rho": 0.9999999999999999,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": 0.033518263875558445,
+          "within_traj_mean_abs_rho": 0.033518263875558445,
+          "pooled_rho": 0.05557207366567206,
+          "n_traj_within_defined": 3,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": 0.08499847264895333,
+          "within_traj_mean_abs_rho": 0.08499847264895333,
+          "pooled_rho": 0.08572681506777448,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": 0.014483947771575422,
+          "within_traj_mean_abs_rho": 0.030093061828267504,
+          "pooled_rho": 0.015004521008771645,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": -0.08581258117254151,
+          "within_traj_mean_abs_rho": 0.08581258117254151,
+          "pooled_rho": -0.08772017254719909,
+          "n_traj_within_defined": 27,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "none",
+      "rho_with_t_significant_vs_null": false,
+      "rho_vs_selfcheck_significant_vs_null": true,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "control",
+      "kind": "control",
+      "mechanism_argument": "CONTROL, expected REJECTED as not_usable_label_circular. This is the regex that DEFINES the caution contrast (self_check_yes vs self_check_no). Any 'caution correlates with vigilance' result built on it is circular by construction. Screening it verifies the screen can detect a definitionally circular observable.",
+      "label_circular_risk": true,
+      "verdict": "not_usable_label_circular",
+      "verdict_reason": "mean within-traj |rho vs the self_check regex| = 1.0000 is at or above the restatement floor 0.60 and above the null p99 = 0.0288 (structural marker-vocabulary overlap with that regex is 0.116, floor 0.50), so it is not independent of the caution grouping predicate.",
+      "post_hoc_rho_vs_entropy": 0.08499847264895333,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": 0.033518263875558445,
+      "post_hoc_in_think_corr_is_underpowered": true
+    },
+    {
+      "name": "self_check_sidecar",
+      "n_traj": 48,
+      "n_steps_total": 69155,
+      "mean": 0.0,
+      "sd": 0.0,
+      "p05": 0.0,
+      "p50": 0.0,
+      "p95": 0.0,
+      "within_traj_sd_mean": 0.0,
+      "within_traj_sd_median": 0.0,
+      "frac_traj_within_var_gt_0": 0.0,
+      "rho_with_t_within_mean": null,
+      "rho_with_t_within_mean_abs": null,
+      "rho_with_t_within_min_abs": null,
+      "rho_with_t_pooled": null,
+      "rho_with_t_sign_consistency": 0.0,
+      "n_traj_rho_with_t_defined": 0,
+      "frac_constant_traj": 1.0,
+      "n_distinct_values": 1,
+      "frac_binary": true,
+      "acf_lag1": null,
+      "acf_lag5": null,
+      "acf_lag20": null,
+      "rho_vs": {
+        "self_check_regex": {
+          "within_traj_mean_rho": null,
+          "within_traj_mean_abs_rho": null,
+          "pooled_rho": null,
+          "n_traj_within_defined": 0,
+          "n_traj": 48
+        },
+        "in_think": {
+          "within_traj_mean_rho": null,
+          "within_traj_mean_abs_rho": null,
+          "pooled_rho": null,
+          "n_traj_within_defined": 0,
+          "n_traj": 48
+        },
+        "entropy": {
+          "within_traj_mean_rho": null,
+          "within_traj_mean_abs_rho": null,
+          "pooled_rho": null,
+          "n_traj_within_defined": 0,
+          "n_traj": 48
+        },
+        "step_frac": {
+          "within_traj_mean_rho": null,
+          "within_traj_mean_abs_rho": null,
+          "pooled_rho": null,
+          "n_traj_within_defined": 0,
+          "n_traj": 48
+        },
+        "top1_prob_sidecar": {
+          "within_traj_mean_rho": null,
+          "within_traj_mean_abs_rho": null,
+          "pooled_rho": null,
+          "n_traj_within_defined": 0,
+          "n_traj": 48
+        }
+      },
+      "null_vs_observed": null,
+      "rho_with_t_descriptor": "none",
+      "rho_with_t_significant_vs_null": false,
+      "rho_vs_selfcheck_significant_vs_null": false,
+      "label_circular_structural_overlap": 0.11643835616438356,
+      "family": "control",
+      "kind": "control",
+      "mechanism_argument": "CONTROL / DATA-QUALITY PROBE, not part of the pre-registered concept. The sidecar column is_in_self_check flag shipped with the dataset. Recorded because the prior scripts do NOT use it (they recompute the flag by regex), and it is worth knowing whether the shipped column is usable at all. If it is identically false it cannot discriminate and must be rejected regardless of any other consideration.",
+      "label_circular_risk": false,
+      "verdict": "not_usable_no_variance",
+      "verdict_reason": "frac_constant_traj=1.000 and only 0.000 of trajectories have non-zero within-trajectory variance, so the observable carries no step-level structure.",
+      "post_hoc_rho_vs_entropy": null,
+      "post_hoc_redundant_with_entropy": false,
+      "post_hoc_rho_vs_in_think": null,
+      "post_hoc_in_think_corr_is_underpowered": true
+    }
+  ],
+  "post_screen_caveats": {
+    "status": "POST-HOC. These flags were added after the numbers were seen, they are hypothesis-generating only, and they deliberately do NOT change any pre-registered verdict above. They are reported because leaving them out would overstate what 'usable' means here.",
+    "redundancy_rule": "|rho vs entropy| >= 0.60, the same restatement floor used for label circularity. Entropy is already the observable behind confidence_up and confidence_down, so a candidate that restates it cannot supply new evidence about a different axis.",
+    "redundant_with_entropy": [
+      "top1_prob_renorm"
+    ],
+    "cleanest_usable_lowest_entropy_rho": [
+      "latex_mass",
+      "rep_frac_topk",
+      "op_mass",
+      "newline_mass",
+      "rep_top1",
+      "rep_ngram4",
+      "backtrack_topk",
+      "digit_mass",
+      "backtrack_frac"
+    ],
+    "in_think_correlation_is_underpowered": "rho vs in_think is only defined on trajectories where BOTH series vary. in_think is constant on 45 of 48 trajectories, so the in_think column rests on 3 trajectories and should not be read as a general relationship.",
+    "n_traj_with_varying_in_think": 3,
+    "verdict_scope": "'usable' means only: non-degenerate step-wise variation, not a function of t, not a restatement of the caution predicate. It does NOT mean 'independent of every previously used observable' -- see redundant_with_entropy."
+  },
+  "controls": {
+    "verdicts": {
+      "self_check_sidecar": "not_usable_no_variance",
+      "in_think": "not_usable_no_variance",
+      "step_frac": "not_usable_deterministic_in_t",
+      "self_check_regex": "not_usable_label_circular"
+    },
+    "all_controls_rejected": true,
+    "self_check": "if any control had come out usable the screen would have been too loose and would have needed tightening; see self_check_of_screen below"
+  },
+  "self_check_of_screen": {
+    "all_controls_rejected": true,
+    "tightening_applied": "Relative to the naive rule (a single round-number |rho| cutoff, no null, no sign requirement) the final rule is stricter on three counts. (1) Significance is thresholded at a measured null p99 (0.0312) rather than by eye. (2) Determinism additionally requires >=0.90 sign consistency across trajectories, so one aberrant trajectory cannot manufacture a verdict. (3) Rejection additionally requires the correlation to reach the ceiling floor (0.99), so a candidate is only called deterministic if it really is a function of t instead of merely trending. Tightening (3) makes fewer things get rejected, which is why the control results, not the count of usable candidates, are the thing to read here.",
+    "controls_that_must_be_rejected": [
+      "in_think",
+      "self_check_regex",
+      "self_check_sidecar",
+      "step_frac"
+    ],
+    "n_usable": 10
+  },
+  "summary": {
+    "usable": [
+      "rep_top1",
+      "rep_ngram4",
+      "rep_frac_topk",
+      "backtrack_topk",
+      "backtrack_frac",
+      "digit_mass",
+      "op_mass",
+      "newline_mass",
+      "latex_mass",
+      "top1_prob_renorm"
+    ],
+    "rejected": {
+      "step_frac": "not_usable_deterministic_in_t",
+      "in_think": "not_usable_no_variance",
+      "self_check_regex": "not_usable_label_circular",
+      "self_check_sidecar": "not_usable_no_variance"
+    },
+    "n_usable": 10,
+    "n_rejected": 4,
+    "usable_but_redundant_with_entropy": [
+      "top1_prob_renorm"
+    ],
+    "usable_and_not_redundant_with_entropy": [
+      "rep_top1",
+      "rep_ngram4",
+      "rep_frac_topk",
+      "backtrack_topk",
+      "backtrack_frac",
+      "digit_mass",
+      "op_mass",
+      "newline_mass",
+      "latex_mass"
+    ]
+  }
+}
