@@ -1,0 +1,2678 @@
+{
+ "schema": "steer3d.cot_texts/1",
+ "source": "backend/examples/build_cot_text_readout.py on all_runs.json (32k batch)",
+ "model": "Qwen3-1.7B",
+ "design": {
+  "primary": "被干预的生成（干预臂）",
+  "shadow": "同一条 token 序列上的无干预对照，在每一步问「同一前缀下它会选哪个词」",
+  "shadow_is_not_an_essay": "run_intervention.py:272-282 取出 shadow 的 argmax，但下一步两臂都吃 primary 的词。所以 shadow 是 primary 原文被逐词打补丁的产物，不是一篇「没有向量时会写的文章」。把它当散文读，会在每个换词处看到语法断裂——那不是无干预模型变笨了，而是补丁的接缝。所有数字都来自 summary（生成时逐步实测），不从文字反推。",
+  "why_no_word_diff": "两臂在 token 层对齐但在词边界不对齐，一个词的删除会让后面所有词错位，difflib 会把尾巴报成一大段「改动」。实测 token 一致率 98.3% 的运行，词级 diff 会报 3000 词里 2585 词不同——那是伪影，不是测量。"
+ },
+ "n_runs": 76,
+ "planned_runs": 96,
+ "batch_complete": false,
+ "head_chars": 300,
+ "control_is_identity": true,
+ "runs": [
+  {
+   "id": "1987_I_1_confidence_up_0.0",
+   "label": "1987_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 31972,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.16166035405093984,
+   "mean_entropy_shadow": 0.16166035405093984,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 67341,
+   "reason_chars_shadow": 67341,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A prim",
+    "after_primary": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
+    "after_shadow": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1987_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
+   }
+  },
+  {
+   "id": "1987_I_1_confidence_up_0.2",
+   "label": "1987_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 43,
+   "token_agreement": 0.9732195868879098,
+   "mean_logit_kl": 0.04409844356418376,
+   "mean_entropy_primary": 0.0803851865220963,
+   "mean_entropy_shadow": 0.10149736635731464,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 71810,
+   "reason_chars_shadow": 72442,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 172,
+    "before": "ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor ",
+    "after_primary": "of m and n is 1. Alright, let's break this down.\n\nFirst, let me understand the problem. We're looking for all pairs (m, n) such that m and n are ",
+    "after_shadow": "( m and n is 1. Alright, let's start this down.\n\nFirst, let me recall the problem. We need looking for all pairs (m, n) where that m and n are no",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1987_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
+   }
+  },
+  {
+   "id": "1987_I_1_confidence_down_0.0",
+   "label": "1987_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 31972,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.16166035405093984,
+   "mean_entropy_shadow": 0.16166035405093984,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 67341,
+   "reason_chars_shadow": 67341,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A prim",
+    "after_primary": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
+    "after_shadow": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1987_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
+   }
+  },
+  {
+   "id": "1987_I_1_confidence_down_0.2",
+   "label": "1987_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 31936,
+   "first_diverged_step": 19,
+   "token_agreement": 0.9420421454739017,
+   "mean_logit_kl": 0.0681428460492566,
+   "mean_entropy_primary": 0.25357496790062656,
+   "mean_entropy_shadow": 0.21522864635737662,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 80201,
+   "reason_chars_shadow": 80379,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 70,
+    "before": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) ",
+    "after_primary": "where m and n are non-negative integers, and their sum m + n is less than or equal to 100. A primitive pair is one where the greatest common divi",
+    "after_shadow": "of m and n are non-negative integers, and their sum m + n is less than or equal to 100. A primitive pair is one where the greatest common divisor",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1987_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
+   }
+  },
+  {
+   "id": "1988_I_1_confidence_up_0.0",
+   "label": "1988_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 13530,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2325164299496031,
+   "mean_entropy_shadow": 0.2325164299496031,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 36329,
+   "reason_chars_shadow": 36329,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That",
+    "after_primary": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
+    "after_shadow": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1988_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
+   }
+  },
+  {
+   "id": "1988_I_1_confidence_up_0.2",
+   "label": "1988_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 15,
+   "token_agreement": 0.9920314990156558,
+   "mean_logit_kl": 0.01653980725486992,
+   "mean_entropy_primary": 0.033968008519581844,
+   "mean_entropy_shadow": 0.04997918700451503,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 88534,
+   "reason_chars_shadow": 88740,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 67,
+    "before": "\nOkay, so I need to find the smallest positive integer n such that ",
+    "after_primary": "n² ends with 1988. That means when I square n, the last four digits should be 1988. So, mathematically, this is equivalent to solving the congrue",
+    "after_shadow": "when² ends with 1988. That means when I square n, the last four digits are be 1988. Let, mathematically, I is equivalent to solving the congruenc",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1988_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
+   }
+  },
+  {
+   "id": "1988_I_1_confidence_down_0.0",
+   "label": "1988_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 13530,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2325164299496031,
+   "mean_entropy_shadow": 0.2325164299496031,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 36329,
+   "reason_chars_shadow": 36329,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That",
+    "after_primary": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
+    "after_shadow": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1988_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
+   }
+  },
+  {
+   "id": "1988_I_1_confidence_down_0.2",
+   "label": "1988_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 77,
+   "token_agreement": 0.9760007499765633,
+   "mean_logit_kl": 0.034109313026828215,
+   "mean_entropy_primary": 0.10728330076902487,
+   "mean_entropy_shadow": 0.0930625805381462,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 52826,
+   "reason_chars_shadow": 52929,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 278,
+    "before": "okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking ",
+    "after_primary": "down the modulus into prime factors. Since 10000 is 16 * 100, which is 16 * 2^2 * 5^2. But maybe I can use the Chinese Remainder Theorem here. If",
+    "after_shadow": "them the modulus into prime power and Since 10000 = 26 * 600 = which is 16 * 2^2 * 5^2. Wait maybe it should use the Chinese Remainder Theorem he",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1988_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
+   }
+  },
+  {
+   "id": "2000_I_1_confidence_up_0.0",
+   "label": "2000_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 10892,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.3338270111972925,
+   "mean_entropy_shadow": 0.3338270111972925,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 42127,
+   "reason_chars_shadow": 42127,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides,",
+    "after_primary": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
+    "after_shadow": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2000_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
+   }
+  },
+  {
+   "id": "2000_I_1_confidence_up_0.2",
+   "label": "2000_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 7,
+   "token_agreement": 0.9899065654198306,
+   "mean_logit_kl": 0.017273003300866934,
+   "mean_entropy_primary": 0.03369470195787879,
+   "mean_entropy_shadow": 0.045566023557818115,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 128244,
+   "reason_chars_shadow": 128453,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 20,
+    "before": "\nOkay, let's try to ",
+    "after_primary": "solve this problem step by step. So, we have two non-overlapping regular polygons: one with 6 sides and the other with n sides. They share a comm",
+    "after_shadow": "tackle this problem step by step. So, we have two non-overlapping regular polygons. one with 6 sides and the other with n sides. They share a com",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2000_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
+   }
+  },
+  {
+   "id": "2000_I_1_confidence_down_0.0",
+   "label": "2000_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 10892,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.3338270111972925,
+   "mean_entropy_shadow": 0.3338270111972925,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 42127,
+   "reason_chars_shadow": 42127,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides,",
+    "after_primary": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
+    "after_shadow": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2000_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
+   }
+  },
+  {
+   "id": "2000_I_1_confidence_down_0.2",
+   "label": "2000_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 10161,
+   "first_diverged_step": 7,
+   "token_agreement": 0.9178311356032277,
+   "mean_logit_kl": 0.07502831244181897,
+   "mean_entropy_primary": 0.45553025123118135,
+   "mean_entropy_shadow": 0.3839057634488355,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 40765,
+   "reason_chars_shadow": 41395,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 20,
+    "before": "\nOkay, let's try to ",
+    "after_primary": "figure out this problem. So, we have two regular polygons, one with 6 sides and the other with n sides. They share a common side and a common ver",
+    "after_shadow": "tackle out this problem. So, we have two non polygons that one with 6 sides and the other with n sides. They share a common side and a common ver",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2000_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
+   }
+  },
+  {
+   "id": "1983_I_1_confidence_up_0.0",
+   "label": "1983_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 3225,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.1912068825726117,
+   "mean_entropy_shadow": 0.1912068825726117,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 6748,
+   "reason_chars_shadow": 6748,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all greater than 1, and a posit",
+    "after_primary": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all greater than 1, and a positive number w. The problem",
+    "after_shadow": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all greater than 1, and a positive number w. The problem",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1983_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all greater than 1, and a positive number w. The problem gives us three logarithmic equations:\n\n1. log_x w = 24\n2. log_y w = 40\n3. log_{xyz} w = 12\n\nAnd we need to find log_z w.\n\nHmm, logarithms with different b"
+   }
+  },
+  {
+   "id": "1983_I_1_confidence_up_0.2",
+   "label": "1983_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 4556,
+   "first_diverged_step": 26,
+   "token_agreement": 0.9372394118937898,
+   "mean_logit_kl": 0.09515403329510357,
+   "mean_entropy_primary": 0.16511032843903498,
+   "mean_entropy_shadow": 0.18898674384001588,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 9008,
+   "reason_chars_shadow": 9243,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 93,
+    "before": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all ",
+    "after_primary": "exceeding 1, and a positive number w. The problem gives us three equations involving logarithms with different bases and w:\n\n1. log_x w = 24\n2. l",
+    "after_shadow": "greater 1, and a positive number w. The given gives us three logarith involving logarithms:\n\n different bases and the,1. log_x w = 24\n2. log_y w ",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1983_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all greater than 1, and a positive number w. The problem gives us three logarithmic equations:\n\n1. log_x w = 24\n2. log_y w = 40\n3. log_{xyz} w = 12\n\nAnd we need to find log_z w.\n\nHmm, logarithms with different b"
+   }
+  },
+  {
+   "id": "1983_I_1_confidence_down_0.0",
+   "label": "1983_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 3225,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.1912068825726117,
+   "mean_entropy_shadow": 0.1912068825726117,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 6748,
+   "reason_chars_shadow": 6748,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all greater than 1, and a posit",
+    "after_primary": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all greater than 1, and a positive number w. The problem",
+    "after_shadow": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all greater than 1, and a positive number w. The problem",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1983_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all greater than 1, and a positive number w. The problem gives us three logarithmic equations:\n\n1. log_x w = 24\n2. log_y w = 40\n3. log_{xyz} w = 12\n\nAnd we need to find log_z w.\n\nHmm, logarithms with different b"
+   }
+  },
+  {
+   "id": "1983_I_1_confidence_down_0.2",
+   "label": "1983_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 9974,
+   "first_diverged_step": 4,
+   "token_agreement": 0.9338345864661655,
+   "mean_logit_kl": 0.07374813727109164,
+   "mean_entropy_primary": 0.2530660827365138,
+   "mean_entropy_shadow": 0.21831824925542828,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 22739,
+   "reason_chars_shadow": 22825,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 10,
+    "before": "\nOkay, let",
+    "after_primary": " me try to figure out how to solve this problem. So, we have three variables x, y, z, all greater than 1, and a positive number w. The given loga",
+    "after_shadow": "'s try to solve out this to solve this problem. So, we have three variables x, y, z all all greater than 1, and a positive number w. The problem ",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1983_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. So, we have three variables x, y, z all greater than 1, and a positive number w. The problem gives us three logarithmic equations:\n\n1. log_x w = 24\n2. log_y w = 40\n3. log_{xyz} w = 12\n\nAnd we need to find log_z w.\n\nHmm, logarithms with different b"
+   }
+  },
+  {
+   "id": "1989_I_1_confidence_up_0.0",
+   "label": "1989_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 2867,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2101551707670171,
+   "mean_entropy_shadow": 0.2101551707670171,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 6036,
+   "reason_chars_shadow": 6036,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to compute the square root of (31×30×29×28 + 1). Hmm, that looks a bit intimidating at first glance, bu",
+    "after_primary": "\nOkay, so I need to compute the square root of (31×30×29×28 + 1). Hmm, that looks a bit intimidating at first glance, but maybe there's a pattern",
+    "after_shadow": "\nOkay, so I need to compute the square root of (31×30×29×28 + 1). Hmm, that looks a bit intimidating at first glance, but maybe there's a pattern",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1989_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to compute the square root of (31×30×29×28 + 1). Hmm, that looks a bit intimidating at first glance, but maybe there's a pattern or a formula I can use here. Let me think.\n\nFirst, let me write down the expression again to make sure I have it right: √(31×30×29×28 + 1). The question i"
+   }
+  },
+  {
+   "id": "1989_I_1_confidence_up_0.2",
+   "label": "1989_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 2577,
+   "first_diverged_step": 15,
+   "token_agreement": 0.9449185415050426,
+   "mean_logit_kl": 0.085517238688632,
+   "mean_entropy_primary": 0.16941112789574067,
+   "mean_entropy_shadow": 0.190756148203962,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 4414,
+   "reason_chars_shadow": 4509,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 50,
+    "before": "\nOkay, so I need to compute the square root of (31",
+    "after_primary": "*30*29*28 + 1). Hmm, that looks a bit intimidating at first glance, but maybe there's a clever way to simplify it. Let me think... \n\nFirst, let m",
+    "after_shadow": "×30*29*28 + 1). Hmm, that looks a bit intimidating at first glance, but maybe there's a pattern way to simplify it. Let me think.\n\n \n\nFirst, let ",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1989_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to compute the square root of (31×30×29×28 + 1). Hmm, that looks a bit intimidating at first glance, but maybe there's a pattern or a formula I can use here. Let me think.\n\nFirst, let me write down the expression again to make sure I have it right: √(31×30×29×28 + 1). The question i"
+   }
+  },
+  {
+   "id": "1989_I_1_confidence_down_0.0",
+   "label": "1989_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 2867,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2101551707670171,
+   "mean_entropy_shadow": 0.2101551707670171,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 6036,
+   "reason_chars_shadow": 6036,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to compute the square root of (31×30×29×28 + 1). Hmm, that looks a bit intimidating at first glance, bu",
+    "after_primary": "\nOkay, so I need to compute the square root of (31×30×29×28 + 1). Hmm, that looks a bit intimidating at first glance, but maybe there's a pattern",
+    "after_shadow": "\nOkay, so I need to compute the square root of (31×30×29×28 + 1). Hmm, that looks a bit intimidating at first glance, but maybe there's a pattern",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1989_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to compute the square root of (31×30×29×28 + 1). Hmm, that looks a bit intimidating at first glance, but maybe there's a pattern or a formula I can use here. Let me think.\n\nFirst, let me write down the expression again to make sure I have it right: √(31×30×29×28 + 1). The question i"
+   }
+  },
+  {
+   "id": "1989_I_1_confidence_down_0.2",
+   "label": "1989_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 3094,
+   "first_diverged_step": 12,
+   "token_agreement": 0.9399030694668821,
+   "mean_logit_kl": 0.06498711460070777,
+   "mean_entropy_primary": 0.2381207864943511,
+   "mean_entropy_shadow": 0.20559668705954431,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 6150,
+   "reason_chars_shadow": 6065,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 47,
+    "before": "\nOkay, so I need to compute the square root of ",
+    "after_primary": "the expression (31 multiplied by 30 multiplied by 29 multiplied by 28) plus 1. Let me write that down first:\n\n√(31 × 30 × 29 × 28 + 1)\n\nHmm, that",
+    "after_shadow": "( expression (31× by 30 multiplied by 29 multiplied by 28) plus 1. Let me write that down to to√(31× 30 × 29 × 28 + 1)\n\nHmm, that looks a a big o",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1989_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to compute the square root of (31×30×29×28 + 1). Hmm, that looks a bit intimidating at first glance, but maybe there's a pattern or a formula I can use here. Let me think.\n\nFirst, let me write down the expression again to make sure I have it right: √(31×30×29×28 + 1). The question i"
+   }
+  },
+  {
+   "id": "2002_I_1_confidence_up_0.0",
+   "label": "2002_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 7817,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.31231247525889017,
+   "mean_entropy_shadow": 0.31231247525889017,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 25609,
+   "reason_chars_shadow": 25609,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to figure out how many different license plates there are with three letters followed by three digits, ",
+    "after_primary": "\nOkay, so I need to figure out how many different license plates there are with three letters followed by three digits, where there are no repeat",
+    "after_shadow": "\nOkay, so I need to figure out how many different license plates there are with three letters followed by three digits, where there are no repeat",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2002_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to figure out how many different license plates there are with three letters followed by three digits, where there are no repeated letters and no repeated digits. Let me think about this step by step.\n\nFirst, let me understand the problem. A license plate has three letters and three"
+   }
+  },
+  {
+   "id": "2002_I_1_confidence_up_0.2",
+   "label": "2002_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 25,
+   "token_agreement": 0.9880316240117496,
+   "mean_logit_kl": 0.019379937464401444,
+   "mean_entropy_primary": 0.03298920115134345,
+   "mean_entropy_shadow": 0.04631379370922235,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 143324,
+   "reason_chars_shadow": 143341,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 126,
+    "before": "Okay, so I need to figure out how many different license plates there are with three letters followed by three digits, where ",
+    "after_primary": "no letters are repeated and no digits are repeated. Let me break this down step by step.\n\nFirst, let's think about the letters. A license plate h",
+    "after_shadow": "there letters are repeated and no digits are repeated. Let me think this down step by step.\n\nFirst, let's think about the letters. A license plat",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2002_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to figure out how many different license plates there are with three letters followed by three digits, where there are no repeated letters and no repeated digits. Let me think about this step by step.\n\nFirst, let me understand the problem. A license plate has three letters and three"
+   }
+  },
+  {
+   "id": "2002_I_1_confidence_down_0.0",
+   "label": "2002_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 7817,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.31231247525889017,
+   "mean_entropy_shadow": 0.31231247525889017,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 25609,
+   "reason_chars_shadow": 25609,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to figure out how many different license plates there are with three letters followed by three digits, ",
+    "after_primary": "\nOkay, so I need to figure out how many different license plates there are with three letters followed by three digits, where there are no repeat",
+    "after_shadow": "\nOkay, so I need to figure out how many different license plates there are with three letters followed by three digits, where there are no repeat",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2002_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to figure out how many different license plates there are with three letters followed by three digits, where there are no repeated letters and no repeated digits. Let me think about this step by step.\n\nFirst, let me understand the problem. A license plate has three letters and three"
+   }
+  },
+  {
+   "id": "2002_I_1_confidence_down_0.2",
+   "label": "2002_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 8135,
+   "first_diverged_step": 25,
+   "token_agreement": 0.93952802359882,
+   "mean_logit_kl": 0.06325110633326107,
+   "mean_entropy_primary": 0.33513777645097176,
+   "mean_entropy_shadow": 0.29281928542741215,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 23373,
+   "reason_chars_shadow": 23462,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 126,
+    "before": "Okay, so I need to figure out how many different license plates there are with three letters followed by three digits, where ",
+    "after_primary": "no letters are repeated and no digits are repeated. Let me think about how to approach this.\n\nFirst, let me recall that a license plate has three",
+    "after_shadow": "there letters are repeated and no digits are repeated. Let me think about this to approach this.\n\nFirst, let me recall that a license plate has t",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2002_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to figure out how many different license plates there are with three letters followed by three digits, where there are no repeated letters and no repeated digits. Let me think about this step by step.\n\nFirst, let me understand the problem. A license plate has three letters and three"
+   }
+  },
+  {
+   "id": "2020_I_1_confidence_up_0.0",
+   "label": "2020_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 3006,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.18754419098088865,
+   "mean_entropy_shadow": 0.18754419098088865,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 6120,
+   "reason_chars_shadow": 6120,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think",
+    "after_primary": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think about how to approach th",
+    "after_shadow": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think about how to approach th",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2020_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think about how to approach this. \n\nFirst, I remember that when dealing with equations involving exponents and factors, prime factorization is usually helpful. Let me start by factoring"
+   }
+  },
+  {
+   "id": "2020_I_1_confidence_up_0.2",
+   "label": "2020_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 3463,
+   "first_diverged_step": 37,
+   "token_agreement": 0.9477482678983834,
+   "mean_logit_kl": 0.07463221394476137,
+   "mean_entropy_primary": 0.1780214289702975,
+   "mean_entropy_shadow": 0.20502861328956973,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 6997,
+   "reason_chars_shadow": 7171,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 111,
+    "before": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let",
+    "after_primary": "'s start by understanding the problem.\n\nFirst, 20²⁰ is a huge number, but maybe I can break it down into prime factors. That might make it easier",
+    "after_shadow": " me start by understanding the problem.First, I20²⁰ is a huge number, but maybe I can break it down into its factors. Since might make it easier ",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2020_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think about how to approach this. \n\nFirst, I remember that when dealing with equations involving exponents and factors, prime factorization is usually helpful. Let me start by factoring"
+   }
+  },
+  {
+   "id": "2020_I_1_confidence_down_0.0",
+   "label": "2020_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 3006,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.18754419098088865,
+   "mean_entropy_shadow": 0.18754419098088865,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 6120,
+   "reason_chars_shadow": 6120,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think",
+    "after_primary": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think about how to approach th",
+    "after_shadow": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think about how to approach th",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2020_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think about how to approach this. \n\nFirst, I remember that when dealing with equations involving exponents and factors, prime factorization is usually helpful. Let me start by factoring"
+   }
+  },
+  {
+   "id": "2020_I_1_confidence_down_0.2",
+   "label": "2020_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 3882,
+   "first_diverged_step": 13,
+   "token_agreement": 0.9237702807107906,
+   "mean_logit_kl": 0.12701466058991714,
+   "mean_entropy_primary": 0.3084366608241617,
+   "mean_entropy_shadow": 0.26475334614466045,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 8923,
+   "reason_chars_shadow": 8993,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 53,
+    "before": "\nOkay, so I need to find the number of ordered pairs ",
+    "after_primary": "(m, n) of positive integers such that m squared times n equals 20 raised to the power of 20. Let me think about how to approach this.\n\nFirst, let",
+    "after_shadow": "ofm, n) of positive integers where that m² times n equals 20 to to the  of 20. Let me write about how to approach this.\n\nFirst, let me write down",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2020_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of ordered pairs of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think about how to approach this. \n\nFirst, I remember that when dealing with equations involving exponents and factors, prime factorization is usually helpful. Let me start by factoring"
+   }
+  },
+  {
+   "id": "1984_I_1_confidence_up_0.0",
+   "label": "1984_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 7164,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.3165297701906116,
+   "mean_entropy_shadow": 0.3165297701906116,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 20350,
+   "reason_chars_shadow": 20350,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the value of 10 multiplied by cotangent of the sum of three arctangent functions: arctan(1) + a",
+    "after_primary": "\nOkay, so I need to find the value of 10 multiplied by cotangent of the sum of three arctangent functions: arctan(1) + arctan(2) + arctan(3). Let",
+    "after_shadow": "\nOkay, so I need to find the value of 10 multiplied by cotangent of the sum of three arctangent functions: arctan(1) + arctan(2) + arctan(3). Let",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1984_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of 10 multiplied by cotangent of the sum of three arctangent functions: arctan(1) + arctan(2) + arctan(3). Let me think about how to approach this.\n\nFirst, I remember that cotangent is the reciprocal of tangent, so cot(θ) = 1/tan(θ). But here, the argument of cotan"
+   }
+  },
+  {
+   "id": "1984_I_1_confidence_up_0.2",
+   "label": "1984_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 14,
+   "token_agreement": 0.9834067685384832,
+   "mean_logit_kl": 0.028209750499349102,
+   "mean_entropy_primary": 0.048931198029554264,
+   "mean_entropy_shadow": 0.06699309555347618,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 132441,
+   "reason_chars_shadow": 132982,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 41,
+    "before": "\nOkay, so I need to find the value of 10 ",
+    "after_primary": "times cot(arctan(1) + arctan(2) + arctan(3)). Hmm, let me think about how to approach this. \n\nFirst, I know that cotangent is the reciprocal of t",
+    "after_shadow": "multiplied cotangentctan(1) + arctan(2) + arctan(3)). Hmm, let me think. how to approach this. \n\nFirst, I remember that cotangent is the reciproc",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1984_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of 10 multiplied by cotangent of the sum of three arctangent functions: arctan(1) + arctan(2) + arctan(3). Let me think about how to approach this.\n\nFirst, I remember that cotangent is the reciprocal of tangent, so cot(θ) = 1/tan(θ). But here, the argument of cotan"
+   }
+  },
+  {
+   "id": "1984_I_1_confidence_down_0.0",
+   "label": "1984_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 7164,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.3165297701906116,
+   "mean_entropy_shadow": 0.3165297701906116,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 20350,
+   "reason_chars_shadow": 20350,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the value of 10 multiplied by cotangent of the sum of three arctangent functions: arctan(1) + a",
+    "after_primary": "\nOkay, so I need to find the value of 10 multiplied by cotangent of the sum of three arctangent functions: arctan(1) + arctan(2) + arctan(3). Let",
+    "after_shadow": "\nOkay, so I need to find the value of 10 multiplied by cotangent of the sum of three arctangent functions: arctan(1) + arctan(2) + arctan(3). Let",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1984_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of 10 multiplied by cotangent of the sum of three arctangent functions: arctan(1) + arctan(2) + arctan(3). Let me think about how to approach this.\n\nFirst, I remember that cotangent is the reciprocal of tangent, so cot(θ) = 1/tan(θ). But here, the argument of cotan"
+   }
+  },
+  {
+   "id": "1984_I_1_confidence_down_0.2",
+   "label": "1984_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 10932,
+   "first_diverged_step": 16,
+   "token_agreement": 0.9260953077837739,
+   "mean_logit_kl": 0.0694052292561527,
+   "mean_entropy_primary": 0.3888768535872443,
+   "mean_entropy_shadow": 0.3345275885829227,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 32086,
+   "reason_chars_shadow": 32553,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 55,
+    "before": "\nOkay, so I need to find the value of 10 multiplied by ",
+    "after_primary": "the cotangent of the sum of three arctangent functions: arctan(1), arctan(2), and arctan(3). Let me start by recalling some trigonometric identit",
+    "after_shadow": "cot cotangent of the sum of three arctangent functions: arctan(1) arctan(2), and arctan(3). Let me break by recalling some trigonometric identiti",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1984_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of 10 multiplied by cotangent of the sum of three arctangent functions: arctan(1) + arctan(2) + arctan(3). Let me think about how to approach this.\n\nFirst, I remember that cotangent is the reciprocal of tangent, so cot(θ) = 1/tan(θ). But here, the argument of cotan"
+   }
+  },
+  {
+   "id": "1990_I_1_confidence_up_0.0",
+   "label": "1990_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 17425,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2521181275930133,
+   "mean_entropy_shadow": 0.2521181275930133,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 52909,
+   "reason_chars_shadow": 52909,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so there's this problem about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 me",
+    "after_primary": "\nOkay, so there's this problem about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 250 meters. Allie",
+    "after_shadow": "\nOkay, so there's this problem about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 250 meters. Allie",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1990_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so there's this problem about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 250 meters. Allie goes around the edges in order AB-BC-CD-DA, and Billie cuts diagonally across each corner. They both finish exactly one lap at the same time. We need to f"
+   }
+  },
+  {
+   "id": "1990_I_1_confidence_up_0.2",
+   "label": "1990_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 45,
+   "token_agreement": 0.990562794912659,
+   "mean_logit_kl": 0.016237283899211464,
+   "mean_entropy_primary": 0.02161774220232864,
+   "mean_entropy_shadow": 0.028590534142355194,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 80628,
+   "reason_chars_shadow": 80850,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 152,
+    "before": "about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 250 meters. Allie goes a",
+    "after_primary": "long the edges in order AB-BC-CD-DA, and Billie cuts diagonally across each corner. Both finish exactly one lap at the same time. We need to find",
+    "after_shadow": "round the edges in order AB-BC-CD-DA, and Billie cuts diagonally across each corner. They finish exactly one lap at the same time. We need to fin",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1990_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so there's this problem about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 250 meters. Allie goes around the edges in order AB-BC-CD-DA, and Billie cuts diagonally across each corner. They both finish exactly one lap at the same time. We need to f"
+   }
+  },
+  {
+   "id": "1990_I_1_confidence_down_0.0",
+   "label": "1990_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 17425,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2521181275930133,
+   "mean_entropy_shadow": 0.2521181275930133,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 52909,
+   "reason_chars_shadow": 52909,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so there's this problem about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 me",
+    "after_primary": "\nOkay, so there's this problem about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 250 meters. Allie",
+    "after_shadow": "\nOkay, so there's this problem about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 250 meters. Allie",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1990_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so there's this problem about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 250 meters. Allie goes around the edges in order AB-BC-CD-DA, and Billie cuts diagonally across each corner. They both finish exactly one lap at the same time. We need to f"
+   }
+  },
+  {
+   "id": "1990_I_1_confidence_down_0.2",
+   "label": "1990_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 18447,
+   "first_diverged_step": 3,
+   "token_agreement": 0.9339765828274068,
+   "mean_logit_kl": 0.07477354625421817,
+   "mean_entropy_primary": 0.31331213060120555,
+   "mean_entropy_shadow": 0.27018458876763046,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 56595,
+   "reason_chars_shadow": 56852,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 7,
+    "before": "\nOkay, ",
+    "after_primary": "let's try to figure out this problem. So, we have two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 200 ",
+    "after_shadow": "so's try to figure out this problem. So, there have two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 25",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1990_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so there's this problem about two skaters, Allie and Billie, racing around a rectangular rink. The rink is 400 meters by 250 meters. Allie goes around the edges in order AB-BC-CD-DA, and Billie cuts diagonally across each corner. They both finish exactly one lap at the same time. We need to f"
+   }
+  },
+  {
+   "id": "2004_I_1_confidence_up_0.0",
+   "label": "2004_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 7944,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.30561505193800226,
+   "mean_entropy_shadow": 0.30561505193800226,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 29433,
+   "reason_chars_shadow": 29433,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, and each of those daughters has t",
+    "after_primary": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, and each of those daughters has two brothers. Then, each o",
+    "after_shadow": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, and each of those daughters has two brothers. Then, each o",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2004_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, and each of those daughters has two brothers. Then, each of these brothers has 14 kids. We need to find out how many total descendants Bertha has, assuming none of them are dead. \n\nFirst, let me parse the problem "
+   }
+  },
+  {
+   "id": "2004_I_1_confidence_up_0.2",
+   "label": "2004_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 25,
+   "token_agreement": 0.9899690634667667,
+   "mean_logit_kl": 0.017416734963557418,
+   "mean_entropy_primary": 0.04090489331363216,
+   "mean_entropy_shadow": 0.05498886361437395,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 125782,
+   "reason_chars_shadow": 125954,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 87,
+    "before": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, ",
+    "after_primary": "each of whom has two brothers. Each of these brothers has 14 kids. We need to find the total number of descendants (kids, grandkids, etc.) that B",
+    "after_shadow": "and of whom has two brothers. Then of these brothers has 14 kids. We need to find out total number of descendants Berkids, grandkids, etc.) Ber B",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2004_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, and each of those daughters has two brothers. Then, each of these brothers has 14 kids. We need to find out how many total descendants Bertha has, assuming none of them are dead. \n\nFirst, let me parse the problem "
+   }
+  },
+  {
+   "id": "2004_I_1_confidence_down_0.0",
+   "label": "2004_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 7944,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.30561505193800226,
+   "mean_entropy_shadow": 0.30561505193800226,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 29433,
+   "reason_chars_shadow": 29433,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, and each of those daughters has t",
+    "after_primary": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, and each of those daughters has two brothers. Then, each o",
+    "after_shadow": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, and each of those daughters has two brothers. Then, each o",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2004_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, and each of those daughters has two brothers. Then, each of these brothers has 14 kids. We need to find out how many total descendants Bertha has, assuming none of them are dead. \n\nFirst, let me parse the problem "
+   }
+  },
+  {
+   "id": "2004_I_1_confidence_down_0.2",
+   "label": "2004_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 7603,
+   "first_diverged_step": 9,
+   "token_agreement": 0.9239873750657549,
+   "mean_logit_kl": 0.07930415722065814,
+   "mean_entropy_primary": 0.3768337852952313,
+   "mean_entropy_shadow": 0.34153778915103117,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 29152,
+   "reason_chars_shadow": 29360,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 31,
+    "before": "\nOkay, let's try to figure out ",
+    "after_primary": "how many total descendants Bertha has. The problem says Bertha has 12 daughters, each of whom has two brothers. Each of these brothers has 14 kid",
+    "after_shadow": "this many total descendants Bertha has. The problem says Bertha has 12 daughters, each of whom has two brothers. Each of these brothers has 14 ki",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2004_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem step by step. So, Bertha has 12 daughters, and each of those daughters has two brothers. Then, each of these brothers has 14 kids. We need to find out how many total descendants Bertha has, assuming none of them are dead. \n\nFirst, let me parse the problem "
+   }
+  },
+  {
+   "id": "2021_I_1_confidence_up_0.0",
+   "label": "2021_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.04962600253557056,
+   "mean_entropy_shadow": 0.04962600253557056,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 65628,
+   "reason_chars_shadow": 65628,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find all positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positiv",
+    "after_primary": "\nOkay, so I need to find all positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positive integer. Then, sum all ",
+    "after_shadow": "\nOkay, so I need to find all positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positive integer. Then, sum all ",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2021_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find all positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positive integer. Then, sum all those n's. Let me start by understanding the problem.\n\nFirst, let me write down the equation:\n\n1/n + 1/(n + 2) = k/100.\n\nI need to find all positive intege"
+   }
+  },
+  {
+   "id": "2021_I_1_confidence_up_0.2",
+   "label": "2021_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 8,
+   "token_agreement": 0.9965001093715822,
+   "mean_logit_kl": 0.004773478935797237,
+   "mean_entropy_primary": 0.007327352729109373,
+   "mean_entropy_shadow": 0.009538748762221641,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 56751,
+   "reason_chars_shadow": 57104,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 25,
+    "before": "\nOkay, so I need to find ",
+    "after_primary": "the sum of all positive integers n for which 1/n + 1/(n+2) = k/100 for some positive integer k. Hmm, let me think about how to approach this.\n\nFi",
+    "after_shadow": "all sum of all positive integers n for which 1/n + 1/(n+2) equals k/100 for some positive integer k. Hmm, let me start about how to approach this",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2021_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find all positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positive integer. Then, sum all those n's. Let me start by understanding the problem.\n\nFirst, let me write down the equation:\n\n1/n + 1/(n + 2) = k/100.\n\nI need to find all positive intege"
+   }
+  },
+  {
+   "id": "2021_I_1_confidence_down_0.0",
+   "label": "2021_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.04962600253557056,
+   "mean_entropy_shadow": 0.04962600253557056,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 65628,
+   "reason_chars_shadow": 65628,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find all positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positiv",
+    "after_primary": "\nOkay, so I need to find all positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positive integer. Then, sum all ",
+    "after_shadow": "\nOkay, so I need to find all positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positive integer. Then, sum all ",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2021_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find all positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positive integer. Then, sum all those n's. Let me start by understanding the problem.\n\nFirst, let me write down the equation:\n\n1/n + 1/(n + 2) = k/100.\n\nI need to find all positive intege"
+   }
+  },
+  {
+   "id": "2021_I_1_confidence_down_0.2",
+   "label": "2021_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 46,
+   "token_agreement": 0.9800943720508735,
+   "mean_logit_kl": 0.02495211865140503,
+   "mean_entropy_primary": 0.08925153542200948,
+   "mean_entropy_shadow": 0.07353337487278581,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 124771,
+   "reason_chars_shadow": 124890,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 152,
+    "before": "positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positive integer. Then, sum all those n",
+    "after_primary": " values. Let me start by understanding the problem.\n\nFirst, let me write down the equation:\n\n1/n + 1/(n + 2) = k/100.\n\nI need to find all n where",
+    "after_shadow": "'s. Let me start by understanding the problem stepFirst, let me write down the equation:\n\n1/n + 1/(n + 2) = k/100.\n\nI need to find all positive w",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2021_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find all positive integers n such that 1/n + 1/(n+2) equals some fraction k/100 where k is a positive integer. Then, sum all those n's. Let me start by understanding the problem.\n\nFirst, let me write down the equation:\n\n1/n + 1/(n + 2) = k/100.\n\nI need to find all positive intege"
+   }
+  },
+  {
+   "id": "1985_I_1_confidence_up_0.0",
+   "label": "1985_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.07202197337689226,
+   "mean_entropy_shadow": 0.07202197337689226,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 69700,
+   "reason_chars_shadow": 69700,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d with the conditions that their sum is ",
+    "after_primary": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d with the conditions that their sum is zero, and the sum of thei",
+    "after_shadow": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d with the conditions that their sum is zero, and the sum of thei",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1985_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d with the conditions that their sum is zero, and the sum of their cubes is 30. We need to find the value of a³ + b³ + c³ + d³ minus 3(a+b)(b+c)(c+d). \n\nFirst, let me write down what's given:\n\n1. a + b + c + d = 0\n2. a³ "
+   }
+  },
+  {
+   "id": "1985_I_1_confidence_up_0.2",
+   "label": "1985_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 7,
+   "token_agreement": 0.9801256210743414,
+   "mean_logit_kl": 0.037398821875301955,
+   "mean_entropy_primary": 0.0488144071932631,
+   "mean_entropy_shadow": 0.06649895951760834,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 77298,
+   "reason_chars_shadow": 77716,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 20,
+    "before": "\nOkay, let's try to ",
+    "after_primary": "solve this problem. So, we have four real numbers a, b, c, d with the sum a + b + c + d = 0 and the sum of their cubes a³ + b³ + c³ + d³ = 30. We",
+    "after_shadow": "tackle this problem. So, we have four real numbers a, b, c, d with the conditions a + b + c + d = 0, the sum of their cubes is³ + b³ + c³ + d³ = ",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1985_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d with the conditions that their sum is zero, and the sum of their cubes is 30. We need to find the value of a³ + b³ + c³ + d³ minus 3(a+b)(b+c)(c+d). \n\nFirst, let me write down what's given:\n\n1. a + b + c + d = 0\n2. a³ "
+   }
+  },
+  {
+   "id": "1985_I_1_confidence_down_0.0",
+   "label": "1985_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.07202197337689226,
+   "mean_entropy_shadow": 0.07202197337689226,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 69700,
+   "reason_chars_shadow": 69700,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d with the conditions that their sum is ",
+    "after_primary": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d with the conditions that their sum is zero, and the sum of thei",
+    "after_shadow": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d with the conditions that their sum is zero, and the sum of thei",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1985_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d with the conditions that their sum is zero, and the sum of their cubes is 30. We need to find the value of a³ + b³ + c³ + d³ minus 3(a+b)(b+c)(c+d). \n\nFirst, let me write down what's given:\n\n1. a + b + c + d = 0\n2. a³ "
+   }
+  },
+  {
+   "id": "1985_I_1_confidence_down_0.2",
+   "label": "1985_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 24698,
+   "first_diverged_step": 25,
+   "token_agreement": 0.9381351471719502,
+   "mean_logit_kl": 0.06408650492655907,
+   "mean_entropy_primary": 0.2469043134522756,
+   "mean_entropy_shadow": 0.2126625024911521,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 63044,
+   "reason_chars_shadow": 63345,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 81,
+    "before": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d",
+    "after_primary": ". They satisfy two conditions: their sum is zero, and the sum of their cubes is 30. We need to find the value of a³ + b³ + c³ + d³ minus 3 times ",
+    "after_shadow": " with Their satisfy two conditions: their sum is zero, and the sum of their cubes is 30. We need to find the value of a³ + b³ + c³ + d³ minus 3(a",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1985_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem. So, we have four real numbers a, b, c, d with the conditions that their sum is zero, and the sum of their cubes is 30. We need to find the value of a³ + b³ + c³ + d³ minus 3(a+b)(b+c)(c+d). \n\nFirst, let me write down what's given:\n\n1. a + b + c + d = 0\n2. a³ "
+   }
+  },
+  {
+   "id": "1991_I_1_confidence_up_0.0",
+   "label": "1991_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 18450,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.25745586062253684,
+   "mean_entropy_shadow": 0.25745586062253684,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 67677,
+   "reason_chars_shadow": 67677,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to solve this problem about a rectangle divided into a 2x2 grid of congruent rectangles. The original r",
+    "after_primary": "\nOkay, so I need to solve this problem about a rectangle divided into a 2x2 grid of congruent rectangles. The original rectangle has sides 8 and ",
+    "after_shadow": "\nOkay, so I need to solve this problem about a rectangle divided into a 2x2 grid of congruent rectangles. The original rectangle has sides 8 and ",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1991_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to solve this problem about a rectangle divided into a 2x2 grid of congruent rectangles. The original rectangle has sides 8 and 6. Then there are two lines parallel to the short side (which is 6) that divide it into four congruent rectangles. The question is asking for the number of"
+   }
+  },
+  {
+   "id": "1991_I_1_confidence_up_0.2",
+   "label": "1991_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 5,
+   "token_agreement": 0.9964688603481141,
+   "mean_logit_kl": 0.011172783780494152,
+   "mean_entropy_primary": 0.010209221109677676,
+   "mean_entropy_shadow": 0.019222451592324913,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 112072,
+   "reason_chars_shadow": 112325,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 12,
+    "before": "\nOkay, so I ",
+    "after_primary": "have this problem here about a rectangle that's 8 by 6, divided into a 2x2 grid of 4 congruent rectangles by two lines parallel to the short side",
+    "after_shadow": "need this problem here about a rectangle that's 8 units 6. divided into a 2x2 grid of congr4 congruent rectangles by two lines parallel to the sh",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1991_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to solve this problem about a rectangle divided into a 2x2 grid of congruent rectangles. The original rectangle has sides 8 and 6. Then there are two lines parallel to the short side (which is 6) that divide it into four congruent rectangles. The question is asking for the number of"
+   }
+  },
+  {
+   "id": "1991_I_1_confidence_down_0.0",
+   "label": "1991_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 18450,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.25745586062253684,
+   "mean_entropy_shadow": 0.25745586062253684,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 67677,
+   "reason_chars_shadow": 67677,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to solve this problem about a rectangle divided into a 2x2 grid of congruent rectangles. The original r",
+    "after_primary": "\nOkay, so I need to solve this problem about a rectangle divided into a 2x2 grid of congruent rectangles. The original rectangle has sides 8 and ",
+    "after_shadow": "\nOkay, so I need to solve this problem about a rectangle divided into a 2x2 grid of congruent rectangles. The original rectangle has sides 8 and ",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1991_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to solve this problem about a rectangle divided into a 2x2 grid of congruent rectangles. The original rectangle has sides 8 and 6. Then there are two lines parallel to the short side (which is 6) that divide it into four congruent rectangles. The question is asking for the number of"
+   }
+  },
+  {
+   "id": "1991_I_1_confidence_down_0.2",
+   "label": "1991_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 22117,
+   "first_diverged_step": 3,
+   "token_agreement": 0.9290623021973053,
+   "mean_logit_kl": 0.06938687881060736,
+   "mean_entropy_primary": 0.3164647996733804,
+   "mean_entropy_shadow": 0.2826907871210037,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 76849,
+   "reason_chars_shadow": 77733,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 7,
+    "before": "\nOkay, ",
+    "after_primary": "let's try to figure out this problem. So, we have an 8 by 6 rectangle, and it's divided into a 2x2 grid of smaller rectangles by two lines parall",
+    "after_shadow": "so's try to figure out this problem. So, we have an 8 by 6 rectangle, and it's divided into a 2x2 grid of congr rectangles by two lines parallel ",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1991_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to solve this problem about a rectangle divided into a 2x2 grid of congruent rectangles. The original rectangle has sides 8 and 6. Then there are two lines parallel to the short side (which is 6) that divide it into four congruent rectangles. The question is asking for the number of"
+   }
+  },
+  {
+   "id": "2010_I_1_confidence_up_0.0",
+   "label": "2010_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 2097,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2186554905690887,
+   "mean_entropy_shadow": 0.2186554905690887,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 5405,
+   "reason_chars_shadow": 5405,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then Shi",
+    "after_primary": "\nOkay, let's try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then Shivani buys a $20 program. ",
+    "after_shadow": "\nOkay, let's try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then Shivani buys a $20 program. ",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2010_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then Shivani buys a $20 program. The total cost is at most $100. We need to find the maximum possible value of x. \n\nFirst, let me make sure I understand the problem correctly. The total co"
+   }
+  },
+  {
+   "id": "2010_I_1_confidence_up_0.2",
+   "label": "2010_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 1436,
+   "first_diverged_step": 7,
+   "token_agreement": 0.9436325678496869,
+   "mean_logit_kl": 0.08816805838817192,
+   "mean_entropy_primary": 0.16065526722871,
+   "mean_entropy_shadow": 0.18292436119886799,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 3202,
+   "reason_chars_shadow": 3215,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 20,
+    "before": "\nOkay, let's try to ",
+    "after_primary": "solve this problem step by step. So, the problem is about Shivani and her friends buying 6 tickets to a school play, and Shivani also buys a $20 ",
+    "after_shadow": "figure this problem step by step. So, the problem is about Shivani and her friends buying 6 tickets for a school play, and sheani also buys a $20",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2010_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then Shivani buys a $20 program. The total cost is at most $100. We need to find the maximum possible value of x. \n\nFirst, let me make sure I understand the problem correctly. The total co"
+   }
+  },
+  {
+   "id": "2010_I_1_confidence_down_0.0",
+   "label": "2010_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 2097,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2186554905690887,
+   "mean_entropy_shadow": 0.2186554905690887,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 5405,
+   "reason_chars_shadow": 5405,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then Shi",
+    "after_primary": "\nOkay, let's try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then Shivani buys a $20 program. ",
+    "after_shadow": "\nOkay, let's try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then Shivani buys a $20 program. ",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2010_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then Shivani buys a $20 program. The total cost is at most $100. We need to find the maximum possible value of x. \n\nFirst, let me make sure I understand the problem correctly. The total co"
+   }
+  },
+  {
+   "id": "2010_I_1_confidence_down_0.2",
+   "label": "2010_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 1843,
+   "first_diverged_step": 4,
+   "token_agreement": 0.9376355748373102,
+   "mean_logit_kl": 0.08277072080286355,
+   "mean_entropy_primary": 0.23478295250810385,
+   "mean_entropy_shadow": 0.21064865243529032,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 4336,
+   "reason_chars_shadow": 4404,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 10,
+    "before": "\nOkay, let",
+    "after_primary": " me try to figure out this problem. So, Shivani and her friends bought 6 tickets, each costing x dollars. Then she bought a $20 program. The tota",
+    "after_shadow": "'s try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then she bought a $20 program. The total co",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2010_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem. So, Shivani and her friends buy 6 tickets, each costing x dollars. Then Shivani buys a $20 program. The total cost is at most $100. We need to find the maximum possible value of x. \n\nFirst, let me make sure I understand the problem correctly. The total co"
+   }
+  },
+  {
+   "id": "2022_I_1_confidence_up_0.0",
+   "label": "2022_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 5533,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2538794269744507,
+   "mean_entropy_shadow": 0.2538794269744507,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 14773,
+   "reason_chars_shadow": 14773,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let ",
+    "after_primary": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let me think about how to app",
+    "after_shadow": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let me think about how to app",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2022_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let me think about how to approach this. \n\nFirst, I remember that absolute value equations can have multiple solutions depending on the sign of the expressions inside. So, maybe I shou"
+   }
+  },
+  {
+   "id": "2022_I_1_confidence_up_0.2",
+   "label": "2022_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 3882,
+   "first_diverged_step": 43,
+   "token_agreement": 0.9430852433685295,
+   "mean_logit_kl": 0.08334660764658772,
+   "mean_entropy_primary": 0.20974596759727696,
+   "mean_entropy_shadow": 0.24757606124556436,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 9560,
+   "reason_chars_shadow": 9813,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 119,
+    "before": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let",
+    "after_primary": "'s think about this step by step.\n\nFirst, I know that absolute value equations can have two solutions each, so maybe I need to consider different",
+    "after_shadow": " me start about this. by step.\n\nFirst, I remember that absolute value equations can have multiple solutions each, so maybe I need to consider dif",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2022_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let me think about how to approach this. \n\nFirst, I remember that absolute value equations can have multiple solutions depending on the sign of the expressions inside. So, maybe I shou"
+   }
+  },
+  {
+   "id": "2022_I_1_confidence_down_0.0",
+   "label": "2022_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 5533,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2538794269744507,
+   "mean_entropy_shadow": 0.2538794269744507,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 14773,
+   "reason_chars_shadow": 14773,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let ",
+    "after_primary": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let me think about how to app",
+    "after_shadow": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let me think about how to app",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2022_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let me think about how to approach this. \n\nFirst, I remember that absolute value equations can have multiple solutions depending on the sign of the expressions inside. So, maybe I shou"
+   }
+  },
+  {
+   "id": "2022_I_1_confidence_down_0.2",
+   "label": "2022_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 5592,
+   "first_diverged_step": 13,
+   "token_agreement": 0.9317003397103523,
+   "mean_logit_kl": 0.06925039331969016,
+   "mean_entropy_primary": 0.2720961385689099,
+   "mean_entropy_shadow": 0.23583320832677138,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 14030,
+   "reason_chars_shadow": 14058,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 53,
+    "before": "\nOkay, so I need to find the number of ordered pairs ",
+    "after_primary": "(a, b) where the absolute values |a + b| and |a - b are both equal to 4. Let me think about how to approach this. \n\nFirst, I remember that absolu",
+    "after_shadow": "ofa, b) of the absolute values ofa + b| and |a - b| both equal to 4. Let me think about how to approach this.\n\n \n\nFirst, I remember that absolute",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2022_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of ordered pairs of integers (a, b) such that |a + b| = 4 and |a - b| = 4. Hmm, let me think about how to approach this. \n\nFirst, I remember that absolute value equations can have multiple solutions depending on the sign of the expressions inside. So, maybe I shou"
+   }
+  },
+  {
+   "id": "1986_I_1_confidence_up_0.0",
+   "label": "1986_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 3523,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.23791077834254093,
+   "mean_entropy_shadow": 0.23791077834254093,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 8615,
+   "reason_chars_shadow": 8615,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to solve the equation √(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to app",
+    "after_primary": "\nOkay, so I need to solve the equation √(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to approach this. \n\nFirst, I re",
+    "after_shadow": "\nOkay, so I need to solve the equation √(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to approach this. \n\nFirst, I re",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1986_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to solve the equation √(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to approach this. \n\nFirst, I remember that when dealing with equations that have square roots, it's often helpful to eliminate the square root by squaring both sides. But I also need to "
+   }
+  },
+  {
+   "id": "1986_I_1_confidence_up_0.2",
+   "label": "1986_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 10,
+   "token_agreement": 0.9912502734289553,
+   "mean_logit_kl": 0.014347910649355153,
+   "mean_entropy_primary": 0.025899681782257888,
+   "mean_entropy_shadow": 0.0324119576305457,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 50073,
+   "reason_chars_shadow": 50280,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 39,
+    "before": "\nOkay, so I need to solve the equation ",
+    "after_primary": "sqrt(4 - x) = x - 2 and then find the sum of the solutions. Let me start by understanding the problem.\n\nFirst, the equation involves a square roo",
+    "after_shadow": "�(4 - x) = x - 2 and find find the sum of the solutions. Let me start by recalling what problem.\n\nFirst, I equation involves a square root on a l",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1986_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to solve the equation √(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to approach this. \n\nFirst, I remember that when dealing with equations that have square roots, it's often helpful to eliminate the square root by squaring both sides. But I also need to "
+   }
+  },
+  {
+   "id": "1986_I_1_confidence_down_0.0",
+   "label": "1986_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 3523,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.23791077834254093,
+   "mean_entropy_shadow": 0.23791077834254093,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 8615,
+   "reason_chars_shadow": 8615,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to solve the equation √(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to app",
+    "after_primary": "\nOkay, so I need to solve the equation √(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to approach this. \n\nFirst, I re",
+    "after_shadow": "\nOkay, so I need to solve the equation √(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to approach this. \n\nFirst, I re",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1986_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to solve the equation √(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to approach this. \n\nFirst, I remember that when dealing with equations that have square roots, it's often helpful to eliminate the square root by squaring both sides. But I also need to "
+   }
+  },
+  {
+   "id": "1986_I_1_confidence_down_0.2",
+   "label": "1986_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 5286,
+   "first_diverged_step": 10,
+   "token_agreement": 0.9381501796860223,
+   "mean_logit_kl": 0.0600077276091268,
+   "mean_entropy_primary": 0.30295663551186836,
+   "mean_entropy_shadow": 0.2653554156065854,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 14522,
+   "reason_chars_shadow": 14503,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 39,
+    "before": "\nOkay, so I need to solve the equation ",
+    "after_primary": "sqrt(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to approach this. \n\nFirst, I remember that when dealing with equati",
+    "after_shadow": "�(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to approach this. \n\nFirst, I remember that when dealing with equations",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1986_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to solve the equation √(4 - x) = x - 2 and find the sum of the solutions. Let me think about how to approach this. \n\nFirst, I remember that when dealing with equations that have square roots, it's often helpful to eliminate the square root by squaring both sides. But I also need to "
+   }
+  },
+  {
+   "id": "1992_I_1_confidence_up_0.0",
+   "label": "1992_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 8745,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.16015236267402952,
+   "mean_entropy_shadow": 0.16015236267402952,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 15567,
+   "reason_chars_shadow": 15567,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 that have a denominator of 30 when writte",
+    "after_primary": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 that have a denominator of 30 when written in lowest terms. Let me",
+    "after_shadow": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 that have a denominator of 30 when written in lowest terms. Let me",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1992_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 that have a denominator of 30 when written in lowest terms. Let me think about how to approach this.\n\nFirst, let me recall that a rational number with denominator 30 in lowest terms means that the numerator and denominato"
+   }
+  },
+  {
+   "id": "1992_I_1_confidence_up_0.2",
+   "label": "1992_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 36,
+   "token_agreement": 0.9853754570169683,
+   "mean_logit_kl": 0.021890666516638884,
+   "mean_entropy_primary": 0.03940967016752274,
+   "mean_entropy_shadow": 0.0477714645307555,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 51868,
+   "reason_chars_shadow": 52432,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 146,
+    "before": "the sum of all positive rational numbers less than 10 that have a denominator of 30 when written in lowest terms. Let me ",
+    "after_primary": "break this down step by step.\n\nFirst, let's understand what the problem is asking. A rational number with denominator 30 in lowest terms means th",
+    "after_shadow": "think this down step by step.\n\nFirst, let me understand what the problem is asking. A rational number with denominator 30 in lowest terms means t",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1992_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 that have a denominator of 30 when written in lowest terms. Let me think about how to approach this.\n\nFirst, let me recall that a rational number with denominator 30 in lowest terms means that the numerator and denominato"
+   }
+  },
+  {
+   "id": "1992_I_1_confidence_down_0.0",
+   "label": "1992_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 8745,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.16015236267402952,
+   "mean_entropy_shadow": 0.16015236267402952,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 15567,
+   "reason_chars_shadow": 15567,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 that have a denominator of 30 when writte",
+    "after_primary": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 that have a denominator of 30 when written in lowest terms. Let me",
+    "after_shadow": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 that have a denominator of 30 when written in lowest terms. Let me",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1992_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 that have a denominator of 30 when written in lowest terms. Let me think about how to approach this.\n\nFirst, let me recall that a rational number with denominator 30 in lowest terms means that the numerator and denominato"
+   }
+  },
+  {
+   "id": "1992_I_1_confidence_down_0.2",
+   "label": "1992_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 24596,
+   "first_diverged_step": 20,
+   "token_agreement": 0.9464568849859739,
+   "mean_logit_kl": 0.05679491565720946,
+   "mean_entropy_primary": 0.21835033846895457,
+   "mean_entropy_shadow": 0.18914991323789296,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 56478,
+   "reason_chars_shadow": 56420,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 79,
+    "before": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 ",
+    "after_primary": "with denominator 30 when written in lowest terms. Let me think about how to approach this.\n\nFirst, a rational number with denominator 30 in lowes",
+    "after_shadow": "that denominator 30 when written in lowest terms. Let me think about how to approach this.\n\nFirst, a rational number with denominator 30 in lowes",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1992_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the sum of all positive rational numbers less than 10 that have a denominator of 30 when written in lowest terms. Let me think about how to approach this.\n\nFirst, let me recall that a rational number with denominator 30 in lowest terms means that the numerator and denominato"
+   }
+  },
+  {
+   "id": "2012_I_1_confidence_up_0.0",
+   "label": "2012_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 1406,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.20135316993496616,
+   "mean_entropy_shadow": 0.20135316993496616,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 3737,
+   "reason_chars_shadow": 3737,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so Mary has to walk uphill from her home to school, which is 1 km, and it takes her 30 minutes. Then she walks ba",
+    "after_primary": "\nOkay, so Mary has to walk uphill from her home to school, which is 1 km, and it takes her 30 minutes. Then she walks back down the same route fr",
+    "after_shadow": "\nOkay, so Mary has to walk uphill from her home to school, which is 1 km, and it takes her 30 minutes. Then she walks back down the same route fr",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2012_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so Mary has to walk uphill from her home to school, which is 1 km, and it takes her 30 minutes. Then she walks back down the same route from school to home, which takes her 10 minutes. The question is asking for her average speed for the round trip. Hmm, average speed... I remember that avera"
+   }
+  },
+  {
+   "id": "2012_I_1_confidence_up_0.2",
+   "label": "2012_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 5,
+   "token_agreement": 0.9981875566388551,
+   "mean_logit_kl": 0.0038820238091001958,
+   "mean_entropy_primary": 0.0029997119359868665,
+   "mean_entropy_shadow": 0.004323624524294008,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 58426,
+   "reason_chars_shadow": 58478,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 15,
+    "before": "\nOkay, so Mary ",
+    "after_primary": "walks uphill 1 km from her home to school in 30 minutes, and then walks back down the same route in 10 minutes. I need to find her average speed ",
+    "after_shadow": "has uphill from1 km from her home to school, 30 minutes, and then comes back the the same route from 10 minutes. I need to find her average speed",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2012_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so Mary has to walk uphill from her home to school, which is 1 km, and it takes her 30 minutes. Then she walks back down the same route from school to home, which takes her 10 minutes. The question is asking for her average speed for the round trip. Hmm, average speed... I remember that avera"
+   }
+  },
+  {
+   "id": "2012_I_1_confidence_down_0.0",
+   "label": "2012_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 1406,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.20135316993496616,
+   "mean_entropy_shadow": 0.20135316993496616,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 3737,
+   "reason_chars_shadow": 3737,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so Mary has to walk uphill from her home to school, which is 1 km, and it takes her 30 minutes. Then she walks ba",
+    "after_primary": "\nOkay, so Mary has to walk uphill from her home to school, which is 1 km, and it takes her 30 minutes. Then she walks back down the same route fr",
+    "after_shadow": "\nOkay, so Mary has to walk uphill from her home to school, which is 1 km, and it takes her 30 minutes. Then she walks back down the same route fr",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2012_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so Mary has to walk uphill from her home to school, which is 1 km, and it takes her 30 minutes. Then she walks back down the same route from school to home, which takes her 10 minutes. The question is asking for her average speed for the round trip. Hmm, average speed... I remember that avera"
+   }
+  },
+  {
+   "id": "2012_I_1_confidence_down_0.2",
+   "label": "2012_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 1958,
+   "first_diverged_step": 3,
+   "token_agreement": 0.9377233282286881,
+   "mean_logit_kl": 0.09635764034200436,
+   "mean_entropy_primary": 0.24502511616302525,
+   "mean_entropy_shadow": 0.22756164221257294,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 5531,
+   "reason_chars_shadow": 5594,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 7,
+    "before": "\nOkay, ",
+    "after_primary": "let me try to figure out Mary's average speed for the round trip. So, she goes from home to school, which is 1 km uphill, and then comes back hom",
+    "after_shadow": "so's try to figure out Mary's average speed for the round trip. So, the walks from home to school uphill which is 1 km uphill, taking then comes ",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2012_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so Mary has to walk uphill from her home to school, which is 1 km, and it takes her 30 minutes. Then she walks back down the same route from school to home, which takes her 10 minutes. The question is asking for her average speed for the round trip. Hmm, average speed... I remember that avera"
+   }
+  },
+  {
+   "id": "2023_I_1_confidence_up_0.0",
+   "label": "2023_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 4184,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2816638578101505,
+   "mean_entropy_shadow": 0.2816638578101505,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 15228,
+   "reason_chars_shadow": 15228,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then ther",
+    "after_primary": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then there's another triangle, whi",
+    "after_shadow": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then there's another triangle, whi",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2023_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then there's another triangle, which is an isosceles triangle. The base and one of the equal sides of this triangle are both equal in length to the side length of the square. We need to fin"
+   }
+  },
+  {
+   "id": "2023_I_1_confidence_up_0.2",
+   "label": "2023_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 7,
+   "token_agreement": 0.9929064716727602,
+   "mean_logit_kl": 0.009187082213483735,
+   "mean_entropy_primary": 0.0217948756340422,
+   "mean_entropy_shadow": 0.029364657073984064,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 87132,
+   "reason_chars_shadow": 87390,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 20,
+    "before": "\nOkay, let's try to ",
+    "after_primary": "solve this problem step by step. First, let me make sure I understand it correctly.\n\nWe have a square piece of paper with a perimeter of 32 units",
+    "after_shadow": "figure this problem step by step. First, let me make sure I understand what correctly.\n\nWe have a square piece of paper with a perimeter of 32 un",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2023_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then there's another triangle, which is an isosceles triangle. The base and one of the equal sides of this triangle are both equal in length to the side length of the square. We need to fin"
+   }
+  },
+  {
+   "id": "2023_I_1_confidence_down_0.0",
+   "label": "2023_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 4184,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2816638578101505,
+   "mean_entropy_shadow": 0.2816638578101505,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 15228,
+   "reason_chars_shadow": 15228,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then ther",
+    "after_primary": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then there's another triangle, whi",
+    "after_shadow": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then there's another triangle, whi",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2023_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then there's another triangle, which is an isosceles triangle. The base and one of the equal sides of this triangle are both equal in length to the side length of the square. We need to fin"
+   }
+  },
+  {
+   "id": "2023_I_1_confidence_down_0.2",
+   "label": "2023_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 14890,
+   "first_diverged_step": 4,
+   "token_agreement": 0.961990464038681,
+   "mean_logit_kl": 0.036395055456357975,
+   "mean_entropy_primary": 0.25156461643161193,
+   "mean_entropy_shadow": 0.20908873175946513,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 55035,
+   "reason_chars_shadow": 55622,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 10,
+    "before": "\nOkay, let",
+    "after_primary": " me try to figure out this problem. So, we have a square piece of paper with a perimeter of 32 units. Then there's another triangle, which is an ",
+    "after_shadow": "'s try to figure out this problem. So, there have a square piece of paper with a perimeter of 32 units. First there's another triangle, which is ",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2023_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then there's another triangle, which is an isosceles triangle. The base and one of the equal sides of this triangle are both equal in length to the side length of the square. We need to fin"
+   }
+  }
+ ]
+}

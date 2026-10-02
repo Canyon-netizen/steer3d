@@ -494,6 +494,12 @@ const S = {
   // 直接写明。1.7B 才有这份数据；0.6B 上 fetch 404，这里保持 null，
   // 绝不回退去用另一个模型的值。
   cot: null, cotDir: null, cot32k: null,
+  // 两臂的**正文**。上面那些是百分比，读者看不出"思维链被改成什么样"；
+  // 这里给的是第几步开始分岔、分岔前两臂一字不差的原文、分岔后各自走哪边。
+  // -1 = 「由渲染器挑默认那一次」。这里必须用 -1 而不是 0：0 也是一个合法的
+  // 下标，`idx = 0` 会先命中它，于是下面那段"默认落在分岔最早的那次"的逻辑
+  // 永远不执行——注释和现实分家，而判据是照着注释写的。
+  cotTexts: null, cotTextPick: -1,
 };
 
 const DEC = new TextDecoder("utf-8");
@@ -860,6 +866,13 @@ async function loadPairMeta(){
       S.cot32k = await cr2.json();
     }else trace("cot_effect_32k.json: HTTP " + cr2.status);
   }catch(e){ trace("cot_effect_32k unavailable: " + e.message); }
+  // 第三批：两臂正文。只给统计量的话，"思维链被改成什么样"这件事读者只能靠想象。
+  try{
+    const cr3 = await fetch(dataBase()+"cot_texts.json");
+    if(cr3.ok){
+      S.cotTexts = await cr3.json();
+    }else trace("cot_texts.json: HTTP " + cr3.status);
+  }catch(e){ trace("cot_texts unavailable: " + e.message); }
   return true;
 }
 
@@ -1411,8 +1424,150 @@ function renderCotEffect(){
   // 放在 data-cotblock 的 </div> **之内**：它是同一块思维链面板的内容，
   // 拼在外面会变成兄弟节点，任何按 [data-cotblock] 取内容的代码都看不到它。
   h += renderCotEffect32k();
+  h += renderCotTexts();
   h += `</div>`;
   return wrap(h);
+}
+
+/* ---- 两臂正文：第几步开始，两条路各走各的 ---------------------------------
+   上面所有关于思维链的数字都是百分比。读者问的是"改成什么样了"，
+   百分比答不了。数据里一直存着两臂全文（run_intervention.py 的
+   primary_text / shadow_text），这里把分岔处切出来给读者读。
+
+   这一块最容易骗人的地方是 shadow_text 的**含义**。run_intervention.py
+   第 272-282 行：shadow 取出自己的 argmax，但下一步两臂都吃 primary 的词。
+   所以 shadow 是 primary 原文被逐词打补丁的产物，不是一篇"没加向量时模型
+   会写的文章"。把它当散文读，会在每个换词处看到语法断裂
+   （"We need looking for"、"the greatest common divisor ( m and n is 1"），
+   而那不是无干预模型变笨了，恰恰是补丁的接缝。正因如此这里必须把
+   「分岔前的共同原文」单列出来并说清它是逐字相同的，否则读者会把
+   断裂读成结论。
+
+   另一个坑：两臂在 token 层对齐但在词边界不对齐，一个词被换掉会让后面
+   所有词错位。所以这里**不**做词级 diff，只按"第一个不同的字符"切一刀，
+   并且明确标注 split_char 是字符偏移、first_diverged_step 是 token 步数，
+   两者不是一回事。所有百分比仍然来自 summary（生成时逐步实测）。 */
+function renderCotTexts(){
+  const T = S.cotTexts;
+  if(!T) return "";
+  const all = (T.runs || []).filter(r => parseFloat(r.strength) !== 0);
+  if(!all.length) return "";
+
+  // 选择器按 (题号, 方向) 索引。默认落在"分岔最早"的那一次上——那是读者
+  // 最想看的一处，而且早分岔意味着分岔前的共同原文最长、最容易看懂。
+  let best = 0, bestStep = Infinity;
+  all.forEach((r,i) => {
+    const s = r.first_diverged_step;
+    if(s !== null && s !== undefined && s < bestStep){ bestStep = s; best = i; }
+  });
+  const idx = (S.cotTextPick >= 0 && S.cotTextPick < all.length) ? S.cotTextPick : best;
+  const R = all[idx];
+  const H = R.primary_head || {};
+  const zc = R.zero_strength_control || {};
+  const DL = {"confidence_up":"自信 ↑（更敢说）", "confidence_down":"自信 ↓（更犹豫）"};
+  // Short form for the <select>, where a native dropdown clips anything that
+  // does not fit and the reader cannot see which run is selected.
+  const SHORT_DIR = {"confidence_up":"自信↑", "confidence_down":"自信↓"};
+
+  const fd = R.first_diverged_step;
+  const agree = R.token_agreement;
+  const ep = R.mean_entropy_primary, es = R.mean_entropy_shadow;
+  const dEnt = (ep !== null && es !== null && es !== 0) ? (ep/es - 1) * 100 : null;
+
+  let h = `<div data-cottext="1" style="margin-top:14px;padding-top:12px;border-top:1px solid #232a36">`;
+  h += `<div style="font-size:12.5px;font-weight:600;margin-bottom:6px;color:#e8edf5">
+    逐字读：第 ${fd === null ? "—" : fd} 步，两条路开始分岔</div>`;
+
+  // 选哪一次运行。选项文字要能在下拉框里显示全：原生 select 会把过长的选项
+  // 直接裁掉，读者看不到自己选的是哪一次（实测原来那版把「第 N 步分岔」裁了）。
+  h += `<div style="display:flex;gap:5px;align-items:center;margin:0 0 7px;flex-wrap:wrap">
+    <span class="note" style="font-size:10.5px">挑一次运行</span>
+    <select data-cotpick="1" style="flex:1;min-width:150px;max-width:100%;font-size:11px;padding:4px 4px">`;
+  all.forEach((r,i) => {
+    const sel = i === idx ? " selected" : "";
+    h += `<option value="${i}"${sel}>${esc(r.label)} · ${esc(SHORT_DIR[r.direction] || r.direction)} · 第${r.first_diverged_step}步</option>`;
+  });
+  h += `</select></div>`;
+
+  h += `<div class="note" style="margin:0 0 7px;font-size:11px">
+    同一道题让模型写两遍：一遍加了向量，一遍没加。<b>两臂都吃到同一段已经写好的
+    前缀</b>，所以分歧不是"两篇作文碰巧不同"，是同一个位置上的选择被掰弯了。
+    这一批共 ${all.length} 次（零向量对照 ${(T.runs||[]).length - all.length} 次另计），
+    模型 ${esc(T.model)}，注入 L${R.layer}，强度 ${R.strength}。</div>`;
+
+  // --- 实测数字 ---
+  const kv = (k,v,note) => `<div style="display:flex;justify-content:space-between;
+    align-items:baseline;gap:8px;padding:2px 0;border-bottom:1px solid #18202f">
+    <span class="note" style="flex:0 0 auto">${k}</span>
+    <span class="tok" style="flex:1 1 auto;text-align:right;font-size:12.5px">${v}` +
+    (note ? `<span class="note" style="display:block;font-size:10.5px">${note}</span>` : "") +
+    `</span></div>`;
+
+  h += `<div style="font-size:11px;color:#8891a4;margin:7px 0 2px">
+    下面是<b style="color:#b9c4d6">生成时逐步量出来的</b>数字，不是从文字反推的：</div>`;
+  h += kv("两臂第一次选出不同的词", `<b>第 ${fd} 步</b>`,
+          `整条推理共 ${R.n_steps} 步，所以它落在第 ` +
+          `${((fd/(R.n_steps||1))*100).toFixed(2)}% 处`);
+  h += kv("之后还有多少词一样",
+          `<b>${(agree*100).toFixed(1)}%</b>`,
+          `每 100 个里换掉约 ${((1-agree)*100).toFixed(1)} 个`);
+  h += kv("两个分布差多远", `<b>${(R.mean_logit_kl||0).toFixed(4)}</b>`, `nats，越大差得越远`);
+  if(dEnt !== null){
+    h += kv("模型的犹豫程度（熵）",
+            `<b>${ep.toFixed(3)}</b> <span style="color:#8a94a6">vs 无干预 ${es.toFixed(3)}</span>`,
+            dEnt < 0
+              ? `加了向量之后<b style="color:#3ddc97">降了 ${Math.abs(dEnt).toFixed(0)}%</b>——更笃定了，和方向名字一致`
+              : `加了向量之后<b style="color:#ff8fa3">升了 ${dEnt.toFixed(0)}%</b>——更犹豫了，和方向名字一致`);
+  }
+
+  // --- 原文 ---
+  h += `<div style="font-size:11px;color:#8891a4;margin:11px 0 3px">
+    下面是<b style="color:#b9c4d6">两臂的原文</b>。到分岔处为止，两臂<b>一字不差</b>：</div>`;
+  const pre = `<div data-cotpre="1" style="font-family:var(--mono);font-size:11.5px;line-height:1.65;
+    white-space:pre-wrap;word-break:break-word;color:#8a94a6;padding:6px 8px;background:#0e131d;
+    border:1px solid var(--line);border-radius:5px">${esc(H.before || "")}</div>`;
+  h += pre;
+
+  const arm = (name, color, text, tag, key) =>
+    `<div data-cotarm="${key}" style="margin:5px 0 0">
+      <div style="font-size:11px;color:${color};font-weight:600">${name}${tag}</div>
+      <div style="font-family:var(--mono);font-size:11.5px;line-height:1.65;
+        white-space:pre-wrap;word-break:break-word;color:#c8d2e0;padding:6px 8px;
+        background:#0e131d;border:1px solid var(--line);border-left:2px solid ${color};
+        border-radius:0 5px 5px 0">${esc(text || "")}</div></div>`;
+
+  h += `<div style="font-size:11px;color:#8891a4;margin:9px 0 0">
+    从这里开始，两臂各走各的（左边是<b style="color:#3ddc97">加了向量</b>写的，
+    右边是<b style="color:#ff8fa3">没加</b>时在同一位置会选的词）：</div>`;
+  h += arm("加了向量（干预臂）", "#3ddc97", H.after_primary, "", "primary");
+  h += arm("没加向量（对照臂）", "#ff8fa3", H.after_shadow, "", "shadow");
+
+  // --- 两条必须写在正文旁边的限制 ---
+  h += `<div class="note" style="margin-top:9px;padding:7px 9px;background:#131a28;
+       border-left:2px solid #ff8fa3;border-radius:0 4px 4px 0;font-size:11px">
+    <b style="color:#ff8fa3">先看这条，否则上面第二段会被读反：</b>
+    下面那行<b>不是</b>"没有向量时模型会写的那篇文章"。它在每个换词的地方都会语法破碎
+    （比如 "We need looking for"、"the greatest common divisor ( m and n is 1"），
+    <b>那不是无干预模型变笨了，恰恰是补丁的接缝</b>——采集程序每一步都把两臂拉回
+    同一串词，只有"下一个词该选哪个"才允许不同。所以它是一把逐步的尺子，
+    不是一个可以拿来读的平行宇宙。<br>
+    <b style="color:#b9c4d6">还有两个单位别搞混：</b>「第 ${fd} 步」是
+    <b>token</b> 步数（生成时数的）；下面标在原文上的「第 ${H.split_char} 个字符」
+    是<b>字符</b> 位置（切原文切的）。它们不是一回事，混用会让人以为分岔比实际更靠后。</div>`;
+
+  // --- 零向量对照：证明上面的分歧来自向量，不是采集链路 ---
+  h += `<div class="note" style="margin-top:8px;padding:7px 9px;background:#131a28;
+       border-left:2px solid ${zc.texts_identical ? "#3ddc97" : "#ff6b81"};
+       border-radius:0 4px 4px 0;font-size:11px">
+    <b style="color:#b9c4d6">采集链路本身是干净的：</b>同一道题、同一段代码，
+    只是把向量换成<b>零向量</b>再跑一遍——两臂的词
+    ${zc.texts_identical
+      ? `<b style="color:#3ddc97">逐字完全相同</b>（一致率 ${(zc.token_agreement*100).toFixed(0)}%）`
+      : `<b style="color:#ff6b81">并不相同（一致率 ${zc.token_agreement}）</b>——这一条不成立，上面的差异就不能算到向量头上`}。
+    零向量臂的开头长这样：<span style="color:#8a94a6">${esc((zc.head||"").slice(0,110))}…</span></div>`;
+
+  h += `</div>`;
+  return h;
 }
 
 /* ---- 32k 预算重跑 --------------------------------------------------------
@@ -1533,7 +1688,34 @@ function drawDeltaSide(){
   // to discover that the answer existed below the fold *inside* a small inner
   // scroller. Everything here answers "what changed"; this answers "why", and
   // it is the question the screen exists for.
-  let h = renderDivergenceReadout();
+  // The jump row goes FIRST, above the divergence readout, not after it.
+  // Placed after, its own bounding rect measured y=3957 in a 1100px viewport --
+  // a jump link you have to scroll past to find is not a jump link, and a
+  // synthetic click at those coordinates lands outside the window and does
+  // nothing at all, which is exactly how it looked.
+  //
+  // It exists because the column is ~4500px of content inside a 300px scroll
+  // window, the CoT block starts ~2350px down, and the page itself does not
+  // scroll at all (documentElement.scrollHeight == innerHeight). A reader
+  // arriving at this tab would otherwise have to discover that the answer to
+  // "what did it actually write" was below the fold of a small inner scroller.
+  let h = '';
+  if(S.cotTexts){
+    // Same rule as renderCotTexts' default: the run that diverged earliest.
+    // Reading the first non-zero run in payload order instead printed a
+    // different step number than the one the block opened on -- two widgets
+    // disagreeing about which run you are looking at.
+    const stRuns = (S.cotTexts.runs || []).filter(r => parseFloat(r.strength) !== 0);
+    const firstRun = stRuns.reduce((a, b) =>
+      (a && a.first_diverged_step <= b.first_diverged_step ? a : b), null);
+    h += `<tr><td colspan="3" data-cotjump="1" style="padding:2px 0 6px">
+      <div style="font-size:11px;color:#8891a4">这一屏从上到下依次是：</div>
+      <button data-jump="cottext" style="width:auto;padding:4px 9px;font-size:11.5px;
+        margin-top:3px">↓ 逐字读：第 ${firstRun ? firstRun.first_diverged_step : "—"} 步两臂怎么分岔</button>
+      <div data-jumphint="1" style="font-size:10.5px;color:#5f6b80;margin-top:3px"></div>
+    </td></tr>`;
+  }
+  h += renderDivergenceReadout();
   h += renderCotEffect();
   h += `<tr><td class="note">注入</td><td class="tok">${p.direction} @ ${p.strength} → L${p.inject_layer}</td></tr>`;
   h += `<tr><td class="note">两条流同步到</td><td class="tok">第 ${p.n_common_prefix} 步</td></tr>`;
@@ -1654,7 +1836,46 @@ function drawDeltaSide(){
     }
   }
   tb.innerHTML = h;
+  // The jump hint's numbers can only be measured after insertion -- the offset
+  // depends on how tall the divergence readout rendered at this layer, which
+  // varies. Writing a plausible-looking figure into the markup instead would be
+  // a guess wearing a measurement's clothes.
+  const jh = tb.querySelector("[data-jumphint]");
+  if(jh){
+    const box = tb.parentElement;
+    const blk = tb.querySelector("[data-cottext]");
+    // Write the text FIRST, then measure, then write again with the number.
+    // Measuring before writing was measuring a different page: the hint sits in
+    // the jump row directly ABOVE the block, so filling it grew it by 34px and
+    // pushed the block down by exactly 34px. The number on screen was 2407
+    // while the real offset was 2441 -- a figure that described the world
+    // before it was written. The two writes are the same single line, so the
+    // second one cannot move anything.
+    const line = off => "（它在下面 " + Math.round(off) +
+      " px 处，这个窗口只有 " + box.clientHeight + " px 高；点上面的按钮直接跳过去）";
+    const write = () => {
+      if(!blk || !box) return;
+      jh.textContent = line(0);
+      jh.textContent = line(blk.getBoundingClientRect().top - box.getBoundingClientRect().top);
+    };
+    requestAnimationFrame(() => setTimeout(write, 200));
+  }
   // 层按钮在 innerHTML 之后才存在，事件只能在写入后绑。
+  const jump = tb.querySelector('[data-jump="cottext"]');
+  if(jump){
+    jump.onclick = () => {
+      const box = tb.parentElement;
+      // Land on the TEXTS, not on the block's top. The block is 1212px tall in
+      // a 300px window: jumping to its top showed the reader a heading and four
+      // numbers, with the two arms' prose still 400-700px further down. The
+      // prose is the whole reason the link exists.
+      const tgt = tb.querySelector("[data-cotpre]") || tb.querySelector("[data-cottext]");
+      // Scroll the inner box, not the window: this page does not scroll
+      // (documentElement.scrollHeight == innerHeight here), so a window.scrollTo
+      // would silently do nothing and look like a dead button.
+      if(tgt && box) box.scrollTop += tgt.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
+    };
+  }
   const chips = tb.querySelectorAll("[data-dvl]");
   for(let i=0;i<chips.length;i++){
     chips[i].onclick = () => { S.dvLayer = chips[i].dataset.dvl; drawDeltaSide(); };
@@ -1662,6 +1883,14 @@ function drawDeltaSide(){
   const cotBtns = tb.querySelectorAll("[data-cotdir]");
   for(let i=0;i<cotBtns.length;i++){
     cotBtns[i].onclick = () => { S.cotDir = cotBtns[i].dataset.cotdir; drawDeltaSide(); };
+  }
+  // 正文挑选器。落在 innerHTML 之后才存在，只能在这里绑。
+  const cotPick = tb.querySelector("[data-cotpick]");
+  if(cotPick){
+    cotPick.onchange = () => {
+      const v = parseInt(cotPick.value, 10);
+      if(Number.isFinite(v)){ S.cotTextPick = v; drawDeltaSide(); }
+    };
   }
 }
 /* ---- 浏览器端投影：这一层自己的 PCA 基 ---- */
