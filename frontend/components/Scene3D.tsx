@@ -15,7 +15,7 @@
 
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Stars, Html, Line } from "@react-three/drei";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { useApp } from "@/lib/store";
@@ -103,11 +103,22 @@ function TrajectoryRibbon({ frames }: { frames: Frame[] }) {
 function TokenParticles({ frames }: { frames: Frame[] }) {
   // Render the last 80 points as small spheres. Older ones fade out.
   const recent = frames.slice(-80);
+  // 点一颗珠子 → 逐层推导链跳到那一步。`focusedStep` 是链与 3D 之间唯一的
+  // 共享状态（lib/store），所以反向（链跳步 → 3D 高亮）也已经自动成立。
+  const focusedStep = useApp((s) => s.focusedStep);
+  const setFocusedStep = useApp((s) => s.setFocusedStep);
+  const [hoverId, setHoverId] = useState<number | null>(null);
   return (
     <group>
       {recent.map((f, i) => {
         const c = colorOf(f);
         const opacity = 0.25 + (i / recent.length) * 0.75;
+        // 聚焦态用**几何**放大而不是只改颜色：颜色在暗背景下不好判读，
+        // 而半径是可以量的（判据读 getBoundingClientRect 不管用时，
+        // 这里靠 <Html> 徽章把状态暴露到真实 DOM 上）。
+        const isFocused = focusedStep === f.step_id;
+        const isHover = hoverId === f.step_id;
+        const r = isFocused ? 0.028 : isHover ? 0.02 : 0.012;
         return (
           <mesh
             key={f.step_id}
@@ -116,18 +127,95 @@ function TokenParticles({ frames }: { frames: Frame[] }) {
               f.point.y / PCA_WORLD_SCALE,
               f.point.z / PCA_WORLD_SCALE,
             ]}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFocusedStep(f.step_id);
+            }}
+            onPointerOver={(e) => {
+              e.stopPropagation();
+              setHoverId(f.step_id);
+              document.body.style.cursor = "pointer";
+            }}
+            onPointerOut={() => {
+              setHoverId(null);
+              document.body.style.cursor = "";
+            }}
           >
-            <sphereGeometry args={[0.012, 8, 8]} />
+            <sphereGeometry args={[r, 12, 12]} />
             <meshStandardMaterial
-              color={c}
-              emissive={c}
-              emissiveIntensity={0.6}
+              color={isFocused ? "#f9fafb" : c}
+              emissive={isFocused ? "#f9fafb" : c}
+              emissiveIntensity={isFocused ? 3.0 : 0.6}
               transparent
               opacity={opacity}
             />
           </mesh>
         );
       })}
+      {/* 聚焦态的标签。drei 的 <Html> 是真实 DOM，所以判据能读到它 ——
+          WebGL 画的东西读不到，这是唯一能把 3D 状态交给判据的通道。
+          三个分支必须都出声：
+            · 步号在窗口内  → 贴着珠子显示 token
+            · 步号在窗口外  → 明说不在窗口、已加载多少步
+            · 没有聚焦      → 只报已加载步数
+          静默什么都不显示是最坏的一种：读者会以为联动坏了。 */}
+      <Html
+        position={[0, WORLD_HALF_EXTENT * 0.62, 0]}
+        distanceFactor={undefined}
+        style={{ pointerEvents: "none" }}
+      >
+        <div
+          data-scene-loaded={frames.length}
+          data-scene-window-low={recent.length ? recent[0].step_id : ""}
+          data-scene-window-high={recent.length ? recent[recent.length - 1].step_id : ""}
+          data-scene-focus-state={
+            focusedStep == null
+              ? "none"
+              : recent.some((x) => x.step_id === focusedStep)
+              ? "in-window"
+              : "out-of-window"
+          }
+          className="px-1.5 py-0.5 rounded bg-black/70 border border-border text-[9px] font-mono whitespace-nowrap text-gray-400"
+        >
+          3D 已加载 {frames.length} 步
+          {recent.length > 0 && (
+            <>
+              {" "}· 可见 {recent[0].step_id}–{recent[recent.length - 1].step_id}
+            </>
+          )}
+          {focusedStep != null &&
+            !recent.some((x) => x.step_id === focusedStep) && (
+              <span className="text-amber-500" data-scene-focus-miss={focusedStep}>
+                {" "}· 第 {focusedStep} 步不在 3D 窗口内
+              </span>
+            )}
+        </div>
+      </Html>
+      {focusedStep != null &&
+        (() => {
+          const f = recent.find((x) => x.step_id === focusedStep);
+          if (!f) return null;
+          return (
+            <Html
+              position={[
+                f.point.x / PCA_WORLD_SCALE,
+                f.point.y / PCA_WORLD_SCALE,
+                f.point.z / PCA_WORLD_SCALE,
+              ]}
+              distanceFactor={3}
+              style={{ pointerEvents: "none" }}
+            >
+              <div
+                data-scene-focus="1"
+                data-scene-focus-step={f.step_id}
+                data-scene-focus-token={f.token ?? ""}
+                className="px-1.5 py-0.5 rounded bg-black/80 border border-accent text-[9px] font-mono whitespace-nowrap"
+              >
+                step {f.step_id} · {f.token || "·"}
+              </div>
+            </Html>
+          );
+        })()}
     </group>
   );
 }
