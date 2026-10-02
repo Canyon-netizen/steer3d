@@ -65,6 +65,25 @@ class SessionState:
         self.speed: float = 1.0
         self.paused = False
         self.cancelled = False
+        # Bumped whenever a new stream is started or the session is reset.
+        # Frames carry the epoch they were produced under, and on_frame
+        # drops anything older.
+        #
+        # Why this is needed: the runner's work runs inside
+        # `loop.run_in_executor`, i.e. on a plain thread. Cancelling the
+        # asyncio task does NOT stop that thread, and every frame it has
+        # already handed to `asyncio.run_coroutine_threadsafe` still
+        # lands. So `reset` cleared the UI's token list and then one or
+        # two more tokens from the *previous* recording arrived
+        # afterwards -- the panel showed a stray token from another
+        # problem sitting at the head of a freshly reset trace.
+        #
+        # `cancelled` alone cannot fix this: run_stream sets it back to
+        # False when it begins, so a superseded thread that has not yet
+        # reached its next is_cancelled() check sees False and keeps
+        # going. An epoch is monotonic, so a stale thread can never
+        # un-stale itself.
+        self.epoch = 0
         factory = runner_factory or default_runner
         self.runner = factory()
         self.projector = OnlinePCA(d=self.runner.d_model, target_dim=3, window=256)
@@ -140,6 +159,10 @@ async def ws_endpoint(websocket: WebSocket):
         """
         state.cancelled = False
         state.paused = False
+        # Capture the epoch this run belongs to. Anything a superseded
+        # thread emits afterwards carries an older one and is dropped in
+        # on_frame, so a reset or a re-start leaves no residue.
+        epoch = state.epoch
         state.runner.reset()
         # Reset projector for a fresh path
         state.projector.reset()
@@ -147,14 +170,47 @@ async def ws_endpoint(websocket: WebSocket):
         loop = asyncio.get_running_loop()
         send = websocket.send_json
 
+        async def _send_if_current(ep: int, frame: Frame) -> None:
+            """Re-check the epoch on the event loop, immediately before
+            the send actually happens.
+
+            Checking in `on_frame` is not enough. That runs on the
+            runner's thread and only *schedules* the send via
+            run_coroutine_threadsafe; the coroutine then sits in the
+            loop's queue. A frame handed over microseconds before the
+            next `start` bumps the epoch is therefore already queued, and
+            it lands on the socket *after* the new stream began -- the
+            UI then shows the tail of the old recording at the head of
+            the new one. Re-checking here closes that window: the epoch
+            is only ever bumped from the loop too, so "passed the check"
+            and "was still current" are the same statement.
+            """
+            if ep != state.epoch:
+                return
+            await send(frame.to_dict())
+
         def on_frame(frame: Frame) -> None:
-            asyncio.run_coroutine_threadsafe(send(frame.to_dict()), loop)
+            if epoch != state.epoch:
+                return
+            asyncio.run_coroutine_threadsafe(
+                _send_if_current(epoch, frame), loop)
 
         def is_paused() -> bool:
             return state.paused
 
         def is_cancelled() -> bool:
-            return state.cancelled
+            # Per-run, not per-session. `state.cancelled` cannot be used
+            # here: run_stream sets it back to False when the *new* run
+            # begins, so a superseded thread that has not yet reached its
+            # next check sees False and keeps streaming to the end of the
+            # trajectory. Measured on the two-back-to-back-start case: the
+            # old run emitted 294 further frames after being replaced.
+            #
+            # The epoch is monotonic and only this session bumps it, so
+            # "my epoch is no longer current" is the same statement as
+            # "I have been replaced" -- and unlike the flag it cannot be
+            # reset by the run that replaced me.
+            return state.cancelled or epoch != state.epoch
 
         def get_speed() -> float:
             return state.speed
@@ -191,6 +247,10 @@ async def ws_endpoint(websocket: WebSocket):
                 if stream_task and not stream_task.done():
                     stream_task.cancel()
                 state.cancelled = True
+                # Retire the previous run before the new one starts, so
+                # its in-flight frames are dropped rather than appended to
+                # the new recording.
+                state.epoch += 1
                 await asyncio.sleep(0.05)
                 state.prompt = str(payload.get("prompt", "Why is the sky blue?"))
                 layer = int(payload.get("layer", state.layer))
@@ -201,6 +261,8 @@ async def ws_endpoint(websocket: WebSocket):
                 state.cancelled = True
                 if stream_task and not stream_task.done():
                     stream_task.cancel()
+                # Retire the thread, not just the task: see SessionState.epoch.
+                state.epoch += 1
                 stream_task = None
 
             elif kind == "pause":
@@ -222,6 +284,9 @@ async def ws_endpoint(websocket: WebSocket):
                 state.cancelled = True
                 if stream_task and not stream_task.done():
                     stream_task.cancel()
+                # Same reason as `start`: retire the running thread before
+                # reset_ack tells the UI to clear its token list.
+                state.epoch += 1
                 state.paused = False
                 state.runner.reset()
                 state.projector.reset()

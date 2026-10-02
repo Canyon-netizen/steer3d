@@ -24,7 +24,7 @@
  * works when you reach the frontend through a LAN IP or a tunnel.
  */
 
-export const DEFAULT_WS_PORT_CANDIDATES = [9500, 9300, 9005, 8300, 8200, 8000];
+export const DEFAULT_WS_PORT_CANDIDATES = [9501, 9500, 9300, 9005, 8300, 8200, 8000];
 
 /** ms to wait for a candidate socket to open before giving up on it. */
 const PROBE_TIMEOUT_MS = 1200;

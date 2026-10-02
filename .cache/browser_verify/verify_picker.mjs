@@ -92,52 +92,147 @@ try {
   rec('E6 换选项后选中的 id 真的变了', !!(before && after && before !== after),
       `${before} -> ${after}`);
 
-  // 点 Start，token 流应当与所选 id 对应。用后端独立取同一 id 的首几个
-  // token 比对，避免"页面显示的其实是别的轨迹"这种假绿。
-  const got = await page.eval(`(async () => {
-    return await new Promise(res => {
-      const sel = [...document.querySelectorAll('select')].find(x =>
-        [...x.options].some(o => /^aime__/.test(o.value)));
-      if(!sel) return res({ok:false, why:'no trajectory select'});
-      const want = sel.value;
-      let ws;
-      try { ws = new WebSocket('ws://' + location.hostname + ':${BACKEND}/ws'); }
-      catch(e){ return res({ok:false, why:'throw'}); }
-      const out=[];
-      const t=setTimeout(()=>{ try{ws.close();}catch{}
-        res({ok:out.length>0, out, picked:want, why: out.length?'':'no frame in 30s'}); }, 12000);
-      ws.onmessage=ev=>{
-        try{
-          const m=JSON.parse(ev.data);
-          if(m.kind==='ready'){
-            ws.send(JSON.stringify({kind:'start',payload:{prompt:want,layer:14}}));
-          } else if(m.kind==='frame'){
-            out.push(m.token);
-            if(out.length>=5){ clearTimeout(t); ws.close();
-              res({ok:true,out,picked:want}); }
-          }
-        }catch(e){}
-      };
-      ws.onerror=()=>{clearTimeout(t);res({ok:false,why:'ws error',picked:want});};
-    });
-  })()`);
-  rec('E7 按所选 id 回放，收到 >=5 帧', got.ok,
-      got.ok ? `id=${got.picked} tokens=${JSON.stringify(got.out)}` : (got.why || '无帧'));
+  /* ---------------------------------------------------------------- 7 */
+  // 从这里开始，判据不再问「有没有 token 在动」，而是问
+  // **页面上显示的每一个 token，是不是都属于用户选的那条记录**。
+  //
+  // 上一版（E7b 看 N tokens 增长 + E9 在整页 grep '<think>'）是两条
+  // 假绿，实测两条都抓不住把 prompt 换掉的变异：
+  //
+  //  1. `start` 不清 frames。store 的 ingestFrame 是追加，只有 reset
+  //     才清（store.ts:90 / :123）。所以换记录后，页面上仍留着
+  //     **上一条**记录的 token。E9 在整页 innerText 里 grep
+  //     '<think>'，命中的是 E6 步骤就已经播出来的 think 记录的残留，
+  //     不是它选的那条 —— 于是无论 Start 发的是哪个 id 都通过。
+  //  2. 真正的信息在**逐字比对**：npz 里有每条记录的真实 token
+  //     （token_ids，与 _Decoder.text 读的是同一个字段），比对它
+  //     才谈得上"页面显示的是不是这条记录"。
+  //
+  // 所以顺序固定为：reset（清空）→ 选记录 → Start → 读前 N 个
+  // token → 与 npz 真值逐字比对。
+  //
+  // 真值由 .cache/mutpick/dump_truth.py 从 npz 直读导出。它必须是
+  // 独立来源：若判据自己也是从后端拿的，后端选错记录时两边一起错，
+  // 判据恒绿。
+  const TRUTH = JSON.parse(
+    await (await import('node:fs/promises')).readFile(
+      '/Users/zhourui/code/steer3d/.cache/mutpick/ground_tokens.json', 'utf8'));
 
-  // 所选 id 的 mode 必须和首帧内容自洽：__think 的记录第一步通常是 <think>
-  if (got.ok) {
-    const modeOk = got.picked.endsWith('__no_think')
-      ? !/<think>/.test(got.out.join(''))
-      : true;
-    rec('E8 所选 id 的 think/no_think 与内容自洽', modeOk,
-        `id=${got.picked} first=${JSON.stringify(got.out.slice(0,3))}`);
-  }
+  // 页面上当前显示的 token 列表。
+  //
+  // 必须**锚在 "Reasoning Trace" 这个标题上**，再取它所在行的
+  // nextElementSibling —— 那才是 TokenStreamPanel 的滚动盒。
+  //
+  // 上一版写的是「找任意含 Reasoning Trace 文本且含 span 的 div，
+  // 再找它里面第一个 className 带 overflow-y-auto 的 div」。错在
+  // 两处：(1) querySelectorAll 返回文档序，祖先在子孙之前，所以
+  // 第一个命中的是包住整个面板网格的大容器；(2) 于是
+  // `[...大容器.querySelectorAll('div')].find(overflow-y-auto)` 抓到
+  // 的是页面上更靠前的另一个可滚动面板（TopTokensPanel 也有
+  // overflow-y-auto），它里面没有 span。读回来是空数组，E8/E9 于是
+  // 报 "no tokens on page" —— 判据自己坏了，看起来像页面坏了。
+  //
+  // TokenStreamPanel 的结构（frontend/components/TokenStreamPanel.tsx）：
+  //   div.panel
+  //     div.row  <-- h2 "Reasoning Trace" + span "N tokens"
+  //     div.box  <-- overflow-y-auto，每个 token 一个 span
+  const pageTokens = () => page.eval(`(() => {
+    const hdr = [...document.querySelectorAll('*')].find(e =>
+      e.children.length === 0
+      && (e.textContent || '').trim() === 'Reasoning Trace');
+    if (!hdr || !hdr.parentElement) return null;
+    const box = hdr.parentElement.nextElementSibling;
+    if (!box) return null;
+    return [...box.querySelectorAll('span')]
+      .map(s => s.textContent || '')
+      // frames 为空时盒子里是一个占位 span，不是 token
+      .filter(t => !/awaiting first frame/.test(t));
+  })()`);
+
+  const nTok = () => page.eval(`(() => {
+    const m = (document.body.innerText || '').match(/(\\d+)\\s*tokens/);
+    return m ? parseInt(m[1], 10) : 0;
+  })()`);
+
+  const clickBtn = (re) => page.eval(`(() => {
+    const b = [...document.querySelectorAll('button')]
+      .find(x => ${re}.test(x.textContent || ''));
+    if (!b) return false;
+    b.click();
+    return true;
+  })()`);
+
+  // 选一条记录并 Start，等到页面上 token 数稳定在 >= 4。
+  // 返回 {id, toks} —— toks 是 reset 之后新流出来的那些。
+  const playRecord = async (pickRe) => {
+    const id = await page.eval(`(() => {
+      const s = [...document.querySelectorAll('select')].find(x =>
+        [...x.options].some(o => /^aime__/.test(o.value)));
+      if (!s) return null;
+      const opt = [...s.options].find(o => ${pickRe});
+      if (!opt) return null;
+      s.value = opt.value;
+      s.dispatchEvent(new Event('change', { bubbles: true }));
+      return opt.value;
+    })()`);
+    if (!id) return { id: null, toks: [] };
+    // 先清空，否则读到的是上一条记录的 token —— 这一步就是
+    // 上一版 E9 假绿的直接原因。
+    await clickBtn('/reset/i');
+    await sleep(1200);
+    const afterReset = await pageTokens();
+    await clickBtn('/start|play|run/i');
+    let toks = [];
+    for (let i = 0; i < 20; i++) {
+      await sleep(1000);
+      toks = await pageTokens();
+      if (toks.length >= 4) break;
+    }
+    return { id, toks, residue: afterReset };
+  };
+
+  // 逐字比对：页面前 k 个 token 与 npz 真值的前 k 个必须完全相同。
+  const matchTruth = (id, toks) => {
+    const want = TRUTH[id] || [];
+    const k = Math.min(toks.length, want.length, 6);
+    if (k === 0) return { ok: false, why: 'no tokens on page' };
+    const gotA = toks.slice(0, k).join('');
+    const wantA = want.slice(0, k).join('');
+    return { ok: gotA === wantA, k, gotA, wantA };
+  };
+
+  const r1 = await playRecord('/__no_think$/.test(o.value)');
+  const m1 = r1.id ? matchTruth(r1.id, r1.toks) : { ok: false, why: 'no no_think option' };
+  rec('E7 reset 之后页面上确实没有残留 token',
+      (r1.residue || []).length === 0,
+      `after reset the panel still had ${(r1.residue || []).length} token(s): ${JSON.stringify((r1.residue||[]).slice(0,4))}`);
+  rec('E8 所选记录的 token 与 npz 真值逐字相同',
+      m1.ok,
+      m1.ok ? `id=${r1.id} k=${m1.k} ${JSON.stringify(m1.gotA.slice(0,60))}`
+            : `id=${r1.id} want=${JSON.stringify(String(m1.wantA).slice(0,60))} got=${JSON.stringify(String(m1.gotA).slice(0,60))} (${m1.why||'mismatch'})`);
+
+  /* ---------------------------------------------------------------- 9 */
+  // 换一条记录，播的必须是新选的那条 —— 靠真值比对，不靠 '<think>'
+  // 这种"页面上碰巧有过的字符串"。
+  const r2 = await playRecord('/__think$/.test(o.value)');
+  const m2 = r2.id ? matchTruth(r2.id, r2.toks) : { ok: false, why: 'no think option' };
+  // 额外确认它和上一条不是同一条：两条真值首 token 必须不同，
+  // 否则这条判据在"两条记录恰好一样"时会白送通过。
+  const distinct = r1.id && r2.id && r1.id !== r2.id
+    && (TRUTH[r1.id] || [])[0] !== (TRUTH[r2.id] || [])[0];
+  rec('E9 换记录后播的是新选的那条（与 npz 真值逐字比对）',
+      m2.ok && distinct,
+      m2.ok ? `id=${r2.id} k=${m2.k} first=${JSON.stringify((m2.gotA||'').slice(0,30))} distinct=${distinct}`
+            : `id=${r2.id} want=${JSON.stringify(String(m2.wantA).slice(0,60))} got=${JSON.stringify(String(m2.gotA).slice(0,60))} (${m2.why||'mismatch'}) distinct=${distinct}`);
+
+  const nEnd = await nTok();
+  rec('E10 页面在流动（N tokens 计数 > 0）', nEnd > 0, `n_tokens=${nEnd}`);
 
   const errs = page.events
     .filter(e => e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error')
     .map(e => (e.params.args || []).map(a => a.value ?? a.description ?? '').join(' '))
     .filter(t => !/favicon|Failed to load resource/i.test(t));
-  rec('E9 页面无 console error', errs.length === 0, errs.length ? errs.slice(0,2).join(' | ') : 'none');
+  rec('E11 页面无 console error', errs.length === 0, errs.length ? errs.slice(0,2).join(' | ') : 'none');
 } catch (e) {
   rec('X 脚本崩了', false, String(e && e.stack || e).slice(0, 250));
 } finally {
