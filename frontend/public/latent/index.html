@@ -1836,7 +1836,7 @@ function renderTokenBackmap(){
     实测最小奇异值 <b>${nfmt(rk.sigma_min, 4)}</b>、最大
     <b>${nfmt(rk.sigma_max, 2)}</b>，条件数只有
     <b>${nfmt(rk.cond, 1)}</b>，秩 <b>${esc2(rk.numerical_rank)}/${esc2(rk.hidden)}</b>。
-    单位向量 n 满足 ‖W·n‖ ≥ ${nfmt(rk.min_norm_over_unit_n, 4)}——
+    单位向量 n 满足 ‖W·n‖ ≥ ${nfmt(rk.min_wnorm_over_unit_n, 4)}——
     也就是说<b>任何方向都会改变 logits</b>，只是改多改少的问题。
     条件数这么小也说明这不是数值误差凑出来的。
     <div style="margin-top:3px;color:#8a94a6">产物原文：
@@ -1965,15 +1965,23 @@ function renderTokenBackmap(){
       丢掉了其余 ${esc2((B.vocab_size||0) - 1)} 个数，不是读出本身。</div>`;
   }
 
-  // 双向自证：全词表 logits 能精确还原 h，存下来的 top-64 还原不了。
+  // 双向自证：全词表 logits 能精确还原 h，存下来的 top-K 还原不了。
   const rv = B.reversibility || {};
+  // 截断宽度从 step.top64_rank 读。rv.top64_denom 这个键名有歧义：它存的是
+  // 分母（151936，等于总词表数），不是 top-K 的 K。第一版直接拿它渲染，
+  // 页面就写成「用存下来的 top-151936 还原」—— 那句话在数学上是错的，
+  // 而且错得很显眼：151936 就是全词表，而上面刚说全词表能精确还原。
+  const topK = (steps.find(x => x && x.top64_rank) || {}).top64_rank || 64;
   h += `<div class="note" style="margin:6px 0 0;padding:6px 9px;background:#0e1420;
        border-left:2px solid #3a4456;border-radius:0 4px 4px 0;font-size:10px;
        color:#8a94a6">
     自证：用<b>全部 ${esc2(rv.full_logits_denom)} 维</b> logits 线性还原 h，
     相对误差 ${nfmt(rv.h_from_full_logits_rel_err, 12)}（读出是单射，这印证了上面的满秩）。
-    但用存下来的 <b>top-${esc2(rv.top64_denom)}</b> 还原，相对误差
-    ${nfmt(rv.h_from_top64_rel_err, 3)}——丢信息的确实是 argmax 那一步。</div>`;
+    但用存下来的 <b>top-${esc2(topK)}</b> 还原，相对误差
+    ${nfmt(rv.h_from_top64_rel_err, 3)}——丢信息的确实是 argmax 那一步。
+    <span style="color:#5f6b80">（产物里这个字段叫 <code>top64_denom</code>，
+    但它存的是分母 ${esc2(rv.top64_denom)} 而不是截断宽度；
+    真正的 ${esc2(topK)} 来自 <code>step.top64_rank</code>，这里不拿 denom 冒充。）</span></div>`;
 
   h += `</div>`;
   return h;

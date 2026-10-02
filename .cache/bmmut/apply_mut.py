@@ -73,7 +73,24 @@ def m6(s):
     return s.replace(old, new, 1)
 
 
-MUTS = {"M1": m1, "M2": m2, "M3": m3, "M4": m4, "M5": m5, "M6": m6}
+def m7(s):
+    """拿分母冒充 top-K 宽度 —— 还原「top-151936」那次真实错误。"""
+    old = "${esc2(topK)}</b> 还原，相对误差"
+    new = "${esc2(rv.top64_denom)}</b> 还原，相对误差 /* MUT_DENOM_AS_K */"
+    assert old in s, "M7 anchor not found"
+    return s.replace(old, new, 1)
+
+
+def m8(s):
+    """‖W·n‖ 下界取错字段名 —— 破折号会露出来。"""
+    old = "${nfmt(rk.min_wnorm_over_unit_n, 4)}"
+    new = "${nfmt(rk.min_norm_over_unit_n, 4)} /* MUT_SIGMA_LO */"
+    assert old in s, "M8 anchor not found"
+    return s.replace(old, new, 1)
+
+
+MUTS = {"M1": m1, "M2": m2, "M3": m3, "M4": m4,
+        "M5": m5, "M6": m6, "M7": m7, "M8": m8}
 
 if __name__ == "__main__":
     which = sys.argv[1]

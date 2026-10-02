@@ -178,6 +178,38 @@ try {
       dashes !== null && dashes.length === 0,
       dashes && dashes.length ? dashes.join(' | ') : 'none');
 
+  /* ---------------------------------------------------- 语义正确，不只存在 */
+  // 前面几条盯的是"在不在、是不是空"，这一条盯"说的是不是对的"。
+  // 真实事故：产物里字段叫 top64_denom，值是 151936（分母），
+  // 页面直接拿它渲染成「用存下来的 top-151936 还原」——
+  // 151936 正好是全词表数，而同一段上一句刚说全词表能精确还原，
+  // 两句话自相矛盾。存在性判据全绿，文本也"有内容"。
+  const semantics = await page.eval(`(() => {
+    const r = document.querySelector('[data-bmroot]');
+    if(!r) return null;
+    const t = r.innerText;
+    const i = t.indexOf('单位向量');
+    const line = i >= 0 ? t.slice(i, i + 60) : '';
+    return {
+      hasTop64: /top-64/.test(t),
+      // 「用存下来的 top-151936」这类拿分母冒充宽度的写法
+      badTop: (t.match(/top-\\d+/g) || []).filter(x => x !== 'top-64'),
+      sigmaLine: line,
+      // 布尔判断放在页面侧算好再传出来。放到 Node 侧的话，
+      // 这段正则要穿过「JS 模板字符串 -> 页面 eval -> 正则」两层转义，
+      // 反斜杠层数一数错就静默失配 —— 判据报红而页面明明写着 4.4217。
+      sigmaOk: /满足 .* 4\\.42/.test(line),
+    };
+  })()`);
+  rec('B13 top-K 写的是真实截断宽度 64，不是分母 151936',
+      !!(semantics && semantics.hasTop64 && semantics.badTop.length === 0),
+      semantics ? `hasTop64=${semantics.hasTop64} 异常=${JSON.stringify(semantics.badTop)}`
+                : '无块');
+
+  rec('B14 「单位向量 n 满足 ‖W·n‖ ≥ 」后面是一个真实数值',
+      !!(semantics && semantics.sigmaOk),
+      semantics ? semantics.sigmaLine.replace(/\s+/g, ' ') : '无');
+
   const shot = await page.screenshot(
     '/Users/zhourui/code/steer3d/.cache/browser_verify/shots/backmap.png',
     { fullPage: true });

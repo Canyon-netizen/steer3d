@@ -21,7 +21,9 @@ case "$M" in
   M3) D="条件数字段名取错（cond→condition）";       E=B3; K="rk.condition" ;;
   M4) D="厚锥/薄锥合并成一行";                     E=B4; K="MUT_MERGED" ;;
   M5) D="步按钮点击无响应";                         E=B8; K="MUT_NO_OP" ;;
-  M6) D="删掉「并列而不是翻转」";                   E=B9; K="MUT_TIE_GONE" ;;
+  M6) D="删掉「并列而不是翻转」";                   E=B9;  K="MUT_TIE_GONE" ;;
+  M7) D="拿分母 151936 冒充 top-K 宽度";             E=B13; K="MUT_DENOM_AS_K" ;;
+  M8) D="‖W·n‖ 下界字段名取错";                     E=B14; K="MUT_SIGMA_LO" ;;
   *) echo "未知变异 $M"; exit 2 ;;
 esac
 
