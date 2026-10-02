@@ -123,3 +123,11 @@ datasets/models/
 frontend/public/latent/data/
 frontend/public/latent/data06/
 .cache/pylibs/
+
+# 浏览器审计用的 Chrome profile 目录。`.cache/` 已经被忽略，但 `git add -f`
+# 会绕过忽略规则——曾经 `git add -f .cache/arreadout/` 把 232 个 GPUCache /
+# DawnGraphiteCache / Code Cache 文件一起提交了。强制添加时只点名脚本文件，
+# 不要强制添加整个目录。
+.cache/*/profile*/
+.cache/*/cc/
+.cache/*/dc/
