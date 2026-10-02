@@ -1,0 +1,1273 @@
+{
+  "schema": "steer3d.vector_roles/1",
+  "generated_by": "backend/examples/analyse_vector_roles.py",
+  "model": "Qwen3-1.7B",
+  "framework": {
+    "three_measurements": [
+      "sufficiency",
+      "necessity",
+      "specificity"
+    ],
+    "source": "Elhage, Hume, Olsson, Wasserstein, Boffi, Gao, Nye & Binder, 'Toy Models of Superposition' (Anthropic, 2022), the 'Controlling a feature' section: a residual-stream direction is characterised by whether writing it is sufficient for a behaviour, whether the model itself writes to it when that behaviour happens (necessary), and whether it moves anything else (specific).",
+    "why_it_matters_here": "只有「加进去行为变了」这一个观测时，「这是 confidence 的实现」和「这是一个叫 confidence 的全局温度旋钮」给出完全一样的观测。三件套是把它们分开的最少测量。"
+  },
+  "layers": {
+    "native_extraction": 14,
+    "journal_injection": 20,
+    "note": "向量在第 14 层由 diff-of-means 抽出，32k 日志在第 20 层注入（registry.scaled 按该层 mean_norm 重新缩放：mean_norm(L14)=164.3，mean_norm(L20)=865.8）。两个层都算了：一个方向在定义它的层和被使用的层，未必是同一件事。"
+  },
+  "denominators": {
+    "n_trajectories": 48,
+    "n_steps_total": 69155,
+    "n_directions_projected": 22,
+    "n_layers_projected": 2,
+    "n_projection_values": 2112,
+    "n_projection_values_non_finite": 0,
+    "null_floor_formula": "1/sqrt(n-3)",
+    "null_floor_by_traj": 0.14907119849998599,
+    "null_floor_by_step_naive": 0.003802748707518186,
+    "why_by_traj": "解码步之间自相关极强，按步数算的 1/sqrt(n-3) 会小两个数量级，是作弊。独立单位是轨迹，所以门槛一律用 1/sqrt(n_traj-3)。"
+  },
+  "anchors": {
+    "note": "分母 = 被检查的步数",
+    "checks": {
+      "A1_last_layer_equals_last_hidden": {
+        "claim": "hidden_states[:, -1, :] == last_hidden",
+        "pass": 5820,
+        "total": 5820,
+        "rate": 1.0
+      },
+      "A2_emitted_token_is_stored_top1": {
+        "claim": "token_ids[t] == topk_indices[t, 0]",
+        "pass": 5790,
+        "total": 5820,
+        "rate": 0.9948453608247423
+      },
+      "A3_json_top1prob_equals_npz_softmax": {
+        "claim": "json tokens[t].top1_prob == softmax(topk_logits[t])[0]",
+        "pass": 5799,
+        "total": 5820,
+        "rate": 0.9963917525773196
+      }
+    },
+    "lm_head_anchor": {
+      "claim": "argmax(lm_head @ hidden_states[t, 27, :]) == topk_indices[t, 0]",
+      "status": "NOT_RECOMPUTED_HERE",
+      "reason": "本机没有 Qwen3-1.7B 权重（~/.cache/huggingface 不存在，/tmp/qwen3/master 不存在，transformers 未安装），而 zju-46 的 GPU 正被别的任务占用，不应该去抢。补这一步需要 lm_head.weight (151936x2048)。",
+      "pre_existing_measurement": "同一批 npz 的 logit lens 已经做过这一步：见 frontend/public/latent/data/logit_lens.json 的 anchor 块——all_steps 1532/1536 = 0.9974；top1-top2 margin >= 1.0 的可判定步 1420/1420 = 1.0；max_logit_error_vs_stored_topk = 0.125。该数字由 build_logit_lens.py 产出，不是本脚本重算的，引用而非复现。"
+    }
+  },
+  "observable_audit": {
+    "entropy": {
+      "n_steps": 69155,
+      "frac_steps_positive": 0.228356590268238,
+      "n_traj": 48,
+      "n_traj_constant_inside": 0,
+      "frac_traj_constant_inside": 0.0
+    },
+    "top1_prob": {
+      "n_steps": 69155,
+      "frac_steps_positive": 0.9153206564962765,
+      "n_traj": 48,
+      "n_traj_constant_inside": 0,
+      "frac_traj_constant_inside": 0.0
+    },
+    "self_check": {
+      "n_steps": 69155,
+      "frac_steps_positive": 0.005653965729159135,
+      "n_traj": 48,
+      "n_traj_constant_inside": 21,
+      "frac_traj_constant_inside": 0.4375,
+      "by_run_mode": {
+        "no_think": {
+          "n_traj": 24,
+          "all_positive": 0,
+          "all_negative": 24
+        },
+        "think": {
+          "n_traj": 24,
+          "all_positive": 0,
+          "all_negative": 24
+        }
+      },
+      "determined_by_run_mode": false,
+      "n_traj_matching_mode_at_step0": 48
+    },
+    "in_think": {
+      "n_steps": 69155,
+      "frac_steps_positive": 0.6285590340539368,
+      "n_traj": 48,
+      "n_traj_constant_inside": 45,
+      "frac_traj_constant_inside": 0.9375,
+      "by_run_mode": {
+        "no_think": {
+          "n_traj": 24,
+          "all_positive": 0,
+          "all_negative": 24
+        },
+        "think": {
+          "n_traj": 24,
+          "all_positive": 24,
+          "all_negative": 0
+        }
+      },
+      "determined_by_run_mode": true,
+      "n_traj_matching_mode_at_step0": 48,
+      "warning": "在这个语料上 in_think 在第 0 步就恒等于运行模式（48/48 条轨迹，45 条轨迹内部还是常数），所以「概念是否活跃」和「这次是不是 think 模式跑」在数据上是同一个变量，以它为标签的相关系数不能被读成「模型内部调制了这个概念」。"
+    },
+    "top1_switch": {
+      "n_steps": 69155,
+      "frac_steps_positive": 0.9882582604294701,
+      "n_traj": 48,
+      "n_traj_constant_inside": 0,
+      "frac_traj_constant_inside": 0.0
+    },
+    "step_frac": {
+      "n_steps": 69155,
+      "frac_steps_positive": 0.49999276986479646,
+      "n_traj": 48,
+      "n_traj_constant_inside": 0,
+      "frac_traj_constant_inside": 0.0
+    }
+  },
+  "necessity": {
+    "definition": "模型自己跑的时候，这个概念真的会调制这个方向上的激活吗？",
+    "method": "把每一步第 L 层的残差流投影到每个向量上（零 GPU，不跑前向、不碰权重），再与同一步的可观测行为做 Spearman。",
+    "in_sample_circular": {
+      "L14": {
+        "confidence_up": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 48,
+          "n_steps": 69155,
+          "rho_pooled": -0.6734294000408232,
+          "rho_within_traj": -0.6058903339391261,
+          "median_rho_per_traj": -0.6261027987876785,
+          "iqr_rho_per_traj": [
+            -0.6701726027868282,
+            -0.5895427892737188
+          ],
+          "n_traj_positive": 0,
+          "frac_traj_positive": 0.0,
+          "sign_test_p": 7.105427357601002e-15,
+          "boot_ci_median_rho": [
+            -0.648826284692371,
+            -0.6044627249187787
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "gate_statistic": "rho_within_traj",
+          "passes_gate": true,
+          "observable": "entropy",
+          "expected_sign": -1,
+          "circular": true,
+          "shuffled_control_rho": -0.11613764122236232,
+          "empirical_floor": 0.1715822631960435,
+          "gate_threshold": 0.1715822631960435,
+          "gate_threshold_is_stricter_than_naive": true,
+          "signed_stat": 0.6058903339391261,
+          "n_random_directions_in_control": 16
+        },
+        "confidence_down": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 48,
+          "n_steps": 69155,
+          "rho_pooled": 0.6734294000408232,
+          "rho_within_traj": 0.6058903339391261,
+          "median_rho_per_traj": 0.6261027987876785,
+          "iqr_rho_per_traj": [
+            0.5895427892737188,
+            0.6701726027868282
+          ],
+          "n_traj_positive": 48,
+          "frac_traj_positive": 1.0,
+          "sign_test_p": 7.105427357601002e-15,
+          "boot_ci_median_rho": [
+            0.6044627249187787,
+            0.648826284692371
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "gate_statistic": "rho_within_traj",
+          "passes_gate": true,
+          "observable": "entropy",
+          "expected_sign": 1,
+          "circular": true,
+          "shuffled_control_rho": 0.11613764122236232,
+          "empirical_floor": 0.1715822631960435,
+          "gate_threshold": 0.1715822631960435,
+          "gate_threshold_is_stricter_than_naive": true,
+          "signed_stat": 0.6058903339391261,
+          "n_random_directions_in_control": 16
+        },
+        "caution": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 27,
+          "n_steps": 69155,
+          "rho_pooled": 0.12636634348201037,
+          "rho_within_traj": 0.125005748908025,
+          "median_rho_per_traj": 0.13209793941413348,
+          "iqr_rho_per_traj": [
+            0.09782728853687633,
+            0.16490911392470942
+          ],
+          "n_traj_positive": 27,
+          "frac_traj_positive": 1.0,
+          "sign_test_p": 1.4901161193847656e-08,
+          "boot_ci_median_rho": [
+            0.11447180500323165,
+            0.16124652280911764
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "base_rate": 0.005653965729159135,
+          "n_positive_steps": 391,
+          "n_negative_steps": 68764,
+          "point_biserial_shrink_factor": 0.07497998666772775,
+          "cohens_d_implied_by_rho": 1.6853343018317701,
+          "cohens_d_demanded_by_floor": 1.9881465058215055,
+          "auc_pooled": 0.9865141063671424,
+          "auc_within_traj": 0.9812757775919446,
+          "auc_null_floor_naive": 0.014640481672618746,
+          "gate_statistic": "auc_within_traj",
+          "passes_gate": true,
+          "observable": "self_check",
+          "expected_sign": 1,
+          "circular": true,
+          "shuffled_control_rho": 0.021224918882573617,
+          "empirical_floor": 0.7407861961911016,
+          "gate_threshold": 0.7407861961911016,
+          "gate_threshold_is_stricter_than_naive": true,
+          "signed_stat": 0.9812757775919446,
+          "n_random_directions_in_control": 16
+        },
+        "creativity": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 3,
+          "n_steps": 69155,
+          "rho_pooled": 0.6474527987818575,
+          "rho_within_traj": 0.048948214295728924,
+          "median_rho_per_traj": 0.595682491987261,
+          "iqr_rho_per_traj": [
+            0.40014494695200775,
+            0.6015810480316548
+          ],
+          "n_traj_positive": 3,
+          "frac_traj_positive": 1.0,
+          "sign_test_p": 0.25,
+          "boot_ci_median_rho": [
+            0.20460740191675458,
+            0.6074796040760486
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "base_rate": 0.6285590340539368,
+          "n_positive_steps": 43468,
+          "n_negative_steps": 25687,
+          "point_biserial_shrink_factor": 0.4831899986166091,
+          "cohens_d_implied_by_rho": 1.339954884487549,
+          "cohens_d_demanded_by_floor": 0.30851466074790945,
+          "auc_pooled": 0.8868116565897686,
+          "auc_within_traj": 0.5292434288560696,
+          "auc_null_floor_naive": 0.0022718663957551795,
+          "gate_statistic": "auc_within_traj",
+          "passes_gate": false,
+          "observable": "in_think",
+          "expected_sign": 1,
+          "circular": true,
+          "shuffled_control_rho": 0.6185655492260511,
+          "empirical_floor": 0.5110826674034613,
+          "gate_threshold": 0.5110826674034613,
+          "gate_threshold_is_stricter_than_naive": true,
+          "signed_stat": 0.5292434288560696,
+          "n_random_directions_in_control": 16
+        },
+        "reasoning_deep": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 48,
+          "n_steps": 69155,
+          "rho_pooled": 0.615424600948964,
+          "rho_within_traj": 0.6632003960242712,
+          "median_rho_per_traj": 0.7332854965593185,
+          "iqr_rho_per_traj": [
+            0.6091654006266086,
+            0.7923280819771567
+          ],
+          "n_traj_positive": 48,
+          "frac_traj_positive": 1.0,
+          "sign_test_p": 7.105427357601002e-15,
+          "boot_ci_median_rho": [
+            0.6374269553286028,
+            0.7710950696586953
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "gate_statistic": "rho_within_traj",
+          "passes_gate": true,
+          "observable": "step_frac",
+          "expected_sign": 1,
+          "circular": true,
+          "shuffled_control_rho": -0.0012611501876583827,
+          "empirical_floor": 0.14907119849998599,
+          "gate_threshold": 0.14907119849998599,
+          "gate_threshold_is_stricter_than_naive": false,
+          "signed_stat": 0.6632003960242712,
+          "n_random_directions_in_control": 16
+        },
+        "reasoning_shallow": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 48,
+          "n_steps": 69155,
+          "rho_pooled": -0.615424600948964,
+          "rho_within_traj": -0.6632003960242712,
+          "median_rho_per_traj": -0.7332854965593185,
+          "iqr_rho_per_traj": [
+            -0.7923280819771567,
+            -0.6091654006266086
+          ],
+          "n_traj_positive": 0,
+          "frac_traj_positive": 0.0,
+          "sign_test_p": 7.105427357601002e-15,
+          "boot_ci_median_rho": [
+            -0.7710950696586953,
+            -0.6374269553286028
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "gate_statistic": "rho_within_traj",
+          "passes_gate": true,
+          "observable": "step_frac",
+          "expected_sign": -1,
+          "circular": true,
+          "shuffled_control_rho": 0.0012611501876583827,
+          "empirical_floor": 0.14907119849998599,
+          "gate_threshold": 0.14907119849998599,
+          "gate_threshold_is_stricter_than_naive": false,
+          "signed_stat": 0.6632003960242712,
+          "n_random_directions_in_control": 16
+        }
+      },
+      "L20": {
+        "confidence_up": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 48,
+          "n_steps": 69155,
+          "rho_pooled": -0.715614844493384,
+          "rho_within_traj": -0.6552696319094172,
+          "median_rho_per_traj": -0.6693561640315857,
+          "iqr_rho_per_traj": [
+            -0.7120794990440636,
+            -0.6171618998538719
+          ],
+          "n_traj_positive": 0,
+          "frac_traj_positive": 0.0,
+          "sign_test_p": 7.105427357601002e-15,
+          "boot_ci_median_rho": [
+            -0.6882672400755858,
+            -0.6465399858988785
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "gate_statistic": "rho_within_traj",
+          "passes_gate": true,
+          "observable": "entropy",
+          "expected_sign": -1,
+          "circular": true,
+          "shuffled_control_rho": -0.12015138470295879,
+          "empirical_floor": 0.2547661287546772,
+          "gate_threshold": 0.2547661287546772,
+          "gate_threshold_is_stricter_than_naive": true,
+          "signed_stat": 0.6552696319094172,
+          "n_random_directions_in_control": 16
+        },
+        "confidence_down": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 48,
+          "n_steps": 69155,
+          "rho_pooled": 0.715614844493384,
+          "rho_within_traj": 0.6552696319094172,
+          "median_rho_per_traj": 0.6693561640315857,
+          "iqr_rho_per_traj": [
+            0.6171618998538719,
+            0.7120794990440636
+          ],
+          "n_traj_positive": 48,
+          "frac_traj_positive": 1.0,
+          "sign_test_p": 7.105427357601002e-15,
+          "boot_ci_median_rho": [
+            0.6465399858988785,
+            0.6882672400755858
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "gate_statistic": "rho_within_traj",
+          "passes_gate": true,
+          "observable": "entropy",
+          "expected_sign": 1,
+          "circular": true,
+          "shuffled_control_rho": 0.12015138470295879,
+          "empirical_floor": 0.2547661287546772,
+          "gate_threshold": 0.2547661287546772,
+          "gate_threshold_is_stricter_than_naive": true,
+          "signed_stat": 0.6552696319094172,
+          "n_random_directions_in_control": 16
+        },
+        "caution": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 27,
+          "n_steps": 69155,
+          "rho_pooled": 0.12771190637028954,
+          "rho_within_traj": 0.12713740809580373,
+          "median_rho_per_traj": 0.13459378716508724,
+          "iqr_rho_per_traj": [
+            0.09944181922837289,
+            0.16607391461073534
+          ],
+          "n_traj_positive": 27,
+          "frac_traj_positive": 1.0,
+          "sign_test_p": 1.4901161193847656e-08,
+          "boot_ci_median_rho": [
+            0.11520538487799747,
+            0.16403488910281755
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "base_rate": 0.005653965729159135,
+          "n_positive_steps": 391,
+          "n_negative_steps": 68764,
+          "point_biserial_shrink_factor": 0.07497998666772775,
+          "cohens_d_implied_by_rho": 1.7032799290328258,
+          "cohens_d_demanded_by_floor": 1.9881465058215055,
+          "auc_pooled": 0.9916945627142972,
+          "auc_within_traj": 0.9894827276093584,
+          "auc_null_floor_naive": 0.014640481672618746,
+          "gate_statistic": "auc_within_traj",
+          "passes_gate": true,
+          "observable": "self_check",
+          "expected_sign": 1,
+          "circular": true,
+          "shuffled_control_rho": 0.025588822034028503,
+          "empirical_floor": 0.7494185048353232,
+          "gate_threshold": 0.7494185048353232,
+          "gate_threshold_is_stricter_than_naive": true,
+          "signed_stat": 0.9894827276093584,
+          "n_random_directions_in_control": 16
+        },
+        "creativity": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 3,
+          "n_steps": 69155,
+          "rho_pooled": 0.6458901552520572,
+          "rho_within_traj": 0.049507331568582856,
+          "median_rho_per_traj": 0.6342037084982813,
+          "iqr_rho_per_traj": [
+            0.4275498409398454,
+            0.6440517368888985
+          ],
+          "n_traj_positive": 3,
+          "frac_traj_positive": 1.0,
+          "sign_test_p": 0.25,
+          "boot_ci_median_rho": [
+            0.22089597338140948,
+            0.6538997652795155
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "base_rate": 0.6285590340539368,
+          "n_positive_steps": 43468,
+          "n_negative_steps": 25687,
+          "point_biserial_shrink_factor": 0.4831899986166091,
+          "cohens_d_implied_by_rho": 1.336720869846778,
+          "cohens_d_demanded_by_floor": 0.30851466074790945,
+          "auc_pooled": 0.8858780769781814,
+          "auc_within_traj": 0.529577465683077,
+          "auc_null_floor_naive": 0.0022718663957551795,
+          "gate_statistic": "auc_within_traj",
+          "passes_gate": false,
+          "observable": "in_think",
+          "expected_sign": 1,
+          "circular": true,
+          "shuffled_control_rho": 0.614950302063582,
+          "empirical_floor": 0.5090839920332773,
+          "gate_threshold": 0.5090839920332773,
+          "gate_threshold_is_stricter_than_naive": true,
+          "signed_stat": 0.529577465683077,
+          "n_random_directions_in_control": 16
+        },
+        "reasoning_deep": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 48,
+          "n_steps": 69155,
+          "rho_pooled": 0.508838085381455,
+          "rho_within_traj": 0.5541312231073484,
+          "median_rho_per_traj": 0.5908060161569242,
+          "iqr_rho_per_traj": [
+            0.49428492369683413,
+            0.6779650857611756
+          ],
+          "n_traj_positive": 48,
+          "frac_traj_positive": 1.0,
+          "sign_test_p": 7.105427357601002e-15,
+          "boot_ci_median_rho": [
+            0.53184129032434,
+            0.6247212600515664
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "gate_statistic": "rho_within_traj",
+          "passes_gate": true,
+          "observable": "step_frac",
+          "expected_sign": 1,
+          "circular": true,
+          "shuffled_control_rho": 0.0015603692003705258,
+          "empirical_floor": 0.14907119849998599,
+          "gate_threshold": 0.14907119849998599,
+          "gate_threshold_is_stricter_than_naive": false,
+          "signed_stat": 0.5541312231073484,
+          "n_random_directions_in_control": 16
+        },
+        "reasoning_shallow": {
+          "n_traj_pooled": 48,
+          "n_traj_within_which_rho_is_defined": 48,
+          "n_steps": 69155,
+          "rho_pooled": -0.508838085381455,
+          "rho_within_traj": -0.5541312231073484,
+          "median_rho_per_traj": -0.5908060161569242,
+          "iqr_rho_per_traj": [
+            -0.6779650857611756,
+            -0.49428492369683413
+          ],
+          "n_traj_positive": 0,
+          "frac_traj_positive": 0.0,
+          "sign_test_p": 7.105427357601002e-15,
+          "boot_ci_median_rho": [
+            -0.6247212600515664,
+            -0.53184129032434
+          ],
+          "null_floor_by_traj": 0.14907119849998599,
+          "null_floor_by_step_naive": 0.003802748707518186,
+          "gate_statistic": "rho_within_traj",
+          "passes_gate": true,
+          "observable": "step_frac",
+          "expected_sign": -1,
+          "circular": true,
+          "shuffled_control_rho": -0.0015603692003705258,
+          "empirical_floor": 0.14907119849998599,
+          "gate_threshold": 0.14907119849998599,
+          "gate_threshold_is_stricter_than_naive": false,
+          "signed_stat": 0.5541312231073484,
+          "n_random_directions_in_control": 16
+        }
+      }
+    },
+    "heldout_non_circular": {
+      "layer": 14,
+      "method": "contrast refitted on the other half of the trajectories",
+      "folds": {
+        "confidence_up": {
+          "observable": "entropy",
+          "expected_sign": -1,
+          "scores": {
+            "fit0_score1": {
+              "n_pos_tokens_in_fit": 12232,
+              "n_neg_tokens_in_fit": 9035,
+              "n_traj_scored": 24,
+              "n_steps_scored": 33030,
+              "rho": -0.6552592278482006,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true
+            },
+            "fit1_score0": {
+              "n_pos_tokens_in_fit": 10473,
+              "n_neg_tokens_in_fit": 8264,
+              "n_traj_scored": 24,
+              "n_steps_scored": 36125,
+              "rho": -0.6844944208625887,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true
+            }
+          }
+        },
+        "confidence_down": {
+          "observable": "entropy",
+          "expected_sign": 1,
+          "scores": {
+            "fit0_score1": {
+              "n_pos_tokens_in_fit": 9035,
+              "n_neg_tokens_in_fit": 12232,
+              "n_traj_scored": 24,
+              "n_steps_scored": 33030,
+              "rho": 0.6552592278482006,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true
+            },
+            "fit1_score0": {
+              "n_pos_tokens_in_fit": 8264,
+              "n_neg_tokens_in_fit": 10473,
+              "n_traj_scored": 24,
+              "n_steps_scored": 36125,
+              "rho": 0.6844944208625887,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true
+            }
+          }
+        },
+        "caution": {
+          "observable": "self_check",
+          "expected_sign": 1,
+          "scores": {
+            "fit0_score1": {
+              "n_pos_tokens_in_fit": 176,
+              "n_neg_tokens_in_fit": 35949,
+              "n_traj_scored": 24,
+              "n_steps_scored": 33030,
+              "rho": 0.1348766151475129,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true,
+              "base_rate": 0.006509234029669997,
+              "n_positive_steps": 215,
+              "n_negative_steps": 32815,
+              "auc_within_traj": 0.9776371412676421,
+              "auc_pooled": 0.984171447402457,
+              "auc_null_floor_naive": 0.019752169497465524,
+              "point_biserial_shrink_factor": 0.0804168135529939,
+              "cohens_d_demanded_by_floor": 2.713585388361464,
+              "gate_statistic": "auc_within_traj"
+            },
+            "fit1_score0": {
+              "n_pos_tokens_in_fit": 213,
+              "n_neg_tokens_in_fit": 32815,
+              "n_traj_scored": 24,
+              "n_steps_scored": 36125,
+              "rho": 0.11783534247627983,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true,
+              "base_rate": 0.0048719723183391,
+              "n_positive_steps": 176,
+              "n_negative_steps": 35949,
+              "auc_within_traj": 0.9853910780170899,
+              "auc_pooled": 0.9885320491908992,
+              "auc_null_floor_naive": 0.021813209720001957,
+              "point_biserial_shrink_factor": 0.06962927691760441,
+              "cohens_d_demanded_by_floor": 3.1339962138946214,
+              "gate_statistic": "auc_within_traj"
+            }
+          }
+        },
+        "creativity": {
+          "observable": "in_think",
+          "expected_sign": 1,
+          "scores": {
+            "fit0_score1": {
+              "n_pos_tokens_in_fit": 21867,
+              "n_neg_tokens_in_fit": 14258,
+              "n_traj_scored": 24,
+              "n_steps_scored": 33030,
+              "rho": 0.7441206727464722,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true,
+              "base_rate": 0.6539812291855889,
+              "n_positive_steps": 21601,
+              "n_negative_steps": 11429,
+              "auc_within_traj": 0.5206213353407284,
+              "auc_pooled": 0.9515650026232205,
+              "auc_null_floor_naive": 0.0033390982129412198,
+              "point_biserial_shrink_factor": 0.47569925484332554,
+              "cohens_d_demanded_by_floor": 0.4587307800342546,
+              "gate_statistic": "auc_within_traj"
+            },
+            "fit1_score0": {
+              "n_pos_tokens_in_fit": 21601,
+              "n_neg_tokens_in_fit": 11429,
+              "n_traj_scored": 24,
+              "n_steps_scored": 36125,
+              "rho": 0.5259810512379934,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true,
+              "base_rate": 0.6053148788927336,
+              "n_positive_steps": 21867,
+              "n_negative_steps": 14258,
+              "auc_within_traj": 0.5225949999834177,
+              "auc_pooled": 0.8106443246594327,
+              "auc_null_floor_naive": 0.00310738745512424,
+              "point_biserial_shrink_factor": 0.4887829541665798,
+              "cohens_d_demanded_by_floor": 0.44645151467704947,
+              "gate_statistic": "auc_within_traj"
+            }
+          }
+        },
+        "reasoning_deep": {
+          "observable": "step_frac",
+          "expected_sign": 1,
+          "scores": {
+            "fit0_score1": {
+              "n_pos_tokens_in_fit": 9035,
+              "n_neg_tokens_in_fit": 9035,
+              "n_traj_scored": 24,
+              "n_steps_scored": 33030,
+              "rho": 0.5027465914559097,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true
+            },
+            "fit1_score0": {
+              "n_pos_tokens_in_fit": 8262,
+              "n_neg_tokens_in_fit": 8262,
+              "n_traj_scored": 24,
+              "n_steps_scored": 36125,
+              "rho": 0.5871623773019425,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true
+            }
+          }
+        },
+        "reasoning_shallow": {
+          "observable": "step_frac",
+          "expected_sign": -1,
+          "scores": {
+            "fit0_score1": {
+              "n_pos_tokens_in_fit": 9035,
+              "n_neg_tokens_in_fit": 9035,
+              "n_traj_scored": 24,
+              "n_steps_scored": 33030,
+              "rho": -0.5027465914559097,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true
+            },
+            "fit1_score0": {
+              "n_pos_tokens_in_fit": 8262,
+              "n_neg_tokens_in_fit": 8262,
+              "n_traj_scored": 24,
+              "n_steps_scored": 36125,
+              "rho": -0.5871623773019425,
+              "null_floor_by_traj": 0.2182178902359924,
+              "passes_gate": true
+            }
+          }
+        }
+      }
+    },
+    "random_direction_control": {
+      "L14": {
+        "confidence_up": {
+          "observable": "entropy",
+          "gate_statistic": "rho_within_traj",
+          "n_random_directions": 16,
+          "random_mean": 0.020376163549886733,
+          "random_sd": 0.10258820835728243,
+          "random_min": -0.1758236221132509,
+          "random_max": 0.1715822631960435,
+          "empirical_floor_max_random": 0.1715822631960435,
+          "empirical_floor_mean_plus_3sd": 0.328140788621734,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": true,
+          "z_of_real_direction": -6.104663562384516,
+          "naive_floor_is_the_binding_one": false
+        },
+        "confidence_down": {
+          "observable": "entropy",
+          "gate_statistic": "rho_within_traj",
+          "n_random_directions": 16,
+          "random_mean": 0.020376163549886733,
+          "random_sd": 0.10258820835728243,
+          "random_min": -0.1758236221132509,
+          "random_max": 0.1715822631960435,
+          "empirical_floor_max_random": 0.1715822631960435,
+          "empirical_floor_mean_plus_3sd": 0.328140788621734,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": true,
+          "z_of_real_direction": 5.707421737497139,
+          "naive_floor_is_the_binding_one": false
+        },
+        "caution": {
+          "observable": "self_check",
+          "gate_statistic": "auc_within_traj",
+          "n_random_directions": 16,
+          "random_mean": 0.5334372783757515,
+          "random_sd": 0.13953229982215729,
+          "random_min": 0.20795064136486097,
+          "random_max": 0.7407861961911016,
+          "empirical_floor_max_random": 0.7407861961911016,
+          "empirical_floor_mean_plus_3sd": 0.9520341778422233,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": true,
+          "z_of_real_direction": 3.2095686789868116,
+          "naive_floor_is_the_binding_one": false
+        },
+        "creativity": {
+          "observable": "in_think",
+          "gate_statistic": "auc_within_traj",
+          "n_random_directions": 16,
+          "random_mean": 0.49964779465939907,
+          "random_sd": 0.005367144230615261,
+          "random_min": 0.4901617586632292,
+          "random_max": 0.5110826674034613,
+          "empirical_floor_max_random": 0.5110826674034613,
+          "empirical_floor_mean_plus_3sd": 0.5157492273512448,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": true,
+          "z_of_real_direction": 5.51422375196312,
+          "naive_floor_is_the_binding_one": false
+        },
+        "reasoning_deep": {
+          "observable": "step_frac",
+          "gate_statistic": "rho_within_traj",
+          "n_random_directions": 16,
+          "random_mean": 0.002811350085190229,
+          "random_sd": 0.06702657969847226,
+          "random_min": -0.1321109823469666,
+          "random_max": 0.10860408111469506,
+          "empirical_floor_max_random": 0.10860408111469506,
+          "empirical_floor_mean_plus_3sd": 0.203891089180607,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": false,
+          "z_of_real_direction": 9.852644263065885,
+          "naive_floor_is_the_binding_one": true
+        },
+        "reasoning_shallow": {
+          "observable": "step_frac",
+          "gate_statistic": "rho_within_traj",
+          "n_random_directions": 16,
+          "random_mean": 0.002811350085190229,
+          "random_sd": 0.06702657969847226,
+          "random_min": -0.1321109823469666,
+          "random_max": 0.10860408111469506,
+          "empirical_floor_max_random": 0.10860408111469506,
+          "empirical_floor_mean_plus_3sd": 0.203891089180607,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": false,
+          "z_of_real_direction": -9.936531881913137,
+          "naive_floor_is_the_binding_one": true
+        }
+      },
+      "L20": {
+        "confidence_up": {
+          "observable": "entropy",
+          "gate_statistic": "rho_within_traj",
+          "n_random_directions": 16,
+          "random_mean": -0.04260046940326325,
+          "random_sd": 0.16229902198803053,
+          "random_min": -0.35302719330111415,
+          "random_max": 0.2547661287546772,
+          "empirical_floor_max_random": 0.2547661287546772,
+          "empirical_floor_mean_plus_3sd": 0.44429659656082837,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": true,
+          "z_of_real_direction": -3.774940569582348,
+          "naive_floor_is_the_binding_one": false
+        },
+        "confidence_down": {
+          "observable": "entropy",
+          "gate_statistic": "rho_within_traj",
+          "n_random_directions": 16,
+          "random_mean": -0.04260046940326325,
+          "random_sd": 0.16229902198803053,
+          "random_min": -0.35302719330111415,
+          "random_max": 0.2547661287546772,
+          "empirical_floor_max_random": 0.2547661287546772,
+          "empirical_floor_mean_plus_3sd": 0.44429659656082837,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": true,
+          "z_of_real_direction": 4.299903306651768,
+          "naive_floor_is_the_binding_one": false
+        },
+        "caution": {
+          "observable": "self_check",
+          "gate_statistic": "auc_within_traj",
+          "n_random_directions": 16,
+          "random_mean": 0.4913828115039229,
+          "random_sd": 0.21218621951604186,
+          "random_min": 0.20883113167673384,
+          "random_max": 0.7494185048353232,
+          "empirical_floor_max_random": 0.7494185048353232,
+          "empirical_floor_mean_plus_3sd": 1.1279414700520485,
+          "mean_plus_3sd_reachable": false,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": true,
+          "z_of_real_direction": 2.347465906322808,
+          "naive_floor_is_the_binding_one": false
+        },
+        "creativity": {
+          "observable": "in_think",
+          "gate_statistic": "auc_within_traj",
+          "n_random_directions": 16,
+          "random_mean": 0.49963534123108605,
+          "random_sd": 0.00540844709775439,
+          "random_min": 0.4910962065647563,
+          "random_max": 0.5090839920332773,
+          "empirical_floor_max_random": 0.5090839920332773,
+          "empirical_floor_mean_plus_3sd": 0.5158606825243492,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": true,
+          "z_of_real_direction": 5.536177743963328,
+          "naive_floor_is_the_binding_one": false
+        },
+        "reasoning_deep": {
+          "observable": "step_frac",
+          "gate_statistic": "rho_within_traj",
+          "n_random_directions": 16,
+          "random_mean": -0.005335013212683348,
+          "random_sd": 0.05923682339083165,
+          "random_min": -0.11844525900258612,
+          "random_max": 0.07722255598403203,
+          "empirical_floor_max_random": 0.07722255598403203,
+          "empirical_floor_mean_plus_3sd": 0.17237545695981163,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": false,
+          "z_of_real_direction": 9.444568501399804,
+          "naive_floor_is_the_binding_one": true
+        },
+        "reasoning_shallow": {
+          "observable": "step_frac",
+          "gate_statistic": "rho_within_traj",
+          "n_random_directions": 16,
+          "random_mean": -0.005335013212683348,
+          "random_sd": 0.05923682339083165,
+          "random_min": -0.11844525900258612,
+          "random_max": 0.07722255598403203,
+          "empirical_floor_max_random": 0.07722255598403203,
+          "empirical_floor_mean_plus_3sd": 0.17237545695981163,
+          "mean_plus_3sd_reachable": true,
+          "naive_floor_1_over_sqrt_n_minus_3": 0.14907119849998599,
+          "empirical_floor_is_stricter": false,
+          "z_of_real_direction": -9.26444360923656,
+          "naive_floor_is_the_binding_one": true
+        }
+      }
+    },
+    "circularity_warning": "in_sample 那一块是循环论证的：这些向量就是这批 token 上两组均值之差，把它投影回同一批 token 再和同一批标签求相关，量的是抽取器不是模型。heldout 块在另一半轨迹上重建同一个对比、在另一半上评测，两半没有共享 token，那才是真实数字。对 confidence_up / caution 这类「标签本身就是向量定义」的方向，in_sample 的高相关不能当证据。",
+    "label_confounds": "标签本身要先审计，见 observable_audit。in_think 在这 48 条轨迹上恒等于运行模式（think 模式全程 1，no_think 模式全程 0），所以 creativity 的 necessity 数字量的是「这次是不是 think 模式跑」，不是「模型在 think 块内部」。这是向量定义的性质，不是分析的失误。",
+    "per_traj_denominator_note": "n_traj_within_which_rho_is_defined 会明显小于 n_traj_pooled：in_think / self_check 在单条轨迹内部常常是常数，Spearman 在常数上是未定义的，那些轨迹只从「逐轨迹 rho」里剔除，pooled 仍然用上它的每一步。",
+    "which_statistic_and_why": "门一律打在「轨迹内去均值」的统计量上，并且按方向自称的符号来判：连续标签用 rho_within_traj（confidence_up 自称负相关，所以比的是 −rho），二值标签用 auc_within_traj。三个理由：(1) 轨迹间差异不是概念，对 in_think 来说它就是运行模式；(2) Spearman 打在 0/1 标签上退化成 point-biserial r = d*sqrt(p(1-p))，self_check 基率 0.0057、压缩因子 0.075，1/sqrt(45)=0.149 实际要求 d=1.98；(3) 门槛取 max(16 个随机方向里的最大值, 1/sqrt(n_traj-3))，所以门永远不弱于教科书地板，而在 L20 的 entropy 上比它严格得多（随机方向最大能到 0.2548）。",
+    "random_control_is_the_real_null": "16 个随机方向是这批数据上真正的零假设。self_check 上它们的 auc_within 从 0.21 散到 0.75——391 个正例每一个都是孤立的单步，只分布在 27 条轨迹里，独立单位是轨迹不是步，所以 Mann-Whitney 的教科书 SE 偏小一个数量级。entropy 在 L20 上同样偏小。门槛用「打败全部 16 个随机方向」，因为 mean+3sd 在 L20 的 self_check 上会算出 1.128这种没有任何 AUC 能达到的阈值（已记为 unreachable）。",
+    "within_vs_between": "rho_pooled 含轨迹间差异，rho_within_traj 先减掉每条轨迹自己的均值再合并。in_think 的 rho_pooled 很高而 rho_within_traj 接近 0，说明那部分效应几乎全部来自轨迹之间（= think 模式），不是模型在 think 块内部做了什么。"
+  },
+  "sufficiency": {
+    "definition": "只加这个向量，够不够复现该概念的行为？",
+    "cells": {
+      "confidence_down@0.0": {
+        "n_runs": 23,
+        "length_ratio": {
+          "mean": 1.0,
+          "median": 1.0,
+          "n": 23
+        },
+        "token_agreement": {
+          "mean": 1.0,
+          "n": 23
+        },
+        "verbatim_step_overlap": {
+          "mean": 1.0,
+          "n": 23
+        },
+        "logit_kl": {
+          "mean": 0.0,
+          "n": 23
+        },
+        "entropy_primary_minus_shadow": {
+          "mean": 0.0,
+          "n": 23
+        },
+        "answer_changed": {
+          "k": 0,
+          "n": 19,
+          "rate": 0.0
+        },
+        "closed_think": {
+          "k": 21,
+          "n": 23,
+          "rate": 0.9130434782608695
+        },
+        "injected_norm": NaN
+      },
+      "confidence_down@0.2": {
+        "n_runs": 23,
+        "length_ratio": {
+          "mean": 0.9944747179015924,
+          "median": 0.9952482437445733,
+          "n": 23
+        },
+        "token_agreement": {
+          "mean": 0.9392636135681576,
+          "n": 23
+        },
+        "verbatim_step_overlap": {
+          "mean": 0.13220729885826757,
+          "n": 23
+        },
+        "logit_kl": {
+          "mean": 0.06863306272701339,
+          "n": 23
+        },
+        "entropy_primary_minus_shadow": {
+          "mean": 0.036624995286031886,
+          "n": 23
+        },
+        "answer_changed": {
+          "k": 0,
+          "n": 21,
+          "rate": 0.0
+        },
+        "closed_think": {
+          "k": 21,
+          "n": 23,
+          "rate": 0.9130434782608695
+        },
+        "injected_norm": NaN
+      },
+      "confidence_up@0.0": {
+        "n_runs": 23,
+        "length_ratio": {
+          "mean": 1.0,
+          "median": 1.0,
+          "n": 23
+        },
+        "token_agreement": {
+          "mean": 1.0,
+          "n": 23
+        },
+        "verbatim_step_overlap": {
+          "mean": 1.0,
+          "n": 23
+        },
+        "logit_kl": {
+          "mean": 0.0,
+          "n": 23
+        },
+        "entropy_primary_minus_shadow": {
+          "mean": 0.0,
+          "n": 23
+        },
+        "answer_changed": {
+          "k": 0,
+          "n": 19,
+          "rate": 0.0
+        },
+        "closed_think": {
+          "k": 21,
+          "n": 23,
+          "rate": 0.9130434782608695
+        },
+        "injected_norm": NaN
+      },
+      "confidence_up@0.2": {
+        "n_runs": 23,
+        "length_ratio": {
+          "mean": 0.9926522462815706,
+          "median": 0.9959564541213064,
+          "n": 23
+        },
+        "token_agreement": {
+          "mean": 0.9785043207406919,
+          "n": 23
+        },
+        "verbatim_step_overlap": {
+          "mean": 0.10917002547662624,
+          "n": 23
+        },
+        "logit_kl": {
+          "mean": 0.034271792369616895,
+          "n": 23
+        },
+        "entropy_primary_minus_shadow": {
+          "mean": -0.014500026765465718,
+          "n": 23
+        },
+        "answer_changed": {
+          "k": 0,
+          "n": 8,
+          "rate": 0.0
+        },
+        "closed_think": {
+          "k": 5,
+          "n": 23,
+          "rate": 0.21739130434782608
+        },
+        "injected_norm": NaN
+      }
+    },
+    "directions_with_runs": [
+      "confidence_down",
+      "confidence_up"
+    ],
+    "directions_without_runs": [
+      "caution",
+      "creativity",
+      "reasoning_deep",
+      "reasoning_shallow"
+    ],
+    "coverage_gap": "充分性和特异性只能在这 2 个方向上测：32k 日志的 direction x strength 一共只有 4 格（confidence_down@0.0, confidence_down@0.2, confidence_up@0.0, confidence_up@0.2）。另外 4 个方向（caution, creativity, reasoning_deep, reasoning_shallow）在这批数据里一次干预运行都没有。这是采集覆盖面本身的缺口，不是本次分析挑的。",
+    "floor_note": "strength=0.0 是同一条代码路径喂零向量，46 次运行逐字相同，所以它的每个量都恰好等于 0 或 1.0。那是这批数据的采集噪声地板，不是估计值——所有 0.2 的数字都要对着它读。"
+  },
+  "specificity": {
+    "definition": "加这个向量，只影响它该影响的，还是把所有东西都推平了？",
+    "locality": {
+      "confidence_down": {
+        "n_runs": 23,
+        "divergence_starts_at_frac_of_run": {
+          "median": 0.0012655939251491593,
+          "n": 23
+        },
+        "verbatim_step_overlap": {
+          "median": 0.12569832402234637,
+          "n": 23
+        }
+      },
+      "confidence_up": {
+        "n_runs": 23,
+        "divergence_starts_at_frac_of_run": {
+          "median": 0.0007788628602240728,
+          "n": 23
+        },
+        "verbatim_step_overlap": {
+          "median": 0.08069164265129683,
+          "n": 23
+        }
+      }
+    },
+    "mirror_test": {
+      "mean_logit_kl": {
+        "rho_up_vs_down": 0.2816205533596838,
+        "n_paired_problems": 23,
+        "frac_signs_differ": 0.0,
+        "null_floor": 0.22360679774997896
+      },
+      "reason_len_ratio": {
+        "rho_up_vs_down": -0.46640316205533605,
+        "n_paired_problems": 23,
+        "frac_signs_differ": 0.0,
+        "null_floor": 0.22360679774997896
+      },
+      "token_agreement": {
+        "rho_up_vs_down": 0.2865612648221344,
+        "n_paired_problems": 23,
+        "frac_signs_differ": 0.0,
+        "null_floor": 0.22360679774997896
+      },
+      "selfcheck_delta": {
+        "rho_up_vs_down": -0.3526211317719046,
+        "n_paired_problems": 23,
+        "frac_signs_differ": 0.5217391304347826,
+        "null_floor": 0.22360679774997896
+      },
+      "closed_think": {
+        "rho_up_vs_down": 0.16265001215808886,
+        "n_paired_problems": 23,
+        "frac_signs_differ": 0.6956521739130435,
+        "null_floor": 0.22360679774997896
+      }
+    },
+    "literal_per_step_entropy_test": {
+      "status": "NOT_MEASURABLE_ON_THIS_BATCH",
+      "claim": "干预后每一步的熵是否同向变化（整体 vs 局部）",
+      "evidence": "cot_divergence_32k.json 的 per_run 每条只有汇总量：mean_entropy_primary / mean_entropy_shadow / mean_logit_kl / token_agreement / first_divergence_char / verbatim_step_overlap；all_runs.json 的 summary 里多一个 layer_curve（逐层，不是逐步）。没有逐步熵序列——带该字段的运行数 = 0 / 92。",
+      "what_is_measured_instead": "两个真的能测的替代：(a) locality——分歧从轨迹的百分之几处开始、整段里有多大比例被改掉；(b) mirror——同一道题上 up 与 down 是否互为相反数。两者都带分母，但都不是逐步熵，报告里分开写。"
+    },
+    "activation_dispersion": {
+      "L14": {
+        "confidence_up": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.3945445716381073,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 3.480250597000122
+        },
+        "confidence_down": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.35755184292793274,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 3.480250597000122
+        },
+        "caution": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.5003937482833862,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 0.7892786264419556
+        },
+        "creativity": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.35533472895622253,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 3.7401154041290283
+        },
+        "reasoning_deep": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.4412640333175659,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 0.9691147208213806
+        },
+        "reasoning_shallow": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.4176327884197235,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 0.9691147208213806
+        }
+      },
+      "L20": {
+        "confidence_up": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.35474199056625366,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 4.796607971191406
+        },
+        "confidence_down": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.3523484170436859,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 4.796607971191406
+        },
+        "caution": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.5204811692237854,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 1.0608956813812256
+        },
+        "creativity": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.35601145029067993,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 14.021028518676758
+        },
+        "reasoning_deep": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.42731332778930664,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 0.9199122190475464
+        },
+        "reasoning_shallow": {
+          "n_steps": 69155,
+          "share_of_positive_deviation_in_top_decile": 0.4246163070201874,
+          "uniform_expectation": 0.1,
+          "iqr_over_abs_median": 0.9199122190475464
+        }
+      }
+    }
+  },
+  "unmeasured": {
+    "per_step_entropy_of_steered_runs": {
+      "status": "NOT_MEASURABLE_ON_THIS_BATCH",
+      "claim": "干预后每一步的熵是否同向变化（整体 vs 局部）",
+      "evidence": "cot_divergence_32k.json 的 per_run 每条只有汇总量：mean_entropy_primary / mean_entropy_shadow / mean_logit_kl / token_agreement / first_divergence_char / verbatim_step_overlap；all_runs.json 的 summary 里多一个 layer_curve（逐层，不是逐步）。没有逐步熵序列——带该字段的运行数 = 0 / 92。",
+      "what_is_measured_instead": "两个真的能测的替代：(a) locality——分歧从轨迹的百分之几处开始、整段里有多大比例被改掉；(b) mirror——同一道题上 up 与 down 是否互为相反数。两者都带分母，但都不是逐步熵，报告里分开写。"
+    },
+    "directions_without_intervention_runs": [
+      "caution",
+      "creativity",
+      "reasoning_deep",
+      "reasoning_shallow"
+    ],
+    "lm_head_anchor": {
+      "claim": "argmax(lm_head @ hidden_states[t, 27, :]) == topk_indices[t, 0]",
+      "status": "NOT_RECOMPUTED_HERE",
+      "reason": "本机没有 Qwen3-1.7B 权重（~/.cache/huggingface 不存在，/tmp/qwen3/master 不存在，transformers 未安装），而 zju-46 的 GPU 正被别的任务占用，不应该去抢。补这一步需要 lm_head.weight (151936x2048)。",
+      "pre_existing_measurement": "同一批 npz 的 logit lens 已经做过这一步：见 frontend/public/latent/data/logit_lens.json 的 anchor 块——all_steps 1532/1536 = 0.9974；top1-top2 margin >= 1.0 的可判定步 1420/1420 = 1.0；max_logit_error_vs_stored_topk = 0.125。该数字由 build_logit_lens.py 产出，不是本脚本重算的，引用而非复现。"
+    }
+  }
+}
