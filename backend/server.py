@@ -113,7 +113,9 @@ async def ws_endpoint(websocket: WebSocket):
             # first one when nothing matches, so a free-text prompt box
             # silently showed the wrong problem. Handing the list to the UI
             # lets it offer only choices that exist.
-            trajectories=[],  # MUT_NO_TRAJECTORIES
+            trajectories=list(
+                (getattr(state.runner, "describe", None) or (lambda: []))()
+            ),
         ).to_dict()
     )
     # Directions carry their own metadata (which layer they were extracted
