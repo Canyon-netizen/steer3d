@@ -1,0 +1,130 @@
+同一道题跑两遍：这两篇文章就是它算出来的两个数
+上面那些百分比是摘要，这里是原文。同一道题、同一段提示，跑两遍完整推理： 一遍注入强度 0.2，一遍喂零向量（强度 0）。解码循环是自己写的、 逐 token 取 argmax，没有采样； 而同样的输入跑两遍会逐字相同，所以两条路一旦分开，只可能是因为那个向量。 符合条件的有 8 道，这里列出 8 道。
+2020_I_1
+1984_I_1
+1987_I_1
+1990_I_1
+1991_I_1
+1994_I_1
+2000_I_1
+2004_I_1
+2020_I_1 · 标准答案 231 · 原本答对，加向量后答错了
+两遍从这里开始逐字相同——同一个前缀、同一个模型，取 argmax 必然取到同一个词。 一致到第 60 个字符才分岔 （共同开头只有这 60 个字符，两边很快就各走各的）：
+<think>
+Okay, so I need to find the number of ordered pairs 
+从这里开始，两边各写各的：
+不加向量（对照）
+同一个问题，喂零向量（强度 0）
+写了 3007 步 · 7623 字符 · 答案 231 （boxed）
+of positive integers (m, n) such that m²n = 20²⁰. Hmm, let me think about how to approach this. 
+
+First, I remember that when dealing with equations involving exponents and factors, prime factorization is usually helpful. Let me start by factoring 20 into its prime components. 
+
+20 is 2² * 5¹. Therefore, 20²⁰ would be (2² * 5¹)²⁰, which simplifies to 2⁴⁰ * 5²⁰. So, m²n = 2⁴⁰ * 5²⁰. 
+
+Now, since m and n are positive i
+…下文略，原文还有 7203 字符…
+加向量 0.2
+同一个问题，注入 confidence_down
+写了 3883 步 · 10910 字符 · 答案 210 （boxed）
+(m, n) of positive integers such that m squared times n equals 20 raised to the power of 20. Let me think about how to approach this.
+
+First, let me write down the equation:
+
+m² * n = 20²⁰.
+
+I need to find all positive integers m and n that satisfy this equation. Since both m and n are positive integers, I can think about prime factorizations here. Maybe breaking down 20 into its prime factors would help.
+
+20 is 2 mu
+…下文略，原文还有 10490 字符…
+上面那一段灰字是两遍共有的原文，到这里之后两篇各写各的。 越过第 60 个字符之后，两段文本没有任何对齐关系—— 它们长度不同（7623 与 10910 字符）， 不是同一句话的两种写法，是两篇各自写完的文章。 两段都是截取，开头和结尾被切掉的地方有标记。
+两篇各自的结尾
+↓ 直接跳到这里
+不加向量
+最后 900 字符
+写了 3007 步 · 7623 字符 · 答案 231 （boxed）
+答案就写在这一段的末尾
+…上文略…
+dot 5^{2b} \cdot n = 2^{40} \cdot 5^{20}
+$$
+
+This implies that:
+
+$$
+n = 2^{40 - 2a} \cdot 5^{20 - 2b}
+$$
+
+For $n$ to be a positive integer, the exponents $40 - 2a$ and $20 - 2b$ must be non-negative. This gives the constraints:
+
+- $2a \leq 40 \Rightarrow a \leq 20$
+- $2b \leq 20 \Rightarrow b \leq 10$
+
+---
+
+### Step 3: Counting Valid Values of $a$ and $b$
+
+- $a$ can take values from 0 to 20, inclusive. That is, $a \in \{0, 1, 2, \dots, 20\}$, so there are $21$ possible values.
+- $b$ can take values from 0 to 10, inclusive. That is, $b \in \{0, 1, 2, \dots, 10\}$, so there are $11$ possible values.
+
+Thus, the total number of ordered pairs $(m, n)$ is:
+
+$$
+21 \times 11 = 231
+$$
+
+---
+
+### Step 4: Final Answer
+
+Each valid pair $(a, b)$ corresponds to a unique pair $(m, n)$, and since $m$ and $n$ are positive integers, all such combinations are valid.
+
+---
+
+### Final Result
+
+$$
+\boxed{231}
+$$
+加向量 0.2
+最后 900 字符
+写了 3883 步 · 10910 字符 · 答案 210 （boxed）
+答案就写在这一段的末尾
+…上文略…
+orization of $n$.
+
+---
+
+### Step 3: Count the Number of Solutions
+
+We now count the number of non-negative integer solutions for each equation.
+
+#### For $2a + c = 40$:
+
+- $a$ can range from 0 to 20 (since $2a \leq 40$), and for each $a$, $c = 40 - 2a$ is a non-negative integer.
+- So, there are $21$ possible values of $a$, and hence $21$ valid pairs $(a, c)$.
+
+#### For $2b + d = 20$:
+
+- $b$ can range from 0 to 10 (since $2b \leq 20$), and for each $b$, $d = 20 - 2b$ is a non-negative integer.
+- So, there are $11$ possible values of $b$, and hence $11$ valid pairs $(b, d)$.
+
+---
+
+### Step 4: Total Number of Ordered Pairs
+
+Since the exponents of 2 and 5 in $m$ and $n$ are independent, the total number of ordered pairs $(m, n)$ is the product of the number of valid $(a, c)$ and $(b, d)$ pairs:
+
+$$
+\text{Total number of pairs} = 21 \times 11 = 210
+$$
+
+---
+
+### Final Answer
+
+$$
+\boxed{210}
+$$
+读这两段之前，三件事要知道： 一、「第 60 个字符」是字符位置，不是 token 步数； token 步数是另一套编号，两者在这一屏里指的不是一件事。
+二、这里的两臂不是 token 同步的。上面那块思维链正文屏里的 影子臂是"同一句话被逐词替换"，那里的接缝有意义；这里是两遍各自解码， 只有开头那段是真正可比的。
+三、答案变了不等于变好了。这一题是「原本答对，加向量后答错了」； 本批 8 道变化题里答对数的净变化是 0。 （这些数字全部取自生成时逐步实测的量， 文本本身只做示意。）

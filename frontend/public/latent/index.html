@@ -1507,7 +1507,22 @@ function renderAnswerReadout(){
   // per line. Every textContent check still passed on that layout, and a
   // screenshot is the only thing that shows it is unreadable. The sibling
   // "生成的文本" block stacks its two arms for the same reason.
-  const armCard = (key, title, sub, arm, text, color, marker) => `
+  // Mark where the window was cut. The payload records the offsets and the
+  // first version ignored them: a window that ended on
+  // "Now, since m and n are positive i" read as though the model had stopped
+  // there, and a reader cannot tell a model that stopped from an excerpt this
+  // page chose to show. The leading marker matters just as much -- the tail
+  // window began inside a LaTeX command ("dot 5^{2b}", i.e. "\\cdot"), which
+  // looks like corruption rather than an excerpt.
+  const show = (text, win, total) => {
+    const n = (text || "").length;
+    const head = (win && win.start > 0) ? '<span style="color:#5f6b80">…上文略…</span>\n' : '';
+    const tail = (win && total != null && win.start + n < total)
+      ? '\n<span style="color:#5f6b80">…下文略，原文还有 '
+        + (total - win.start - n) + ' 字符…</span>' : '';
+    return head + esc2(text) + tail;
+  };
+  const armCard = (key, title, sub, arm, html, color, note) => `
     <div data-arm="${esc2(key)}" style="margin:0 0 7px">
       <div style="font-size:11.5px;font-weight:600;color:${color}">${esc2(title)}</div>
       <div style="font-size:10.5px;color:#8a94a6">${esc2(sub)}</div>
@@ -1515,10 +1530,11 @@ function renderAnswerReadout(){
         写了 <b style="color:#b9c4d6">${arm.steps}</b> 步 · ${arm.chars} 字符 ·
         答案 <b style="color:${color}">${esc2(arm.answer)}</b>
         <span style="color:#5f6b80">（${esc2(arm.source)}）</span></div>
-      ${marker ? `<div style="font-size:10.5px;color:#5f6b80;margin-bottom:2px">${marker}</div>` : ''}
-      <div data-armtext="${esc2(key)}" style="font-family:var(--mono);font-size:11px;line-height:1.6;
+      ${note ? `<div style="font-size:10.5px;color:#5f6b80;margin-bottom:2px">${note}</div>` : ''}
+      <div data-armtext="${esc2(key)}"
+        style="font-family:var(--mono);font-size:11px;line-height:1.6;
         color:#c8d2e2;white-space:pre-wrap;word-break:break-word;background:#0e1420;
-        border:1px solid #1d2534;border-radius:4px;padding:5px 7px">${esc2(text)}</div>
+        border:1px solid #1d2534;border-radius:4px;padding:5px 7px">${html}</div>
     </div>`;
 
   // `h` is declared on the next line. These two appends used to sit above it,
@@ -1570,14 +1586,17 @@ function renderAnswerReadout(){
   h += `<div style="font-size:11.5px;font-weight:600;color:#e8edf5;margin:2px 0 4px">
     从这里开始，两边各写各的：</div>`;
   h += armCard("post:zero", "不加向量（对照）", `同一个问题，喂零向量（强度 ${T.zero_strength}）`,
-    it.zero, hinge(it.split.zero)[1], "#7cc0ff", null);
+    it.zero, show(hinge(it.split.zero)[1], it.split.zero, it.zero.chars), "#7cc0ff", null);
   h += armCard("post:steered", `加向量 ${T.strength}`, `同一个问题，注入 ${T.direction}`,
-    it.steered, hinge(it.split.steered)[1], "#ff8fa3", null);
+    it.steered, show(hinge(it.split.steered)[1], it.split.steered, it.steered.chars),
+    "#ff8fa3", null);
 
   h += `<div class="note" style="font-size:10.5px;margin:5px 0 9px">
-    淡色是分岔之前两遍共有的原文，深色是分岔之后各自写的。<b>越过这个字符之后
-    两段文本没有任何对齐关系</b>——它们长度不同（${it.zero.chars} 与 ${it.steered.chars} 字符），
-    不是同一句话的两种写法，是两篇各自写完的文章。</div>`;
+    上面那一段灰字是<b>两遍共有的原文</b>，到这里之后两篇各写各的。
+    <b>越过第 ${it.split_char} 个字符之后，两段文本没有任何对齐关系</b>——
+    它们长度不同（${it.zero.chars} 与 ${it.steered.chars} 字符），
+    不是同一句话的两种写法，是两篇各自写完的文章。
+    两段都是<b>截取</b>，开头和结尾被切掉的地方有标记。</div>`;
 
   // 各自的结尾。这里才是答案真正出现的地方。同样纵向排，理由同上。
   // 这一块整块有三千多像素高，缩在一个 300px 的滚动窗口里，答案出现的地方在
@@ -1588,9 +1607,11 @@ function renderAnswerReadout(){
     <button data-arto="tail" style="width:auto;padding:2px 7px;font-size:10.5px">↓ 直接跳到这里</button>
   </div>`;
   h += armCard("tail:zero", "不加向量", `最后 ${(it.landing.zero || "").length} 字符`,
-    it.zero, it.landing.zero, "#7cc0ff", "下面这一段里，答案第一次出现的地方");
+    it.zero, show(it.landing.zero, { start: it.landing.zero_start }, it.zero.chars),
+    "#7cc0ff", "答案就写在这一段的末尾");
   h += armCard("tail:steered", `加向量 ${T.strength}`, `最后 ${(it.landing.steered || "").length} 字符`,
-    it.steered, it.landing.steered, "#ff8fa3", "下面这一段里，答案第一次出现的地方");
+    it.steered, show(it.landing.steered, { start: it.landing.steered_start }, it.steered.chars),
+    "#ff8fa3", "答案就写在这一段的末尾");
 
   // 限制写在正文旁边，不是脚注。
   h += `<div class="note" style="margin-top:9px;padding:7px 9px;background:#131a28;

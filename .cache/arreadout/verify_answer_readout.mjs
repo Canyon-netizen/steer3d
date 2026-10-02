@@ -137,15 +137,29 @@ chk(!!cols.post[0] && cols.post[0].length > 0 && cols.post[1].length > 0,
     `${cols.post[0] ? cols.post[0].length : 0} / ${cols.post[1] ? cols.post[1].length : 0} 字符`);
 chk(!!cols.post[0] && cols.post[0] !== cols.post[1],
     '分岔之后两臂内容不同');
+// The rendered text carries the excerpt markers ("…上文略…", "…下文略…"),
+// so the on-screen length is the window plus the marker, not the window. Strip
+// them before comparing, or this check measures the marker.
+const strip = t => (t || '').replace(/…上文略…/g, '').replace(/…下文略，原文还有 \d+ 字符…/g, '').trim();
 chk(!!cols.tail[0] && cols.tail[1]
-    && cols.tail[0].length === (it0.landing.zero || '').length
-    && cols.tail[1].length === (it0.landing.steered || '').length,
-    '两臂结尾的字符数与产物一致',
-    `${cols.tail[0] ? cols.tail[0].length : 0} / ${cols.tail[1] ? cols.tail[1].length : 0}`);
+    && strip(cols.tail[0]) === (it0.landing.zero || '').trim()
+    && strip(cols.tail[1]) === (it0.landing.steered || '').trim(),
+    '两臂结尾的原文与产物一致（剥掉截断标记之后）',
+    `${strip(cols.tail[0] || '').length} / ${strip(cols.tail[1] || '').length} 字符`);
+// And the markers must actually be there when the window really is an excerpt.
+// A window that silently stops mid-sentence is indistinguishable from a model
+// that stopped writing, and the first version of this block rendered exactly
+// that: "Now, since m and n are positive i" with no indication it was cut.
+chk(!!cols.post[0] && /…下文略，原文还有 \d+ 字符…/.test(cols.post[0])
+    && /…下文略，原文还有 \d+ 字符…/.test(cols.post[1]),
+    '截断的窗口标出了「下文还有多少」',
+    (cols.post[0] || '').match(/…下文略[^\n]*/)?.[0] || '');
+chk(!!cols.tail[0] && /…上文略…/.test(cols.tail[0]),
+    '从中间开始的窗口标出了「上文略」（否则像 LaTeX 命令被劈开）');
 // The split text on screen must start at the split, not at the window start:
 // the hinge is what turns two blobs into a comparison.
 const it0split = it0.split.zero;
-chk(!!cols.post[0] && cols.post[0] === it0split.text.slice(it0.split_char - it0split.start),
+chk(!!cols.post[0] && strip(cols.post[0]) === it0split.text.slice(it0.split_char - it0split.start).trim(),
     '页面上的分岔后文本正好从分岔点开始（铰链没偏）');
 
 // A stacked layout, not two 143px columns. At 11px a 143px column is about
