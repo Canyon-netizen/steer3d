@@ -8,6 +8,7 @@ import { resolveWsUrl } from "@/lib/ws-endpoint";
 import type { SteeringAckMessage } from "@/lib/frame-types";
 
 import ControlPanel from "@/components/ControlPanel";
+import InterventionOutcomePanel from "@/components/InterventionOutcomePanel";
 import LayerDerivationPanel from "@/components/LayerDerivationPanel";
 import TokenStreamPanel from "@/components/TokenStreamPanel";
 import InterpretationPanel from "@/components/InterpretationPanel";
@@ -141,6 +142,7 @@ export default function Page() {
           <ControlPanel sendControl={sendControl} />
           <LayerDerivationPanel />
           <SteeringControl sendControl={sendControl} />
+          <InterventionOutcomePanel />
           <ArchivedExperiments />
           <InterpretationPanel />
           <TokenStreamPanel />

@@ -20,15 +20,45 @@ datasets/aime_qwen3_1p7b_16k_fp16/ 下真实采到的 fp16 hidden states。
 * 熵 / perplexity：由**存下来的 top-64 logits** 算出，不是 sin
 * 3-D 坐标：对真实 hidden state 做 PCA 投影，不是解析式
 * 层号：真实 28 层，UI 的层滑块直接对应 hidden_states[:, L, :]
-* 干预向量：合成 runner 拿 4096 维向量对 2048 维数据是错的；这里维度
-  对得上，注入后**重新读出** token，所以「注入之后模型会说什么」是
-  真算出来的，不是画出来的
+* 干预向量：维度对得上（2048，不是合成 runner 的 4096），注入点、
+  范数、与原状态的对齐度都如实算出来。**但注入后的 token 没有重算** ——
+  见下。
 
-不做的事
---------
-不从这里跑模型推理 —— 机器上没有 GPU 也没有 torch，而采集已经在集群上
-做完了。这里只做「把存下来的 hidden states 重新读出」这一件事，
-这也正是页面要展示的东西。
+干预这件事，这里到底做了什么、没做什么
+------------------------------------
+早先这个文件的抬头写着「注入后**重新读出** token，所以注入之后模型会说
+什么是真算出来的」。那是错的，代码从来没这么做过。实测（.cache/
+steerprobe/probe_steer.py，direction=caution、strength=0.5、12 步）：
+
+    锚点  readout(last_hidden[t]) vs token_ids[t]   0/12 miss
+    L14   readout(hs[:,14,:])  -> '这个多' / ' 这个多' / ...
+    注入后 readout(h + v)      -> 6/12 步的 argmax 变了
+
+    L20   readout(hs[:,20,:])  -> ' tasked' / '接下来' / ...
+    注入后 readout(h + v)      -> 5/12 步的 argmax 变了
+
+两个数字说明两件事：
+
+1. **读出链本身是对的。** 对最终 post-norm 状态做 RMSNorm + unembedding
+   得到的 argmax 逐步复现了录下来的 token，0/12 失配。
+2. **但中间层残差不能这样读。** `hidden_states[:, L, :]` 是**进入第 L 层
+   之前**的残差，它的 argmax 是 '这个多'、'ศาส' 这类无意义输出 ——
+   因为第 L 层往后的 28-L 个 block 还没跑。要得到「注入之后模型会
+   说什么」，必须从第 L 层起把剩下的 block 全部前向一遍。
+
+那需要完整的 28 层权重（4.06 GB safetensors）+ 注意力 KV 缓存，而这里
+**明确不跑模型推理**（无 GPU、无 torch，采集已在集群做完）。所以：
+
+* 现在注入改的是 `h`，`h` 只喂给 PCA ⇒ **3-D 轨迹会因为干预而偏移**，
+  这是真的；
+* 但 `Frame.token` 仍是**注入前**录下来的那个词。干预开关前后，
+  Reasoning Trace 面板的文本逐字相同；
+* 熵 / perplexity 在 `steer_active` 时置 None，而不是拿未干预的
+  logits 冒充。
+
+「注入后模型会说什么」的真实答案来自离线跑完的 32k 批次
+（cot_texts.json / answer_readout.json），那些是解码器逐 token 取
+argmax 重跑出来的，页面读的是它们，并且必须标明是离线产物。
 """
 
 from __future__ import annotations
@@ -258,8 +288,14 @@ class NpzReplayRunner:
                 h = np.asarray(hs[i, layer, :], dtype=np.float64)
                 tok = decoder.text(tok_ids, i)
 
-                # 干预：维度对得上（2048），注入后重新读出 argmax，
-                # 所以 steer_* 是真算出来的。
+                # 干预：维度对得上（2048），注入点/范数/对齐度都真算。
+                #
+                # `tok` 不会因此改变 —— 它在上一行就定死了，用的是录下来
+                # 的 token_ids。要让 token 跟着干预变，得从第 `layer` 层
+                # 起把剩下的 28-layer 个 block 前向一遍；这里不跑模型推理
+                # （见文件抬头），所以那件事留给离线批次。改动这一段之前
+                # 请先读抬头：页面上"干预后模型说了什么"读的是离线产物，
+                # 不是这里。
                 steer_active = False
                 steer_norm = steer_alignment = steer_shift = steer_projection = None
                 if inject_vector is not None:

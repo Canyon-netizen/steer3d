@@ -23,6 +23,13 @@ export type Frame = {
   steer_norm?: number | null;
   steer_alignment?: number | null;
   steer_projection?: number | null;
+  /**
+   * ‖h + v‖ − ‖h‖, sent by the backend but missing from this type until
+   * now. It is the honest "how much did the residual stream's own scale
+   * change" number: a vector can be huge in absolute terms and still
+   * barely register if the state it lands in is large.
+   */
+  steer_shift?: number | null;
 };
 
 export type ReadyMessage = {
