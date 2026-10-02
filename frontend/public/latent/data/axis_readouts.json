@@ -1,0 +1,940 @@
+{
+ "schema": "steer3d.axis_readouts/1",
+ "question": "4 条独立轴各自指向哪个逐 token 行为观测量？",
+ "convention": {
+  "target_transform": "轨迹内去均值（每条轨迹减去自己的均值）",
+  "fold": "留一轨迹，每折重解 w",
+  "lambda_rel": 0.01,
+  "axes": 4,
+  "n_candidates_searched": 9,
+  "n_candidate_cells": 40,
+  "effective_dof": {
+   "declared": 10,
+   "after_dropping_redundant": 9,
+   "reason": "|rho|(backtrack_topk, backtrack_frac) = 0.965；top1_prob_renorm 与 entropy |rho| = 0.985（重述）"
+  },
+  "redundant_dropped": [
+   "backtrack_frac"
+  ],
+  "n_random_directions": 400,
+  "p_note": "p 已为「9 候选 × 4 轴」的搜索付过钱（零假设取 max_j max_a 的最大值，400 个随机方向）",
+  "control": "CONTROL_step_frac = t/(T-1)，正是 reasoning_deep 的定义分组。它不是候选，是尺子。"
+ },
+ "selfcheck": true,
+ "axes": {
+  "confidence": {
+   "label": "高置信 / 低熵",
+   "grouping": "低熵 p30 vs 高熵 p75",
+   "status": "measured",
+   "at_delta0": {
+    "modal_candidate": "top1_prob_renorm",
+    "per_layer": {
+     "12": {
+      "candidate": "top1_prob_renorm",
+      "cos": 0.417,
+      "control_cos": 0.0037,
+      "beats_control": true,
+      "p": 0.0,
+      "oof_pearson": 0.5062
+     },
+     "14": {
+      "candidate": "top1_prob_renorm",
+      "cos": 0.4125,
+      "control_cos": 0.0114,
+      "beats_control": true,
+      "p": 0.0,
+      "oof_pearson": 0.5203
+     },
+     "20": {
+      "candidate": "top1_prob_renorm",
+      "cos": 0.3187,
+      "control_cos": 0.0121,
+      "beats_control": true,
+      "p": 0.0,
+      "oof_pearson": 0.5801
+     }
+    },
+    "n_layers_beating_control": 3,
+    "n_layers": 3,
+    "median_cos": 0.4125,
+    "median_control_cos": 0.0114,
+    "min_ratio_over_control": 26.34
+   },
+   "at_delta20_L14": {
+    "candidate": "top1_prob_renorm",
+    "candidate_meaning": "top-1 概率（熵的重述）",
+    "cos": 0.0386,
+    "control_cos": 0.0114,
+    "beats_control": true,
+    "p": 0.22916666666666666,
+    "oof_pearson": 0.0816
+   },
+   "best_cos_any_cell": 0.417,
+   "best_control_any_cell": 0.0121,
+   "n_cells_beating_control": 15,
+   "n_cells_total": 15,
+   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。"
+  },
+  "caution": {
+   "label": "谨慎",
+   "grouping": "自我检查 token vs 普通 token",
+   "status": "measured",
+   "at_delta0": {
+    "modal_candidate": "backtrack_topk",
+    "per_layer": {
+     "12": {
+      "candidate": "backtrack_topk",
+      "cos": 0.3168,
+      "control_cos": 0.0182,
+      "beats_control": true,
+      "p": 0.0,
+      "oof_pearson": 0.6654
+     },
+     "14": {
+      "candidate": "backtrack_topk",
+      "cos": 0.3077,
+      "control_cos": 0.0016,
+      "beats_control": true,
+      "p": 0.0,
+      "oof_pearson": 0.676
+     },
+     "20": {
+      "candidate": "backtrack_topk",
+      "cos": 0.2092,
+      "control_cos": 0.0141,
+      "beats_control": true,
+      "p": 0.0,
+      "oof_pearson": 0.7201
+     }
+    },
+    "n_layers_beating_control": 3,
+    "n_layers": 3,
+    "median_cos": 0.3077,
+    "median_control_cos": 0.0141,
+    "min_ratio_over_control": 14.84
+   },
+   "at_delta20_L14": {
+    "candidate": "rep_ngram4",
+    "candidate_meaning": "以本步结尾的 4-gram 是否已出现过",
+    "cos": 0.0108,
+    "control_cos": 0.0016,
+    "beats_control": true,
+    "p": 0.0,
+    "oof_pearson": 0.2548
+   },
+   "best_cos_any_cell": 0.3168,
+   "best_control_any_cell": 0.0182,
+   "n_cells_beating_control": 15,
+   "n_cells_total": 15,
+   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。"
+  },
+  "creativity": {
+   "label": "思维块状态",
+   "grouping": "<think> 内 vs 外",
+   "status": "not_measured",
+   "at_delta0": {
+    "modal_candidate": "backtrack_topk",
+    "per_layer": {
+     "12": {
+      "candidate": "rep_ngram4",
+      "cos": 0.0713,
+      "control_cos": 0.0806,
+      "beats_control": false,
+      "p": 0.0,
+      "oof_pearson": 0.6032
+     },
+     "14": {
+      "candidate": "backtrack_topk",
+      "cos": 0.0395,
+      "control_cos": 0.0573,
+      "beats_control": false,
+      "p": 0.0,
+      "oof_pearson": 0.676
+     },
+     "20": {
+      "candidate": "backtrack_topk",
+      "cos": 0.1418,
+      "control_cos": 0.0536,
+      "beats_control": true,
+      "p": 0.0,
+      "oof_pearson": 0.7201
+     }
+    },
+    "n_layers_beating_control": 1,
+    "n_layers": 3,
+    "median_cos": 0.0907,
+    "median_control_cos": 0.0554,
+    "min_ratio_over_control": 0.69
+   },
+   "at_delta20_L14": {
+    "candidate": "latex_mass",
+    "candidate_meaning": "top-64 质量中落在排版结构上的占比",
+    "cos": 0.0731,
+    "control_cos": 0.0573,
+    "beats_control": true,
+    "p": 0.0,
+    "oof_pearson": 0.034
+   },
+   "best_cos_any_cell": 0.1727,
+   "best_control_any_cell": 0.0806,
+   "n_cells_beating_control": 8,
+   "n_cells_total": 15,
+   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。"
+  },
+  "reasoning": {
+   "label": "深推理 / 后期位置",
+   "grouping": "长轨迹后 25% vs 前 25%",
+   "status": "position_axis",
+   "at_delta0": {
+    "modal_candidate": "rep_ngram4",
+    "per_layer": {
+     "12": {
+      "candidate": "rep_ngram4",
+      "cos": 0.3714,
+      "control_cos": 0.6507,
+      "beats_control": false,
+      "p": 0.0,
+      "oof_pearson": 0.6032
+     },
+     "14": {
+      "candidate": "rep_ngram4",
+      "cos": 0.3387,
+      "control_cos": 0.6279,
+      "beats_control": false,
+      "p": 0.0,
+      "oof_pearson": 0.6149
+     },
+     "20": {
+      "candidate": "rep_ngram4",
+      "cos": 0.3266,
+      "control_cos": 0.5786,
+      "beats_control": false,
+      "p": 0.0,
+      "oof_pearson": 0.5826
+     }
+    },
+    "n_layers_beating_control": 0,
+    "n_layers": 3,
+    "median_cos": 0.3387,
+    "median_control_cos": 0.6279,
+    "min_ratio_over_control": 0.54
+   },
+   "at_delta20_L14": {
+    "candidate": "rep_frac_topk",
+    "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+    "cos": 0.5206,
+    "control_cos": 0.6279,
+    "beats_control": false,
+    "p": 0.0,
+    "oof_pearson": 0.3724
+   },
+   "best_cos_any_cell": 0.5467,
+   "best_control_any_cell": 0.6507,
+   "n_cells_beating_control": 0,
+   "n_cells_total": 15,
+   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。"
+  }
+ },
+ "per_layer": {
+  "12": {
+   "cos_ceiling": {
+    "confidence": 0.9269,
+    "caution": 0.9088,
+    "creativity": 0.893,
+    "reasoning": 0.8861
+   },
+   "control_cos_per_delta": {
+    "0": 0.6507,
+    "1": 0.6507,
+    "20": 0.6507,
+    "100": 0.6507,
+    "400": 0.6507
+   },
+   "control_oof_pearson_per_delta": {
+    "0": 0.737,
+    "1": 0.7361,
+    "20": 0.7247,
+    "100": 0.7071,
+    "400": 0.7831
+   },
+   "cells": {
+    "0": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.417,
+       "control_cos": 0.0037,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.5062
+      },
+      "caution": {
+       "candidate": "backtrack_topk",
+       "candidate_meaning": "top-64 候选里出现修订类 token 的比例",
+       "cos": 0.3168,
+       "control_cos": 0.0182,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.6654
+      },
+      "creativity": {
+       "candidate": "rep_ngram4",
+       "candidate_meaning": "以本步结尾的 4-gram 是否已出现过",
+       "cos": 0.0713,
+       "control_cos": 0.0806,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.6032
+      },
+      "reasoning": {
+       "candidate": "rep_ngram4",
+       "candidate_meaning": "以本步结尾的 4-gram 是否已出现过",
+       "cos": 0.3714,
+       "control_cos": 0.6507,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.6032
+      }
+     },
+     "n_traj_used": 48
+    },
+    "1": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.2487,
+       "control_cos": 0.0037,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.3182
+      },
+      "caution": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.2478,
+       "control_cos": 0.0182,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.3182
+      },
+      "creativity": {
+       "candidate": "rep_ngram4",
+       "candidate_meaning": "以本步结尾的 4-gram 是否已出现过",
+       "cos": 0.0819,
+       "control_cos": 0.0806,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.5137
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.4448,
+       "control_cos": 0.6507,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.4945
+      }
+     },
+     "n_traj_used": 48
+    },
+    "20": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.0389,
+       "control_cos": 0.0037,
+       "beats_control": true,
+       "p": 1.0,
+       "oof_pearson": 0.076
+      },
+      "caution": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.031,
+       "control_cos": 0.0182,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.3689
+      },
+      "creativity": {
+       "candidate": "backtrack_topk",
+       "candidate_meaning": "top-64 候选里出现修订类 token 的比例",
+       "cos": 0.0629,
+       "control_cos": 0.0806,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.0454
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.5467,
+       "control_cos": 0.6507,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.3689
+      }
+     },
+     "n_traj_used": 48
+    },
+    "100": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "digit_mass",
+       "candidate_meaning": "top-64 质量中落在数字 token 上的占比",
+       "cos": 0.0565,
+       "control_cos": 0.0037,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.0237
+      },
+      "caution": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.0726,
+       "control_cos": 0.0182,
+       "beats_control": true,
+       "p": 0.9148936170212766,
+       "oof_pearson": 0.0053
+      },
+      "creativity": {
+       "candidate": "latex_mass",
+       "candidate_meaning": "top-64 质量中落在排版结构上的占比",
+       "cos": 0.0754,
+       "control_cos": 0.0806,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.0124
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.5014,
+       "control_cos": 0.6507,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.2254
+      }
+     },
+     "n_traj_used": 47
+    },
+    "400": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "op_mass",
+       "candidate_meaning": "top-64 质量中落在运算符上的占比",
+       "cos": 0.0219,
+       "control_cos": 0.0037,
+       "beats_control": true,
+       "p": 1.0,
+       "oof_pearson": 0.0008
+      },
+      "caution": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.0346,
+       "control_cos": 0.0182,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.034
+      },
+      "creativity": {
+       "candidate": "latex_mass",
+       "candidate_meaning": "top-64 质量中落在排版结构上的占比",
+       "cos": 0.0379,
+       "control_cos": 0.0806,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.008
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.1798,
+       "control_cos": 0.6507,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.034
+      }
+     },
+     "n_traj_used": 34
+    }
+   }
+  },
+  "14": {
+   "cos_ceiling": {
+    "confidence": 0.9992,
+    "caution": 0.9876,
+    "creativity": 0.9986,
+    "reasoning": 0.9844
+   },
+   "control_cos_per_delta": {
+    "0": 0.6279,
+    "1": 0.6279,
+    "20": 0.6279,
+    "100": 0.6279,
+    "400": 0.6279
+   },
+   "control_oof_pearson_per_delta": {
+    "0": 0.7387,
+    "1": 0.7379,
+    "20": 0.7257,
+    "100": 0.7087,
+    "400": 0.7819
+   },
+   "cells": {
+    "0": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.4125,
+       "control_cos": 0.0114,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.5203
+      },
+      "caution": {
+       "candidate": "backtrack_topk",
+       "candidate_meaning": "top-64 候选里出现修订类 token 的比例",
+       "cos": 0.3077,
+       "control_cos": 0.0016,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.676
+      },
+      "creativity": {
+       "candidate": "backtrack_topk",
+       "candidate_meaning": "top-64 候选里出现修订类 token 的比例",
+       "cos": 0.0395,
+       "control_cos": 0.0573,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.676
+      },
+      "reasoning": {
+       "candidate": "rep_ngram4",
+       "candidate_meaning": "以本步结尾的 4-gram 是否已出现过",
+       "cos": 0.3387,
+       "control_cos": 0.6279,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.6149
+      }
+     },
+     "n_traj_used": 48
+    },
+    "1": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.2328,
+       "control_cos": 0.0114,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.3427
+      },
+      "caution": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.2335,
+       "control_cos": 0.0016,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.3427
+      },
+      "creativity": {
+       "candidate": "latex_mass",
+       "candidate_meaning": "top-64 质量中落在排版结构上的占比",
+       "cos": 0.0378,
+       "control_cos": 0.0573,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.1997
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.4194,
+       "control_cos": 0.6279,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.5043
+      }
+     },
+     "n_traj_used": 48
+    },
+    "20": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.0386,
+       "control_cos": 0.0114,
+       "beats_control": true,
+       "p": 0.22916666666666666,
+       "oof_pearson": 0.0816
+      },
+      "caution": {
+       "candidate": "rep_ngram4",
+       "candidate_meaning": "以本步结尾的 4-gram 是否已出现过",
+       "cos": 0.0108,
+       "control_cos": 0.0016,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.2548
+      },
+      "creativity": {
+       "candidate": "latex_mass",
+       "candidate_meaning": "top-64 质量中落在排版结构上的占比",
+       "cos": 0.0731,
+       "control_cos": 0.0573,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.034
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.5206,
+       "control_cos": 0.6279,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.3724
+      }
+     },
+     "n_traj_used": 48
+    },
+    "100": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "digit_mass",
+       "candidate_meaning": "top-64 质量中落在数字 token 上的占比",
+       "cos": 0.0474,
+       "control_cos": 0.0114,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.0287
+      },
+      "caution": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.0472,
+       "control_cos": 0.0016,
+       "beats_control": true,
+       "p": 1.0,
+       "oof_pearson": 0.0092
+      },
+      "creativity": {
+       "candidate": "latex_mass",
+       "candidate_meaning": "top-64 质量中落在排版结构上的占比",
+       "cos": 0.0767,
+       "control_cos": 0.0573,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.0164
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.4736,
+       "control_cos": 0.6279,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.2277
+      }
+     },
+     "n_traj_used": 47
+    },
+    "400": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "latex_mass",
+       "candidate_meaning": "top-64 质量中落在排版结构上的占比",
+       "cos": 0.0341,
+       "control_cos": 0.0114,
+       "beats_control": true,
+       "p": 0.9705882352941176,
+       "oof_pearson": 0.0105
+      },
+      "caution": {
+       "candidate": "digit_mass",
+       "candidate_meaning": "top-64 质量中落在数字 token 上的占比",
+       "cos": 0.0384,
+       "control_cos": 0.0016,
+       "beats_control": true,
+       "p": 1.0,
+       "oof_pearson": -0.0307
+      },
+      "creativity": {
+       "candidate": "digit_mass",
+       "candidate_meaning": "top-64 质量中落在数字 token 上的占比",
+       "cos": 0.0234,
+       "control_cos": 0.0573,
+       "beats_control": false,
+       "p": 1.0,
+       "oof_pearson": -0.0307
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.1631,
+       "control_cos": 0.6279,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.0226
+      }
+     },
+     "n_traj_used": 34
+    }
+   }
+  },
+  "20": {
+   "cos_ceiling": {
+    "confidence": 0.7391,
+    "caution": 0.7294,
+    "creativity": 0.66,
+    "reasoning": 0.7419
+   },
+   "control_cos_per_delta": {
+    "0": 0.5786,
+    "1": 0.5786,
+    "20": 0.5786,
+    "100": 0.5786,
+    "400": 0.5786
+   },
+   "control_oof_pearson_per_delta": {
+    "0": 0.6857,
+    "1": 0.6848,
+    "20": 0.6772,
+    "100": 0.6814,
+    "400": 0.7596
+   },
+   "cells": {
+    "0": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.3187,
+       "control_cos": 0.0121,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.5801
+      },
+      "caution": {
+       "candidate": "backtrack_topk",
+       "candidate_meaning": "top-64 候选里出现修订类 token 的比例",
+       "cos": 0.2092,
+       "control_cos": 0.0141,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.7201
+      },
+      "creativity": {
+       "candidate": "backtrack_topk",
+       "candidate_meaning": "top-64 候选里出现修订类 token 的比例",
+       "cos": 0.1418,
+       "control_cos": 0.0536,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.7201
+      },
+      "reasoning": {
+       "candidate": "rep_ngram4",
+       "candidate_meaning": "以本步结尾的 4-gram 是否已出现过",
+       "cos": 0.3266,
+       "control_cos": 0.5786,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.5826
+      }
+     },
+     "n_traj_used": 48
+    },
+    "1": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.1689,
+       "control_cos": 0.0121,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.3901
+      },
+      "caution": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.155,
+       "control_cos": 0.0141,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.3901
+      },
+      "creativity": {
+       "candidate": "backtrack_topk",
+       "candidate_meaning": "top-64 候选里出现修订类 token 的比例",
+       "cos": 0.1727,
+       "control_cos": 0.0536,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.494
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.3371,
+       "control_cos": 0.5786,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.5474
+      }
+     },
+     "n_traj_used": 48
+    },
+    "20": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "op_mass",
+       "candidate_meaning": "top-64 质量中落在运算符上的占比",
+       "cos": 0.0619,
+       "control_cos": 0.0121,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.0296
+      },
+      "caution": {
+       "candidate": "digit_mass",
+       "candidate_meaning": "top-64 质量中落在数字 token 上的占比",
+       "cos": 0.0611,
+       "control_cos": 0.0141,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.0746
+      },
+      "creativity": {
+       "candidate": "backtrack_topk",
+       "candidate_meaning": "top-64 候选里出现修订类 token 的比例",
+       "cos": 0.1444,
+       "control_cos": 0.0536,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.0551
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.4731,
+       "control_cos": 0.5786,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.3704
+      }
+     },
+     "n_traj_used": 48
+    },
+    "100": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "digit_mass",
+       "candidate_meaning": "top-64 质量中落在数字 token 上的占比",
+       "cos": 0.0228,
+       "control_cos": 0.0121,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.0338
+      },
+      "caution": {
+       "candidate": "top1_prob_renorm",
+       "candidate_meaning": "top-1 概率（熵的重述）",
+       "cos": 0.091,
+       "control_cos": 0.0141,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.0134
+      },
+      "creativity": {
+       "candidate": "newline_mass",
+       "candidate_meaning": "top-64 质量中落在换行上的占比",
+       "cos": 0.0794,
+       "control_cos": 0.0536,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.0107
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.398,
+       "control_cos": 0.5786,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.237
+      }
+     },
+     "n_traj_used": 47
+    },
+    "400": {
+     "per_axis": {
+      "confidence": {
+       "candidate": "op_mass",
+       "candidate_meaning": "top-64 质量中落在运算符上的占比",
+       "cos": 0.0585,
+       "control_cos": 0.0121,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": -0.0013
+      },
+      "caution": {
+       "candidate": "op_mass",
+       "candidate_meaning": "top-64 质量中落在运算符上的占比",
+       "cos": 0.0882,
+       "control_cos": 0.0141,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": -0.0013
+      },
+      "creativity": {
+       "candidate": "latex_mass",
+       "candidate_meaning": "top-64 质量中落在排版结构上的占比",
+       "cos": 0.0857,
+       "control_cos": 0.0536,
+       "beats_control": true,
+       "p": 0.0,
+       "oof_pearson": 0.0074
+      },
+      "reasoning": {
+       "candidate": "rep_frac_topk",
+       "candidate_meaning": "top-64 候选里已在生成前缀出现的比例",
+       "cos": 0.1947,
+       "control_cos": 0.5786,
+       "beats_control": false,
+       "p": 0.0,
+       "oof_pearson": 0.0399
+      }
+     },
+     "n_traj_used": 34
+    }
+   }
+  }
+ },
+ "headline": {
+  "measured": [
+   "confidence",
+   "caution"
+  ],
+  "position_axis": [
+   "reasoning"
+  ],
+  "not_measured": [
+   "creativity"
+  ],
+  "vocabulary_caveat": "6 个方向标签 = 4 条独立轴；confidence_down≡−confidence_up、reasoning_shallow≡−reasoning_deep（cos 恰为 −1.0000）。"
+ }
+}

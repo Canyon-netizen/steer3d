@@ -10,6 +10,7 @@ import type { SteeringAckMessage } from "@/lib/frame-types";
 import ControlPanel from "@/components/ControlPanel";
 import InterventionOutcomePanel from "@/components/InterventionOutcomePanel";
 import VectorStructurePanel from "@/components/VectorStructurePanel";
+import AxisReadoutPanel from "@/components/AxisReadoutPanel";
 import StrengthLawPanel from "@/components/StrengthLawPanel";
 import LayerDerivationPanel from "@/components/LayerDerivationPanel";
 import TokenStreamPanel from "@/components/TokenStreamPanel";
@@ -146,6 +147,7 @@ export default function Page() {
           <SteeringControl sendControl={sendControl} />
           <InterventionOutcomePanel />
           <VectorStructurePanel />
+          <AxisReadoutPanel />
           <StrengthLawPanel />
           <ArchivedExperiments />
           <InterpretationPanel />
