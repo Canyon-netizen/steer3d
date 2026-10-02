@@ -88,10 +88,14 @@ A5='  const idx = (S.cotTextPick >= 0 && S.cotTextPick < all.length) ? S.cotText
 B5='  const idx = 0;'
 
 # M6: scroll the window instead of the inner scroller. The page does not
+# scroll at all, so this is the classic dead-button bug. The line lives in the
+# shared helper scrollInnerTo(), which the three jump links all call -- it was
+# inlined and copy-pasted three times first, and this anchor caught that by
+# refusing to run (matched 3, wanted 1).
 # scroll here (documentElement.scrollHeight == innerHeight), so this is the
 # classic dead-button: it throws no error, changes nothing, and looks wired up.
-A6='      if(tgt && box) box.scrollTop += tgt.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;'
-B6='      if(tgt) window.scrollTo(0, tgt.getBoundingClientRect().top + window.scrollY);'
+A6='  box.scrollTop += el.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;'
+B6='  window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY);'
 
 # M7: land on the block top instead of the text. The block is ~1212px tall in a
 # 300px window, so this puts a heading and four numbers on screen and leaves

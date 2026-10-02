@@ -29,8 +29,8 @@
 set -u
 cd /Users/zhourui/code/steer3d
 
-VERIFIERS="cottext/verify_cottext cot32k/verify_cot32k picked/verify_picked
-picked/verify_entcolor readability/verify_readability"
+VERIFIERS="cottext/verify_cottext cot32k/verify_cot32k arreadout/verify_answer_readout
+picked/verify_picked picked/verify_entcolor readability/verify_readability"
 
 # classify <file> -> sets CLS_STATUS, CLS_OK, CLS_FAIL, CLS_DECLARED.
 # One line of truth about what the verifier's own output claims, independent of
@@ -139,6 +139,10 @@ if bash .cache/cottext/mutate_cottext.sh status | tail -1 | grep -q 'present exa
 else
   echo "cottext anchors BAD"; overall=$((overall + 1))
 fi
+# The answer-readout screen ships real text, so its payload can be malformed in
+# ways a percentage cannot: two identical arms, a split point outside its own
+# window, a "shared head" that runs past the split. Those are checked against
+# the payload, not the DOM -- see verify_answer_readout.mjs.
 
 if [ "$overall" -eq 0 ]; then
   echo "REGRESSION ALL PASS"

@@ -499,7 +499,7 @@ const S = {
   // -1 = 「由渲染器挑默认那一次」。这里必须用 -1 而不是 0：0 也是一个合法的
   // 下标，`idx = 0` 会先命中它，于是下面那段"默认落在分岔最早的那次"的逻辑
   // 永远不执行——注释和现实分家，而判据是照着注释写的。
-  cotTexts: null, cotTextPick: -1,
+  cotTexts: null, cotTextPick: -1, ansRead: null, ansPick: 0,
 };
 
 const DEC = new TextDecoder("utf-8");
@@ -866,6 +866,14 @@ async function loadPairMeta(){
       S.cot32k = await cr2.json();
     }else trace("cot_effect_32k.json: HTTP " + cr2.status);
   }catch(e){ trace("cot_effect_32k unavailable: " + e.message); }
+  // 第四批：答案位移的两臂全文。答案这一维只给两个整数的话，"向量把思维链
+  // 改成什么样"读者只能靠想象——整数是摘要，不是那两篇文章。
+  try{
+    const cr4 = await fetch(dataBase()+"answer_readout.json");
+    if(cr4.ok){
+      S.ansRead = await cr4.json();
+    }else trace("answer_readout.json: HTTP " + cr4.status);
+  }catch(e){ trace("answer_readout unavailable: " + e.message); }
   // 第三批：两臂正文。只给统计量的话，"思维链被改成什么样"这件事读者只能靠想象。
   try{
     const cr3 = await fetch(dataBase()+"cot_texts.json");
@@ -1424,6 +1432,7 @@ function renderCotEffect(){
   // 放在 data-cotblock 的 </div> **之内**：它是同一块思维链面板的内容，
   // 拼在外面会变成兄弟节点，任何按 [data-cotblock] 取内容的代码都看不到它。
   h += renderCotEffect32k();
+  h += renderAnswerReadout();
   h += renderCotTexts();
   h += `</div>`;
   return wrap(h);
@@ -1447,6 +1456,160 @@ function renderCotEffect(){
    所有词错位。所以这里**不**做词级 diff，只按"第一个不同的字符"切一刀，
    并且明确标注 split_char 是字符偏移、first_diverged_step 是 token 步数，
    两者不是一回事。所有百分比仍然来自 summary（生成时逐步实测）。 */
+// Scroll the panel's INNER box so that `el` sits at its top.
+//
+// One implementation for all three jump links (cot-text screen, answer-readout
+// screen, and the in-block "jump to the endings"). The page itself does not
+// scroll -- documentElement.scrollHeight equals innerHeight here -- so
+// `window.scrollTo` silently does nothing and the button looks dead. That is
+// mutation M6 in .cache/cottext/mutate_cottext.sh, and while writing the third
+// jump the same line appeared three times verbatim, which is what an anchor
+// that must match exactly once is for: the mutation script refused to run
+// rather than mutating an arbitrary one of the three.
+function scrollInnerTo(el, box){
+  if(!el || !box) return false;
+  box.scrollTop += el.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
+  return true;
+}
+
+function renderAnswerReadout(){
+  const T = S.ansRead;
+  if(!T || !T.items || !T.items.length) return "";
+  const items = T.items;
+  const idx = (S.ansPick >= 0 && S.ansPick < items.length) ? S.ansPick : 0;
+  const it = items[idx];
+  const sel = T.selection || {};
+  const VD = {
+    "right->wrong": ["原本答对，加向量后答错了", "#ff8fa3"],
+    "wrong->right": ["原本答错，加向量后答对了", "#3ddc97"],
+    "right->right": ["两边都答对", "#3ddc97"],
+    "wrong->wrong": ["两边都错，只是错得不一样", "#8a94a6"],
+    "unknown": ["题库里查不到标准答案", "#8a94a6"],
+  };
+  const v = VD[it.verdict] || VD.unknown;
+  const esc2 = s => esc(s == null ? "" : String(s));
+
+  // Split a window into "before the split" and "from the split on", so the
+  // first differing character is the visual hinge. The hinge offset is read
+  // off the payload -- `split_char` is where the texts part, each window
+  // records its own `start` -- so nothing here assumes a window size. The
+  // builder's SPLIT_PRE is a constant on the other side of the wire and this
+  // page must not keep a second copy of it that can drift.
+  const hinge = w => {
+    const rel = (it.split_char || 0) - (w.start || 0);
+    const t = w.text || "";
+    if(rel <= 0 || rel >= t.length) return [t, ""];
+    return [t.slice(0, rel), t.slice(rel)];
+  };
+  // One arm per row, not two side by side. This block lives in the page's
+  // 320px right-hand column (.wrap is `300px 1fr 320px`), so a flex row split
+  // it into two 143px columns: at 11px that is about four Chinese characters
+  // per line. Every textContent check still passed on that layout, and a
+  // screenshot is the only thing that shows it is unreadable. The sibling
+  // "生成的文本" block stacks its two arms for the same reason.
+  const armCard = (key, title, sub, arm, text, color, marker) => `
+    <div data-arm="${esc2(key)}" style="margin:0 0 7px">
+      <div style="font-size:11.5px;font-weight:600;color:${color}">${esc2(title)}</div>
+      <div style="font-size:10.5px;color:#8a94a6">${esc2(sub)}</div>
+      <div style="font-size:10.5px;color:#8891a4;margin:2px 0 3px">
+        写了 <b style="color:#b9c4d6">${arm.steps}</b> 步 · ${arm.chars} 字符 ·
+        答案 <b style="color:${color}">${esc2(arm.answer)}</b>
+        <span style="color:#5f6b80">（${esc2(arm.source)}）</span></div>
+      ${marker ? `<div style="font-size:10.5px;color:#5f6b80;margin-bottom:2px">${marker}</div>` : ''}
+      <div data-armtext="${esc2(key)}" style="font-family:var(--mono);font-size:11px;line-height:1.6;
+        color:#c8d2e2;white-space:pre-wrap;word-break:break-word;background:#0e1420;
+        border:1px solid #1d2534;border-radius:4px;padding:5px 7px">${esc2(text)}</div>
+    </div>`;
+
+  // `h` is declared on the next line. These two appends used to sit above it,
+  // next to the helper definitions, and the block threw
+  // "Cannot access 'h' before initialization" on every render -- so the whole
+  // screen was missing while the JSON was present and the jump button was
+  // still on the page. A TDZ error is silent about which widget died.
+  let h = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #232a36" data-aroot="1">`;
+  h += `<div style="font-size:12.5px;font-weight:600;margin-bottom:5px;color:#e8edf5">
+    同一道题跑两遍：这两篇文章就是它算出来的两个数</div>`;
+  h += `<div class="note" style="font-size:10.5px;margin:0 0 7px">
+    上面那些百分比是摘要，这里是原文。同一道题、同一段提示，跑两遍完整推理：
+    一遍注入强度 <b>${T.strength}</b>，一遍喂零向量（强度 ${T.zero_strength}）。解码循环是自己写的、
+    逐 token 取 <span style="font-family:var(--mono)">argmax</span>，<b>没有采样</b>；
+    而同样的输入跑两遍会逐字相同，所以两条路一旦分开，只可能是因为那个向量。
+    符合条件的有 <b>${sel.n_eligible}</b> 道，这里列出 ${sel.n_shipped} 道。</div>`;
+
+  // 题号选择器。判定不同的题排在前面，读者最先看到的不是"数字变了"，
+  // 而是"变了之后是好了还是坏了"。
+  h += `<div style="display:flex;gap:3px;flex-wrap:wrap;margin:0 0 7px">`;
+  items.forEach((x, i) => {
+    h += `<button data-arpick="${i}" class="${i === idx ? "on" : ""}"
+      style="width:auto;padding:3px 7px;font-size:11px;font-family:var(--mono)">${esc2(x.label)}</button>`;
+  });
+  h += `</div>`;
+
+  h += `<div style="font-size:12px;color:#b9c4d6;margin:2px 0 6px">
+    <span style="font-family:var(--mono)">${esc2(it.label)}</span> ·
+    标准答案 <b style="color:#ffd479">${esc2(it.ref)}</b> ·
+    <b style="color:${v[1]}">${v[0]}</b></div>`;
+
+  // 共同开头。两遍从这里开始逐字相同——这不是巧合，是贪心解码的确定性：
+  // 同一个前缀、同一个模型，argmax 必然是同一个 token。显示长度取自产物的
+  // head_chars（= min(分岔点, 180)），**不是**一个页面上的常数：块里写「前 N
+  // 个字符逐字相同」，那 N 个字符就得真的是 N 个，且一个都不能多。第一版
+  // 这里固定取 180 字符，而有的题第 14 个字符就分岔了，于是页面会一边说
+  // 「前 180 个字符相同」一边展示一段并不相同的文本。
+  const heads = it.heads || {};
+  h += `<div style="font-size:10.5px;color:#8891a4;margin:0 0 3px">
+    两遍从这里开始逐字相同——同一个前缀、同一个模型，取 argmax 必然取到同一个词。
+    一致到<b style="color:#b9c4d6">第 ${it.split_char} 个字符</b>才分岔
+    （${heads.truncated ? `共同开头较长，这里只显示前 ${it.head_chars} 个字符` :
+      `共同开头只有这 ${it.head_chars} 个字符，两边很快就各走各的`}）：</div>`;
+  h += `<div data-arhead="1" style="font-family:var(--mono);font-size:11px;line-height:1.6;
+    color:#8a94a6;white-space:pre-wrap;word-break:break-word;background:#0e1420;
+    border:1px solid #1d2534;border-radius:4px;padding:5px 7px;margin-bottom:8px">`
+    + esc2(heads.zero) + `</div>`;
+
+  h += `<div style="font-size:11.5px;font-weight:600;color:#e8edf5;margin:2px 0 4px">
+    从这里开始，两边各写各的：</div>`;
+  h += armCard("post:zero", "不加向量（对照）", `同一个问题，喂零向量（强度 ${T.zero_strength}）`,
+    it.zero, hinge(it.split.zero)[1], "#7cc0ff", null);
+  h += armCard("post:steered", `加向量 ${T.strength}`, `同一个问题，注入 ${T.direction}`,
+    it.steered, hinge(it.split.steered)[1], "#ff8fa3", null);
+
+  h += `<div class="note" style="font-size:10.5px;margin:5px 0 9px">
+    淡色是分岔之前两遍共有的原文，深色是分岔之后各自写的。<b>越过这个字符之后
+    两段文本没有任何对齐关系</b>——它们长度不同（${it.zero.chars} 与 ${it.steered.chars} 字符），
+    不是同一句话的两种写法，是两篇各自写完的文章。</div>`;
+
+  // 各自的结尾。这里才是答案真正出现的地方。同样纵向排，理由同上。
+  // 这一块整块有三千多像素高，缩在一个 300px 的滚动窗口里，答案出现的地方在
+  // 最底下——所以给一个就地跳转，而不是让人一路滚。
+  h += `<div style="font-size:11.5px;font-weight:600;color:#e8edf5;margin:6px 0 4px;
+    display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+    <span>两篇各自的结尾</span>
+    <button data-arto="tail" style="width:auto;padding:2px 7px;font-size:10.5px">↓ 直接跳到这里</button>
+  </div>`;
+  h += armCard("tail:zero", "不加向量", `最后 ${(it.landing.zero || "").length} 字符`,
+    it.zero, it.landing.zero, "#7cc0ff", "下面这一段里，答案第一次出现的地方");
+  h += armCard("tail:steered", `加向量 ${T.strength}`, `最后 ${(it.landing.steered || "").length} 字符`,
+    it.steered, it.landing.steered, "#ff8fa3", "下面这一段里，答案第一次出现的地方");
+
+  // 限制写在正文旁边，不是脚注。
+  h += `<div class="note" style="margin-top:9px;padding:7px 9px;background:#131a28;
+    border-left:2px solid #ffd479;border-radius:0 4px 4px 0;font-size:10.5px">
+    <b style="color:#ffd479">读这两段之前，三件事要知道：</b>
+    <b>一、</b>「第 ${it.split_char} 个字符」是<b>字符位置</b>，不是 token 步数；
+    token 步数是另一套编号，两者在这一屏里指的不是一件事。<br>
+    <b>二、</b>这里的两臂<b>不是 token 同步的</b>。上面那块思维链正文屏里的
+    影子臂是"同一句话被逐词替换"，那里的接缝有意义；这里是两遍各自解码，
+    只有开头那段是真正可比的。<br>
+    <b>三、</b><b>答案变了不等于变好了。</b>这一题是「${v[0]}」；
+    本批 ${sel.n_eligible} 道变化题里答对数的净变化是 0。
+    <span style="color:#5f6b80">（这些数字全部取自生成时逐步实测的量，
+    文本本身只做示意。）</span></div>`;
+
+  h += `</div>`;
+  return h;
+}
+
 function renderCotTexts(){
   const T = S.cotTexts;
   if(!T) return "";
@@ -1849,6 +2012,16 @@ function drawDeltaSide(){
       <div data-jumphint="1" style="font-size:10.5px;color:#5f6b80;margin-top:3px"></div>
     </td></tr>`;
   }
+  // 答案位移正文屏的入口必须和正文屏的入口并排放在最上面。这个块同样在一个
+  // 300px 的滚动窗口里、位于几千像素之下，而整页不滚动——放在块旁边等于
+  // 不放，读者滚不到就走了。
+  if(S.ansRead && (S.ansRead.items || []).length){
+    const n0 = (S.ansRead.selection || {}).n_eligible;
+    h += `<tr><td colspan="3" data-arjump="1" style="padding:0 0 6px">
+      <button data-jump="ansread" style="width:auto;padding:4px 9px;font-size:11.5px">
+      ↓ 逐篇读：${n0} 道题里答案变了的那几道，两篇文章并排</button>
+    </td></tr>`;
+  }
   h += renderDivergenceReadout();
   h += renderCotEffect();
   h += `<tr><td class="note">注入</td><td class="tok">${p.direction} @ ${p.strength} → L${p.inject_layer}</td></tr>`;
@@ -2007,7 +2180,28 @@ function drawDeltaSide(){
       // Scroll the inner box, not the window: this page does not scroll
       // (documentElement.scrollHeight == innerHeight here), so a window.scrollTo
       // would silently do nothing and look like a dead button.
-      if(tgt && box) box.scrollTop += tgt.getBoundingClientRect().top - box.getBoundingClientRect().top - 8;
+      scrollInnerTo(tgt, box);
+    };
+  }
+  const arJump = tb.querySelector('[data-jump="ansread"]');
+  // 块内那个「跳到结尾」。滚的是同一个 300px 窗口；页面本身不滚动，所以
+  // window.scrollTo 会静默无效、看起来像死按钮。
+  const arInner = tb.querySelectorAll("[data-arto]");
+  for(let i=0;i<arInner.length;i++){
+    arInner[i].onclick = () => {
+      const box = tb.parentElement;
+      const tgt = tb.querySelector('[data-arm="tail:zero"]');
+      scrollInnerTo(tgt, box);
+    };
+  }
+  if(arJump){
+    arJump.onclick = () => {
+      const box = tb.parentElement;
+      // Land on the TEXTS again, not on the block's top. Same reason as the
+      // cottext jump: the block is far taller than the 300px window, and a
+      // jump to its top shows a heading with the prose still off-screen below.
+      const tgt = tb.querySelector("[data-arhead]") || tb.querySelector("[data-aroot]");
+      scrollInnerTo(tgt, box);
     };
   }
   const chips = tb.querySelectorAll("[data-dvl]");
@@ -2017,6 +2211,11 @@ function drawDeltaSide(){
   const cotBtns = tb.querySelectorAll("[data-cotdir]");
   for(let i=0;i<cotBtns.length;i++){
     cotBtns[i].onclick = () => { S.cotDir = cotBtns[i].dataset.cotdir; drawDeltaSide(); };
+  }
+  // 答案位移正文屏的题号按钮。同样只能在 innerHTML 之后绑。
+  const arBtns = tb.querySelectorAll("[data-arpick]");
+  for(let i=0;i<arBtns.length;i++){
+    arBtns[i].onclick = () => { S.ansPick = parseInt(arBtns[i].dataset.arpick, 10); drawDeltaSide(); };
   }
   // 正文挑选器。落在 innerHTML 之后才存在，只能在这里绑。
   const cotPick = tb.querySelector("[data-cotpick]");
