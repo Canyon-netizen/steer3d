@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useApp } from "@/lib/store";
 import { SteeringWSClient } from "@/lib/ws-client";
+import { resolveWsUrl } from "@/lib/ws-endpoint";
 import type { SteeringAckMessage } from "@/lib/frame-types";
 
 import ControlPanel from "@/components/ControlPanel";
@@ -21,12 +22,9 @@ import Legend from "@/components/Legend";
 // static import makes / grow 1.16 kB -> 227 kB and `<canvas>` appear.
 import Scene3D from "@/components/Scene3D";
 
-const WS_URL =
-  process.env.NEXT_PUBLIC_WS_URL ||
-  (typeof window !== "undefined"
-    ? `ws://${window.location.hostname}:8000/ws`
-    : "ws://localhost:8000/ws");
-
+// The backend URL is resolved at runtime, not baked in at module scope.
+// See lib/ws-endpoint.ts: port 8000 is frequently occupied by something
+// unrelated, and a hard-coded port made that failure look like a broken app.
 export default function Page() {
   const ingestFrame = useApp((s) => s.ingestFrame);
   const ingestReady = useApp((s) => s.ingestReady);
@@ -36,9 +34,22 @@ export default function Page() {
   const setError = useApp((s) => s.setError);
 
   const clientRef = useRef<SteeringWSClient | null>(null);
+  const [wsUrl, setWsUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const client = new SteeringWSClient(WS_URL, (msg) => {
+    let cancelled = false;
+    resolveWsUrl(window.location.hostname).then((url) => {
+      if (cancelled) return;
+      setWsUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!wsUrl) return;
+    const client = new SteeringWSClient(wsUrl, (msg) => {
       const k = (msg as { kind?: string }).kind;
       if (k === "ready") {
         ingestReady(msg as Parameters<typeof ingestReady>[0]);
@@ -68,6 +79,7 @@ export default function Page() {
       setConnected(false);
     };
   }, [
+    wsUrl,
     ingestFrame,
     ingestReady,
     ingestSteeringCatalog,

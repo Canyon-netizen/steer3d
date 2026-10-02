@@ -213,12 +213,46 @@ export default function ArchivedExperiments() {
 // ---------------------------------------------------------------------------
 
 function SweepTable({ rows }: { rows: SweepRow[] }) {
-  // Group by direction so each reads as its own dose-response.
-  const groups: { direction: string; rows: SweepRow[] }[] = [];
+  // Collapse to one row per (direction, strength).
+  //
+  // The 24-problem file stores 96 rows: 24 problems x 2 directions x 2
+  // strengths. Rendering them raw produced 24 rows that all looked identical
+  // under the same (direction, strength) pair, which is also why the React
+  // key `${direction}-${strength}` collided 24 times. The mean is the honest
+  // summary of a 24-problem run, and the per-problem spread below it is what
+  // says whether that mean is worth anything.
+  type Cell = {
+    direction: string;
+    strength: number;
+    rows: SweepRow[];
+    meanDe: number;
+    meanAgreement: number;
+    // Worst case across problems, not the mean: this column answers "how far
+    // did the paths separate at their worst", and averaging maxima would
+    // report the gentlest problem instead of the dangerous one.
+    maxDiv: number;
+  };
+
+  const byKey: { key: string; cell: Cell }[] = [];
+  const seen = new Map<string, { direction: string; strength: number; rows: SweepRow[] }>();
   for (const r of rows) {
-    const g = groups.find((x) => x.direction === r.direction);
-    if (g) g.rows.push(r);
-    else groups.push({ direction: r.direction, rows: [r] });
+    const key = `${r.direction} | ${r.strength}`;
+    let e = seen.get(key);
+    if (!e) {
+      e = { direction: r.direction, strength: r.strength, rows: [] };
+      seen.set(key, e);
+      byKey.push({ key, cell: e as Cell });
+    }
+    e.rows.push(r);
+  }
+  for (const { cell } of byKey) {
+    const des = cell.rows.map(
+      (r) => r.summary.mean_entropy_primary - r.summary.mean_entropy_shadow
+    );
+    cell.meanDe = des.reduce((a, b) => a + b, 0) / des.length;
+    const agr = cell.rows.map((r) => r.summary.token_agreement);
+    cell.meanAgreement = agr.reduce((a, b) => a + b, 0) / agr.length;
+    cell.maxDiv = Math.max(...cell.rows.map((r) => r.summary.max_divergence));
   }
 
   // How many distinct prompts does this file cover? A mean over 24
@@ -240,20 +274,19 @@ function SweepTable({ rows }: { rows: SweepRow[] }) {
           : `n = ${nProblems} prompts`}
       </div>
 
-      {groups.map((g) => {
-        // Scale the entropy bar to the largest |Δentropy| in this group.
-        const deltas = g.rows.map(
-          (r) => r.summary.mean_entropy_primary - r.summary.mean_entropy_shadow
-        );
-        const maxDe = Math.max(...deltas.map(Math.abs), 1e-6);
+      {byKey.map(({ key, cell: g }) => {
+        // Scale the entropy bar to the largest |mean Δentropy| in the file.
+        const maxDe = Math.max(...byKey.map((c) => Math.abs(c.cell.meanDe)), 1e-6);
         // Per-problem spread, when the file has more than one prompt.
         const spread = (() => {
           if (nProblems < 2) return null;
-          const nonControl = deltas.filter((_, i) => g.rows[i].strength > 0);
-          if (nonControl.length < 2) return null;
-          const m = nonControl.reduce((a, b) => a + b, 0) / nonControl.length;
+          const des = g.rows.map(
+            (r) => r.summary.mean_entropy_primary - r.summary.mean_entropy_shadow
+          );
+          if (des.length < 2) return null;
+          const m = des.reduce((a, b) => a + b, 0) / des.length;
           const sd = Math.sqrt(
-            nonControl.reduce((a, b) => a + (b - m) ** 2, 0) / (nonControl.length - 1)
+            des.reduce((a, b) => a + (b - m) ** 2, 0) / (des.length - 1)
           );
           return { sd, m };
         })();
@@ -261,40 +294,43 @@ function SweepTable({ rows }: { rows: SweepRow[] }) {
           spread != null && Math.abs(spread.m) > 0 && spread.sd > Math.abs(spread.m);
 
         return (
-          <div key={g.direction}>
+          <div key={key}>
             <div className="text-[10px] font-medium text-gray-300 mb-1">
               {g.direction}
             </div>
             <div className="space-y-0.5">
-              {g.rows.map((r) => {
-                const de = r.summary.mean_entropy_primary - r.summary.mean_entropy_shadow;
-                const isControl = r.strength === 0;
-                const w = (Math.abs(de) / maxDe) * 50;
-                return (
-                  <div
-                    key={`${r.direction}-${r.strength}`}
-                    className="flex items-center gap-1.5 text-[10px] font-mono"
-                  >
-                    <span className="w-8 text-gray-500 shrink-0">
-                      {r.strength.toFixed(2)}
-                    </span>
-                    <span className="w-11 text-gray-500 shrink-0" title="token agreement">
-                      {(r.summary.token_agreement * 100).toFixed(0)}%
-                    </span>
-                    <span className="w-11 text-right shrink-0">
-                      {isControl ? (
-                        <span className="text-emerald-500">ctrl</span>
-                      ) : (
-                        <span
-                          style={{
-                            color: de < 0 ? "#60a5fa" : "#fb923c",
-                          }}
-                        >
-                          {de >= 0 ? "+" : ""}
-                          {de.toFixed(4)}
-                        </span>
-                      )}
-                    </span>
+              {byKey
+                .filter((c) => c.cell.direction === g.direction)
+                .map(({ key: rk, cell: r }) => {
+                  const de = r.meanDe;
+                  const isControl = r.strength === 0;
+                  const w = (Math.abs(de) / maxDe) * 50;
+                  return (
+                    <div
+                      key={rk}
+                      className="flex items-center gap-1.5 text-[10px] font-mono"
+                    >
+                      <span className="w-8 text-gray-500 shrink-0">
+                        {r.strength.toFixed(2)}
+                      </span>
+                      <span className="w-11 text-gray-500 shrink-0" title={`token agreement, mean of ${r.rows.length} problems`}>
+                        {(r.meanAgreement * 100).toFixed(0)}%
+                      </span>
+                      <span className="w-11 text-right shrink-0">
+                        {isControl ? (
+                          <span className="text-emerald-500">ctrl</span>
+                        ) : (
+                          <span
+                            style={{
+                              color: de < 0 ? "#60a5fa" : "#fb923c",
+                            }}
+                            title={`mean of ${r.rows.length} problems`}
+                          >
+                            {de >= 0 ? "+" : ""}
+                            {de.toFixed(4)}
+                          </span>
+                        )}
+                      </span>
                     {/* signed bar: left = entropy down, right = up */}
                     <span className="flex-1 flex items-center h-2 min-w-8">
                       <span className="flex-1 flex justify-end">
@@ -325,9 +361,9 @@ function SweepTable({ rows }: { rows: SweepRow[] }) {
                     </span>
                     <span
                       className="w-12 text-right text-gray-500 shrink-0"
-                      title="max per-layer divergence"
+                      title={`max per-layer divergence, worst of ${r.rows.length} problems`}
                     >
-                      {r.summary.max_divergence.toFixed(3)}
+                      {r.maxDiv.toFixed(3)}
                     </span>
                   </div>
                 );
@@ -351,9 +387,11 @@ function SweepTable({ rows }: { rows: SweepRow[] }) {
 
       <p className="text-[10px] text-gray-500 leading-relaxed border-t border-border pt-1.5">
         Columns: strength · token agreement · Δentropy · max per-layer
-        divergence. Rows at strength 0.00 are controls — they inject a zero
-        vector and must come back at exactly zero divergence, which is what
-        makes the other rows attributable to the intervention.
+        divergence. Each row is the mean over all problems in the file, with
+        the per-problem standard deviation printed underneath. Rows at
+        strength 0.00 are controls — they inject a zero vector and must come
+        back at exactly zero divergence, which is what makes the other rows
+        attributable to the intervention.
       </p>
     </div>
   );

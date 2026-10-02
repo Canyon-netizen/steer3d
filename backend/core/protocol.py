@@ -78,7 +78,13 @@ class Frame:
     steer_projection: Optional[float] = None  # component of h_t along v
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        # Every other server message is tagged with `kind` (ready,
+        # steering_catalog, steering_ack, error, reset_ack). Frames were not,
+        # and the frontend had to fall back to "anything unrecognised is a
+        # frame". That is fragile in both directions: a client cannot tell a
+        # frame from a future message type it does not know yet, and a frame
+        # with a stray `kind` would be routed to the wrong handler. Tag it.
+        return {"kind": "frame", **asdict(self)}
 
 
 # ---------------------------------------------------------------------------
