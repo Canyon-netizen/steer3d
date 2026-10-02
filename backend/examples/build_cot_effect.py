@@ -246,6 +246,53 @@ def main():
     # one real one reports a change that did not happen -- which is exactly the
     # failure this measurement exists to detect, so contaminating it with a
     # known-bad extractor would be self-defeating.
+    # --- Gate 2: no duplicated (problem, direction, strength) cell ---------
+    # `ans_by.setdefault(...)[strength] = ...` overwrites, and `n_runs` counts
+    # every record, so a shard that re-ran one problem would both double-weight
+    # that problem in the change rate and report a run count that no single
+    # experiment produced. Nothing downstream would notice. The current batch is
+    # clean (84 records, 84 distinct cells, 42 problem-direction pairs each with
+    # exactly the two swept strengths); this is here so the next shard cannot
+    # make it dirty silently.
+    seen = collections.Counter((r["label"], r["direction"], r["strength"])
+                               for r in runs)
+    dupes = {k: v for k, v in seen.items() if v > 1}
+    per_cell = collections.Counter((r["label"], r["direction"]) for r in runs)
+    # The expected count per (problem, direction) is the MODE, not the minimum.
+    # Taking `sorted(...)[0]` made a batch with 41 pairs at 2 runs and 1 pair at
+    # 1 run declare the expected value to be 1, so the message named all 41
+    # normal pairs as anomalous and never mentioned the one that was actually
+    # missing an arm. The gate still refused, but it refused while pointing at
+    # the wrong thing, which is the same as not refusing.
+    if per_cell:
+        want, want_n = per_cell.most_common(1)[0]
+    else:
+        want, want_n = None, 0
+    print("重复检查  %d 次运行 / %d 个唯一单元%s；每 (题,方向) 应有 %s 次"
+          % (len(runs), len(seen),
+             "（无重复）" if not dupes else "，重复 %d 个" % len(dupes),
+             want_n))
+    if dupes:
+        raise SystemExit(
+            "同一 (题, 方向, 强度) 出现多次，例如 %s。"
+            "某个 shard 重跑过题目；继续会把那一题双计，且 n_runs 会报出一个"
+            "没有哪一次实验产生过的数字。" % list(dupes)[:3])
+    if per_cell and any(v != want_n for v in per_cell.values()):
+        # Report the odd ones, not the whole table. Dumping all 42 pairs made
+        # the one line that matters -- the pair with a single run -- the
+        # hardest thing in the message to find.
+        odd = sorted(k for k, v in per_cell.items() if v != want_n)
+        # k is a (label, direction) pair, so it fills TWO of the three slots in
+        # the per-item format. A "%s/%s=%d" % k raises TypeError at format time
+        # -- which is exactly why this gate gets exercised on purpose rather
+        # than trusted to work.
+        sample = ", ".join("%s/%s=%d" % (k[0], k[1], per_cell[k]) for k in odd[:4])
+        raise SystemExit(
+            "有 %d 个 (题, 方向) 的运行数不是 %d，例如 %s。"
+            "有一道题少跑了某个强度，答案位移的比较会因为缺配对而少算一组，"
+            "而 n_runs 仍会把缺的那次算进去。"
+            % (len(odd), want_n, sample + (" ..." if len(odd) > 4 else "")))
+
     ans_by = {}
     for r in runs:
         if r.get("answer_primary_strict") is None:

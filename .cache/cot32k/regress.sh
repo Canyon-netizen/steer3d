@@ -116,6 +116,7 @@ selftest() {
 if [ "${1:-}" = "--selftest" ]; then selftest; exit $?; fi
 
 overall=0
+D_GATE=".cache/cot32k/reg_gate_behaviour.txt"
 for v in $VERIFIERS; do
   out=".cache/cot32k/reg_$(echo "$v" | tr '/' '_').txt"
   node ".cache/$v.mjs" > "$out" 2>&1
@@ -139,6 +140,14 @@ if bash .cache/cottext/mutate_cottext.sh status | tail -1 | grep -q 'present exa
 else
   echo "cottext anchors BAD"; overall=$((overall + 1))
 fi
+
+# Gate behaviour is not a mutation and not a page check: it runs the builder
+# against deliberately broken input and asserts it refuses. A gate that has
+# only ever seen clean data is untested code wearing a gate's clothes.
+bash .cache/arreadout/gate_behaviour.sh > "$D_GATE" 2>&1
+grc=$?
+tail -1 "$D_GATE" | sed 's/^/  /'
+[ $grc -eq 0 ] || overall=$((overall + 1))
 # The answer-readout screen ships real text, so its payload can be malformed in
 # ways a percentage cannot: two identical arms, a split point outside its own
 # window, a "shared head" that runs past the split. Those are checked against
