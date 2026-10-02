@@ -52,6 +52,9 @@ MODEL = "Qwen3-1.7B"
 MODEL_PROVENANCE = ("replication_24problems_L20.log 记录 model loaded: /tmp/qwen3/master；"
                     "run_intervention.py 的数据集默认值为 aime_qwen3_1p7b_16k_fp16")
 
+# Planned size of the batch, 0 when unknown. See --planned-runs.
+PLANNED_RUNS = 0
+
 # The five quantities the control must reproduce exactly. `token_agreement` and
 # `verbatim_step_overlap` are fractions of 1 when the two texts are the same
 # text; `reason_len_ratio` is 1; the self-check delta is 0; the answer is
@@ -75,7 +78,7 @@ def main():
     # The shipped cot_effect.json is the 60-step family; the 32k-budget family
     # is a *different* experiment and must not overwrite it — it lands in its
     # own file and the page shows it as a separate block.
-    global SRC, DEST, SOURCE, MODEL, MODEL_PROVENANCE
+    global SRC, DEST, SOURCE, MODEL, MODEL_PROVENANCE, PLANNED_RUNS
     if len(sys.argv) > 1:
         import argparse
         ap = argparse.ArgumentParser(description="Build the CoT-effect payload.")
@@ -86,10 +89,19 @@ def main():
         ap.add_argument("--model-provenance", default=MODEL_PROVENANCE)
         ap.add_argument("--steps-per-run", type=int, default=1025)
         ap.add_argument("--truncated", type=int, default=1)
+        # How many runs this batch was *planned* to produce, as distinct from
+        # how many have landed. The 32k family is a live batch: 24 problems x 4
+        # directions = 96, and the payload gets rebuilt as shards finish. A
+        # page that says "72 runs" without this invites the reader to treat a
+        # partial count as a final one -- and the conclusion it carries is a
+        # *negative* one ("the answers did not change"), which is exactly the
+        # kind of claim a later batch can overturn. 0 means "not stated".
+        ap.add_argument("--planned-runs", type=int, default=0)
         a = ap.parse_args()
         SRC, DEST, SOURCE = a.src, a.dest, a.source
         MODEL, MODEL_PROVENANCE = a.model, a.model_provenance
         STEPS_PER_RUN, TRUNCATED = a.steps_per_run, a.truncated
+        PLANNED_RUNS = a.planned_runs
 
     src_path = os.path.join(SRC, SOURCE)
     if not os.path.exists(src_path):
@@ -189,6 +201,11 @@ def main():
                    "而不是两条流走到了不同句子。strength=0.0 是同一条代码路径喂零向量，"
                    "它给出的一切都算在采集头上。"),
         "n_runs": len(runs),
+        # Planned total for this batch, or 0 when the caller does not state
+        # one. The page turns this into "this is N of M, still growing".
+        "planned_runs": PLANNED_RUNS,
+        "planned_problems": PLANNED_RUNS // 4 if PLANNED_RUNS else 0,
+        "batch_complete": bool(PLANNED_RUNS) and len(runs) >= PLANNED_RUNS,
         "n_problems": len(set(r["label"] for r in runs)),
         "layer": sorted(set(r["layer"] for r in runs))[0],
         # Steps actually taken vary run to run once the budget stops binding,

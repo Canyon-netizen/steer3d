@@ -1362,7 +1362,8 @@ function renderCotEffect(){
        `<b style="color:#ffb454">这是另一组实验</b>：${esc(C.model)}，` +
        `L${C.layer} 注入，${C.n_problems} 道题，每题只生成 ${C.steps_per_run} 步，` +
        `共 ${C.n_runs} 次运行。和上面那条配对流不是同一批数据，数字不要混着读。` +
-       `对照组是同一条代码喂零向量。</div>`;
+       `对照组是同一条代码喂零向量。` +
+       `</div>`;
 
   h += `<div style="display:flex;gap:3px;flex-wrap:wrap;margin:0 0 6px">`;
   dirs.forEach(function(d){
@@ -1440,6 +1441,23 @@ function renderCotEffect32k(){
   let h = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #232a36">`;
   h += `<div style="font-size:12.5px;font-weight:600;margin-bottom:7px;color:#e8edf5">
     同一件事，32k 预算重跑（${C.n_runs} 次运行 · ${C.n_problems} 题 · 注入 L${C.layer}）</div>`;
+
+  // Whether this batch has finished. It has not, and the block's headline
+  // numbers are a NEGATIVE result -- the answers did not change. A negative
+  // result over 76 of a planned 96 runs is a different claim from one over all
+  // 96, and a later shard can overturn it. "76 runs" alone reads as a finished
+  // count, so the shortfall is stated next to the number it qualifies.
+  if(C.planned_runs && !C.batch_complete){
+    h += `<div class="note" style="margin:0 0 7px;font-size:10.5px">
+      <b style="color:#ffb454">这一批还没跑完</b>：计划 ${C.planned_runs} 次
+      （${C.planned_problems} 道题），目前落盘 <b>${C.n_runs}</b> 次
+      （${C.n_problems} 道题），剩下 ${C.planned_runs - C.n_runs} 次还在服务器上算。
+      <b>下面所有数字都会变</b>——尤其是「答案没变」这个结论：它是按已跑完的这
+      ${cov.runs} 次说的，不是按最终全部 ${C.planned_runs} 次说的。</div>`;
+  } else if(C.batch_complete){
+    h += `<div class="note" style="margin:0 0 7px;font-size:10.5px">
+      本批已跑完全部 ${C.n_runs}/${C.planned_runs} 次。</div>`;
+  }
 
   h += `<div class="kv"><div class="k">跑完 </think></div><div class="v">
     <b style="color:#3ddc97">${cov.closed_think}/${cov.runs}</b>
