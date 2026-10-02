@@ -29,7 +29,16 @@ set -u
 ROOT="/Users/zhourui/code/steer3d"
 F="$ROOT/frontend/public/latent/index.html"
 G="$ROOT/backend/examples/build_cot_effect.py"
-BAK="$ROOT/.cache/cot32k/index.html.orig"
+H="$ROOT/backend/examples/run_intervention.py"
+# The backup is keyed BY TARGET, and the target is recorded alongside it.
+# One shared path for three different files (the page, the analysis script, the
+# collection script) means a failure in the middle of M6 restores
+# run_intervention.py's bytes into index.html -- which is exactly what happened,
+# and it destroyed 2884 lines of page that only survived because git happened to
+# have them. A backup is a backup of one specific file, and the restore path
+# must name that file, not assume it.
+BAKDIR="$ROOT/.cache/cot32k/backs"
+mkdir -p "$BAKDIR"
 HEALTH='const AS = C.answer_shift_free_run;'
 
 A1="$HEALTH"
@@ -51,12 +60,37 @@ B4='所以答案是稳定的，不受向量影响'
 A5='    if n_same != len(det):'
 B5='    if False:'
 
+# M6, in the COLLECTION script rather than the analysis or the page. The page
+# says the two zero-vector runs of one problem are separated by a full
+# generation, and that is only true because run_intervention.py nests
+# `for direction:` outside `for strength:`. Swap the two loops and the bound
+# silently weakens to "the same call twice", while every number in the payload
+# stays exactly as it was -- the page would be quoting a measurement taken
+# under an assumption that no longer holds.
+A6='        for direction in directions:
+            for strength in args.sweep:'
+B6='        for strength in args.sweep:
+            for direction in directions:'
+
 cnt() { grep -oF -- "$1" "$F" 2>/dev/null | wc -l | tr -d ' ' ; }
+
+# M6's anchor spans two lines, and `grep -F` matches line by line: a
+# multi-line pattern either becomes two independent patterns (matching twice
+# for the wrong reason) or, with the newline turned into \001, never matches
+# at all. Both were tried and both report a plausible wrong number. Python is
+# the only thing here that can count a two-line anchor honestly.
+cnt2() {  # cnt2 <file> <two-line-anchor>
+  python3 - "$1" "$2" <<'PYEOF'
+import sys
+path, pat = sys.argv[1], sys.argv[2]
+print(open(path, encoding='utf-8').read().count(pat))
+PYEOF
+}
 
 anchor_of() {
   case "$1" in
     M1) printf '%s' "$A1" ;; M2) printf '%s' "$A2" ;; M5) printf '%s' "$A5" ;;
-    M3) printf '%s' "$A3" ;; M4) printf '%s' "$A4" ;;
+    M3) printf '%s' "$A3" ;; M4) printf '%s' "$A4" ;; M6) printf '%s' "$A6" ;;
   esac
 }
 
@@ -66,15 +100,16 @@ apply() {
     M1) a="$A1"; b="$B1" ;; M2) a="$A2"; b="$B2" ;;
     M3) a="$A3"; b="$B3" ;; M4) a="$A4"; b="$B4" ;;
     M5) a="$A5"; b="$B5"; target="$G" ;;
+    M6) a="$A6"; b="$B6"; target="$H" ;;
     *) echo "unknown $label"; return 2 ;;
   esac
 
   local ha
-  if [ "$label" = "M5" ]; then
-    ha=$(grep -cF -- "$A5" "$G")
-  else
-    ha=$(cnt "$HEALTH")
-  fi
+  case "$label" in
+    M5) ha=$(grep -cF -- "$A5" "$G") ;;
+    M6) ha=$(cnt2 "$H" "$A6") ;;
+    *)  ha=$(cnt "$HEALTH") ;;
+  esac
   if [ "$ha" != "1" ]; then
     echo "FATAL: health anchor count=$ha (want 1). Not the tree this script"
     echo "       targets. Refusing to mutate."
@@ -82,7 +117,11 @@ apply() {
   fi
 
   local n
-  if [ "$label" = "M5" ]; then n=$(grep -cF -- "$a" "$G"); else n=$(cnt "$a"); fi
+  case "$label" in
+    M5) n=$(grep -cF -- "$a" "$G") ;;
+    M6) n=$(cnt2 "$H" "$a") ;;
+    *)  n=$(cnt "$a") ;;
+  esac
   if [ "$n" != "1" ]; then
     echo "FATAL: $label anchor matched $n times (want 1). Refusing to mutate:"
     echo "       an anchor that matches nothing is a no-op, and a no-op reads"
@@ -90,7 +129,11 @@ apply() {
     return 3
   fi
 
-  cp "$target" "$BAK"
+  # The backup is named after the file it belongs to, and the target is
+  # recorded next to it, so revert() cannot restore the wrong file.
+  local bak="$BAKDIR/$(basename "$target").orig"
+  printf '%s' "$target" > "$BAKDIR/target"
+  cp "$target" "$bak"
   python3 - "$target" "$a" "$b" <<'PY'
 import sys
 path, a, b = sys.argv[1:4]
@@ -99,19 +142,34 @@ assert s.count(a) == 1, 'anchor count %d' % s.count(a)
 open(path, 'w', encoding='utf-8').write(s.replace(a, b))
 PY
   local k m
-  if [ "$label" = "M5" ]; then k=$(grep -cF -- "$a" "$G"); m=$(grep -cF -- "$b" "$G")
-  else k=$(cnt "$a"); m=$(cnt "$b"); fi
+  case "$label" in
+    M5) k=$(grep -cF -- "$a" "$G"); m=$(grep -cF -- "$b" "$G") ;;
+    M6) k=$(cnt2 "$H" "$a"); m=$(cnt2 "$H" "$b") ;;
+    *)  k=$(cnt "$a"); m=$(cnt "$b") ;;
+  esac
   if [ "$k" != "0" ] || [ "$m" -lt 1 ]; then
     echo "FATAL: $label did not take (anchor $k, replacement $m)"
-    cp "$BAK" "$F"; return 4
+    # Restores $target, never a hard-coded $F. The earlier version restored $F
+    # from a backup that held $target, and that single wrong filename replaced
+    # 160KB of page with the contents of the collection script.
+    cp "$bak" "$target"; rm -f "$bak" "$BAKDIR/target"
+    return 4
   fi
   echo "$label applied (anchor $n -> 0, replacement +$m)"
 }
 
 revert() {
-  [ -f "$BAK" ] || { echo "no backup to revert"; return 1; }
-  cp "$BAK" "$F"; rm -f "$BAK"
+  local trg="$BAKDIR/target"
+  [ -f "$trg" ] || { echo "no backup to revert"; return 1; }
+  local target; target=$(cat "$trg")
+  local bak="$BAKDIR/$(basename "$target").orig"
+  [ -f "$bak" ] || { echo "backup missing for $target"; return 1; }
+  cp "$bak" "$target"
+  mv "$bak" "$BAKDIR/$(basename "$target").reverted"
+  rm -f "$trg"
   local ha
+  ha=$(cnt2 "$H" "$A6")
+  [ "$ha" = "1" ] || { echo "FATAL: reverted collection script lost its loop ($ha)"; return 8; }
   ha=$(grep -cF -- "$A5" "$G")
   [ "$ha" = "1" ] || { echo "FATAL: reverted script lost its gate ($ha)"; return 7; }
   ha=$(cnt "$HEALTH")
@@ -122,19 +180,24 @@ revert() {
 case "${1:-}" in
   apply-M1) apply M1 ;; apply-M2) apply M2 ;;
   apply-M3) apply M3 ;; apply-M4) apply M4 ;; apply-M5) apply M5 ;;
+  apply-M6) apply M6 ;;
   revert) revert ;;
   status)
     miss=0
-    for l in M1 M2 M3 M4 M5; do
+    for l in M1 M2 M3 M4 M5 M6; do
       a=$(anchor_of "$l")
-      case $l in M5) n=$(grep -cF -- "$a" "$G") ;; *) n=$(cnt "$a") ;; esac
+      case $l in
+        M5) n=$(grep -cF -- "$a" "$G") ;;
+        M6) n=$(cnt2 "$H" "$a") ;;
+        *)  n=$(cnt "$a") ;;
+      esac
       printf '  %s anchor=%s\n' "$l" "$n"
       [ "$n" = "1" ] || miss=1
     done
     ha=$(cnt "$HEALTH")
     printf '  health=%s\n' "$ha"
     [ "$ha" = "1" ] || miss=1
-    [ $miss = 0 ] && echo "all 5 anchors + health + gate present exactly once"
+    [ $miss = 0 ] && echo "all 6 anchors + health + gate + loop present exactly once"
     exit $miss ;;
-  *) echo "usage: $0 apply-M1|apply-M2|apply-M3|apply-M4|apply-M5|revert|status"; exit 2 ;;
+  *) echo "usage: $0 apply-M1|apply-M2|apply-M3|apply-M4|apply-M5|apply-M6|revert|status"; exit 2 ;;
 esac

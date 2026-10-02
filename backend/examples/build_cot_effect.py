@@ -167,6 +167,26 @@ def main():
             det.append({"label": label,
                         "identical": a["reason_text_digest"] == b["reason_text_digest"],
                         "steps": a["n_steps"]})
+    # How much generation separates the two runs. The loop in
+    # run_intervention.py is `for direction: for strength:`, so the two
+    # zero-vector runs of one problem are NOT adjacent -- a full generation of
+    # the other direction sits between them. That distance is what makes this
+    # a real bound on accumulated float drift rather than a restatement of
+    # "the same call twice"; it is measured per problem, not assumed.
+    # The intervening run is `confidence_up @ 0.2`, which is NOT in `bylabel`
+    # -- that dict holds the strength-0.0 runs only. Reading the zero-vector
+    # run's own length instead reported a median of 7818 where the truth is
+    # 32000, i.e. the separation was understated by four-fold.
+    steps_all = {(r["label"], r["direction"], r["strength"]): r.get("n_steps")
+                 for r in runs}
+    for label in list(bylabel):
+        # NOT `d` -- that name is the loaded payload two scopes up, and
+        # shadowing it made every later `d["per_condition"]` a KeyError.
+        rec = next((x for x in det if x["label"] == label), None)
+        if rec is None:
+            continue
+        rec["intervening_steps"] = steps_all.get((label, "confidence_up", 0.2))
+    seps = sorted((d.get("intervening_steps") or 0) for d in det)
     n_same = sum(1 for d in det if d["identical"])
     print("归因闸门：同题两个零向量运行逐字相同 %d/%d" % (n_same, len(det)))
     if len(det) < 5:
@@ -333,6 +353,15 @@ def main():
             "pairs": len(det),
             "identical": n_same,
             "max_steps_compared": max((d["steps"] or 0) for d in det) if det else 0,
+            "intervening_steps_median": seps[len(seps)//2] if seps else 0,
+            "intervening_steps_max": seps[-1] if seps else 0,
+            "pairs_separated_by_full_run": sum(1 for x in seps if x >= 32000),
+            "loop_order_dependency":
+                "这个论断依赖 run_intervention.py 的循环顺序是 "
+                "`for direction: for strength:`，也就是同题执行顺序为 "
+                "up@0.0 -> up@0.2 -> down@0.0 -> down@0.2，两个零向量运行之间"
+                "隔着一次完整生成。改了循环顺序这句话就不成立了，"
+                "verify_cot32k.mjs 会去 grep 那一行。",
             "why_it_matters": "它给出「一次完整生成的浮点累积会不会改变 token」"
                               "的答案。0 差异 ⇒ 自由生成答案位移不可能是 GPU 噪声。",
         },

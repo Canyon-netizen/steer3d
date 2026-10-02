@@ -1657,9 +1657,14 @@ function renderCotEffect32k(){
       <span style="font-family:var(--mono)">${esc(LABEL['confidence_up'] || 'confidence_up')}</span> 与
       <span style="font-family:var(--mono)">${esc(LABEL['confidence_down'] || 'confidence_down')}</span>
       在<b>强度 0</b> 时其实是同一个计算（零向量乘任何方向还是零），而采集程序把
-      两次完整生成放在同一次进程里先后跑。本批 <b>${DET.identical}/${DET.pairs}</b> 对
-      逐字相同，最长的一次比到 <b>${DET.max_steps_compared}</b> 步——
-      也就是说<b>一整轮生成的浮点累积没有改变任何一个 token</b>。
+      两次<b>不是紧挨着</b>跑的：采集脚本的循环是
+      <span style="font-family:var(--mono)">for direction: for strength:</span>，
+      所以同题的真实执行顺序是
+      <span style="font-family:var(--mono)">up@0.0 → up@0.2 → down@0.0 → down@0.2</span>——
+      两个零向量运行<b>中间隔着一次完整生成</b>（本批中位
+      ${DET.intervening_steps_median} 步，其中 ${DET.pairs_separated_by_full_run} 对隔着跑满
+      ${DET.intervening_steps_max} 步）。本批 <b>${DET.identical}/${DET.pairs}</b> 对
+      逐字相同 ⇒ <b>一整轮生成的浮点累积没有改变任何一个 token</b>。
       所以下面那个差异只能是向量造成的。<br>
       <span style="color:#8a94a6">这一条是出产物的硬闸门：只要它不为
       ${DET.pairs}/${DET.pairs}，整份答案位移分析直接拒绝生成。</span></div>`;

@@ -26,6 +26,7 @@
 // `not.test` below.
 import { launch, CDP, Page } from '../browser_verify/cdp_client.mjs';
 import { readFileSync } from 'node:fs';
+const fs = { readFileSync };
 import { createHash } from 'node:crypto';
 
 const URL = 'http://127.0.0.1:8917/latent/index.html';
@@ -197,6 +198,22 @@ if (AS && AS.by_direction) {
         '闸门覆盖了足够长的生成（不是只比了几百步）',
         `最长 ${DET.max_steps_compared} 步`);
     chk(/不是 GPU 噪声|浮点累积没有改变/.test(T), '页面上写明这不是 GPU 噪声');
+    // The claim rests on the harness running the two zero-vector arms of one
+    // problem NON-adjacently. If someone reorders that loop, the bound gets
+    // weaker and nothing on the page would notice -- the payload would still
+    // carry a number computed under the old assumption. Same shape as the
+    // "two copies of a prompt drift apart" failure: assert the dependency
+    // rather than trusting it.
+    chk(DET.intervening_steps_median >= 8000,
+        '两个零向量运行之间确实隔着一次完整生成（不是背靠背重跑同一个调用）',
+        `中位 ${DET.intervening_steps_median} 步`);
+    chk(/loop_order_dependency/.test(JSON.stringify(DET)) || !!DET.loop_order_dependency,
+        '产物记录了它依赖的循环顺序');
+    const ri = fs.readFileSync('backend/examples/run_intervention.py', 'utf-8');
+    const orderOk = /for direction in directions:[\s\S]{0,200}?for strength in args\.sweep:/.test(ri);
+    chk(orderOk,
+        'run_intervention.py 的循环顺序仍是 direction 外、strength 内（页面上的顺序描述没过期）',
+        orderOk ? '' : '脚本里的循环已经不是 for direction: for strength:');
   }
   const anyChanged = dirs.some(d => AS.by_direction[d].changed_both_closed > 0);
   chk(anyChanged, '至少有一个方向在两臂都写完的题里改了答案（结论不是空的）');
