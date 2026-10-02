@@ -33,6 +33,13 @@ import json, sys
 src = json.load(open(sys.argv[1], encoding='utf-8'))
 dup = dict(src); dup['per_run'] = src['per_run'] + [src['per_run'][0]]
 json.dump(dup, open(sys.argv[2] + '/dup.json', 'w'), ensure_ascii=False)
+# Write down which cell was duplicated. The assertion below used to grep the
+# log for a hard-coded "1987_I_1" -- the first record of the batch at the time.
+# The batch grew from 84 to 88 runs, per_run[0] became 1983_I_1, and the check
+# went red on a gate that was refusing exactly the right thing. Ask the INPUT
+# which cell is duplicated instead; the whole point is that a gate's verdict
+# must not depend on which problem happens to be first.
+open(sys.argv[2] + '/dup_label.txt', 'w').write(src['per_run'][0]['label'])
 miss = dict(src)
 miss['per_run'] = [r for r in src['per_run']
                    if not (r['label'] == '1994_I_1'
@@ -56,7 +63,9 @@ chk "干净输入写出产物" "$([ -s "$D/out_clean.json" ] && echo 1 || echo 0
 run "$D" dup.json "$D/out_dup.json"
 chk "重复单元被拒（退出码非 0）" "$([ $RC -ne 0 ] && echo 1 || echo 0)"
 chk "重复时不写产物" "$([ ! -f "$D/out_dup.json" ] && echo 1 || echo 0)"
-chk "重复时指名了那个单元" "$(grep -q "1987_I_1" "$D/last.log" && echo 1 || echo 0)"
+DUPL="$D/dup_label.txt"
+chk "重复时指名了那个单元（题号取自输入，不是写死的）" \
+    "$(grep -qF "$(cat "$DUPL")" "$D/last.log" && echo 1 || echo 0)"
 
 run "$D" missing.json "$D/out_miss.json"
 chk "缺一个臂被拒（退出码非 0）" "$([ $RC -ne 0 ] && echo 1 || echo 0)"
