@@ -96,7 +96,18 @@ async def ws_endpoint(websocket: WebSocket):
             sample_every=1,
             # What this runner can really replay. See ReadyMessage.layers for
             # why the UI is not left to hardcode a list.
-            layers=list(getattr(state, "available_layers", []) or []),
+            #
+            # The list lives on the *runner*, not on the session: the replay
+            # runner reports the 28 layers that are actually in the npz.
+            # This line used to read `getattr(state, "available_layers", [])`,
+            # which never existed on the session, so `layers` was always []
+            # and the UI fell back to its own hardcoded guesses. Session first
+            # (a demo may set it there), then runner.
+            layers=list(
+                getattr(state, "available_layers", None)
+                or getattr(state.runner, "available_layers", None)
+                or []
+            ),
         ).to_dict()
     )
     # Directions carry their own metadata (which layer they were extracted

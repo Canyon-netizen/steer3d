@@ -600,6 +600,25 @@ class HFTransformerRunner(BaseModelRunner):
 
 
 def default_runner() -> BaseModelRunner:
+    """3-D 页面的默认数据源。
+
+    改成优先回放**真实**采集轨迹（NpzReplayRunner），只有在真实数据
+    不存在时才退回合成轨迹。
+
+    为什么这么改：这一直返回 SyntheticRunner，于是页面显示的是
+    d_model=4096 的玩具数据（真实 Qwen3-1.7B 是 2048）、`layers=[]`、
+    token 序列是写死的 "When/we/think/about"。3-D 视图是用来回答
+    「hidden states 怎么变成这个 token」的，用合成数据回答等于没回答。
+
+    退回合成时**必须**在 ready 消息里说清楚 —— 页面据此显示标记，
+    不能让读者以为看到的是实测。
+    """
+    from .replay_runner import NpzReplayRunner
+
+    runner = NpzReplayRunner()
+    if runner.records:
+        runner.reset()
+        return runner
     return SyntheticRunner()
 
 
