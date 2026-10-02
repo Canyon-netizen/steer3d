@@ -651,13 +651,20 @@ def dispersion(trajs: list[dict], name: str, layer: int) -> dict:
 # ---------------------------------------------------------------------------
 
 def summarise_cell(runs: list[dict], raw: list[dict]) -> dict:
+    # `float("nan")` here used to reach json.dumps, which writes a bare `NaN`
+    # token into the file. Python's json module reads that back happily, so
+    # every Python-side check passed -- but `NaN` is not in the JSON grammar
+    # and JSON.parse throws on it. The browser therefore got a SyntaxError and
+    # the whole block silently vanished, with the producer's own verification
+    # reporting success. The value is now None (JSON null) and the serializer
+    # refuses NaN outright, so a non-finite number fails the build loudly.
     def m(key, src):
         vals = [r[key] for r in src if r.get(key) is not None]
-        return (float(np.mean(vals)), int(len(vals))) if vals else (float("nan"), 0)
+        return (float(np.mean(vals)), int(len(vals))) if vals else (None, 0)
 
     def med(key):
         vals = [r[key] for r in runs if r.get(key) is not None]
-        return (float(np.median(vals)), int(len(vals))) if vals else (float("nan"), 0)
+        return (float(np.median(vals)), int(len(vals))) if vals else (None, 0)
 
     summ = [r["summary"] for r in raw]
     ep, nep = m("mean_entropy_primary", summ)
@@ -676,14 +683,37 @@ def summarise_cell(runs: list[dict], raw: list[dict]) -> dict:
         "token_agreement": {"mean": ag, "n": nag},
         "verbatim_step_overlap": {"mean": ov, "n": nov},
         "logit_kl": {"mean": kl, "n": nkl},
-        "entropy_primary_minus_shadow": {"mean": (ep - es) if nep and nes else float("nan"),
+        "entropy_primary_minus_shadow": {"mean": (ep - es) if nep and nes else None,
                                          "n": min(nep, nes)},
         "answer_changed": {"k": len(changed), "n": len(known),
-                           "rate": len(changed) / len(known) if known else float("nan")},
+                           "rate": len(changed) / len(known) if known else None},
         "closed_think": {"k": sum(1 for r in closed if r["closed_think"]), "n": len(runs),
-                         "rate": (sum(1 for r in closed if r["closed_think"]) / len(closed)) if closed else float("nan")},
-        "injected_norm": m("injected_norm", runs)[0],
+                         "rate": (sum(1 for r in closed if r["closed_think"]) / len(closed)) if closed else None},
+        # Read the injection magnitude from the RAW journal, not from per_run:
+        # `injected_norm` is recorded by the collector but analyse_cot_divergence
+        # does not carry it into per_run, so looking in `runs` here reported
+        # "not measured" for a number that is present in all 92 runs. That is
+        # the worse failure — it looks like a coverage gap rather than a lookup
+        # on the wrong list.
+        #
+        # Reported as two arms rather than one mean: the zero-vector arm is
+        # 0.0 by construction and the steered arm is 173.15, so a single mean
+        # over both is a number about nothing. The magnitude is also the
+        # independent variable of the one open question in this area -- how far
+        # the injection can go before it stops meaning what it is named.
+        "injected_norm": {
+            "steered": _norm_stat(raw, lambda r: r.get("strength") not in (0.0, 0, None)),
+            "zero_arm": _norm_stat(raw, lambda r: r.get("strength") in (0.0, 0)),
+        },
     }
+
+
+def _norm_stat(raw, pred):
+    vals = [float(r["injected_norm"]) for r in raw
+            if pred(r) and r.get("injected_norm") is not None]
+    if not vals:
+        return {"mean": None, "n": 0}
+    return {"mean": float(np.mean(vals)), "n": len(vals)}
 
 
 def run_sufficiency(journal: dict, raw: list[dict]) -> dict:
@@ -771,6 +801,34 @@ def run_specificity(journal: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+
+def _finite(o):
+    """Replace every non-finite number with None, recursively.
+
+    `NaN` is a legal Python float and an illegal JSON token. json.dumps writes
+    it by default and json.load reads it back by default, so a Python-only
+    round trip of this payload succeeds while `JSON.parse` in the browser
+    throws — which is exactly how a 52 KB artifact shipped that the page could
+    not load, with its producer reporting a clean verification run.
+
+    null is the honest spelling: these sites all mean "this statistic had no
+    denominator", which is not the same as zero and must not read as zero.
+    """
+    import math as _math
+    if isinstance(o, dict):
+        return {k: _finite(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_finite(v) for v in o]
+    if isinstance(o, float) and not _math.isfinite(o):
+        return None
+    # numpy scalars are not `float` instances; convert them explicitly.
+    if hasattr(o, "item") and not isinstance(o, (str, bytes, bool, int)):
+        try:
+            return _finite(o.item())
+        except Exception:
+            return o
+    return o
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
@@ -1085,7 +1143,18 @@ def main() -> int:
         },
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2))
+    # allow_nan=False is the gate. Without it json.dumps writes a bare `NaN`,
+    # which Python reads back fine and no browser ever will: the page's
+    # JSON.parse throws and the block disappears with no trace on the page.
+    #
+    # The sanitiser above is not a substitute for the gate -- it is what makes
+    # the gate reachable. `float("nan")` is a legitimate internal sentinel for
+    # "this statistic had no denominator", and there are 21 such sites; null is
+    # the honest JSON spelling of the same thing, and a reader can tell
+    # "not measured" from "measured as zero". The gate then catches anything
+    # the sanitiser misses instead of writing it to disk.
+    args.out.write_text(json.dumps(_finite(report), ensure_ascii=False, indent=2,
+                                   allow_nan=False))
     print(f"\nwrote {args.out} ({args.out.stat().st_size:,} bytes)")
     return 0
 

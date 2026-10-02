@@ -500,6 +500,12 @@ const S = {
   // 下标，`idx = 0` 会先命中它，于是下面那段"默认落在分岔最早的那次"的逻辑
   // 永远不执行——注释和现实分家，而判据是照着注释写的。
   cotTexts: null, cotTextPick: -1, ansRead: null, ansPick: 0,
+  // 逐层 logit lens：S.lens 是整份产物，S.lensById 是 id -> 那条轨迹的窗口。
+  // 两者都留是因为 48 条轨迹各带 32 步 × 28 层的逐层 readout，页面只渲染
+  // 当前配对题目的那一条；直接从数组里按下标取会在题目换了之后串位。
+  lens: null, lensById: null, lensPick: 0, lensStep: 0,
+  // 干预向量的三角色刻画（充分性 / 必要性 / 特异性）。
+  roles: null,
 };
 
 const DEC = new TextDecoder("utf-8");
@@ -881,6 +887,34 @@ async function loadPairMeta(){
       S.cotTexts = await cr3.json();
     }else trace("cot_texts.json: HTTP " + cr3.status);
   }catch(e){ trace("cot_texts unavailable: " + e.message); }
+  // 第五批：逐层 logit lens。这是「各个 hidden states 最后如何推导出这个
+  // token」的直接答案——把最后一层的 RMSNorm+unembedding 套到 0..27 层
+  // 每���层上，看第几层开始就指向最终 token。
+  //
+  // 这份数据自己带一个锚点：第 27 层的 readout 必须复现模型真实选择的
+  // token（npz 里的 topk_indices[t,0]）。我独立复算过 40/40 全中。它进页面
+  // 之前必须先过这道锚点，否则页面上那条曲线只是"某���种算法画的图"。
+  try{
+    const cr5 = await fetch(dataBase()+"logit_lens.json");
+    if(cr5.ok){
+      const LL = await cr5.json();
+      // 页面只关心当前配对题目的那一条轨迹。索引按 id 查，不写死位置。
+      if(LL.anchor && LL.anchor.decidable_steps
+         && LL.anchor.decidable_steps.rate < 1){
+        trace("logit_lens anchor " + LL.anchor.decidable_steps.rate + " < 1");
+      }
+      S.lens = LL;
+      S.lensById = new Map((LL.trajectories||[]).map(t => [t.id, t]));
+    }else trace("logit_lens.json: HTTP " + cr5.status);
+  }catch(e){ trace("logit_lens unavailable: " + e.message); }
+  // 第六批：干预向量的充分性/必要性/特异性。这三块回答「向量到底是
+  // 起到什么作用的」——只看行为变化说不出角色，只看相关性说不出因果。
+  try{
+    const cr6 = await fetch(dataBase()+"vector_roles.json");
+    if(cr6.ok){
+      S.roles = await cr6.json();
+    }else trace("vector_roles.json: HTTP " + cr6.status);
+  }catch(e){ trace("vector_roles unavailable: " + e.message); }
   return true;
 }
 
@@ -1434,6 +1468,8 @@ function renderCotEffect(){
   h += renderCotEffect32k();
   h += renderAnswerReadout();
   h += renderCotTexts();
+  h += renderLogitLens();
+  h += renderVectorRoles();
   h += `</div>`;
   return wrap(h);
 }
@@ -1516,6 +1552,325 @@ function renderProblemSetNote(PS, where){
     <span style="color:#8a94a6">与官方原题是否逐字一致：${vtxt}。
     页面里出现的「答案在 0–999 内」是题库采用的 AIME 答案域约定，
     是一个筛选条件，<b>不能当作答案正确的证据</b>。</span></div>`;
+}
+
+/* ---- 逐层 logit lens：每一层离「模型最后说出这个词」还有多远 -------------
+   这是「各个 hidden states 到底最后如何推导出这个 token」的直接答案。
+   做法：把最后一层的 RMSNorm + unembedding 套到第 0..27 层每���层的残差流
+   上，看每一层自己预测哪个 token，看第几层开始和最终 token 一致。
+
+   两条不写在页面上、但决定了这条曲线可不可信的事：
+   1. **锚点**：第 27 层的 readout 必须复现模型真实选择的 token
+      （npz 里的 topk_indices[t,0]）。我独立复算 40/40 全中，产物里记着
+      1532/1536 全量 / 1420/1420 可判定步。锚点不过，这条曲线只是
+      「某种算法画的图」，所以它的数字和分母都在页面上。
+   2. **层 27 是 post-norm 的**（存盘时已归一化，L24 的 L2=1774 掉到 L27=136）。
+      再归一化一次会让 logit 差 34.9、命中率掉到 85%。这是仓库里
+      analyse_divergence_logits.py:25-32 记着的同一个坑。
+
+   这份数据来自 16k 采集批（48 条轨迹 × 每条最后 32 步），**和上面那些
+   32k 干预批不是同一批**，所以它自带题目/步数选择器，不跟上面的控件联动。 */
+function renderLogitLens(){
+  const L = S.lens;
+  if(!L || !L.trajectories || !L.trajectories.length) return "";
+  const list = L.trajectories;
+  const ti = (S.lensPick >= 0 && S.lensPick < list.length) ? S.lensPick : 0;
+  const T = list[ti];
+  const steps = T.steps || [];
+  const si = (S.lensStep >= 0 && S.lensStep < steps.length) ? S.lensStep : 0;
+  const st = steps[si];
+  const agg = L.aggregate || {};
+  const esc2 = s => esc(s == null ? "" : String(s));
+
+  let h = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #232a36"
+       data-lensroot="1">`;
+  h += `<div style="font-size:12.5px;font-weight:600;margin-bottom:4px;color:#e8edf5">
+    每一层离「模型最后说出这个词」还有多远</div>`;
+  h += `<div class="note" style="font-size:10.5px;margin:0 0 7px">
+    把<b>最后一层</b>的读出方式（归一化 + 词表投影）套到<b>每一层</b>的
+    隐状态上，看它自己会说出哪个词。横轴 0–27 层，柱子越高表示这一层
+    越接近模型最后真的选中的那个词。<b>这批是 16k 采集的数据</b>，
+    和上面那些干预臂不是同一批。</div>`;
+
+  // 锚点。放在最前面，因为它是整块内容的可信度来源。
+  const A = L.anchor || {};
+  const ad = A.decidable_steps || {}, aa = A.all_steps || {};
+  h += `<div class="note" style="margin:0 0 7px;padding:7px 9px;background:#131a28;
+       border-left:2px solid #4a90d9;border-radius:0 4px 4px 0;font-size:10.5px">
+    <b style="color:#7cc0ff">先确认这条曲线不是随便画的：</b>第 27 层的读出
+    必须说出模型真实选中的那个词。实测 <b>${ad.pass ?? "—"}/${ad.total ?? "—"}</b>
+    全中（可判定步 = 模型自己 top1 与 top2 间距 ≥ 1 的步），
+    全部抽样步 <b>${aa.pass ?? "—"}/${aa.total ?? "—"}</b>，
+    与记录的 logits 相比最大误差 ${esc2(A.max_logit_error_vs_stored_topk)}。
+    ${A.honest_caveat ? `<br><span style="color:#8a94a6">没中的那几步没有被丢掉，它们
+    是模型自己 top1 与 top2 几乎打平的步——隐状态用 float16 存盘，重建误差就有
+    约 0.09 个 logit，比那几步的间距还大。这些步单独计数、如实写在这里。
+    （产物里的英文原文：<span title="${esc(A.honest_caveat)}">点此查看</span>）</span>` : ""}</div>`;
+
+  // 题号选择器。标签只取题号本身：产物里 problem 是 "1983__1983_I_1"
+  // （split__id），整串显示既重复又把按钮撑到换行，换行后第二排会被面板
+  // 切掉一半——DOM 判据全绿，因为按钮确实都在。
+  const shortLabel = x => String(x.problem || x.id).split("__").pop();
+  // 48 条轨迹是 24 道题 × {think, no_think}，同一题号出现两次。前 12 条不
+  // 按题号去重的话，列表只有 6 道题各按两下，读起来像坏了而不是像数据。
+  const seenLab = new Set(), uniqT = [];
+  for(const x of list){
+    const lab = shortLabel(x);
+    if(seenLab.has(lab)) continue;
+    seenLab.add(lab); uniqT.push({x, lab});
+  }
+  h += `<div style="display:flex;gap:3px;flex-wrap:wrap;margin:0 0 6px">`;
+  uniqT.slice(0, 14).forEach(({x, lab}) => {
+    h += `<button data-lenspick="${list.indexOf(x)}" class="${x === T ? "on" : ""}"
+      style="width:auto;padding:2px 5px;font-size:10px;font-family:var(--mono)">`
+      + `${esc2(lab)}</button>`;
+  });
+  h += `</div>`;
+  if(uniqT.length > 14){
+    h += `<div class="note" style="font-size:10px;margin:0 0 4px">
+      共 ${uniqT.length} 道题（每题有 think / no_think 两条轨迹），这里只列前 14 道</div>`;
+  }
+
+  // 28 层柱状图。这是这一屏的核心图，所以它自己量宽度：块在 320px 侧栏里，
+  // 画布必须撑满整块，否则会出现「DOM 判据全绿但每根柱子只有 2px」。
+  const W = 294, H = 74, pad = 1;
+  if(st && st.per_layer && st.per_layer.argmax){
+    const am = st.per_layer.argmax;
+    const N = am.length;
+    const bw = (W - pad*(N+1)) / N;
+    let bars = "";
+    for(let l = 0; l < N; l++){
+      const isFin = (am[l] === st.final_id);
+      const hgt = isFin ? H - 10 : 6;
+      const col = isFin ? "#3ddc97" : "#2a3346";
+      bars += `<rect x="${(pad + l*(bw+pad)).toFixed(2)}" y="${(H-hgt).toFixed(2)}"`
+           + ` width="${Math.max(bw,1).toFixed(2)}" height="${hgt}" fill="${col}"></rect>`;
+    }
+    // first_layer_correct 标尺：第几层开始第一次说对这个词。
+    const flc = st.first_layer_correct;
+    const fx = flc != null ? (pad + flc*(bw+pad) + bw/2).toFixed(2) : null;
+    h += `<div style="margin:2px 0 3px;font-size:10.5px;color:#b9c4d6">
+      第 <b>${st.t}</b> 步，模型最后选中
+      <span style="font-family:var(--mono);color:#ffd479">${esc2(st.tok || st.final_id)}</span>
+      ${flc != null
+        ? `——<b style="color:#3ddc97">第 ${flc} 层</b>开始就说对它了`
+        : `<b style="color:#ff8fa3">28 层里没有一层说对过</b>`}</div>`;
+    h += `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"
+         data-lenschart="1" style="display:block;background:#0d1420;border-radius:4px">
+      ${bars}
+      ${fx ? `<line x1="${fx}" y1="0" x2="${fx}" y2="${H}" stroke="#ffd479"
+            stroke-width="1" stroke-dasharray="2,2"></line>` : ""}
+      <text x="2" y="9" fill="#5f6b80" font-size="8">L0</text>
+      <text x="${W-20}" y="9" fill="#5f6b80" font-size="8">L27</text>
+    </svg>`;
+    h += `<div class="note" style="font-size:10px;margin:2px 0 6px">
+      绿柱 = 这一层说对了模型最后选中的词；灰柱 = 还在说别的。
+      虚线 = 第一次说对的那一层。
+      ${st.anchor_ok === false
+        ? `<b style="color:#ff8fa3">本步的锚点没过（第 27 层没能复现真实选择），
+            这一行不要当真。</b>` : ""}</div>`;
+
+    // 步滑块
+    h += `<div style="font-size:10.5px;color:#8891a4;margin:1px 0 2px">
+      换一步看：</div>`;
+    h += `<input type="range" data-lensstep="1" min="0" max="${Math.max(steps.length-1,0)}"
+      value="${si}" style="width:100%;margin:0 0 4px">`;
+    h += `<div class="note" style="font-size:10px;margin:0 0 6px">
+      这条轨迹取的是<b>最后 ${(L.sampling && L.sampling.steps_per_traj) || steps.length} 步</b>
+      （答案被吐出来的位置），共 ${steps.length} 步可选。</div>`;
+  }
+
+  // 全体统计
+  const fc = agg.first_layer_correct_hist;
+  if(fc && fc.counts){
+    const tot = fc.total || 0, c = fc.counts;
+    let cum = 0, out = "", marks = "";
+    for(let l = 0; l < c.length; l++){
+      cum += c[l];
+      const bh = Math.max(1, Math.round(c[l] / Math.max(...c) * 30));
+      const col = l >= 20 ? "#3ddc97" : "#2a3346";
+      out += `<rect x="${(l*10.4).toFixed(1)}" y="${(34-bh)}" width="8" height="${bh}"
+        fill="${col}"></rect>`;
+      if(l === 20) marks = `<line x1="${(l*10.4+4).toFixed(1)}" y1="0"
+        x2="${(l*10.4+4).toFixed(1)}" y2="34" stroke="#ffd479" stroke-dasharray="2,2"></line>`;
+    }
+    h += `<div style="font-size:11px;color:#b9c4d6;margin:6px 0 2px">
+      全体 ${tot} 步里，各层<b>第一次</b>说对最终 token 的步数：</div>`;
+    h += `<svg viewBox="0 0 291 34" width="291" height="34" data-lenshist="1"
+      style="display:block;background:#0d1420;border-radius:4px">${out}${marks}</svg>`;
+    h += `<div class="note" style="font-size:10px;margin:2px 0 0">
+      峰值在 <b style="color:#3ddc97">L20–L21</b>。累计：L20 前
+      <b>${Math.round(c.slice(0,20).reduce((a,b)=>a+b,0)/tot*100)}%</b>、
+      L21 前 <b>${Math.round(c.slice(0,21).reduce((a,b)=>a+b,0)/tot*100)}%</b>、
+      L27 前 <b>${Math.round(cum/tot*100)}%</b>。
+      ${fc.never_correct ? `另有 <b>${fc.never_correct}</b> 步 28 层全都没说对，
+      单独计数没有丢掉。` : ""}</div>`;
+  }
+
+  h += `</div>`;
+  return h;
+}
+
+/* ---- 向量到底在做什么：充分性 / 必要性 / 特异性 -------------------------
+   只看「加了向量行为变了」说不出这个向量的角色，只看「这个方向和某个概念
+   相关」说不出因果。这三块合起来才是一次完整的刻画：
+
+   充分性：只加它，够不够复现该概念的行为？
+   必要性：模型自己跑的时候，这个方向上的激活真的被该概念调制吗？
+   特异性：它只影响该影响的，还是把所有东西都推平了？
+
+   数字全部来自产物的 vector_roles.json，这里不重算。每一项都带分母。 */
+function renderVectorRoles(){
+  const R = S.roles;
+  if(!R || !R.necessity) return "";
+  const N = R.necessity, esc2 = s => esc(s == null ? "" : String(s));
+  // Products carry full float64 precision; 0.9952482437445733 is not something a
+  // reader can hold in their head, and an unformatted number reads as precision
+  // the measurement does not have. Format or drop.
+  const num = (v, d) => (typeof v === "number" && isFinite(v)) ? v.toFixed(d) : "—";
+  const yn = v => v === true ? '<b style="color:#3ddc97">通过</b>'
+             : v === false ? '<b style="color:#ff8fa3">不通过</b>' : String(v);
+
+  let h = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #232a36"
+       data-rolesroot="1">`;
+  h += `<div style="font-size:12.5px;font-weight:600;margin-bottom:4px;color:#e8edf5">
+    这个向量到底在做什么</div>`;
+  h += `<div class="note" style="font-size:10.5px;margin:0 0 7px">
+    「加了它行为变了」只能说明它<b>够用</b>，说不出它的角色。三块一起看才
+    是一次完整刻画：<b>够用吗</b>（充分性）、<b>模型自己跑的时候真的在用
+    这一维吗</b>（必要性）、<b>它是不是把所有东西都推平了</b>（特异性）。</div>`;
+
+  // 必要性：最重要的一块，放最前面
+  const hd = N.heldout_non_circular;
+  const S_ = R.sufficiency || {}, SP = R.specificity || {};
+  if(hd && hd.folds){
+    h += `<div style="font-size:11.5px;font-weight:600;color:#b9c4d6;margin:5px 0 2px">
+      ① 必要性：模型自己跑的时候会用这一维吗</div>`;
+    h += `<div class="note" style="font-size:10px;margin:0 0 4px">
+      用留出法测的：在一半题目上重建对比、另一半评测，所以不是拿定义它的
+      数据去证明它自己。</div>`;
+    const rows = [];
+    for(const dir in hd.folds){
+      const f = hd.folds[dir];
+      const sc = f.scores || {};
+      const ks = Object.keys(sc);
+      if(!ks.length) continue;
+      // 两个折的判定必须一致；只有一个折通过时如实说半个。
+      const pass = ks.map(k => sc[k].passes_gate);
+      const nPass = pass.filter(Boolean).length;
+      const auc = sc[ks[0]].auc_within_traj;
+      const rho = sc[ks[0]].rho;
+      // 余量：真实方向超出随机控制上限多少个随机标准差。缺了它，一个
+      // 1.8σ 的胜出和一个 5σ 的胜出在页面上长得一模一样，都是"通过"——
+      // 而这两者的可信度差得很远。
+      const ctl = (N.random_direction_control || {})["L14"] || {};
+      const mc = (ctl[dir] || {});
+      const floor = mc.empirical_floor_max_random, sd = mc.random_sd;
+      const real = (auc != null) ? auc : Math.abs(rho);
+      const z = (floor != null && sd) ? (real - Math.abs(floor)) / sd : null;
+      // 同一格在「循环论证」那一块里是否不通过。两块必须并排：只看留出
+      // 会把一个 1.8σ 的勉强胜出显示成干净的"通过"。
+      const ins = ((N.in_sample_circular || {})["L14"] || {})[dir] || {};
+      rows.push({dir, obs:f.observable, auc, rho, n: sc[ks[0]].n_steps_scored,
+                 npos: sc[ks[0]].n_positive_steps, floor, z,
+                 insample_pass: ins.passes_gate,
+                 verdict: nPass === ks.length ? true : (nPass === 0 ? false : "一半")});
+    }
+    rows.forEach(r => {
+      const metric = (r.auc != null)
+        ? `轨迹内 AUC <b style="color:${r.verdict === true ? "#3ddc97" : "#ff8fa3"}">${r.auc.toFixed(3)}</b>`
+        : `ρ <b style="color:${r.verdict === true ? "#3ddc97" : "#ff8fa3"}">${(r.rho >= 0 ? "+" : "") + r.rho.toFixed(3)}</b>`;
+      // 超出随机控制上限多少个随机标准差。只陈述这个量，不给它贴
+      // "通过/勉强" 的标签：caution 高出随机均值 3.4σ、稳稳越过 16 个随机
+      // 方向的上限，creativity 越过的幅度看着差不多，可两者的随机 sd 差了
+      // 26 倍。一个任意的"余量 < 3σ 就算勉强"的阈值会把这两种情况说成一类。
+      // 真正该标出来的是 creativity 那一行——它在循环口径下不通过。
+      const marg = (r.z != null && r.verdict === true)
+        ? ` <span style="color:#8a94a6">（高出随机上限 ${r.z.toFixed(1)}σ）</span>` : '';
+      const ins = (r.insample_pass === false)
+        ? ` <span style="color:#ff8fa3">循环口径下不通过</span>` : "";
+      h += `<div class="kv"><div class="k">${esc2(r.dir)} vs ${esc2(r.obs)}</div>
+        <div class="v">${metric} ${yn(r.verdict)}${marg}${ins}
+        <span style="color:#8a94a6">（n=${r.n}${r.npos ? "，正例 " + r.npos : ""}）</span>
+        </div></div>`;
+    });
+    // 门槛必须写明是随机控制，不是 1/√(n-3)。实测随机方向散布比教科书地板
+    // 大一个数量级，写 1/√(n-3) 会让读者以为余量很大。
+    //
+    // The control is nested two deep -- random_direction_control[layer][direction]
+    // -- so reading rc["L20"] gives a map of directions whose values have no
+    // `n_random_directions`. Everything below silently rendered nothing, which
+    // is why this paragraph was missing from the first pass.
+    const rc = N.random_direction_control || {};
+    const lay = rc["L20"] || rc[Object.keys(rc)[0]] || {};
+    const one = lay[Object.keys(lay)[0]] || {};
+    if(one && one.n_random_directions){
+      h += `<div class="note" style="font-size:10px;margin:3px 0 6px">
+        门槛不是 1/√(n−3)（只有 <b>${esc2(num(one.naive_floor_1_over_sqrt_n_minus_3, 3))}</b>），
+        而是<b>打败全部 ${one.n_random_directions} 个随机方向</b>：
+        它们实测散布 [${esc2(num(one.random_min, 3))}, ${esc2(num(one.random_max, 3))}]，
+        门槛取最大那个 ${esc2(num(one.empirical_floor_max_random, 3))}。</div>`;
+    }
+  }
+
+  // 充分性
+  const cells = S_.cells || {};
+  if(Object.keys(cells).length){
+    h += `<div style="font-size:11.5px;font-weight:600;color:#b9c4d6;margin:7px 0 2px">
+      ② 充分性：只加它够不够</div>`;
+    for(const k in cells){
+      if(k.endsWith("@0.0")) continue;   // 零向量是地板不是估计值
+      const c = cells[k];
+      const lr = c.length_ratio || {}, ta = c.token_agreement || {};
+      const inj = c.injected_norm && c.injected_norm.steered;
+      // closed_think 是 {k, n, rate}，不是数字。直接插值会得到
+      // "[object Object]/23"——textContent 判据照样全绿，因为文本确实变了。
+      const ct = c.closed_think;
+      h += `<div class="kv"><div class="k">${esc2(k)}</div><div class="v">
+        长度比中位 <b>${esc2(num(lr.median, 3))}</b> · token 一致
+        <b>${esc2(num(ta.mean, 3))}</b>
+        ${ct ? ` · 写完 <b>${ct.k}/${ct.n}</b>` : ""}
+        ${inj && inj.mean != null ? `<br>注入向量范数 <b style="color:#ffd479">${esc2(num(inj.mean, 1))}</b>
+          <span style="color:#8a94a6">（n=${esc2(inj.n)}，零向量臂恒为 0）</span>` : ""}
+        </div></div>`;
+    }
+    if(S_.coverage_gap){
+      h += `<div class="note" style="font-size:10px;margin:3px 0 6px">
+        <b style="color:#ffd479">覆盖不全：</b>${esc2(S_.coverage_gap)}</div>`;
+    }
+  }
+
+  // 特异性
+  const loc = SP.locality || {};
+  h += `<div style="font-size:11.5px;font-weight:600;color:#b9c4d6;margin:7px 0 2px">
+    ③ 特异性：它只影响该影响的吗</div>`;
+  for(const d in loc){
+    const l = loc[d];
+    const ds = l.divergence_starts_at_frac_of_run || {};
+    if(ds.median != null){
+      h += `<div class="kv"><div class="k">${esc2(d)} 从哪一步开始变</div><div class="v">
+        轨迹的 <b>${(ds.median*100).toFixed(2)}%</b> 处
+        <span style="color:#8a94a6">（n=${esc2(ds.n)}）</span></div></div>`;
+    }
+  }
+  h += `<div class="note" style="font-size:10.5px;margin:3px 0 6px">
+    这个数字很小，说明<b>效应是全局的</b>：不是只在「该犹豫的地方」才犹豫，
+    而是从头到尾整体被推了一下。这和「这个方向就是 confidence 的实现」
+    是<b>不吻合</b>的。</div>`;
+
+  const per = SP.literal_per_step_entropy_test;
+  if(per && per.status === "NOT_MEASURABLE_ON_THIS_BATCH"){
+    h += `<div class="note" style="font-size:10px;margin:0 0 6px">
+      <b style="color:#ff8fa3">有一条测不了：</b>${esc2(per.claim)}。
+      ${esc2(per.evidence || "")}</div>`;
+  }
+
+  if(N.circularity_warning){
+    h += `<div class="note" style="font-size:10px;margin:6px 0 0">
+      <b style="color:#ffd479">循环论证：</b>${esc2(N.circularity_warning)}</div>`;
+  }
+  h += `</div>`;
+  return h;
 }
 
 function renderAnswerReadout(){
@@ -2321,6 +2676,25 @@ function drawDeltaSide(){
   const arBtns = tb.querySelectorAll("[data-arpick]");
   for(let i=0;i<arBtns.length;i++){
     arBtns[i].onclick = () => { S.ansPick = parseInt(arBtns[i].dataset.arpick, 10); drawDeltaSide(); };
+  }
+  // 逐层 lens 的题号按钮与步滑块。换成另一道题时步号必须一起归零，
+  // 否则会拿着新题的 steps[S.lensStep] 去渲染——题目短一点就直接越界，
+  // 长一点则会静默显示另一道题的那一步。渲染器里的越界保护只保证不崩，
+  // 不保证显示的是读者刚点的那个 token。
+  const lensBtns = tb.querySelectorAll("[data-lenspick]");
+  for(let i=0;i<lensBtns.length;i++){
+    lensBtns[i].onclick = () => {
+      S.lensPick = parseInt(lensBtns[i].dataset.lenspick, 10);
+      S.lensStep = 0;
+      drawDeltaSide();
+    };
+  }
+  const lensStep = tb.querySelector("[data-lensstep]");
+  if(lensStep){
+    lensStep.oninput = () => {
+      const v = parseInt(lensStep.value, 10);
+      if(Number.isFinite(v)){ S.lensStep = v; drawDeltaSide(); }
+    };
   }
   // 正文挑选器。落在 innerHTML 之后才存在，只能在这里绑。
   const cotPick = tb.querySelector("[data-cotpick]");
