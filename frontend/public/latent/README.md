@@ -2,12 +2,24 @@
 
 ## 怎么看
 
+解压之后，**在你解压出来的那一层目录**（就是有 `index.html` 的那一层）里：
+
 ```bash
-python3 -m http.server 8899 --directory frontend/public
-# 打开 http://localhost:8899/latent/index.html
+cd <你解压到的目录>
+python3 -m http.server 8899
+# 打开 http://127.0.0.1:8899/index.html
 ```
 
 必须用 HTTP 打开，不能双击 `index.html`（`file://` 下浏览器不允许 fetch 本地文件）。
+
+> 端口被占用就换一个（`python3 -m http.server 8901` 之类），并把浏览器地址里的
+> 端口同步改掉。地址请写 `127.0.0.1` 而不是 `localhost`：有些本地服务只按 IP
+> 形式放行 `Host` 头，用 `localhost` 会被拒。
+
+> 这条命令**不带 `--directory`**，因为压缩包解压出来就是网页根目录。早期版本里
+> 写的是 `python3 -m http.server 8899 --directory frontend/public`——那是仓库里
+> 的相对路径，只在开发机上成立；对着解压出来的包照抄必然报
+> `FileNotFoundError` 或 404。
 
 ## 里面是什么
 
@@ -82,10 +94,10 @@ python3 -m http.server 8899 --directory frontend/public
 （分叉步 + 两个 token id）判定，6/6 不过就拒绝出包；dtype 或强度不符的文件只
 命中 0–3/6。
 
-页面上另有 `docs/INTERPRETABILITY.md` Finding 13/14：干预确实把残差推走了，
+页面上另有随包分发的 `INTERPRETABILITY.md`（就在网页根目录）Finding 13/14：干预确实把残差推走了，
 但净效果只占维度总运动的 0.0%–20.7%（等效 587–831 / 2048 维），
 **「位移把 token 掰过去的」这个解释不成立**。这一屏给的是「当时在比哪两个词、
-差多少」，不是因果。
+差多少」，不是因果。（上面 1.7B 的数字在 0.6B 视图下会换成该模型自己的实测值。）
 
 ## 关键点：`L20` 那一行永远是平的，这不是 bug
 

@@ -227,8 +227,8 @@
     <div>页面刚打开时，左边「当前 <i class="inline-gloss">token</i>」是 <b>0</b>，模型正准备写 <b>&lt;think&gt;</b>。同名的<i class="inline-gloss">token = 模型一次写的一个词的碎片</i>，页面上所有 `'s`、`.` 这样的小片段都是它。</div>
     <div>此时左边有一行，写着「<i class="inline-gloss">熵 = 模型有多犹豫，0 是铁了心，越大越拿不定主意</i>」。</div>
     <div>同一行后面是「<i class="inline-gloss">top1 概率 = 排名第一的那个词有多大概率被选中</i>」。</div>
-    <div>这一行现在显示 <b>0.001 / 1.000</b>。意思是：它 100% 确定要写这个词。</div>
-    <div>把「当前 token」滑块拖到第 <b>5</b> 步：它正在写 <b>'s</b>，同一行变成 <b>0.530 / 0.777</b>。意思是十个机会里它选 's 七次半，剩下几次它在犹豫。</div>
+    <div>这一行现在显示 <b id="walkEnt0">—</b>。意思是：它 100% 确定要写这个词。</div>
+    <div>把「当前 token」滑块拖到第 <b>5</b> 步：它正在写 <b>'s</b>，同一行变成 <b id="walkEnt5">—</b>。意思是十个机会里它选 's 七次半，剩下几次它在犹豫。</div>
     <div>这一刻右上角「top-64 <i class="inline-gloss">候选词 = 模型此刻心里排队的字，按分数从高到低</i>」表里，第 1 名是 <b>'s</b>，第 2 名是 <b>me</b>。</div>
     <div>中间那张图上每一个点，是"这一<i class="inline-gloss">层 = 一次加工工序，共 28 道（L0 到 L27）</i>所有 token 的状态"被压成平面坐标画出来的位置。</div>
     <div>那份状态是 <b data-f="d">2048</b> 个数字<i class="inline-gloss">（维度 = 一份状态里数字的个数）</i>，画到纸上时<i class="inline-gloss">（投影 = 压成 2 个数字，好落在纸上）</i>只留 2 个。所以图上挨得近，不代表内部状态一样。</div>
@@ -238,7 +238,7 @@
 
    <h2>三 · 你会在这页上遇到的词</h2>
    <div class="gitem" data-term="隐空间"><div class="gterm">隐空间<br>隐状态</div><div class="gdef"><span class="plain">模型脑子里那份"笔记"本身。它不是文字，是一串数字。</span><span class="where">在哪儿看：页面大标题、左侧「怎么读」那段、右侧「这一层在做什么」。</span></div></div>
-   <div class="gitem" data-term="token"><div class="gterm">token</div><div class="gdef"><span class="plain">模型一次写的一个词的碎片，不是完整的词。</span><span class="where">在哪儿看：左边「当前 token」滑块；中间图上方那行「1983_I_1 · 's · 共 1024 步」。</span></div></div>
+   <div class="gitem" data-term="token"><div class="gterm">token</div><div class="gdef"><span class="plain">模型一次写的一个词的碎片，不是完整的词。</span><span class="where">在哪儿看：左边「当前 token」滑块；中间图上方那行「1983_I_1 · 's · 共 <span id="walkTok">—</span> 步」。</span></div></div>
    <div class="gitem" data-term="候选词"><div class="gterm">候选词</div><div class="gdef"><span class="plain">模型此刻心里排队的字，按分数从高到低排成一张表。</span><span class="where">在哪儿看：右上「top-64 候选词」表。</span></div></div>
    <div class="gitem" data-term="维度"><div class="gterm">维度</div><div class="gdef"><span class="plain">一份状态里有几个数字，这里是 <span data-f="d">2048</span>。</span><span class="where">在哪儿看：左边「原始向量维度」。</span></div></div>
    <div class="gitem" data-term="投影"><div class="gterm">投影</div><div class="gdef"><span class="plain">把 <span data-f="d">2048</span> 个数字压成 2 个数字，好画在纸上。</span><span class="where">在哪儿看：中间图标题「隐空间 2D 投影 · L14」。</span></div></div>
@@ -334,10 +334,10 @@
       <div class="stat"><span>该 token 原始 token</span><span id="stRaw">—</span></div>
       <div class="stat"><span>熵 / top1 概率</span><span id="stEnt">—</span></div>
       <div class="stat"><span>‖h‖ 当前层</span><span id="stNorm">—</span></div>
-      <div class="stat"><span>相对 embedding 移动</span><span id="stMove">—</span></div>
+      <div class="stat"><span id="stMoveLabel">相对 embedding 移动</span><span id="stMove">—</span></div>
       <div class="note" style="margin-top:10px">
         <b>怎么读：</b>点云是这一层所有 token 的隐状态。亮色 = 刚生成的 token。
-        拖动层滑块会看到点云从松散逐渐收紧——这是残差流把不同 token 挤到少数几个「方向」上的过程。
+        拖动层滑块会看到点云从松散逐渐收紧。收紧是真的，但<b>不能</b>由此断定信息被压进了少数几个方向——这张图只有 2 个数，看不出 <span data-f="d">2048</span> 个数被压成了几个。
       </div>
     </div>
   </div>
@@ -573,6 +573,36 @@ function applyModelFacts(){
   trace("model facts applied: " + m.label + " d=" + m.d_model);
 }
 
+/* The guide's hands-on walkthrough quotes three measured numbers: the entropy /
+   top-1 pair at token 0, the pair at token 5, and the total step count. All
+   three are per-model -- 0.6B reads 0.007/1.000 and 0.629/0.678, and ships 384
+   steps rather than 1024. They used to be hardcoded, so a reader who actually
+   followed the walkthrough on 0.6B could not reproduce one of the three, and
+   would reasonably conclude the page was stale rather than that the walkthrough
+   was model-specific. Fill them from the loaded trajectory; the paired datasets
+   carry no per-token entropy, so those slots stay "—" instead of guessing.
+
+   Pinned to trajectories[0], not the current one: the walkthrough text names
+   1983_I_1 and quotes that run's token 5 ('s). Reading the current trajectory
+   would show one problem's numbers next to another problem's name as soon as
+   the reader picked a different question and reopened the guide. */
+function applyWalkthroughFacts(){
+  const t = S.m && S.m.trajectories && S.m.trajectories[0];
+  if(!t) return;
+  const set = (id, v) => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = (v == null ? "—" : String(v));
+  };
+  const pair = (k) => {
+    const ti = S.tokText && S.tokText[k];
+    return (ti && ti.ent != null && ti.top1 != null)
+      ? ti.ent.toFixed(3) + " / " + ti.top1.toFixed(3) : null;
+  };
+  set("walkEnt0", pair(0));
+  set("walkEnt5", pair(5));
+  set("walkTok", t.n_tokens_total);
+}
+
 async function loadModelRegistry(){
   let reg = null;
   try{
@@ -652,6 +682,7 @@ async function boot(){
   // 必须在弹导读层之前填好：导读里引用的宽度、参与维度数、净效果占比都是
   // **当前模型**的实测值。晚一步，读者会先看到一个还写着上一个模型数字的导读。
   applyModelFacts();
+  applyWalkthroughFacts();
   // 遮罩收掉之后再弹导读层，否则浮层会盖住"正在加载…"
   if(orientAuto) orientShow();
   layout();
@@ -1152,6 +1183,16 @@ function renderDivergenceReadout(){
        `${(S.pm.pairs[S.pi].layers || []).join('/')}）。` +
        `</div>`;
 
+  // 这一块的内容有 2200px、滚动窗只有 305px，可见率约 14%。把最吃重的一句
+  // 限制提到最顶上，否则不往下滚的读者读到的是候选词条而不是"别过度解读"——
+  // 而这屏最容易被读过头的恰恰是"干预改口了"这件事本身。
+  h += `<div class="note" style="margin:0 0 8px;padding:7px 9px;font-size:11.5px;` +
+       `background:#131a28;border-left:2px solid #ffd479;border-radius:0 4px 4px 0">` +
+       `<b style="color:#ffd479">先看这句：</b>这一屏能说的是"改口那一刻模型在比哪两个词、` +
+       `各差多少分"，<b>不能</b>说的是"这次位移把 token 掰过去的"——净效果只占维度总运动的 ` +
+       `${S.model && S.model.retention_text ? S.model.retention_text : "很小一部分"}，` +
+       `其余的运动与选词无关。各条限制在下面，别跳过。</div>`;
+
   // 层选择。L28 是真正用来选词的那次读出，浅层不是。
   h += `<div style="display:flex;gap:3px;flex-wrap:wrap;margin:0 0 6px">`;
   layers.forEach(function(x){
@@ -1199,10 +1240,20 @@ function renderDivergenceReadout(){
               `别拿它当"模型当时在想什么"`);
   else if(Ld.kl != null)
     bits.push(`L${L} 是最终读出，和模型实际输出同一个口径`);
-  if(su.m_c_min != null && su.m_c_last != null)
-    bits.push(`改口之前的第 ${Math.max(0, q.k-1)} 步，两词只差 <b>${su.m_c_last.toFixed(2)}</b> 分，` +
-              `比分叉那一步（${cm != null ? cm.toFixed(2) : "—"}）还小 —— ` +
-              `<b>险不是干预造成的，是本来如此</b>`);
+  // 这一条原先无条件断言"改口前差距还更小 ⇒ 险本来就在"，但那个比较在 12 组配对题
+  // 里只成立 1 组（A 判据）。而且 A 与 B（是否低于自身中位）在 4 组上给出相反判断，
+  // 说明"还小"问的不是"本来有多险"这个问题。真正该问的是：改口前那一步，对照臂按
+  // 它自己的轨迹算算不算险。所以三个数全摆出来，结论句按数据分支。
+  if(su.m_c_min != null && su.m_c_last != null && su.m_c_med != null){
+    const wasNarrow = su.m_c_last <= su.m_c_med;
+    bits.push(`改口之前的第 ${Math.max(0, q.k-1)} 步，对照臂两词差 <b>${su.m_c_last.toFixed(2)}</b> 分，` +
+              `同一段前缀的典型值是 ${su.m_c_med.toFixed(2)} 分（最低到过 ${su.m_c_min.toFixed(2)} 分），` +
+              `分叉那一步是 <b>${cm != null ? cm.toFixed(2) : "—"}</b> 分。` +
+              (wasNarrow
+                ? `改口前这一步本来就比平时更接近打平，<b>所以那一刻的"险"是本来就在的</b>`
+                : `但改口前这一步反而比平时分得更开，<b>不能说"险本来就在"</b> —— ` +
+                  `按对照臂自己的轨迹，险是到分叉那一步才冒出来的`));
+  }
   if(su.dlg_med != null && su.dlg_at != null)
     bits.push(`分叉那一步的 logit 变化 ${su.dlg_at.toFixed(2)}，前缀中位数是 ${su.dlg_med.toFixed(2)}；` +
               `同范数的 128 个随机方向里，有 <b>${S.dv.c4_random_hits}</b> 的比例能扳出同样的词`);
@@ -1412,9 +1463,17 @@ function drawDeltaSide(){
     } else {
       h += `<tr><td colspan="3" class="note" style="padding-top:10px">` +
            `被推最多的维度（${S.m.d_model} 维里变化最大的，同步窗口内均值）` +
+           `<br><span style="color:#3ddc97">▲ 绿 = 这一维的数值被推高</span>，` +
+           `<span style="color:#ff8fa3">▼ 粉 = 被压低</span>（与上面维度解读屏同一套约定）` +
            `<br><b>这些维度不解释 token 的选择。</b>词条是该维权重最大的词，` +
-           `是真的但不构成解释：净效果只占维度总运动的 0.0%–20.7%，` +
-           `等效 587–831 维。详见 Finding 13</td></tr>`;
+           // 这两个数原先写死成 1.7B 的 0.0%–20.7% / 587–831，0.6B 下同一段落里
+           // 前半句已正确变成 1024 维，后半句却还在报 1.7B 的实测值。改成从注册表读；
+           // 读不到就不说这句，也不要退回到一个写死的、可能对当前模型是错的数。
+           (S.model && S.model.retention_text && S.model.n_eff_text
+             ? `是真的但不构成解释：净效果只占维度总运动的 ${S.model.retention_text}，` +
+               `等效 ${S.model.n_eff_text} 维。详见 Finding 13`
+             : `是真的但不构成解释：净效果只占维度总运动的很小一部分。详见 Finding 13`) +
+           `</td></tr>`;
       // `d.delta` is an *absolute* change in that dimension's activation
       // (100.69, -77.48, …), not a fraction. Multiplying it by 100 and handing
       // the result to CSS as a width percentage produces 10068% — the row
@@ -1425,7 +1484,14 @@ function drawDeltaSide(){
         const w = Math.abs(d.delta) / maxAbs * 100;
         const up = d.delta >= 0;
         const names = (d.names||[]).slice(0,4).map(esc).join("、") || "—";
-        const col = up ? "#ff8fa3" : "#3ddc97";
+        // Colour convention has to match the 维度解读 screen, which states it
+        // out loud: 绿 = 数值为正, 粉 = 为负. These two tables look alike and sit
+        // one tab apart, and they used to encode the same sign with opposite
+        // colours. "Green means good" is a strong prior, so a reader meets the
+        // contradiction and resolves it by trusting the prior -- i.e. by
+        // inverting whichever sign they care about. Both screens now also carry
+        // the convention as text, so neither depends on the other being read.
+        const col = up ? "#3ddc97" : "#ff8fa3";
         h += `<div class="dimrow">` +
              `<span class="dimn" style="color:${col}">${up?"▲":"▼"}#${d.dim}` +
              `<br><span class="note">${d.delta>=0?"+":""}${d.delta.toFixed(1)}</span></span>` +
@@ -1747,6 +1813,9 @@ function renderSide(){
   const n = t.n_tokens_shipped;
   if(S.tok < n){
     $("#stNorm").textContent = fullNorm(S.tok, S.layer).toFixed(1);
+    // Reset the label on the way back: the paired screens rename this row, and
+    // without this it keeps that name after switching back to a 2D screen.
+    $("#stMoveLabel").textContent = "相对 embedding 移动";
     $("#stMove").textContent = (embedDist(S.tok,S.layer)*100).toFixed(1) + "%";
   } else { $("#stNorm").textContent="—"; $("#stMove").textContent="—"; }
 
@@ -1875,6 +1944,14 @@ function render(){
       for(let d=0; d<S.pm.d_model; d++){ const x=S.pCtl[o+d]; nrm += x*x; }
       $("#stNorm").textContent = Math.sqrt(nrm).toFixed(1) + "（对照臂）";
       const rel = (S.pMeta.stats && S.pMeta.stats.rel_shift || [])[S.tok];
+      // This row kept the label "相对 embedding 移动" while the number it holds
+      // here is a different quantity with a different denominator: the shift
+      // between the two arms, divided by the control arm's own length. Same row,
+      // same position on screen, 1078.1% on one tab and 31.39% on the next, and
+      // the label never changed -- so the only thing a reader could conclude is
+      // that the intervention shrank the state. Name the row after what it
+      // actually holds, in both places that write to it.
+      $("#stMoveLabel").textContent = "被干预推走的比例（相对对照臂自己）";
       $("#stMove").textContent = rel != null
         ? (rel*100).toFixed(2) + "%（被干预推走）" : "—";
       $("#stRaw").textContent = S.pIdsC && S.pIdsC[S.tok] != null
@@ -1899,7 +1976,7 @@ function render(){
   $("#mainTitle").textContent =
     S.view==="XY" ? "隐空间 2D 投影 · L"+S.layer :
     S.view==="BAR" ? "该步的候选词分数 · 第 "+S.tok+" 步" :
-    "这一层这一步，2048 维里最活跃的维度 · L"+S.layer;
+    "这一层这一步，"+S.m.d_model+" 维里最活跃的维度 · L"+S.layer;
   $("#mainSub").textContent =
     t.problem_id + " · " + t.tokens[S.tok]?.s?.replace(/\n/g," ") + " · 共 " + t.n_tokens_total + " 步";
   trace("pre-canvas");
@@ -2095,6 +2172,7 @@ function orientRead(){
 }
 function orientShow(){
   applyModelFacts();
+  applyWalkthroughFacts();
   $orient.classList.remove("hide");
   trace("orientation shown");
 }
