@@ -446,6 +446,11 @@
       <h2>生成的文本</h2>
       <div class="txt" id="genTxt">—</div>
     </div>
+
+    <!-- 三块与配对数据无关的附加屏（逐层 readout / 向量三角色 /
+         token 反向映射）。挂在自己面板里而不是塞进「干预 vs 对照」那一屏：
+         那条链要等用户点了标签才加载配对数据，会把这三块一起拖住。 -->
+    <div class="panel" id="extras" style="display:block"></div>
   </div>
 </div>
 
@@ -504,6 +509,7 @@ const S = {
   // 两者都留是因为 48 条轨迹各带 32 步 × 28 层的逐层 readout，页面只渲染
   // 当前配对题目的那一条；直接从数组里按下标取会在题目换了之后串位。
   lens: null, lensById: null, lensPick: 0, lensStep: 0,
+  backmap: null, bmStep: 0,
   // 干预向量的三角色刻画（充分性 / 必要性 / 特异性）。
   roles: null,
 };
@@ -790,6 +796,15 @@ async function loadTraj(i, prog){
   setBar(1, "");
   render();
   trace("post-render");
+  // 叙述性数据在这里取，不等用户点标签。取完再重画一次，让 #extras
+  // 面板里的三块（逐层 readout / 向量三角色 / token 反向映射）落进页面。
+  // 不 await 的话第一次 render() 时 S.backmap 还是 null，面板会是空的；
+  // 这里 await 保证首屏就带着这三块，而不是等读者去点某个标签。
+  try{
+    await loadNarrative();
+    renderExtras();
+    trace("narrative loaded");
+  }catch(e){ trace("loadNarrative failed: " + e.message); }
 }
 
 function tokInfo(k){
@@ -841,7 +856,24 @@ async function loadPairMeta(){
     try{ S.pUnit = f16decode(await fetchBuf(dataBase()+"pairs/" + S.pm.steer_unit)); }
     catch(e){ trace("steer_unit missing: " + e.message); }
   }
-  // 读出数据是可选的：缺了只是第 4 屏少一块解释，不该让整块面板失败。
+  // 读出数据是可选的：缺了只是少一块解释，不该让整块面板失败。
+  //
+  // 下面这一大段叙述性数据（divergence / cot / cot_texts / answer_readout /
+  // logit_lens / vector_roles / token_backmap）以前就长在这个函数里，
+  // 于是它们全都只在用户点「干预 vs 对照」标签时才加载。没点过的人
+  // 永远看不到逐层 readout、向量三角色、token 反向映射——页面上没有任何
+  // 提示，看起来像功能不存在。搬进 loadNarrative()，boot() 里就取。
+  return loadNarrative();
+}
+
+/* 与配对数据无关的叙述性数据。boot() 里就加载，不等任何点击。 */
+let _narrativePromise = null;
+async function loadNarrative(){
+  // 幂等：boot() 调一次，loadPairMeta() 在用户点标签时还会再调一次。
+  // 没有这个守卫，同一批 JSON 会被 fetch 两遍，第二次的结果覆盖第一次
+  // （内容相同，但读者会看到面板在无意义地重画）。
+  if(_narrativePromise) return _narrativePromise;
+  _narrativePromise = (async () => {
   try{
     const dr = await fetch(dataBase()+"divergence_readout.json");
     if(dr.ok){
@@ -915,7 +947,19 @@ async function loadPairMeta(){
       S.roles = await cr6.json();
     }else trace("vector_roles.json: HTTP " + cr6.status);
   }catch(e){ trace("vector_roles unavailable: " + e.message); }
+  // 第七批：token 反向映射。这里进页面的不是「我们算出了每个 token 的
+  // hidden state」——那种说法是错的，见 renderTokenBackmap 里写的原因。
+  // 页面要如实说两件事：精确零空间不存在；不唯一性来自 argmax 这个
+  // 离散决策，量级是「隐状态能移动 2.2 倍而说出的词不变」。
+  try{
+    const cr7 = await fetch(dataBase()+"token_backmap.json");
+    if(cr7.ok){
+      S.backmap = await cr7.json();
+    }else trace("token_backmap.json: HTTP " + cr7.status);
+  }catch(e){ trace("token_backmap unavailable: " + e.message); }
   return true;
+  })();
+  return _narrativePromise;
 }
 
 async function loadPair(i){
@@ -1468,8 +1512,6 @@ function renderCotEffect(){
   h += renderCotEffect32k();
   h += renderAnswerReadout();
   h += renderCotTexts();
-  h += renderLogitLens();
-  h += renderVectorRoles();
   h += `</div>`;
   return wrap(h);
 }
@@ -1570,6 +1612,49 @@ function renderProblemSetNote(PS, where){
 
    这份数据来自 16k 采集批（48 条轨迹 × 每条最后 32 步），**和上面那些
    32k 干预批不是同一批**，所以它自带题目/步数选择器，不跟上面的控件联动。 */
+/* ---- 三块与配对数据无关的附加屏 ------------------------------------------
+   逐层 readout / 向量三角色 / token 反向映射。
+   单独一个函数，而不是内联进 render()：这三块各自要重画一次，
+   内联会让 render() 里多出三段与主屏无关的拼接代码。 */
+function renderExtras(){
+  const host = $("#extras");
+  if(!host) return;
+  let h = "";
+  h += renderLogitLens();
+  h += renderVectorRoles();
+  h += renderTokenBackmap();
+  host.innerHTML = h;
+  bindExtraEvents(host);
+}
+
+function bindExtraEvents(host){
+  // 正文挑选器。落在 innerHTML 之后才存在，只能在这里绑。
+  const lensBtns = host.querySelectorAll("[data-lenspick]");
+  for(let i=0;i<lensBtns.length;i++){
+    lensBtns[i].onclick = () => {
+      S.lensPick = parseInt(lensBtns[i].dataset.lenspick, 10);
+      S.lensStep = 0;
+      renderExtras();
+    };
+  }
+  const lensStep = host.querySelector("[data-lensstep]");
+  if(lensStep){
+    lensStep.oninput = () => {
+      const v = parseInt(lensStep.value, 10);
+      if(Number.isFinite(v)){ S.lensStep = v; renderExtras(); }
+    };
+  }
+  // token 反向映射的步选择器。17 个按钮各自对应产物里一个实测步，
+  // 两种 regime 用不同颜色，点了之后下面那张实测网格要跟着换。
+  const bmBtns = host.querySelectorAll("[data-bmstep]");
+  for(let i=0;i<bmBtns.length;i++){
+    bmBtns[i].onclick = () => {
+      const v = parseInt(bmBtns[i].dataset.bmstep, 10);
+      if(Number.isFinite(v)){ S.bmStep = v; renderExtras(); }
+    };
+  }
+}
+
 function renderLogitLens(){
   const L = S.lens;
   if(!L || !L.trajectories || !L.trajectories.length) return "";
@@ -1720,6 +1805,179 @@ function renderLogitLens(){
    特异性：它只影响该影响的，还是把所有东西都推平了？
 
    数字全部来自产物的 vector_roles.json，这里不重算。每一项都带分母。 */
+function renderTokenBackmap(){
+  const B = S.backmap;
+  if(!B || !B.aggregate) return "";
+  const A = B.aggregate, esc2 = s => esc(s == null ? "" : String(s));
+  const nfmt = (v, d) => (v == null || !isFinite(v)) ? "—" : Number(v).toFixed(d);
+
+  // 步选择器：把 17 步都列出来，标注每步属于哪种 regime。
+  // 不去重——这 17 步是刻意挑出来的（12 步平凡 + 5 步需要微调），
+  // 它们的区别正是这一屏要讲的东西，按题号折叠会把差异藏掉。
+  const steps = B.steps || [];
+  const si = (S.bmStep >= 0 && S.bmStep < steps.length) ? S.bmStep : 0;
+  const st = steps[si];
+  const shortRec = r => String(r || "").split("__").pop();
+
+  let h = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #232a36"
+       data-bmroot="1">`;
+  h += `<div style="font-size:12.5px;font-weight:600;margin-bottom:4px;color:#e8edf5">
+    能把 token 映回隐状态吗 · 先说不能的部分</div>`;
+  h += `<div class="note" style="font-size:10.5px;margin:0 0 7px">
+    直觉做法是：词表 151936 维压到隐空间 2048 维，那么一定有一大堆
+    <b>看不见的方向</b>，沿它们走 logits 完全不变，词也不变。
+    <b>这个 checkpoint 上不存在这种方向。</b></div>`;
+
+  // 负面结果放最前面：它是这一整块推翻的前提，藏起来就成了误导。
+  const rk = A.rank || {};
+  h += `<div class="note" style="margin:0 0 7px;padding:7px 9px;background:#1a1420;
+       border-left:2px solid #b06ad6;border-radius:0 4px 4px 0;font-size:10.5px">
+    <b style="color:#d9a3ff">读出矩阵是满秩的，所以精确零空间是空的：</b>
+    实测最小奇异值 <b>${nfmt(rk.sigma_min, 4)}</b>、最大
+    <b>${nfmt(rk.sigma_max, 2)}</b>，条件数只有
+    <b>${nfmt(rk.cond, 1)}</b>，秩 <b>${esc2(rk.numerical_rank)}/${esc2(rk.hidden)}</b>。
+    单位向量 n 满足 ‖W·n‖ ≥ ${nfmt(rk.min_norm_over_unit_n, 4)}——
+    也就是说<b>任何方向都会改变 logits</b>，只是改多改少的问题。
+    条件数这么小也说明这不是数值误差凑出来的。
+    <div style="margin-top:3px;color:#8a94a6">产物原文：
+      <span title="${esc2(B.unembedding_note)}">点此查看</span></div></div>`;
+
+  // 那不唯一性从哪来？来自 argmax 是离散决策：说出来 t 的那些 h 构成一个
+  // 很宽的凸锥，不是原空间里一个「看不见的子空间」。
+  const cone = A.cone_by_regime || {};
+  const thick = cone.trivial_delta0, thin = cone.needed_delta;
+  h += `<div class="note" style="font-size:10.5px;margin:0 0 7px">
+    不唯一性确实存在，但机制不同：<b>argmax 只保留 151936 个数里的 1 个</b>，
+    落在这个锥里的所有隐状态都说出同一个词。下表两种情况差别很大，
+    所以分开列，不合并成一个平均数。</div>`;
+
+  const coneRow = (label, c, tint) => {
+    if(!c) return "";
+    const mv = c.hidden_relative_move_median;
+    return `<tr>
+      <td style="padding:2px 5px 2px 0;color:${tint};font-size:10.5px">${label}</td>
+      <td style="padding:2px 5px;text-align:right;font-family:var(--mono);font-size:10.5px">
+        ${esc2(c.n_steps)}</td>
+      <td style="padding:2px 5px;text-align:right;font-family:var(--mono);font-size:10.5px">
+        ${nfmt(c.margin_median, 2)}</td>
+      <td style="padding:2px 5px;text-align:right;font-family:var(--mono);font-size:10.5px;
+        color:${mv >= 1 ? "#3ddc97" : "#e0a04a"};font-weight:600">
+        ${nfmt(mv, 2)}×</td>
+      <td style="padding:2px 0;text-align:right;font-family:var(--mono);font-size:10.5px;
+        color:#8a94a6">${esc2(c.n_above_1x)}/${esc2(c.n_radii_denom)}</td>
+    </tr>`;
+  };
+  h += `<table style="width:100%;border-collapse:collapse;margin:0 0 6px">
+    <tr style="border-bottom:1px solid #232a36">
+      <th style="text-align:left;font-size:9.5px;color:#5f6b80;padding:0 5px 2px 0;font-weight:400">这一步的情况</th>
+      <th style="text-align:right;font-size:9.5px;color:#5f6b80;padding:0 5px;font-weight:400">步数</th>
+      <th style="text-align:right;font-size:9.5px;color:#5f6b80;padding:0 5px;font-weight:400">margin 中位</th>
+      <th style="text-align:right;font-size:9.5px;color:#5f6b80;padding:0 5px;font-weight:400">隐状态可移动</th>
+      <th style="text-align:right;font-size:9.5px;color:#5f6b80;padding:0;font-weight:400">&gt;1× 次数</th>
+    </tr>
+    ${coneRow("读出已指向该词", thick, "#7cc0ff")}
+    ${coneRow("靠微调才指向该词", thin, "#e0a04a")}
+  </table>`;
+  h += `<div class="note" style="font-size:10px;margin:0 0 8px">
+    「隐状态可移动」= 沿某个方向走，隐状态能挪动多少倍而说出的词不变。
+    厚锥上挪动 <b>${nfmt(thick && thick.hidden_relative_move_median, 2)} 倍</b>，
+    薄锥上只有 <b>${nfmt(thin && thin.hidden_relative_move_median, 2)} 倍</b>——
+    后者的 margin 中位数只有 ${nfmt(thin && thin.margin_median, 3)}，
+    几乎和第二名打平，能走的范围自然小两个数量级。</div>`;
+
+  // 逐步详情。选中的那一步给出实测网格，而不是插值出来的曲线。
+  h += `<div style="display:flex;gap:3px;flex-wrap:wrap;margin:0 0 6px">`;
+  steps.forEach((x, i) => {
+    const tint = x.trivial_delta ? "#4a90d9" : "#c08a3e";
+    h += `<button data-bmstep="${i}" class="${i === si ? "on" : ""}"
+      style="width:auto;padding:2px 4px;font-size:9.5px;font-family:var(--mono);
+      color:${i === si ? "#0e1420" : tint};background:${i === si ? tint : "transparent"};
+      border:1px solid ${tint};border-radius:3px">${x.step}</button>`;
+  });
+  h += `</div>`;
+  h += `<div class="note" style="font-size:10px;margin:0 0 5px">
+    蓝=读出已指向该词（${esc2(A.n_trivial_delta0)} 步），黄=需要微小修正（${esc2(A.n_needs_delta)} 步）。
+    下面这一格是选中步的实测值。</div>`;
+
+  if(!st) return h + `</div>`;
+
+  h += `<div style="font-size:10.5px;color:#8a94a6;margin:0 0 4px">
+    ${esc2(shortRec(st.record))} · 第 ${esc2(st.step)} 步 ·
+    目标 token <b style="color:#c8d2e2;font-family:var(--mono)">${esc2(st.target_id)}</b>
+    ${esc2(st.target_text || "")} · margin ${nfmt(st.margin, 3)}</div>`;
+
+  // 边界在哪：这是最容易被糊弄的一处。「token 保持不变直到某点」如果只
+  // 报一个数，读者会以为那是翻转点。产物里是 17 个实测采样点，边界处
+  // margin 恰好为 0（并列），真正的翻转在下一个点。两者必须都写出来。
+  const rads = (st.radii || []).map(r => r && r.radius).filter(Boolean);
+  const found = rads.filter(r => r.found);
+  if(found.length){
+    const best = found.reduce((a, b) =>
+      (b.hidden_relative_move > a.hidden_relative_move ? b : a), found[0]);
+    const grid = best.grid || [];
+    h += `<div style="font-size:10.5px;color:#8a94a6;margin:3px 0 2px">
+      最远的一条实测路径：隐状态移动
+      <b style="color:#3ddc97">${nfmt(best.alpha_star_over_norm_h, 2)}×</b>
+      之后，argmax 仍为 <b>${esc2(best.top1_before)}</b>；
+      边界处 margin = ${nfmt(best.margin_after, 8)}
+      ${best.margin_is_zero_at_boundary ? "（恰好为 0，是<b>并列</b>而不是翻转）" : ""}。
+      再往前一步才变成 <b style="color:#e0a04a">${esc2(best.top1_after)}</b>。</div>`;
+
+    // 实测网格：横轴 = 相对移动比例，纵轴 = top1 是否还是目标词。
+    if(grid.length > 1){
+      const W = 294, H = 52, padL = 2, padB = 11;
+      const maxF = Math.max(...grid.map(g => g.hidden_rel), 1e-9);
+      const bw = (W - padL*2) / grid.length;
+      let bars = "";
+      grid.forEach((g, i) => {
+        const x = padL + i*bw;
+        const hh = g.is_target ? (H - padB) : 5;
+        const col = g.is_target ? "#3ddc97" : "#e0a04a";
+        bars += `<rect x="${x.toFixed(2)}" y="${(H-padB-hh).toFixed(2)}"
+          width="${Math.max(bw-0.6,0.6).toFixed(2)}" height="${hh.toFixed(2)}"
+          fill="${col}" opacity="${g.is_target ? 0.9 : 1}"></rect>`;
+      });
+      // 移动比例刻度
+      let ticks = "";
+      [0, 0.5, 1].forEach(f => {
+        const x = padL + f/maxF * (W - padL*2);
+        ticks += `<line x1="${x.toFixed(1)}" y1="${H-padB}" x2="${x.toFixed(1)}" y2="${H-padB+3}"
+          stroke="#2a3346" stroke-width="1"></line>`
+          + `<text x="${x.toFixed(1)}" y="${H-2}" fill="#5f6b80" font-size="7.5"
+            text-anchor="middle" font-family="var(--mono)">${f.toFixed(1)}×</text>`;
+      });
+      h += `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"
+           data-bmgrid="1" style="display:block;margin:3px 0 2px;background:#0e1420;
+           border:1px solid #1d2534;border-radius:4px">
+        <line x1="${padL}" y1="${H-padB}" x2="${W-padL}" y2="${H-padB}"
+          stroke="#232a36" stroke-width="1"></line>
+        ${bars}${ticks}</svg>`;
+      h += `<div class="note" style="font-size:9.5px;margin:0 0 6px">
+        ${grid.length} 个<b>实测</b>采样点（不是插值）。绿=仍说出目标词，
+        橙=已换词。横轴是隐状态实际移动了自身范数的多少倍。
+        <span data-bmgridn="${grid.length}" style="display:none">${grid.length}</span></div>`;
+    }
+    // logits 变化：锥宽不等于 logits 不变，这一点必须同时说。
+    h += `<div class="note" style="font-size:10px;margin:0 0 4px">
+      同一次移动里 logits 相对变化了 <b style="color:#e0a04a">
+      ${nfmt(best.logit_relative_move, 3)}</b>。
+      <b>所以「词没变」不等于「读出没变」</b>——不可逆的地方是 argmax
+      丢掉了其余 ${esc2((B.vocab_size||0) - 1)} 个数，不是读出本身。</div>`;
+  }
+
+  // 双向自证：全词表 logits 能精确还原 h，存下来的 top-64 还原不了。
+  const rv = B.reversibility || {};
+  h += `<div class="note" style="margin:6px 0 0;padding:6px 9px;background:#0e1420;
+       border-left:2px solid #3a4456;border-radius:0 4px 4px 0;font-size:10px;
+       color:#8a94a6">
+    自证：用<b>全部 ${esc2(rv.full_logits_denom)} 维</b> logits 线性还原 h，
+    相对误差 ${nfmt(rv.h_from_full_logits_rel_err, 12)}（读出是单射，这印证了上面的满秩）。
+    但用存下来的 <b>top-${esc2(rv.top64_denom)}</b> 还原，相对误差
+    ${nfmt(rv.h_from_top64_rel_err, 3)}——丢信息的确实是 argmax 那一步。</div>`;
+
+  h += `</div>`;
+  return h;
+}
 function renderVectorRoles(){
   const R = S.roles;
   if(!R || !R.necessity) return "";
@@ -2677,25 +2935,10 @@ function drawDeltaSide(){
   for(let i=0;i<arBtns.length;i++){
     arBtns[i].onclick = () => { S.ansPick = parseInt(arBtns[i].dataset.arpick, 10); drawDeltaSide(); };
   }
-  // 逐层 lens 的题号按钮与步滑块。换成另一道题时步号必须一起归零，
-  // 否则会拿着新题的 steps[S.lensStep] 去渲染——题目短一点就直接越界，
-  // 长一点则会静默显示另一道题的那一步。渲染器里的越界保护只保证不崩，
-  // 不保证显示的是读者刚点的那个 token。
-  const lensBtns = tb.querySelectorAll("[data-lenspick]");
-  for(let i=0;i<lensBtns.length;i++){
-    lensBtns[i].onclick = () => {
-      S.lensPick = parseInt(lensBtns[i].dataset.lenspick, 10);
-      S.lensStep = 0;
-      drawDeltaSide();
-    };
-  }
-  const lensStep = tb.querySelector("[data-lensstep]");
-  if(lensStep){
-    lensStep.oninput = () => {
-      const v = parseInt(lensStep.value, 10);
-      if(Number.isFinite(v)){ S.lensStep = v; drawDeltaSide(); }
-    };
-  }
+  // 逐层 lens 与 token 反向映射的按钮不再在这里绑：它们已经搬进
+  // bindExtraEvents()，跟着 #extras 面板一起渲染。留在这里会绑两次，
+  // 而且 drawDeltaSide() 只在配对数据就绪时才跑，等于绑不上。
+  // 步号换题时归零的规则保留在 bindExtraEvents() 里。
   // 正文挑选器。落在 innerHTML 之后才存在，只能在这里绑。
   const cotPick = tb.querySelector("[data-cotpick]");
   if(cotPick){
@@ -3378,6 +3621,18 @@ function render(){
   $("#pairRow").style.display = "none";
   $("#trajPanel").style.display = "";
   renderSide();
+  // 逐层 lens、向量三角色、token 反向映射这三块挂在这里，而不是
+  // renderCotEffect() 里面。
+  //
+  // 之前它们在 renderCotEffect() 里，而那个函数只被 drawDeltaSide() 调用，
+  // drawDeltaSide() 又在 !S.pMeta 时提前 return —— 于是只要用户没点过
+  // 「干预 vs 对照」标签、配对元数据还没加载，这三块就一个都不渲染。
+  // 页面上没有任何提示，看起来像功能不存在。
+  //
+  // 这三块的数据（logit_lens.json / vector_roles.json / token_backmap.json）
+  // 与配对数据完全无关，却被绑在需要点击才加载的数据上，这是接错了地方。
+  // 现在挂在非 DELTA 分支，boot() 里就已经把数据取回来了。
+  renderExtras();
   $("#legendDelta").style.display = "none";
   $("#legendDelta2").style.display = "none";
   const t = S.m.trajectories[S.ti];
