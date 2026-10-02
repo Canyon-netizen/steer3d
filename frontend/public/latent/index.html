@@ -1183,16 +1183,6 @@ function renderDivergenceReadout(){
        `${(S.pm.pairs[S.pi].layers || []).join('/')}）。` +
        `</div>`;
 
-  // 这一块的内容有 2200px、滚动窗只有 305px，可见率约 14%。把最吃重的一句
-  // 限制提到最顶上，否则不往下滚的读者读到的是候选词条而不是"别过度解读"——
-  // 而这屏最容易被读过头的恰恰是"干预改口了"这件事本身。
-  h += `<div class="note" style="margin:0 0 8px;padding:7px 9px;font-size:11.5px;` +
-       `background:#131a28;border-left:2px solid #ffd479;border-radius:0 4px 4px 0">` +
-       `<b style="color:#ffd479">先看这句：</b>这一屏能说的是"改口那一刻模型在比哪两个词、` +
-       `各差多少分"，<b>不能</b>说的是"这次位移把 token 掰过去的"——净效果只占维度总运动的 ` +
-       `${S.model && S.model.retention_text ? S.model.retention_text : "很小一部分"}，` +
-       `其余的运动与选词无关。各条限制在下面，别跳过。</div>`;
-
   // 层选择。L28 是真正用来选词的那次读出，浅层不是。
   h += `<div style="display:flex;gap:3px;flex-wrap:wrap;margin:0 0 6px">`;
   layers.forEach(function(x){
@@ -1208,6 +1198,18 @@ function renderDivergenceReadout(){
   h += dvRows((Ld.c || []).slice(0, NCAND), q.c_id, maxG, "#8fa0bb");
   h += `<div style="font-size:11px;color:var(--acc);margin-top:6px">干预臂（绿）</div>`;
   h += dvRows((Ld.s || []).slice(0, NCAND), q.s_id, maxG, "#3ddc97");
+
+  // 限制横幅放在两臂第一行**之后**，不是之前。这一栏有 2300px 内容、滚动窗只有
+  // 305px（可见率 13%），插在前面会把"干预臂第 1 名"顶出首屏——而"不滚动就能
+  // 看到两臂各自吐了什么"恰恰是这屏存在的理由，不能牺牲。放在这里还有个好处：
+  // 读者先看到"对照吐 A、干预吐 B"，紧接着读到"别据此认为位移掰过去了"，
+  // 限制正好落在它所限制的那个论断后面。
+  h += `<div class="note" style="margin:8px 0 0;padding:7px 9px;font-size:11.5px;` +
+       `background:#131a28;border-left:2px solid #ffd479;border-radius:0 4px 4px 0">` +
+       `<b style="color:#ffd479">先看这句：</b>上面两行说明"干预让模型改吐了一个词"，` +
+       `但<b>不能</b>说明"这次位移把它掰过去的"——净效果只占维度总运动的 ` +
+       `${S.model && S.model.retention_text ? S.model.retention_text : "很小一部分"}，` +
+       `其余运动与选词无关。各条限制在下面，别跳过。</div>`;
 
   // 一句话结论：两边第一名各领先第二名多少。
   const cm = (Ld.c && Ld.c[1]) ? Ld.c[0].g - Ld.c[1].g : null;
