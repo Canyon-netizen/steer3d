@@ -8,6 +8,7 @@ import { resolveWsUrl } from "@/lib/ws-endpoint";
 import type { SteeringAckMessage } from "@/lib/frame-types";
 
 import ControlPanel from "@/components/ControlPanel";
+import LayerDerivationPanel from "@/components/LayerDerivationPanel";
 import TokenStreamPanel from "@/components/TokenStreamPanel";
 import InterpretationPanel from "@/components/InterpretationPanel";
 import SteeringControl from "@/components/SteeringControl";
@@ -138,6 +139,7 @@ export default function Page() {
 
         <aside className="flex flex-col gap-4 p-4 overflow-hidden min-h-0">
           <ControlPanel sendControl={sendControl} />
+          <LayerDerivationPanel />
           <SteeringControl sendControl={sendControl} />
           <ArchivedExperiments />
           <InterpretationPanel />

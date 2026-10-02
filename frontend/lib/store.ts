@@ -22,6 +22,21 @@ type AppState = {
   frames: Frame[];
   latest: Frame | null;
   fullText: string;          // concatenated token text, for the side panel
+  /**
+   * Step the reader is currently pointing at, for the per-layer derivation
+   * chain. `latest.step_id` is the *newest* frame, which is only the right
+   * one while playback is following along; the moment the reader scrubs
+   * back it is not. Null means "follow the newest frame".
+   */
+  focusedStep: number | null;
+  /**
+   * Which recording is being replayed. The frames themselves do not carry
+   * their trajectory id -- a frame from one recording is indistinguishable
+   * from a frame of another -- so the per-layer chain could not tell which
+   * logit-lens entry belongs to what is on screen. Set by ControlPanel
+   * when the picker changes.
+   */
+  currentTrajectory: string | null;
 
   // Configuration
   layer: number;
@@ -55,6 +70,8 @@ type AppState = {
   setActiveInterventions: (list: ActiveIntervention[]) => void;
   setLayer: (l: number) => void;
   setPrompt: (p: string) => void;
+  setFocusedStep: (s: number | null) => void;
+  setCurrentTrajectory: (id: string | null) => void;
   setSpeed: (s: number) => void;
   setPaused: (b: boolean) => void;
   setConnected: (c: boolean) => void;
@@ -66,6 +83,8 @@ export const useApp = create<AppState>((set) => ({
   frames: [],
   latest: null,
   fullText: "",
+  focusedStep: null,
+  currentTrajectory: null,
 
   layer: 14,
   availableLayers: [],
@@ -116,6 +135,8 @@ export const useApp = create<AppState>((set) => ({
 
   setLayer: (l) => set(() => ({ layer: l })),
   setPrompt: (p) => set(() => ({ prompt: p })),
+  setFocusedStep: (s) => set(() => ({ focusedStep: s })),
+  setCurrentTrajectory: (id) => set(() => ({ currentTrajectory: id })),
   setSpeed: (s) => set(() => ({ speed: s })),
   setPaused: (b) => set(() => ({ paused: b })),
   setConnected: (c) => set(() => ({ connected: c })),
@@ -126,5 +147,10 @@ export const useApp = create<AppState>((set) => ({
       latest: null,
       fullText: "",
       activeInterventions: [],
+      // Both are per-run. Leaving the previous recording's id here would
+      // point the per-layer chain at a trajectory that is no longer on
+      // screen -- and since a frame carries no id of its own, the chain
+      // would render confidently from the wrong record.
+      focusedStep: null,
     })),
 }));

@@ -33,6 +33,7 @@ export default function ControlPanel({ sendControl }: Props) {
   const setSpeed = useApp((s) => s.setSpeed);
   const setPaused = useApp((s) => s.setPaused);
   const latest = useApp((s) => s.latest);
+  const setCurrentTrajectory = useApp((s) => s.setCurrentTrajectory);
 
   const layers = availableLayers.length > 0 ? availableLayers : FALLBACK_LAYERS;
 
@@ -52,6 +53,15 @@ export default function ControlPanel({ sendControl }: Props) {
 
   // Keep local prompt in sync with the store so external resets work.
   useEffect(() => setLocalPrompt(prompt), [prompt]);
+
+  // Publish which recording is on screen. Frames carry no trajectory id of
+  // their own, so without this the per-layer derivation panel cannot tell
+  // which logit-lens entry belongs to the stream it is drawing next to --
+  // it would look up a trajectory and either find nothing or, worse, find
+  // a different one and render it confidently.
+  useEffect(() => {
+    setCurrentTrajectory(pickList ? effectivePrompt : null);
+  }, [pickList, effectivePrompt, setCurrentTrajectory]);
 
   const onStart = () => {
     setPaused(false);
