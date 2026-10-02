@@ -131,6 +131,12 @@ class ReadyMessage:
     layer: int                   # default layer
     d_model: int                 # hidden dim (debug info)
     sample_every: int            # how often a hidden state is sent (1 = every token)
+    # Layers this runner can actually replay, ascending. Declared rather than
+    # left to the UI to guess: the frontend used to carry a hardcoded
+    # [4,8,12,14,16,20,24,28,32], which overlaps the real [4,12,20,26] only
+    # by accident -- it offered layers the data does not have and omitted one
+    # it does. Empty means "runner does not say"; the UI keeps its defaults.
+    layers: List[int] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {

@@ -144,11 +144,36 @@ const claims = await page.eval(`(()=>{
     hits.push({hit:m[0], before:t.slice(Math.max(0,m.index-24), m.index)});
   }
   return hits;})()`);
+// This check used to be one-sided: "the page must never state the answer as a
+// negative". That was correct for the 60-step family, where 7/168 runs yielded
+// an answer — a null there would have been worthless.
+//
+// The 32k family changes the premise: 54/72 runs now yield a parseable answer,
+// so a negative is measurable and the page is entitled to say so. What it is
+// NOT entitled to do is drop the denominator or the "the runs that never
+// finished are not in this comparison" caveat. So the check is now two-sided —
+// the refusal must survive for the batch that cannot support a claim, and any
+// assertion must carry its caveat.
 const disclaim = /别|不是|没测到|不要|≠|没有.*结论|劝/;
 const asserted = (claims || []).filter(c => !disclaim.test(c.before));
-chk(asserted.length === 0,
-    '页面没有把"答案"写成阴性结论（劝阻语不算断言）',
-    asserted.map(c => `…${c.before}[${c.hit}]`).join(' | ').slice(0, 120));
+
+const has32k = /32k 预算重跑/.test(g.text);
+chk(has32k, '页面上有 32k 批次（下面两条限定的前提）');
+if (!has32k) {
+  chk(asserted.length === 0, '没有 32k 批次时，仍不许把"答案"写成阴性结论',
+      asserted.map(c => `…${c.before}[${c.hit}]`).join(' | ').slice(0, 120));
+} else {
+  chk(asserted.length > 0,
+      '32k 批次确实给出了答案维度的阴性结论（不是又退回"没测到"）',
+      `命中 ${asserted.length} 处断言`);
+  chk(/写不完的那些不参与|不参与这个比较/.test(g.text),
+      '该断言带着「写不完的那些不参与这个比较」这句限定');
+  const c32 = await (await fetch(`http://localhost:8917/latent/${big.base}cot_effect_32k.json`)).json();
+  chk(g.text.includes(String(c32.coverage.answer_known)),
+      `断言旁带着分母 ${c32.coverage.answer_known}`);
+  // And the old family must still refuse, in its own block.
+  chk(/没测到/.test(g.text), '60 步那批仍标着「没测到」（没被新数据一并洗白）');
+}
 console.log(`       （命中 ${(claims || []).length} 处，其中劝阻 ${(claims || []).length - asserted.length} 处）`);
 
 // Direction switching must actually re-render.

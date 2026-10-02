@@ -32,6 +32,8 @@ export type ReadyMessage = {
     layer: number;
     d_model: number;
     sample_every: number;
+    /** Layers the runner can actually replay. Empty = runner doesn't say. */
+    layers?: number[];
   };
 };
 

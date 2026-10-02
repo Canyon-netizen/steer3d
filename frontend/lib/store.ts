@@ -25,6 +25,8 @@ type AppState = {
 
   // Configuration
   layer: number;
+  /** Layers the backend says it can replay; empty until `ready` says otherwise. */
+  availableLayers: number[];
   prompt: string;
   speed: number;
   paused: boolean;
@@ -64,6 +66,7 @@ export const useApp = create<AppState>((set) => ({
   fullText: "",
 
   layer: 14,
+  availableLayers: [],
   prompt: "Why is the sky blue?",
   speed: 1.0,
   paused: false,
@@ -91,6 +94,7 @@ export const useApp = create<AppState>((set) => ({
       ready: true,
       availablePresets: r.payload.presets,
       layer: r.payload.layer,
+      availableLayers: r.payload.layers ?? [],
     })),
 
   ingestSteeringCatalog: (m) =>

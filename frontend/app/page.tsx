@@ -85,7 +85,14 @@ export default function Page() {
   const latest = useApp((s) => s.latest);
 
   return (
-    <main className="min-h-screen w-screen bg-bg text-gray-200 font-sans flex flex-col">
+    // h-screen + overflow-hidden, not min-h-screen: the control sidebar is
+    // taller than the viewport, and with min-h-screen the grid grew to fit
+    // it, which dragged the 3-D pane along to 1239x2663. A perspective
+    // projection keys its vertical fov to the element height, so that made
+    // the effective horizontal fov tiny and the trajectory spanned 90% of the
+    // width -- it read as scattered lines rather than a path. The pane is now
+    // exactly one viewport tall and the sidebar scrolls inside its own column.
+    <main className="h-screen w-screen overflow-hidden bg-bg text-gray-200 font-sans flex flex-col">
       <header className="flex items-center justify-between px-6 border-b border-border bg-panel">
         <div className="flex items-baseline gap-3 py-3">
           <h1 className="text-lg font-bold text-gray-100">Reasoning3D</h1>
@@ -112,7 +119,7 @@ export default function Page() {
       </header>
 
       <div className="grid grid-cols-[1fr_360px] flex-1 min-h-0">
-        <div className="relative border-r border-border">
+        <div className="relative min-h-0 overflow-hidden border-r border-border">
           <Scene3D />
           <Legend />
         </div>

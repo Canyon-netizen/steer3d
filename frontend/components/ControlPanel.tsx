@@ -16,16 +16,25 @@ type Props = {
   sendControl: (msg: ControlMessage) => void;
 };
 
-const LAYERS = [4, 8, 12, 14, 16, 20, 24, 28, 32];
+// Fallback only, used until the backend's `ready` names the real set. It
+// used to be the *only* list, and it was wrong: the archived capture covers
+// L4/L12/L20/L26, so this offered eight layers with no data and left L26 --
+// the deepest layer, where control and steered trajectories separate most --
+// unreachable except by picking a neighbouring value and letting the server
+// snap to it.
+const FALLBACK_LAYERS = [4, 8, 12, 14, 16, 20, 24, 28, 32];
 
 export default function ControlPanel({ sendControl }: Props) {
   const layer = useApp((s) => s.layer);
+  const availableLayers = useApp((s) => s.availableLayers);
   const speed = useApp((s) => s.speed);
   const paused = useApp((s) => s.paused);
   const setLayer = useApp((s) => s.setLayer);
   const setSpeed = useApp((s) => s.setSpeed);
   const setPaused = useApp((s) => s.setPaused);
   const latest = useApp((s) => s.latest);
+
+  const layers = availableLayers.length > 0 ? availableLayers : FALLBACK_LAYERS;
 
   const [prompt, setPrompt] = useState("Why is the sky blue?");
   const [localPrompt, setLocalPrompt] = useState(prompt);
@@ -112,7 +121,7 @@ export default function ControlPanel({ sendControl }: Props) {
           value={layer}
           onChange={(e) => onLayerChange(parseInt(e.target.value, 10))}
         >
-          {LAYERS.map((l) => (
+          {layers.map((l) => (
             <option key={l} value={l}>
               layer {l}
             </option>

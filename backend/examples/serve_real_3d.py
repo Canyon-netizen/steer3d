@@ -406,6 +406,19 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8010)
     ap.add_argument("--data-dir", default=str(DEFAULT_DATA))
     ap.add_argument(
+        "--layer",
+        type=int,
+        default=14,
+        help=(
+            "initial layer to replay. The default of 14 sits in the shallow "
+            "half of the network, where hidden-state variance is small "
+            "(max |coord| ~41) and a scene authored in unit-scale numbers "
+            "looks roughly right by luck. The deep layers are where it does "
+            "not: L20 reaches ~344 and L26 ~1199. Replaying a deep layer by "
+            "default is what made this visible."
+        ),
+    )
+    ap.add_argument(
         "--speed",
         type=float,
         default=8.0,
@@ -433,6 +446,17 @@ def main() -> None:
     def patched_init(self, runner_factory=None):
         orig_init(self, runner_factory)
         self.speed = max(0.05, min(8.0, args.speed))
+        # These four are the only layers the capture covers. Declared so the
+        # layer picker offers exactly these instead of a hardcoded list that
+        # both invents layers and misses L26.
+        self.available_layers = list(LAYERS)
+        # Snap *before* storing, not just at replay time. The runner already
+        # snaps an unavailable layer, but it does that downstream of `ready`,
+        # so the greeting would have announced the requested layer while the
+        # stream ran a different one -- the client then labels the trajectory
+        # with a layer the data is not from. Storing the snapped value makes
+        # `ready` state what actually plays.
+        self.layer = min(LAYERS, key=lambda x: abs(x - args.layer))
 
     SessionState.__init__ = patched_init
 
@@ -442,6 +466,8 @@ def main() -> None:
     print(f"data dir : {args.data_dir}")
     print(f"pairs    : {', '.join(runner.bundle.pair_ids())}")
     print(f"layers   : {LAYERS}  (injection at L20)")
+    replay_layer = min(LAYERS, key=lambda x: abs(x - args.layer))
+    print(f"layer    : requested L{args.layer} -> replaying L{replay_layer}")
     print(f"d_model  : {runner.d_model}")
     print(f"speed    : {args.speed}x")
     print(f"ws       : ws://{args.host}:{args.port}/ws")

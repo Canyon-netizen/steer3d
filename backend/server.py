@@ -94,6 +94,9 @@ async def ws_endpoint(websocket: WebSocket):
             layer=state.layer,
             d_model=state.runner.d_model,
             sample_every=1,
+            # What this runner can really replay. See ReadyMessage.layers for
+            # why the UI is not left to hardcode a list.
+            layers=list(getattr(state, "available_layers", []) or []),
         ).to_dict()
     )
     # Directions carry their own metadata (which layer they were extracted
