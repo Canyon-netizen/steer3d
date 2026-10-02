@@ -44,8 +44,12 @@ Usage
 -----
     python3 backend/examples/build_latent_bundle.py \
         --dataset datasets/aime_qwen3_1p7b_16k_fp16 \
-        --variant think --problems 12 --tokens 48 \
+        --variant think --tokens 48 \
         --out frontend/public/latent/data
+
+`--problems N` truncates the *trajectory list*, and with `--variant think`
+there is exactly one trajectory per AIME problem, so 24 is every problem in
+`core/aime_loader._BUILTIN` and 0 means "no truncation".
 """
 
 from __future__ import annotations
@@ -342,7 +346,10 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dataset", default="datasets/aime_qwen3_1p7b_16k_fp16")
     ap.add_argument("--variant", default="think", choices=["think", "no_think"])
-    ap.add_argument("--problems", type=int, default=12)
+    ap.add_argument("--problems", type=int, default=24,
+                    help="How many trajectories of this variant to ship. One "
+                         "trajectory per AIME problem, so 24 covers the whole "
+                         "set; 0 means all of them.")
     ap.add_argument("--tokens", type=int, default=48,
                     help="How many generated tokens of raw vectors to ship. "
                          "The PCA coordinates cover every token regardless.")
