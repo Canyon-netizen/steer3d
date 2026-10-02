@@ -1676,14 +1676,31 @@ function renderCotEffect32k(){
     const rows2 = Object.keys(AS.by_direction)
       .map(k => ({ dir: k, ...AS.by_direction[k] }));
     h += `<div style="font-size:11px;color:#8891a4;margin:11px 0 3px">
-      <b style="color:#b9c4d6">换个问法，答案其实会变。</b>上面那句「答案一次都没变」
-      比的是同一次运行里被强制同步的两臂；这里是同一个问题各跑一遍完整推理，
-      一次带向量、一次喂零向量：</div>`;
+      <b style="color:#b9c4d6">换个问法，答案会变——但变的是算出来的数，不是答对的题数。</b>
+      上面那句「答案一次都没变」比的是同一次运行里被强制同步的两臂；这里是同一个问题
+      各跑一遍完整推理，一次带向量、一次喂零向量。先看「变了多少次」，再看那些变化值不值：</div>`;
     rows2.forEach(a => {
       h += `<div class="kv"><div class="k">${esc(LABEL[a.dir] || a.dir)} 的答案</div>
         <div class="v"><b style="color:${a.changed_both_closed > 0 ? "#ff8fa3" : "#3ddc97"}">`
         + `${a.changed_both_closed}/${a.comparable_both_closed} 次不同</b>
         <span style="color:#8a94a6">（两臂都跑完</think>的题）</span></div></div>`;
+      // 「变了多少次」和「变了之后是好了还是坏了」是两个问题。只报前者，
+      // 读者会拿 8/18 当成干预的价值；实际上这 8 次里 1 次把对的答错、1 次把
+      // 错的答对、6 次错换错，答对总数一动不动。数字全部来自产物的
+      // answer_shift_free_run[dir].accuracy，不是页面现算的。
+      const ac = a.accuracy;
+      if(ac && ac.n){
+        const d = ac.delta;
+        h += `<div class="kv"><div class="k">　└ 其中答对的题数</div>
+          <div class="v"><b style="color:${d === 0 ? "#b9c4d6" : (d > 0 ? "#3ddc97" : "#ff8fa3")}">`
+          + `${ac.correct_zero} → ${ac.correct_steered}</b>
+          <span style="color:#8a94a6">（净 ${d > 0 ? "+" : ""}${d}，共 ${ac.n} 题）</span></div></div>`;
+        const V = ac.verdicts || {};
+        h += `<div style="font-size:10.5px;color:#8891a4;margin:1px 0 4px 14px">`
+          + `对→对 ${V["right->right"]} · 对→错 ${V["right->wrong"]} · `
+          + `错→对 ${V["wrong->right"]} · 错→错 ${V["wrong->wrong"]}`
+          + (ac.n_unknown ? ` · 题库里查不到 ${ac.n_unknown}` : ``) + `</div>`;
+      }
       if(a.comparable !== a.comparable_both_closed){
         h += `<div class="kv"><div class="k">　└ 放宽到「能解析就算」</div>
           <div class="v">${a.changed}/${a.comparable}
@@ -1698,17 +1715,44 @@ function renderCotEffect32k(){
       h += `<div class="note" style="font-size:10.5px;color:#8891a4;margin:4px 0 2px">
         两臂都写完、且答案都在 0–999 内的真实例子：</div>`;
       ex.forEach(e => {
+        // The verdict travels with the example. "0 → 10" on its own reads as an
+        // improvement; with the reference answer next to it the reader can see
+        // that 10 was the right answer and 0 was not.
+        const v = e.verdict === 'wrong->right' ? '（这题原本答错，加向量后答对了）'
+          : e.verdict === 'right->wrong' ? '（<b style="color:#ff8fa3">这题原本答对，加向量后答错了</b>）'
+          : e.verdict === 'wrong->wrong' ? '（两边都错，只是错得不一样）'
+          : '';
         h += `<div style="font-size:11px;padding:1px 0;color:#b9c4d6">　`
            + `${esc(e.label)} · ${esc(e.dir === 'confidence_up' ? '自信↑' : '自信↓')}：`
-           + `零向量答 <b>${e.zero}</b> → 加向量答 <b style="color:#ff8fa3">${e.steered}</b></div>`;
+           + `零向量答 <b>${e.zero}</b> → 加向量答 <b style="color:#ff8fa3">${e.steered}</b>`
+           + (e.ref != null ? `，标准答案 <b>${esc(String(e.ref))}</b>` : '')
+           + `${v}</div>`;
       });
     }
+    // 下面这段里的每个数字都从产物读，不写字面量。批次还会长（计划 96，
+    // 现在 84），写死的「7 → 7」「6 次错换错」会在下一批落盘时静默过期，
+    // 而过期的数字比没有数字更糟：读者无从发现它不再成立。
+    const DN = AS.by_direction.confidence_down || null;
+    const dnAcc = DN && DN.accuracy ? DN.accuracy : null;
+    const dnC = dnAcc && dnAcc.verdicts_changed ? dnAcc.verdicts_changed : null;
     h += `<div class="note" style="margin-top:8px;padding:7px 9px;background:#131a28;
          border-left:2px solid #ff8fa3;border-radius:0 4px 4px 0;font-size:11px">
       <b style="color:#ff8fa3">所以两个方向的样子很不一样：</b>
-      <b>压低自信</b>在两臂都写完的题里改了将近一半的答案——它改变的是模型算出来的数。
+      <b>压低自信</b>在两臂都写完的题里改了将近一半的答案——它改变的是模型<b>算出来的数</b>。
       <b>抬高自信</b>一次都没改，但它让大量运行<b>根本写不完</b>（上面那个双峰长度比），
       所以它的表现长在「能不能答完」上，不在「答得对不对」上。<br>
+      <b style="color:#ffd479">但「改了答案」不等于「改好了」。</b>
+      把上面那行「答对的题数」和「变了多少次」并排看：压低自信改了
+      ${DN ? DN.changed_both_closed : '—'} 次，答对数
+      ${dnAcc ? `<b>${dnAcc.delta === 0 ? '一动不动' :
+        (dnAcc.delta > 0 ? `多了 ${dnAcc.delta} 题` : `少了 ${-dnAcc.delta} 题`)}</b>` : '—'}
+      （${dnAcc ? `${dnAcc.correct_zero} → ${dnAcc.correct_steered}` : '—'}）——
+      ${dnC ? `${dnC['wrong->right']} 题从错变对、${dnC['right->wrong']} 题从对变错、` : ''}
+      ${dnC ? `${dnC['wrong->wrong']} 次错换错` : ''}。
+      <b>所以这批数据能支持的说法是「向量改变了模型算出来的数」，
+      不能支持「向量让模型答得更准或更不准」。</b>
+      ${dnAcc ? dnAcc.n : '—'} 道题里 ${dnC ? (dnC['wrong->right'] + dnC['right->wrong']) : '—'} 次对冲，
+      这个样本量下净 0 与净 ±1 无法区分，别把它读成「精确地互相抵消」。<br>
       <b style="color:#b9c4d6">这些「变了」是真的变了，不是提取器编的：</b>
       答案只认模型<b>明确写下的</b> <span style="font-family:var(--mono)">\\boxed{}</span>
       或明说的 final answer。另一种更宽松的口径会把"正文末尾的整数"当答案——

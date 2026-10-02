@@ -72,6 +72,33 @@ A6='        for direction in directions:
 B6='        for strength in args.sweep:
             for direction in directions:'
 
+# M7, the one that matters for the accuracy row. The panel now prints how many
+# questions were answered correctly before and after, next to how many answers
+# changed at all. A realistic bug here is not a crash: someone retypes a count
+# instead of reading it out of the payload, and the page keeps rendering fine
+# while quietly disagreeing with the data. The check that catches it compares
+# the rendered string against the payload field, so a hardcoded 5 is red
+# against a payload that says 6 and 4 in the two directions.
+A7='对→对 ${V["right->right"]} · 对→错 ${V["right->wrong"]}'
+B7='对→对 5 · 对→错 ${V["right->wrong"]}'
+
+# M8 is the mistake I actually made while writing this block. The prose first
+# read "（7 → 7）——1 题从错变对、1 题从对变错、6 次错换错" with every number
+# typed by hand: correct for today's 84 runs, silently wrong the moment the
+# remaining 12 land, and with nothing on the page to say so. A rendered-value
+# check cannot catch it -- the hardcoded text and the generated text are the
+# same string today. So this one is checked in the source, and this is the
+# mutation that proves the check bites.
+#
+# The value is written as a single-quoted shell string with no apostrophe
+# inside it. A single-quoted string cannot contain an apostrophe, and escaping
+# one as \' closes the quote early instead -- the rest of the line is parsed as
+# a command and the file dies with "command not found" pointing at an arrow
+# character. Double quotes are no better: ${...} still expands there. So the
+# anchor is the inner expression, which has neither problem.
+A8='${dnAcc.correct_zero} → ${dnAcc.correct_steered}'
+B8='7 → 7'
+
 cnt() { grep -oF -- "$1" "$F" 2>/dev/null | wc -l | tr -d ' ' ; }
 
 # M6's anchor spans two lines, and `grep -F` matches line by line: a
@@ -91,6 +118,7 @@ anchor_of() {
   case "$1" in
     M1) printf '%s' "$A1" ;; M2) printf '%s' "$A2" ;; M5) printf '%s' "$A5" ;;
     M3) printf '%s' "$A3" ;; M4) printf '%s' "$A4" ;; M6) printf '%s' "$A6" ;;
+    M7) printf '%s' "$A7" ;; M8) printf '%s' "$A8" ;;
   esac
 }
 
@@ -101,6 +129,7 @@ apply() {
     M3) a="$A3"; b="$B3" ;; M4) a="$A4"; b="$B4" ;;
     M5) a="$A5"; b="$B5"; target="$G" ;;
     M6) a="$A6"; b="$B6"; target="$H" ;;
+    M7) a="$A7"; b="$B7" ;; M8) a="$A8"; b="$B8" ;;
     *) echo "unknown $label"; return 2 ;;
   esac
 
@@ -180,11 +209,11 @@ revert() {
 case "${1:-}" in
   apply-M1) apply M1 ;; apply-M2) apply M2 ;;
   apply-M3) apply M3 ;; apply-M4) apply M4 ;; apply-M5) apply M5 ;;
-  apply-M6) apply M6 ;;
+  apply-M6) apply M6 ;; apply-M7) apply M7 ;; apply-M8) apply M8 ;;
   revert) revert ;;
   status)
     miss=0
-    for l in M1 M2 M3 M4 M5 M6; do
+    for l in M1 M2 M3 M4 M5 M6 M7 M8; do
       a=$(anchor_of "$l")
       case $l in
         M5) n=$(grep -cF -- "$a" "$G") ;;
@@ -197,7 +226,7 @@ case "${1:-}" in
     ha=$(cnt "$HEALTH")
     printf '  health=%s\n' "$ha"
     [ "$ha" = "1" ] || miss=1
-    [ $miss = 0 ] && echo "all 6 anchors + health + gate + loop present exactly once"
+    [ $miss = 0 ] && echo "all 8 anchors + health + gate + loop present exactly once"
     exit $miss ;;
-  *) echo "usage: $0 apply-M1|apply-M2|apply-M3|apply-M4|apply-M5|apply-M6|revert|status"; exit 2 ;;
+  *) echo "usage: $0 apply-M1|apply-M2|apply-M3|apply-M4|apply-M5|apply-M6|apply-M7|apply-M8|revert|status"; exit 2 ;;
 esac

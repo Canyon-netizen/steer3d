@@ -44,8 +44,34 @@ import sys
 from statistics import median
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 SRC = os.path.join(ROOT, "backend", "examples", "output", "intervention")
 DEST = os.path.join(ROOT, "frontend", "public", "latent", "data", "cot_effect.json")
+
+# The problem bank, read from the one place it is defined. A second hand-typed
+# list of labels or answers would be a second copy of a fact that changes when
+# the bank changes, and nothing would notice -- the same failure as the two
+# copies of the verifier prompt. Importing is not copying.
+from backend.core.aime_loader import _BUILTIN  # noqa: E402
+
+# id -> reference answer, as a string. The bank stores strings and the
+# extractors return floats, so a direct comparison would score every baseline
+# wrong. Normalise once, here.
+REF = {p["id"]: str(p["answer"]).strip() for p in _BUILTIN}
+
+
+def _as_answer_str(x):
+    """The extractors return floats; the bank returns digit strings.
+
+    40.0 and '40' are the same answer and must compare equal, or every
+    baseline reads as wrong and the accuracy counts below are all zeroes.
+    """
+    if x is None:
+        return None
+    if float(x) == int(float(x)):
+        return str(int(float(x)))
+    return str(x)
 
 SOURCE = "cot_divergence_summary.json"
 MODEL = "Qwen3-1.7B"
@@ -231,21 +257,77 @@ def main():
     for (label, direction), m in ans_by.items():
         if 0.0 not in m or 0.2 not in m:
             continue
+        ref = REF.get(label)
         shift.setdefault(direction, []).append({
             "label": label,
             "zero": m[0.0]["answer"],
             "steered": m[0.2]["answer"],
             "both_closed": bool(m[0.0]["closed"] and m[0.2]["closed"]),
             "both_in_domain": bool(m[0.0]["in_domain"] and m[0.2]["in_domain"]),
+            # "The answer changed" is not a finding on its own. A flip that
+            # breaks a correct answer and a flip that fixes a wrong one are
+            # opposite findings, and a reader who only sees 8/18 has no way to
+            # tell which of the 8 they are looking at. The reference answer
+            # comes from the problem bank, so the classification cannot drift
+            # away from the questions that were actually asked.
+            "ref": _as_answer_str(float(ref)) if ref is not None else None,
+            "steps_zero": None, "steps_steered": None,
         })
+        x = shift[direction][-1]
+        for arm, st in (("zero", 0.0), ("steered", 0.2)):
+            r = next((q for q in runs if q["label"] == label
+                      and q["direction"] == direction and q.get("strength") == st), None)
+            x["steps_" + arm] = (r or {}).get("n_steps")
+
+    def _verdict(x):
+        """right->wrong / wrong->right / right->right / wrong->wrong, or
+        unknown when the bank has no reference for this label."""
+        if x["ref"] is None:
+            return "unknown"
+        z_ok = _as_answer_str(x["zero"]) == x["ref"]
+        s_ok = _as_answer_str(x["steered"]) == x["ref"]
+        return ("right->right" if z_ok and s_ok else
+                "right->wrong" if z_ok else
+                "wrong->right" if s_ok else "wrong->wrong")
+
     answer_shift = {}
     for direction, g in shift.items():
+        for x in g:
+            x["verdict"] = _verdict(x)
+        closed_g = [x for x in g if x["both_closed"]]
+        verdicts = collections.Counter(x["verdict"] for x in closed_g)
+        known = [x for x in closed_g if x["verdict"] != "unknown"]
+        correct_zero = sum(1 for x in known if x["verdict"].split("->")[0] == "right")
+        correct_steered = sum(1 for x in known if x["verdict"].split("->")[1] == "right")
+        v = {k: verdicts.get(k, 0) for k in
+             ("right->right", "right->wrong", "wrong->right", "wrong->wrong", "unknown")}
+        # The same histogram restricted to the pairs whose answer actually
+        # moved. The page needs this one: "wrong->wrong" above counts every
+        # question both arms got wrong, including the ones both arms got wrong
+        # the SAME way, so 6 changed-the-wrong-way cannot be recovered from it
+        # by subtraction without also knowing how many stayed put.
+        ch = collections.Counter(x["verdict"] for x in closed_g
+                                 if x["zero"] != x["steered"])
+        v_changed = {k: ch.get(k, 0) for k in v}
+        # The two correctness counts are the same fact as the verdict
+        # histogram, and a first version of this block got them wrong by
+        # indexing the verdict STRING: "right->wrong"[-1] is 'g', not 'w' and
+        # not a direction at all, so every steered answer scored as incorrect
+        # and the page would have reported 4 -> 0. Nothing caught it because
+        # the numbers were plausible. These two identities are what catch it.
+        assert correct_zero == v["right->right"] + v["right->wrong"], (
+            "%s: correct_zero disagrees with the verdict histogram" % direction)
+        assert correct_steered == v["right->right"] + v["wrong->right"], (
+            "%s: correct_steered disagrees with the verdict histogram" % direction)
+        # And the changed-only histogram must account for exactly the changes.
+        n_changed_closed = sum(1 for x in closed_g if x["zero"] != x["steered"])
+        assert sum(v_changed.values()) == n_changed_closed, (
+            "%s: changed-verdict histogram does not add up" % direction)
         answer_shift[direction] = {
             "comparable": len(g),
             "changed": sum(1 for x in g if x["zero"] != x["steered"]),
-            "comparable_both_closed": sum(1 for x in g if x["both_closed"]),
-            "changed_both_closed": sum(1 for x in g
-                                       if x["both_closed"] and x["zero"] != x["steered"]),
+            "comparable_both_closed": len(closed_g),
+            "changed_both_closed": sum(1 for x in closed_g if x["zero"] != x["steered"]),
             # Restricted to answers that are even in range: a run that boxed
             # 11,232,000 for an AIME question has left the domain entirely, and
             # counting it as "the vector changed the answer" measures the
@@ -254,10 +336,27 @@ def main():
             "changed_in_domain": sum(1 for x in g
                                      if x["both_in_domain"] and x["zero"] != x["steered"]),
             "examples": [x for x in g if x["zero"] != x["steered"]][:6],
+            # The other half of the question. A change rate on its own invites
+            # the reader to score the intervention by how often it moved the
+            # answer; these two numbers say what the moves were worth.
+            "accuracy": {
+                "n": len(known),
+                "n_unknown": len(closed_g) - len(known),
+                "correct_zero": correct_zero,
+                "correct_steered": correct_steered,
+                "verdicts": v,
+                "verdicts_changed": v_changed,
+            },
         }
+        a = answer_shift[direction]
+        a["accuracy"]["delta"] = (a["accuracy"]["correct_steered"]
+                                  - a["accuracy"]["correct_zero"])
     for direction, a in answer_shift.items():
-        print("自由生成答案  %-18s 可比 %2d 组，不同 %2d 组"
-              % (direction, a["comparable"], a["changed"]))
+        print("自由生成答案  %-18s 可比 %2d 组，不同 %2d 组；两臂都写完的 %2d 组里 "
+              "答对 %d -> %d（净 %+d）"
+              % (direction, a["comparable"], a["changed"],
+                 a["comparable_both_closed"], a["accuracy"]["correct_zero"],
+                 a["accuracy"]["correct_steered"], a["accuracy"]["delta"]))
 
     # --- per-condition rows -------------------------------------------------
     rows = []

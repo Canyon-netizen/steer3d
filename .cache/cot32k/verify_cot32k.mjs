@@ -217,6 +217,110 @@ if (AS && AS.by_direction) {
   }
   const anyChanged = dirs.some(d => AS.by_direction[d].changed_both_closed > 0);
   chk(anyChanged, '至少有一个方向在两臂都写完的题里改了答案（结论不是空的）');
+
+  // ---- 「变了多少次」不等于「变了之后是好了还是坏了」 -----------------
+  // The panel used to lead with 8/18 answers changed and stop there. A reader
+  // has no way to score that: 8 changes could be 8 improvements, 8 regressions,
+  // or noise reshuffling numbers on questions the model was already failing.
+  // Scored against the problem bank, this batch is 1 wrong->right, 1
+  // right->wrong, 6 wrong->wrong, and the correct-answer count does not move.
+  //
+  // The two identities below are the load-bearing part. A first version of
+  // the builder scored `verdict[-1] == 'r'`, and since "right->wrong"[-1] is
+  // 'g' that reported 4 -> 0 and 7 -> 0 -- a plausible-looking, completely
+  // wrong pair of numbers that nothing else in the pipeline would catch.
+  // Deriving each count from the verdict histogram instead makes the two
+  // agree by construction, and these checks make the agreement an assertion.
+  console.log('\n--- 变化之后是好了还是坏了：答对数必须和四分类自洽 ---');
+  let accOK = true, histOK = true;
+  dirs.forEach(dir => {
+    const a2 = AS.by_direction[dir];
+    const ac = a2.accuracy, V = (ac && ac.verdicts) || {};
+    chk(!!ac && typeof ac.correct_zero === 'number' && typeof ac.correct_steered === 'number',
+        `${dir} 带着答对数`, ac ? `${ac.correct_zero} -> ${ac.correct_steered}` : '缺 accuracy');
+    if (!ac) { accOK = false; return; }
+    chk(ac.correct_zero === V['right->right'] + V['right->wrong'],
+        `${dir} 零向量答对数 = 对→对 + 对→错`,
+        `${ac.correct_zero} vs ${V['right->right']}+${V['right->wrong']}`);
+    chk(ac.correct_steered === V['right->right'] + V['wrong->right'],
+        `${dir} 加向量答对数 = 对→对 + 错→对`,
+        `${ac.correct_steered} vs ${V['right->right']}+${V['wrong->right']}`);
+    chk(ac.delta === ac.correct_steered - ac.correct_zero,
+        `${dir} 净变化 = 加向量 - 零向量`, `${ac.delta}`);
+    const sum = Object.values(V).reduce((s, n) => s + n, 0);
+    chk(sum === a2.comparable_both_closed,
+        `${dir} 四分类之和 = 两臂都写完的题数（没有题被漏掉或重复）`,
+        `${sum} vs ${a2.comparable_both_closed}`);
+    if (sum !== a2.comparable_both_closed) histOK = false;
+    // The page must print the payload's own numbers, not a re-typed copy.
+    chk(T.includes(`${ac.correct_zero} → ${ac.correct_steered}`),
+        `${dir} 页面上的「答对的题数」与产物一致`,
+        `期望 ${ac.correct_zero} → ${ac.correct_steered}`);
+    chk(T.includes(`对→对 ${V['right->right']}`) && T.includes(`对→错 ${V['right->wrong']}`)
+        && T.includes(`错→对 ${V['wrong->right']}`) && T.includes(`错→错 ${V['wrong->wrong']}`),
+        `${dir} 页面上的四分类与产物一致`,
+        `${V['right->right']}/${V['right->wrong']}/${V['wrong->right']}/${V['wrong->wrong']}`);
+  });
+  chk(accOK && histOK, '每个方向的答对数与四分类都自洽');
+  // The reader-facing claim. Without this the panel can carry both the honest
+  // number and the overclaiming sentence, and the reader takes whichever one
+  // they skim.
+  chk(/变的是算出来的数，不是答对的题数/.test(T),
+      '页面明说变的是算出来的数、不是答对的题数');
+  chk(/不能支持/.test(T), '页面明说不能据此说向量让模型更准或更不准');
+  chk(/净 0 与净 ±1 无法区分|无法区分/.test(T),
+      '页面标出净 0 的样本量不足以支撑「精确抵消」这种读法');
+  // The prose must not carry its own copy of the numbers. A hardcoded "7 → 7"
+  // is correct today and silently wrong the moment the last 12 runs land,
+  // which is exactly the batch state this panel is built around.
+  const dn = AS.by_direction.confidence_down;
+  const dnV = (dn && dn.accuracy && dn.accuracy.verdicts_changed) || null;
+  if (dnV) {
+    chk(T.includes(`${dnV['wrong->right']} 题从错变对`)
+        && T.includes(`${dnV['right->wrong']} 题从对变错`)
+        && T.includes(`${dnV['wrong->wrong']} 次错换错`),
+        '「变了的那批」的四分类在页面上，且与产物一致',
+        `${dnV['wrong->right']}/${dnV['right->wrong']}/${dnV['wrong->wrong']}`);
+    chk(dnV['right->right'] + dnV['right->wrong'] + dnV['wrong->right']
+        + dnV['wrong->wrong'] === dn.changed_both_closed,
+        '变了的那批四分类之和 = 变化次数',
+        `${dnV['right->right'] + dnV['right->wrong'] + dnV['wrong->right'] + dnV['wrong->wrong']} vs ${dn.changed_both_closed}`);
+  }
+  // Source-level, and deliberately so. A rendered-value check cannot tell
+  // "generated from the payload" from "typed in and currently correct" -- both
+  // put the same string on screen. This one is written because that mistake
+  // was actually made while writing this block: the prose first read
+  // "（7 → 7）——1 题从错变对、1 题从对变错、6 次错换错" with the numbers
+  // written by hand, correct for today's 84 runs and silently wrong once the
+  // remaining 12 land. The fix is only durable if something refuses the
+  // literal, so the literal is what gets checked.
+  const src = bytes.toString('utf-8');
+  chk(src.includes('${dnAcc.correct_zero}'), '答对数那段是模板插值，不是手写数字');
+  // Strip whole-line `//` comments before looking for the literals. A comment
+  // is allowed to quote today's numbers in order to explain why they must not
+  // be hardcoded -- the first version of this check fired on the two comment
+  // lines that do exactly that, which is the check being wrong, not the page.
+  // Only lines that ARE comments are removed, so a `//` inside a string
+  // literal (a URL) cannot truncate the rest of the file.
+  const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+  const hard = dn && dn.accuracy
+    ? [`（${dn.accuracy.correct_zero} → ${dn.accuracy.correct_steered}）`,
+       `${dnV ? dnV['wrong->right'] : -1} 题从错变对`,
+       `${dnV ? dnV['wrong->wrong'] : -1} 次错换错`]
+    : [];
+  const hardFound = hard.filter(s => s.length > 3 && code.includes(s));
+  chk(hardFound.length === 0,
+      '源码里没有把这几个数字写死（批次还会长到 96，写死的数字会静默过期）',
+      hardFound.join(' | '));
+  const ex0 = dirs.flatMap(d => (AS.by_direction[d].examples || []).map(e => ({ d, ...e })));
+  chk(ex0.length > 0 && ex0.every(e => e.ref != null && !!e.verdict),
+      '每个示例都带着标准答案和判定', `${ex0.length} 个示例`);
+  chk(ex0.some(e => e.verdict === 'wrong->wrong' || e.verdict === 'right->wrong'),
+      '示例里确实有「变了但没变好」的那类（否则这个限定是空话）',
+      ex0.map(e => e.verdict).join('/'));
+  chk(/两边都错|原本答对，加向量后答错|原本答错/.test(T),
+      '页面上至少有一个例子把这层意思写出来');
+
   chk(/换个问法|自由生成/.test(T), '面板明确区分了「同步两臂」与「自由生成」两个比较');
   chk(/不参与这个比较|没有写完|根本没写完|有一臂根本没写完/.test(T),
       '并说明有一臂没写完的那些不参与比较');
