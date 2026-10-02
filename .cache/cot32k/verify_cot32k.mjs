@@ -117,8 +117,14 @@ const T = g.text;
 
 console.log('\n===== 页面上 =====');
 chk(g.has, '思维链面板渲染出来了');
-chk(T.includes('32k 预算重跑'), '新块的标题在');
-chk(g.inBlock.includes('32k 预算重跑'), '新块在 data-cotblock 内部（不是兄弟节点）');
+// The title used to read "32k 预算重跑". A reader takes that as a model
+// property ("this model thinks 32k tokens"); it is the collector's
+// --max-new-tokens cap, and 23 of 88 runs ever reached it. The title is now
+// "加长预算重跑" and the number moved into the body with its distribution.
+chk(T.includes('加长预算重跑'), '新块的标题在');
+chk(!/32k 预算重跑/.test(T), '标题不再把 32k 说成预算属性（易读成模型上下文长度）',
+    (T.match(/32k[^\n]{0,12}/g) || []).join(' | '));
+chk(g.inBlock.includes('加长预算重跑'), '新块在 data-cotblock 内部（不是兄弟节点）');
 chk(T.includes(String(c32.n_runs)) && T.includes(String(c32.n_problems)),
     `新块写明规模（${c32.n_runs} 次 / ${c32.n_problems} 题）`);
 
@@ -361,6 +367,62 @@ chk(T.includes(String(planned)) && T.includes(String(c32.n_runs)),
 chk(/下面所有数字都会变|还会变/.test(T), '明说下面这些数字会随批次变化');
 chk(/不参与这个比较|写不完/.test(T) && /这一批还没跑完/.test(T),
     '「未跑完」与「写不完不参与比较」两处限定都在，读者不会被误导');
+
+console.log('\n--- 「32k」到底指什么 ---');
+// The user asked whether 32k was right. It is the per-generation new-token
+// cap, not the context length, and most runs never reached it. A page that
+// only shows the cap lets a reader assume every trace ran to it -- which
+// would make each median below read as a truncation rather than a length.
+chk(c32.budget_max_new_tokens === 32000, '产物记着采集时的 --max-new-tokens 上限',
+    String(c32.budget_max_new_tokens));
+chk(/不是模型的上下文长度/.test(String(c32.budget_kind)),
+    '产物自己写明这是生成上限、不是上下文长度', c32.budget_kind);
+chk(c32.runs_at_cap != null && c32.runs_at_cap < c32.n_runs,
+    '并非每次都用满上限（否则上限≈典型值，读者会误以为每条都写满了）',
+    `at_cap=${c32.runs_at_cap}/${c32.n_runs}`);
+chk(/上限|天花板/.test(T) && T.includes(String(c32.runs_at_cap)),
+    `面板点明「32k」是天花板，并给出真用满的次数 ${c32.runs_at_cap}/${c32.n_runs}`);
+// All three of cap / median / p10 have to be on the page together. Showing the
+// cap alone is the defect; showing the median alone hides the cap.
+chk(T.includes(String(c32.steps_median)) && T.includes(String(c32.steps_p10)),
+    `实际步数分布（p10=${c32.steps_p10} 中位=${c32.steps_median}）与上限并排给出`);
+// And the median must be visibly below the cap, or the two numbers on screen
+// contradict each other.
+chk(c32.steps_median < c32.budget_max_new_tokens,
+    `中位步数低于上限，页面上两个数字才自洽`,
+    `${c32.steps_median} < ${c32.budget_max_new_tokens}`);
+
+console.log('\n--- 题目来源：不是 AIME 原题 ---');
+// The user asked whether these are real AIME problems. They are not, and the
+// AIME-shaped ids are exactly what makes a reader assume they are. The
+// declaration has to be checked against the payload's own field rather than
+// against a phrase in the source, or it can go stale silently.
+const PS = c32.problem_set;
+chk(!!PS, '产物自带题目来源声明');
+chk(PS && PS.is_official_aime === false, '产物明确记着「不是官方 AIME」');
+chk(PS && PS.verbatim_checked_against_official == null,
+    '「是否与官方原题逐字一致」留空而不是填一个猜测（没核对过就不能声称）');
+chk(PS && String(PS.source_file).includes('aime_loader'),
+    '题目来源指向题库文件', PS && PS.source_file);
+chk(PS && /未独立核对/.test(String(PS.reference_answers_from)),
+    '标准答案的来源与核对状态写在产物里', PS && PS.reference_answers_from);
+// Every label in the batch must be a real bank id — otherwise "题面来自
+// _BUILTIN" is a claim about a set the data does not actually come from.
+chk(PS && Array.isArray(PS.labels) && PS.labels.length === c32.n_problems
+    && PS.all_labels_in_bank === true,
+    `本批 ${c32.n_problems} 个题号全部来自题库（来源声明覆盖到了这批数据）`,
+    PS ? `${PS.labels ? PS.labels.length : '?'} ids` : '');
+// ...and the page must actually show the declaration, not merely ship it.
+chk(/不是历年 AIME 原题/.test(T), '面板明说这些不是 AIME 原题');
+chk(/标准答案/.test(T) && /没有独立核对过|未独立核对/.test(T),
+    '面板明说标准答案未独立核对（否则「标准答案 760」会被当成官方答案）');
+chk(/筛选|不是.*正确性证据|不能当作/.test(T) && /0–999|0-999/.test(T),
+    '面板说明 0–999 是筛选条件、不是正确性证据');
+// A declaration that is present but hedged into meaninglessness is still a
+// defect: the reader must be able to act on it. The two statements have to
+// coexist — "not the originals" AND "not checked against the originals".
+chk(/从未与官方原题逐字比对过|没有.*比对/.test(T),
+    '面板说明没有和官方原题逐字比对过（不把「不是原题」说成「确认不是原题」）');
 
 console.log('\n--- 阴性对照仍在 ---');
 chk(/零向量/.test(T), '说明对照组是零向量');

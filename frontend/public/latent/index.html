@@ -858,8 +858,8 @@ async function loadPairMeta(){
       if((S.cot.directions || []).length) S.cotDir = S.cot.directions[0];
     }else trace("cot_effect.json: HTTP " + cr.status);
   }catch(e){ trace("cot_effect unavailable: " + e.message); }
-  // 第二批：32k 预算重跑。与上面那批 60 步的实验是不同的实验，单独一个文件，
-  // 不覆盖它。两批的结论并不一致——见 renderCotEffect32k。
+  // 第二批：加长预算（--max-new-tokens 32000）重跑。与上面那批 60 步的实验是不同的
+  // 实验，单独一个文件，不覆盖它。两批的结论并不一致——见 renderCotEffect32k。
   try{
     const cr2 = await fetch(dataBase()+"cot_effect_32k.json");
     if(cr2.ok){
@@ -1472,6 +1472,52 @@ function scrollInnerTo(el, box){
   return true;
 }
 
+/* ---- 题目来源声明 --------------------------------------------------------
+   题号长得像 AIME（1983_I_1、2025_I_1……），读者会默认那是历年真题。这个默认
+   是错的，而且是那种「不写出来就没人会怀疑」的错：编号格式和题目来源是两件事。
+
+   链条是查过的，不是照着 loader 的注释抄的：
+     data/problem_index_24.json（采集时 --problems-file 指的是它）
+       <- build_problem_index_24.py
+       <- backend/core/aime_loader.py :: _BUILTIN
+   逐字 diff 过，24/24 条题面与 _BUILTIN 一致。loader 自己的 docstring 写的是
+   "inspired by AIME 1983-2024 problems. Re-worded but mathematically
+   faithful"，build_problem_index_24.py 的 docstring 写得更直接："not verbatim
+   competition problems"。
+
+   这段刻意**不说**两件事：
+     · 不说「就是原题」——仓库里没有官方题面可比对，`verbatim_checked` 留空
+       就是因为没人真去 diff 过。空着比填个猜测诚实。
+     · 不说「肯定不是原题」——同一条理由。有些题（1983_I_1）读起来确实像原题，
+       但「像」不是核对过。
+
+   标准答案同理：页面上的「答对/答错」是拿 _BUILTIN 的 answer 字段打分的，
+   本仓库从未独立核对过。这个数得跟着出现，否则「标准答案 760」会被当成
+   官方答案。 */
+function renderProblemSetNote(PS, where){
+  if(!PS) return "";
+  const vcheck = PS.verbatim_checked_against_official;
+  const vtxt = (vcheck === null || vcheck === undefined)
+    ? `<b style="color:#ff8fa3">从未与官方原题逐字比对过</b>
+       （本仓库没有官方题面可比对）`
+    : esc(String(vcheck));
+  const n = PS.n_in_screen != null ? PS.n_in_screen : PS.n_in_batch;
+  return `<div class="note" style="font-size:10.5px;margin:0 0 7px;padding:7px 9px;
+       background:#131a28;border-left:2px solid #ffd479;border-radius:0 4px 4px 0"
+       data-problemset="${esc(where)}">
+    <b style="color:#ffd479">先说题目本身：这 ${n} 道题不是历年 AIME 原题。</b>
+    题号是模仿 AIME 编号的命名，题面文字来自
+    <span style="font-family:var(--mono)">${esc(PS.source_file)}</span>
+    的内置题库（共 ${PS.n_in_bank} 条），
+    该文件自述为「受 AIME 1983-2024 启发、改写过但数学上忠实」。
+    这一屏的<b>标准答案</b>也是这个题库自带的 <span style="font-family:var(--mono)">answer</span>
+    字段，<b>本仓库没有独立核对过</b>，所以「答对/答错」是相对这套答案而言的，
+    不是相对官方答案而言。<br>
+    <span style="color:#8a94a6">与官方原题是否逐字一致：${vtxt}。
+    页面里出现的「答案在 0–999 内」是题库采用的 AIME 答案域约定，
+    是一个筛选条件，<b>不能当作答案正确的证据</b>。</span></div>`;
+}
+
 function renderAnswerReadout(){
   const T = S.ansRead;
   if(!T || !T.items || !T.items.length) return "";
@@ -1565,6 +1611,10 @@ function renderAnswerReadout(){
     <span style="font-family:var(--mono)">${esc2(it.label)}</span> ·
     标准答案 <b style="color:#ffd479">${esc2(it.ref)}</b> ·
     <b style="color:${v[1]}">${v[0]}</b></div>`;
+
+  // Sits directly under the "标准答案" line it qualifies. Anywhere else and a
+  // reader has already taken the number as an official key.
+  h += renderProblemSetNote(T.problem_set, "answer_readout");
 
   // 共同开头。两遍从这里开始逐字相同——这不是巧合，是贪心解码的确定性：
   // 同一个前缀、同一个模型，argmax 必然是同一个 token。显示长度取自产物的
@@ -1754,15 +1804,22 @@ function renderCotTexts(){
   return h;
 }
 
-/* ---- 32k 预算重跑 --------------------------------------------------------
+/* ---- 加长预算重跑 -------------------------------------------------------
    上面那张表来自 60 步预算的实验：每题只给 60~1025 步，几乎所有轨迹都被预算
    截断，所以「答案」那一维基本没测到，只能说"没测到"。
 
-   32k 预算把这件事修好了：72 次运行里 56 次跑完 </think>、54 次能解析出最终
-   答案（60 步那批是 0/168 和 7/168）。于是「答案」从"没测到"变成了一个
-   真正的阴性结果。
+   这一批把上限提到 32000，于是绝大多数轨迹能写完 </think>、能解析出最终答案
+   （具体条数由页面上方那块按产物读，这里不写死——批次还在长，写死的数字会在
+   下一批落盘时静默过期，而过期的注释比没有注释更糟）。于是「答案」从"没测到"
+   变成了一个真正的阴性结果。
 
-   但同一批数据也**推翻了**上面那句"改的是词，不是思路，也不是长度"：
+   「32000」这个数只写在产物里、且必须配着实际步数一起读：它是采集时
+   --max-new-tokens 给的**每次生成新增 token 上限**，不是模型的上下文长度，
+   而且只有一部分运行真的撞到它，中位数低得多。标题里原本直接叫
+   「32k 预算」，读者会当成模型属性，所以标题改成「加长预算」，数字下移
+   到正文里并附上分布。
+
+   同一批数据还**推翻了**上面那句"改的是词，不是思路，也不是长度"：
    confidence_up@0.2 的行为是双峰的——闭合 </think> 的那几次比对照臂更短
    （0.78×），没闭合的那几次长到 2.89×（最高 15.6×），把预算烧光。合在一起
    看中位数（2.05×）会把这个结构抹平，所以这里按闭合与否分开报。 */
@@ -1779,7 +1836,34 @@ function renderCotEffect32k(){
 
   let h = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #232a36">`;
   h += `<div style="font-size:12.5px;font-weight:600;margin-bottom:7px;color:#e8edf5">
-    同一件事，32k 预算重跑（${C.n_runs} 次运行 · ${C.n_problems} 题 · 注入 L${C.layer}）</div>`;
+    同一件事，加长预算重跑（${C.n_runs} 次运行 · ${C.n_problems} 题 · 注入 L${C.layer}）</div>`;
+
+  h += renderProblemSetNote(C.problem_set, "cot_effect_32k");
+
+  // "32k" was in the block title and it reads as a model property. It is not:
+  // it is the per-generation NEW-token cap the collector was launched with, and
+  // most runs never came near it. A reader who takes 32k as "the model
+  // thought 32k tokens" will read every median below as a truncated one. So
+  // the cap, the typical length, and how many runs actually used it all go in
+  // the same place, and the numbers come from the payload rather than from
+  // the title.
+  if(C.budget_max_new_tokens){
+    h += `<div class="kv"><div class="k">「32k」是什么</div><div class="v">
+      <b>${esc(String(C.budget_max_new_tokens))}</b>
+      <span style="color:#8a94a6">——每次生成<b>最多新增</b>多少个 token 的上限，
+      不是模型能读进去多少字的上下文长度。模型上下文是另一回事，这里没测。</span></div></div>`;
+    h += `<div class="kv"><div class="k">　└ 真的用满的次数</div><div class="v">
+      <b style="color:${C.runs_at_cap <= C.n_runs * 0.3 ? "#ff8fa3" : "#3ddc97"}">${C.runs_at_cap}/${C.n_runs}</b>
+      <span style="color:#8a94a6">次跑到 ${esc(String(C.budget_max_new_tokens))} 步</span></div></div>`;
+    h += `<div class="kv"><div class="k">　└ 实际长度（中位数）</div><div class="v">
+      <b style="color:#ffd479">${esc(String(C.steps_median))}</b>
+      <span style="color:#8a94a6">步；10% 分位 ${esc(String(C.steps_p10))}、
+      90% 分位 ${esc(String(C.steps_p90))}</span></div></div>`;
+    h += `<div class="note" style="margin:4px 0 6px;font-size:10.5px;color:#8891a4">
+      所以<b style="color:#ffd479">「32k」是天花板，不是典型值</b>：
+      多数题在 ${esc(String(C.steps_p10))}–${esc(String(C.steps_median))} 步就自己写完了。
+      下文凡是拿「步数」比长短的地方，读的是实际步数，不是这个上限。</div>`;
+  }
 
   // Whether this batch has finished. It has not, and the block's headline
   // numbers are a NEGATIVE result -- the answers did not change. A negative
@@ -1824,9 +1908,9 @@ function renderCotEffect32k(){
   // 构造使然。而读者问的是「加了这个向量，模型答得一样吗」——那是
   // 自由生成 vs 同题零向量对照，两次都是完整贪心解码，唯一差别就是向量。
   //
-  // 这个比较之所以可信：42/42 个零向量运行的两臂正文逐字相同（同一输入跑两遍
-  // 独立前向、约 32k 步逐 token 一致），说明前向本身可复现，跨运行的差异不能
-  // 归给随机性。
+  // 这个比较之所以可信：同题两个零向量运行的两臂正文逐字相同（同一输入跑两遍
+  // 独立前向、动辄上万步逐 token 一致），说明前向本身可复现，跨运行的差异不能
+  // 归给随机性。条数不写在这里——它由上面的 determinism_gate 从产物读。
   //
   // 提取用的是严格口径（必须有 \\boxed{} 或明说 final answer），不是级联的
   // 兜底：级联的末级是「正文末尾的整数」，在没写完的 trace 上会从

@@ -284,6 +284,91 @@ for (const m of T.matchAll(OVER)) {
 chk(bare.length === 0, '「更准」这类断言若出现必须在否定句里', bare.join(' | '));
 chk(/不能支持/.test(T), '并且那句否定的说法确实在页面上（不是靠删掉断言过关）');
 
+// ---- the "标准答案" on this screen is not an official key ---------------
+// This is the one place a reader meets 标准答案 head-on, next to a verdict
+// that reads "原本答对". The number comes from aime_loader._BUILTIN's own
+// `answer` field over problems the bank documents as inspired-by and
+// re-worded. Left undeclared, "标准答案 760" reads as the official AIME key,
+// and every 答对/答错 verdict on the screen inherits that.
+console.log('\n--- 题目来源声明（这一屏最需要）---');
+const PS = ar.problem_set;
+const items = ar.items;
+chk(!!PS, '产物自带题目来源声明');
+chk(PS && PS.is_official_aime === false, '产物明确记着「不是官方 AIME」');
+chk(PS && PS.verbatim_checked_against_official == null,
+    '与官方原题是否逐字一致留空（没核对过就不能声称）');
+chk(PS && /未独立核对/.test(String(PS.reference_answers_from)),
+    '标准答案来源与核对状态写在产物里');
+// The declaration must cover the items actually shown, not a superset: a
+// block that lists 24 bank ids while showing 9 leaves 5 on screen undeclared.
+chk(PS && PS.n_in_screen === items.length && PS.labels.length === items.length,
+    `来源声明覆盖本屏实际列出的 ${items.length} 道题`,
+    PS ? `screen=${PS.n_in_screen} labels=${PS.labels.length}` : '');
+// Every shown item must have a reference answer, and that answer must come
+// from the bank — otherwise the verdict is scored against nothing.
+chk(items.every(x => x.ref != null && x.ref !== ''),
+    '每一道列出的题都带得上标准答案（没有 ref 为空的空判定）');
+chk(items.every(x => PS.labels.includes(x.label)),
+    '每一道列出的题都在来源声明的题号集合里');
+chk(/不是历年 AIME 原题/.test(T), '面板明说这些不是 AIME 原题');
+chk(/没有独立核对过|未独立核对/.test(T), '面板明说标准答案未独立核对');
+// The declaration has to sit next to the 标准答案 line, not somewhere else in
+// the same block: a reader scanning for the number must hit the caveat.
+// Search INSIDE [data-aroot]. The 32k block also renders leaf divs saying
+// 标准答案, and it is rendered BEFORE this block in document order, so an
+// unscoped `.find()` picks one of those and then reports "no declaration
+// inside data-aroot" for a screen that has one. The check went red for a
+// reason that had nothing to do with the declaration.
+const near = await page.eval(`(()=>{
+  const root=document.querySelector('[data-aroot]');
+  if(!root) return {ok:false, why:'no data-aroot'};
+  // That line is a div holding label + text "标准答案" + <b>ref</b> +
+  // <b>verdict</b>, so it has element children and a children.length===0
+  // leaf filter finds nothing. Match on a DIRECT text node instead: that is
+  // the line the reader scans for, and it excludes every ancestor that
+  // merely contains it.
+  const n=[...root.querySelectorAll('div')].find(d=>
+    [...d.childNodes].some(t=>t.nodeType===3 && /标准答案/.test(t.nodeValue)));
+  if(!n) return {ok:false, why:'no 标准答案 line'};
+  const dec=root.querySelector('[data-problemset]');
+  if(!dec) return {ok:false, why:'no declaration inside data-aroot'};
+  const a=n.getBoundingClientRect(), b=dec.getBoundingClientRect();
+  return {ok:true, gap:Math.abs(a.top-b.top)};
+})()`);
+chk(near.ok, '来源声明在 data-aroot 内（不是飘在别的屏里）', near.why || '');
+chk(near.ok && near.gap < 400,
+    '来源声明紧跟在「标准答案」那一行下面（读者找数字时一定会撞上）',
+    near.ok ? `gap=${Math.round(near.gap)}px` : '');
+
+// Present, adjacent, and still unreadable: the CoT panel scrolls inside a
+// 300px window, and the declaration is ~220px. If it grows past that window
+// the reader gets a sliver and has to scroll to find the caveat, which is the
+// same failure as the two-143px-column bug -- every textContent check above
+// still passes. So the check is height against the window it lives in.
+const fit = await page.eval(`(()=>{
+  const d=document.querySelector('[data-aroot] [data-problemset]');
+  if(!d) return {ok:false};
+  let sc=d.parentElement;
+  for(let e=d.parentElement;e;e=e.parentElement){
+    const cs=getComputedStyle(e);
+    if(cs.overflow!=='visible'||cs.overflowY!=='visible'){ sc=e; break; }
+  }
+  return {ok:true, declH:Math.round(d.getBoundingClientRect().height),
+          winH:sc.clientHeight, winTag:sc.tagName};
+})()`);
+chk(fit.ok, '找得到声明所在的内层滚动窗口');
+chk(fit.ok && fit.declH <= fit.winH,
+    `声明整体装得进滚动窗口（${fit.declH}px ≤ ${fit.winH}px，不会只露一条缝）`,
+    fit.ok ? `${fit.winTag} win=${fit.winH}` : '');
+// And the wording must not point at a position. "下面那个标准答案" was true
+// while the declaration sat above the number and wrong the moment it moved
+// below — a positional word in a block whose position is itself under test.
+chk(!/下面那个标准答案|上面那个标准答案/.test(T),
+    '声明不用方位词指代标准答案（方位词会随位置漂移而指错）',
+    (T.match(/.{0,6}那个标准答案/g) || []).join(' | '));
+chk(/这一屏的/.test(T) || /页面里的/.test(T),
+    '声明明说标准答案在哪一屏（不靠方位词定位）');
+
 chk(exceptions.length === 0, '无未捕获异常', exceptions.join(' | '));
 
 console.log('\n---------------------------------------');

@@ -1,5 +1,5 @@
 {
-  "hash": "3af88bf77b9c2015",
+  "hash": "7f612a8cdacb2821",
   "passed": 188,
   "failed": 0,
   "results": [
@@ -281,12 +281,22 @@
     {
       "ok": true,
       "label": "C8 候选词表第 1/2 名已读到",
-      "extra": "'s / me"
+      "extra": "'s / ·me"
+    },
+    {
+      "ok": true,
+      "label": "C8b 第 1 名标出了「模型选了它」",
+      "extra": "'s ←选了"
+    },
+    {
+      "ok": true,
+      "label": "C8c 第 2 名的前导空格被显式化（·me 而不是 me）",
+      "extra": "·me"
     },
     {
       "ok": true,
       "label": "C9 导读层写着第 2 候选词",
-      "extra": "me"
+      "extra": "·me"
     },
     {
       "ok": true,
@@ -455,21 +465,6 @@
     },
     {
       "ok": true,
-      "label": "负控 gloss 确实报红",
-      "extra": "红 2 / 绿 0"
-    },
-    {
-      "ok": true,
-      "label": "负控 number 确实报红",
-      "extra": "红 1 / 绿 0"
-    },
-    {
-      "ok": true,
-      "label": "负控 hidden 确实报红",
-      "extra": "红 3 / 绿 0"
-    },
-    {
-      "ok": true,
       "label": "Z 页面无未捕获异常",
       "extra": "0"
     },
@@ -491,32 +486,32 @@
     {
       "ok": true,
       "label": "A3a 浮层有实际尺寸",
-      "extra": "1280x800"
+      "extra": "1600x1000"
     },
     {
       "ok": true,
       "label": "A3 浮层完整落在视口内",
-      "extra": "{\"x\":0,\"y\":0,\"w\":1280,\"h\":800} vs 1280x800"
+      "extra": "{\"x\":0,\"y\":0,\"w\":1600,\"h\":1000} vs 1600x1000"
     },
     {
       "ok": true,
       "label": "A4 标题在视口内且未被裁剪",
-      "extra": "{\"x\":214,\"y\":22,\"w\":852,\"h\":36}"
+      "extra": "{\"x\":374,\"y\":22,\"w\":852,\"h\":36}"
     },
     {
       "ok": true,
       "label": "A5 一句话在视口内（打开就能读到第一句）",
-      "extra": "{\"x\":214,\"y\":66,\"w\":852,\"h\":79}"
+      "extra": "{\"x\":374,\"y\":66,\"w\":852,\"h\":79}"
     },
     {
       "ok": true,
       "label": "A6 底部按钮在视口内（读者知道怎么关）",
-      "extra": "{\"x\":0,\"y\":744,\"w\":1280,\"h\":56}"
+      "extra": "{\"x\":0,\"y\":944,\"w\":1600,\"h\":56}"
     },
     {
       "ok": true,
       "label": "A7 长文确实靠 #orientScroll 自己滚动（不是被截断）",
-      "extra": "scrollHeight-clientHeight=1748"
+      "extra": "scrollHeight-clientHeight=1548"
     },
     {
       "ok": true,
@@ -536,7 +531,7 @@
     {
       "ok": true,
       "label": "B-0 首屏取到的是导读层本身（浮层底下的页面文字已被遮挡判据排除）",
-      "extra": "55 块，样例 h1#orientTitle"
+      "extra": "63 块，样例 h1#orientTitle"
     },
     {
       "ok": true,
@@ -582,6 +577,16 @@
       "ok": true,
       "label": "B1 首屏术语 \"PC1\" 首次可见处带白话解释",
       "extra": "@div y=696"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"embedding\" 首次可见处带白话解释",
+      "extra": "@div y=728"
+    },
+    {
+      "ok": true,
+      "label": "B1 首屏术语 \"隐空间\" 首次可见处带白话解释",
+      "extra": "@gitem[隐空间] y=861"
     },
     {
       "ok": true,
@@ -691,7 +696,7 @@
     {
       "ok": true,
       "label": "B3 首屏确实带解释的术语 ≥ 8（非空跑）",
-      "extra": "首屏术语 10 个 / 全表 20 个"
+      "extra": "首屏术语 12 个 / 全表 20 个"
     },
     {
       "ok": true,
@@ -746,12 +751,22 @@
     {
       "ok": true,
       "label": "C8 候选词表第 1/2 名已读到",
-      "extra": "'s / me"
+      "extra": "'s / ·me"
+    },
+    {
+      "ok": true,
+      "label": "C8b 第 1 名标出了「模型选了它」",
+      "extra": "'s ←选了"
+    },
+    {
+      "ok": true,
+      "label": "C8c 第 2 名的前导空格被显式化（·me 而不是 me）",
+      "extra": "·me"
     },
     {
       "ok": true,
       "label": "C9 导读层写着第 2 候选词",
-      "extra": "me"
+      "extra": "·me"
     },
     {
       "ok": true,
@@ -881,7 +896,7 @@
     {
       "ok": true,
       "label": "E3 面板纵向溢出不超过 HEAD 基线（scrollHeight-clientHeight）",
-      "extra": "div.panel:1 | 基线 1"
+      "extra": "0 个溢出"
     },
     {
       "ok": true,
@@ -891,7 +906,7 @@
     {
       "ok": true,
       "label": "E5 导读层正文不横向越界（靠 max-width + 换行，不是靠裁剪）",
-      "extra": "hOverSelf=0 hOverVsParent=-190"
+      "extra": "hOverSelf=0 hOverVsParent=-350"
     },
     {
       "ok": true,
@@ -917,21 +932,6 @@
       "ok": true,
       "label": "F4 词条数 ≥ 14（20 个术语合并成 14 条）",
       "extra": "词条数=14"
-    },
-    {
-      "ok": true,
-      "label": "负控 gloss 确实报红",
-      "extra": "红 2 / 绿 0"
-    },
-    {
-      "ok": true,
-      "label": "负控 number 确实报红",
-      "extra": "红 1 / 绿 0"
-    },
-    {
-      "ok": true,
-      "label": "负控 hidden 确实报红",
-      "extra": "红 3 / 绿 0"
     },
     {
       "ok": true,

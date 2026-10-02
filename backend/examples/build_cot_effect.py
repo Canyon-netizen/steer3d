@@ -60,6 +60,65 @@ from backend.core.aime_loader import _BUILTIN  # noqa: E402
 # wrong. Normalise once, here.
 REF = {p["id"]: str(p["answer"]).strip() for p in _BUILTIN}
 
+# Where the problem *text* came from, and what may honestly be claimed about it.
+#
+# The user asked whether these are real AIME problems. They are not, and the
+# page has to say so — but the claim has to be one the build can check rather
+# than one written by hand, or it drifts the moment the bank changes.
+#
+# The chain is: data/problem_index_24.json (what run_intervention.py was pointed
+# at via --problems-file) <- build_problem_index_24.py <- aime_loader._BUILTIN.
+# Verified by diff: 24/24 problem strings in the index are byte-identical to
+# _BUILTIN. So the bank IS the source, and its own docstring settles provenance:
+#
+#   "inspired by AIME 1983-2024 problems. Re-worded but mathematically
+#    faithful; answers verified."
+#
+# Two things that docstring does NOT license, and that this payload therefore
+# refuses to assert:
+#   * "these are the official AIME problems" — nothing here compares against
+#     the official text; no copy of it exists in this repo. `verbatim_checked`
+#     is null on purpose, and must stay null until someone actually diffs
+#     against a real source.
+#   * "the reference answers are right" — REF is the bank's own `answer` field.
+#     Every "答对/答错" number on the page is scored against it, unverified.
+#
+# The 0-999 in-domain filter has the same shape of problem: it encodes the AIME
+# answer convention, so "in domain" is only meaningful for a bank that claims
+# AIME provenance. It is reported as a filter, never as evidence of correctness.
+PROBLEM_SET = {
+    "source_file": "backend/core/aime_loader.py :: _BUILTIN",
+    "index_file": "data/problem_index_24.json (build_problem_index_24.py -> _BUILTIN)",
+    "loader_self_description": (
+        "inspired by AIME 1983-2024 problems. Re-worded but mathematically "
+        "faithful; answers verified"),
+    "is_official_aime": False,
+    "verbatim_checked_against_official": None,
+    "reference_answers_from": "_BUILTIN 的 answer 字段，本仓库未独立核对",
+    "answer_domain_rule": "0–999（AIME 答案域约定；「在域内」只是筛选，不是正确性证据）",
+    "n_in_bank": len(_BUILTIN),
+}
+
+
+def _problem_set_for(labels):
+    """PROBLEM_SET plus the ids this batch actually used, with a hard gate.
+
+    The gate is the point. Without it, "题面来自 _BUILTIN" is a claim about a
+    file nobody re-reads; with it, a label that is not in the bank fails the
+    build rather than silently scoring against a missing reference answer
+    (`REF.get` returns None and the item is dropped from the accuracy
+    histogram — a quiet undercount, which is worse than a loud failure).
+    """
+    labels = sorted(set(labels))
+    unknown = [l for l in labels if l not in REF]
+    if unknown:
+        raise SystemExit(
+            "FAIL: %d label(s) in this batch are not in the problem bank: %s\n"
+            "  Their reference answer would be None and they would drop out of the\n"
+            "  accuracy histogram without any visible sign." % (len(unknown), unknown))
+    return dict(PROBLEM_SET, n_in_batch=len(labels), labels=labels,
+                all_labels_in_bank=True)
+
 
 def _as_answer_str(x):
     """The extractors return floats; the bank returns digit strings.
@@ -80,6 +139,15 @@ MODEL_PROVENANCE = ("replication_24problems_L20.log 记录 model loaded: /tmp/qw
 
 # Planned size of the batch, 0 when unknown. See --planned-runs.
 PLANNED_RUNS = 0
+
+# The per-generation cap (`--max-new-tokens` the runs were launched with).
+# 0 when unknown. This is a fact about how the runs were invoked, NOT
+# something recoverable from the outputs: the batch name says "32k" but only
+# 26 of 88 runs actually reached the cap, and the median run stopped at
+# 11050 tokens. Calling the whole batch "32k" without that number next to it
+# reads as "the model got 32k of context" and as "every run used 32k"; both
+# are wrong. The page now prints the cap, the median, and the count at cap.
+BUDGET_MAX_NEW_TOKENS = 0
 
 # The five quantities the control must reproduce exactly. `token_agreement` and
 # `verbatim_step_overlap` are fractions of 1 when the two texts are the same
@@ -123,10 +191,14 @@ def main():
         # *negative* one ("the answers did not change"), which is exactly the
         # kind of claim a later batch can overturn. 0 means "not stated".
         ap.add_argument("--planned-runs", type=int, default=0)
+        ap.add_argument("--budget-max-new-tokens", type=int, default=0,
+                        help="the --max-new-tokens the runs were launched with; 0 = unknown")
         a = ap.parse_args()
         SRC, DEST, SOURCE = a.src, a.dest, a.source
         MODEL, MODEL_PROVENANCE = a.model, a.model_provenance
         STEPS_PER_RUN, TRUNCATED = a.steps_per_run, a.truncated
+        global BUDGET_MAX_NEW_TOKENS
+        BUDGET_MAX_NEW_TOKENS = a.budget_max_new_tokens
         PLANNED_RUNS = a.planned_runs
 
     src_path = os.path.join(SRC, SOURCE)
@@ -459,6 +531,11 @@ def main():
         "source": "backend/examples/analyse_cot_divergence.py on " + SOURCE,
         "model": MODEL,
         "model_provenance": MODEL_PROVENANCE,
+        # The user asked whether these are real AIME problems. Ship the answer
+        # with the data instead of leaving it to a reader to guess from the
+        # AIME-shaped ids, and gate it: an id outside the bank is a build
+        # failure, not a silently-dropped item.
+        "problem_set": _problem_set_for(r["label"] for r in runs),
         "design": ("primary = 被干预的生成；shadow = 同一条 token 序列上的无干预对照"
                    "（teacher-forced），因此两段文字的差异来自同一个前缀带着不同的状态，"
                    "而不是两条流走到了不同句子。strength=0.0 是同一条代码路径喂零向量，"
@@ -475,10 +552,24 @@ def main():
         # so report the distribution rather than sorted(set(...))[0] — on the
         # 32k family that would have printed the *shortest* run (1406) as if
         # it were the budget every run got.
+        #
+        # The budget itself is a command-line fact (`--max-new-tokens`), not
+        # something derivable from the runs: with 26 of 88 runs capped, the
+        # observed maximum happens to be the cap, but that is a coincidence of
+        # this batch, not a definition. So the cap is passed in and the run
+        # lengths are reported next to it, including how many actually used it.
+        "budget_max_new_tokens": BUDGET_MAX_NEW_TOKENS,
+        "budget_kind": "每次生成的新增 token 上限（--max-new-tokens），不是模型的上下文长度",
         "steps_per_run": sorted(set(r["n_steps"] for r in runs))[0],
         "steps_median": sorted(r["n_steps"] for r in runs)[len(runs) // 2],
+        "steps_p10": sorted(r["n_steps"] for r in runs)[len(runs) // 10],
+        "steps_p90": sorted(r["n_steps"] for r in runs)[len(runs) * 9 // 10],
         "steps_max": max(r["n_steps"] for r in runs),
         "runs_at_budget": sum(1 for r in runs if r["n_steps"] >= max(r["n_steps"] for r in runs) - 100),
+        "runs_at_cap": (sum(1 for r in runs
+                            if BUDGET_MAX_NEW_TOKENS
+                            and r["n_steps"] >= BUDGET_MAX_NEW_TOKENS - 1)
+                        if BUDGET_MAX_NEW_TOKENS else None),
         "truncated": tot_closed == 0,
         "coverage": {
             "runs": len(runs),

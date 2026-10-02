@@ -8,12 +8,992 @@
   "shadow_is_not_an_essay": "run_intervention.py:272-282 取出 shadow 的 argmax，但下一步两臂都吃 primary 的词。所以 shadow 是 primary 原文被逐词打补丁的产物，不是一篇「没有向量时会写的文章」。把它当散文读，会在每个换词处看到语法断裂——那不是无干预模型变笨了，而是补丁的接缝。所有数字都来自 summary（生成时逐步实测），不从文字反推。",
   "why_no_word_diff": "两臂在 token 层对齐但在词边界不对齐，一个词的删除会让后面所有词错位，difflib 会把尾巴报成一大段「改动」。实测 token 一致率 98.3% 的运行，词级 diff 会报 3000 词里 2585 词不同——那是伪影，不是测量。"
  },
- "n_runs": 88,
+ "n_runs": 92,
  "planned_runs": 96,
  "batch_complete": false,
  "head_chars": 300,
  "control_is_identity": true,
  "runs": [
+  {
+   "id": "1987_I_1_confidence_up_0.0",
+   "label": "1987_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 31972,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.16166035405093984,
+   "mean_entropy_shadow": 0.16166035405093984,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 67341,
+   "reason_chars_shadow": 67341,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A prim",
+    "after_primary": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
+    "after_shadow": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1987_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
+   }
+  },
+  {
+   "id": "1987_I_1_confidence_up_0.2",
+   "label": "1987_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 43,
+   "token_agreement": 0.9732195868879098,
+   "mean_logit_kl": 0.04409844356418376,
+   "mean_entropy_primary": 0.0803851865220963,
+   "mean_entropy_shadow": 0.10149736635731464,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 71810,
+   "reason_chars_shadow": 72442,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 172,
+    "before": "ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor ",
+    "after_primary": "of m and n is 1. Alright, let's break this down.\n\nFirst, let me understand the problem. We're looking for all pairs (m, n) such that m and n are ",
+    "after_shadow": "( m and n is 1. Alright, let's start this down.\n\nFirst, let me recall the problem. We need looking for all pairs (m, n) where that m and n are no",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1987_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
+   }
+  },
+  {
+   "id": "1987_I_1_confidence_down_0.0",
+   "label": "1987_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 31972,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.16166035405093984,
+   "mean_entropy_shadow": 0.16166035405093984,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 67341,
+   "reason_chars_shadow": 67341,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A prim",
+    "after_primary": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
+    "after_shadow": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1987_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
+   }
+  },
+  {
+   "id": "1987_I_1_confidence_down_0.2",
+   "label": "1987_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 31936,
+   "first_diverged_step": 19,
+   "token_agreement": 0.9420421454739017,
+   "mean_logit_kl": 0.0681428460492566,
+   "mean_entropy_primary": 0.25357496790062656,
+   "mean_entropy_shadow": 0.21522864635737662,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 80201,
+   "reason_chars_shadow": 80379,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 70,
+    "before": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) ",
+    "after_primary": "where m and n are non-negative integers, and their sum m + n is less than or equal to 100. A primitive pair is one where the greatest common divi",
+    "after_shadow": "of m and n are non-negative integers, and their sum m + n is less than or equal to 100. A primitive pair is one where the greatest common divisor",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1987_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
+   }
+  },
+  {
+   "id": "1994_I_1_confidence_up_0.0",
+   "label": "1994_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 18380,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.18345958999626905,
+   "mean_entropy_shadow": 0.18345958999626905,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 38706,
+   "reason_chars_shadow": 38706,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a",
+    "after_primary": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
+    "after_shadow": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1994_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
+   }
+  },
+  {
+   "id": "1994_I_1_confidence_up_0.2",
+   "label": "1994_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 22,
+   "token_agreement": 0.9728758476297615,
+   "mean_logit_kl": 0.04551501192931821,
+   "mean_entropy_primary": 0.07156706214016358,
+   "mean_entropy_shadow": 0.08635865756764771,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 94583,
+   "reason_chars_shadow": 95137,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 90,
+    "before": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand ",
+    "after_primary": "it correctly.\n\nWe have a cylinder. Let's denote the original radius as r and the original height as h. The original volume of the cylinder is πr²",
+    "after_shadow": "what correctly.We have a cylinder. Let me denote the original radius as r and the original height as h. The problem volume of the cylinder is Vr²",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1994_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
+   }
+  },
+  {
+   "id": "1994_I_1_confidence_down_0.0",
+   "label": "1994_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 18380,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.18345958999626905,
+   "mean_entropy_shadow": 0.18345958999626905,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 38706,
+   "reason_chars_shadow": 38706,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a",
+    "after_primary": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
+    "after_shadow": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1994_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
+   }
+  },
+  {
+   "id": "1994_I_1_confidence_down_0.2",
+   "label": "1994_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 28093,
+   "first_diverged_step": 10,
+   "token_agreement": 0.9428347689898199,
+   "mean_logit_kl": 0.07478014746915908,
+   "mean_entropy_primary": 0.2121766276788841,
+   "mean_entropy_shadow": 0.18488752061333846,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 64494,
+   "reason_chars_shadow": 64878,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 38,
+    "before": "\nOkay, let's try to solve this problem",
+    "after_primary": ". So, we have a cylinder, and there are two scenarios where changing the radius or the height affects the volume. The problem says that increasin",
+    "after_shadow": " step So, we have a cylinder, and there are two scenarios given changing the radius or height height affects the volume. The problem wants that i",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1994_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
+   }
+  },
+  {
+   "id": "2014_I_1_confidence_up_0.0",
+   "label": "2014_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 14460,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.22381675631686349,
+   "mean_entropy_shadow": 0.22381675631686349,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 53926,
+   "reason_chars_shadow": 53926,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let me try to figure out this lace length problem. So, there's a rectangle with 8 eyelets: four on each longer si",
+    "after_primary": "\nOkay, let me try to figure out this lace length problem. So, there's a rectangle with 8 eyelets: four on each longer side, and one at each verte",
+    "after_shadow": "\nOkay, let me try to figure out this lace length problem. So, there's a rectangle with 8 eyelets: four on each longer side, and one at each verte",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2014_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let me try to figure out this lace length problem. So, there's a rectangle with 8 eyelets: four on each longer side, and one at each vertex. The rectangle is 50 mm wide and 80 mm long. The lace has to go between the vertex eyelets along the width side, then crisscross between successive eyele"
+   }
+  },
+  {
+   "id": "2014_I_1_confidence_up_0.2",
+   "label": "2014_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 4,
+   "token_agreement": 0.9917190087809756,
+   "mean_logit_kl": 0.01309066394681029,
+   "mean_entropy_primary": 0.02268773809532594,
+   "mean_entropy_shadow": 0.028958841473187353,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 103406,
+   "reason_chars_shadow": 103764,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 10,
+    "before": "\nOkay, let",
+    "after_primary": "'s try to figure out this lace problem. So, there's a rectangle with 8 eyelets: 4 on each longer side, and 1 at each vertex. The rectangle is 50 ",
+    "after_shadow": " me try to figure out this lace length. So, there's a rectangle with 8 eyelets: four4 on each longer side, and one1 at each vertex. The rectangle",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2014_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let me try to figure out this lace length problem. So, there's a rectangle with 8 eyelets: four on each longer side, and one at each vertex. The rectangle is 50 mm wide and 80 mm long. The lace has to go between the vertex eyelets along the width side, then crisscross between successive eyele"
+   }
+  },
+  {
+   "id": "2014_I_1_confidence_down_0.0",
+   "label": "2014_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 14460,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.22381675631686349,
+   "mean_entropy_shadow": 0.22381675631686349,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 53926,
+   "reason_chars_shadow": 53926,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let me try to figure out this lace length problem. So, there's a rectangle with 8 eyelets: four on each longer si",
+    "after_primary": "\nOkay, let me try to figure out this lace length problem. So, there's a rectangle with 8 eyelets: four on each longer side, and one at each verte",
+    "after_shadow": "\nOkay, let me try to figure out this lace length problem. So, there's a rectangle with 8 eyelets: four on each longer side, and one at each verte",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2014_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let me try to figure out this lace length problem. So, there's a rectangle with 8 eyelets: four on each longer side, and one at each vertex. The rectangle is 50 mm wide and 80 mm long. The lace has to go between the vertex eyelets along the width side, then crisscross between successive eyele"
+   }
+  },
+  {
+   "id": "2014_I_1_confidence_down_0.2",
+   "label": "2014_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 18846,
+   "first_diverged_step": 9,
+   "token_agreement": 0.9433331564705258,
+   "mean_logit_kl": 0.06243329800881958,
+   "mean_entropy_primary": 0.2900097216817025,
+   "mean_entropy_shadow": 0.23859558355592628,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 54364,
+   "reason_chars_shadow": 54749,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 32,
+    "before": "\nOkay, let me try to figure out ",
+    "after_primary": "how to solve this problem. So, we have a rectangle with eyelets on each side. The rectangle has a width of 50 mm and a length of 80 mm. The eyele",
+    "after_shadow": "this to solve this problem. So, there have a rectangle with eyelets on the side. The rectangle is a width of 50 mm and a length of 80 mm. The eye",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2014_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let me try to figure out this lace length problem. So, there's a rectangle with 8 eyelets: four on each longer side, and one at each vertex. The rectangle is 50 mm wide and 80 mm long. The lace has to go between the vertex eyelets along the width side, then crisscross between successive eyele"
+   }
+  },
+  {
+   "id": "1988_I_1_confidence_up_0.0",
+   "label": "1988_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 13530,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2325164299496031,
+   "mean_entropy_shadow": 0.2325164299496031,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 36329,
+   "reason_chars_shadow": 36329,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That",
+    "after_primary": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
+    "after_shadow": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1988_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
+   }
+  },
+  {
+   "id": "1988_I_1_confidence_up_0.2",
+   "label": "1988_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 15,
+   "token_agreement": 0.9920314990156558,
+   "mean_logit_kl": 0.01653980725486992,
+   "mean_entropy_primary": 0.033968008519581844,
+   "mean_entropy_shadow": 0.04997918700451503,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 88534,
+   "reason_chars_shadow": 88740,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 67,
+    "before": "\nOkay, so I need to find the smallest positive integer n such that ",
+    "after_primary": "n² ends with 1988. That means when I square n, the last four digits should be 1988. So, mathematically, this is equivalent to solving the congrue",
+    "after_shadow": "when² ends with 1988. That means when I square n, the last four digits are be 1988. Let, mathematically, I is equivalent to solving the congruenc",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1988_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
+   }
+  },
+  {
+   "id": "1988_I_1_confidence_down_0.0",
+   "label": "1988_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 13530,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2325164299496031,
+   "mean_entropy_shadow": 0.2325164299496031,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 36329,
+   "reason_chars_shadow": 36329,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That",
+    "after_primary": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
+    "after_shadow": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1988_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
+   }
+  },
+  {
+   "id": "1988_I_1_confidence_down_0.2",
+   "label": "1988_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 77,
+   "token_agreement": 0.9760007499765633,
+   "mean_logit_kl": 0.034109313026828215,
+   "mean_entropy_primary": 0.10728330076902487,
+   "mean_entropy_shadow": 0.0930625805381462,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 52826,
+   "reason_chars_shadow": 52929,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 278,
+    "before": "okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking ",
+    "after_primary": "down the modulus into prime factors. Since 10000 is 16 * 100, which is 16 * 2^2 * 5^2. But maybe I can use the Chinese Remainder Theorem here. If",
+    "after_shadow": "them the modulus into prime power and Since 10000 = 26 * 600 = which is 16 * 2^2 * 5^2. Wait maybe it should use the Chinese Remainder Theorem he",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1988_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
+   }
+  },
+  {
+   "id": "2000_I_1_confidence_up_0.0",
+   "label": "2000_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 10892,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.3338270111972925,
+   "mean_entropy_shadow": 0.3338270111972925,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 42127,
+   "reason_chars_shadow": 42127,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides,",
+    "after_primary": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
+    "after_shadow": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2000_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
+   }
+  },
+  {
+   "id": "2000_I_1_confidence_up_0.2",
+   "label": "2000_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 7,
+   "token_agreement": 0.9899065654198306,
+   "mean_logit_kl": 0.017273003300866934,
+   "mean_entropy_primary": 0.03369470195787879,
+   "mean_entropy_shadow": 0.045566023557818115,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 128244,
+   "reason_chars_shadow": 128453,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 20,
+    "before": "\nOkay, let's try to ",
+    "after_primary": "solve this problem step by step. So, we have two non-overlapping regular polygons: one with 6 sides and the other with n sides. They share a comm",
+    "after_shadow": "tackle this problem step by step. So, we have two non-overlapping regular polygons. one with 6 sides and the other with n sides. They share a com",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2000_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
+   }
+  },
+  {
+   "id": "2000_I_1_confidence_down_0.0",
+   "label": "2000_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 10892,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.3338270111972925,
+   "mean_entropy_shadow": 0.3338270111972925,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 42127,
+   "reason_chars_shadow": 42127,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides,",
+    "after_primary": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
+    "after_shadow": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2000_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
+   }
+  },
+  {
+   "id": "2000_I_1_confidence_down_0.2",
+   "label": "2000_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 10161,
+   "first_diverged_step": 7,
+   "token_agreement": 0.9178311356032277,
+   "mean_logit_kl": 0.07502831244181897,
+   "mean_entropy_primary": 0.45553025123118135,
+   "mean_entropy_shadow": 0.3839057634488355,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 40765,
+   "reason_chars_shadow": 41395,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 20,
+    "before": "\nOkay, let's try to ",
+    "after_primary": "figure out this problem. So, we have two regular polygons, one with 6 sides and the other with n sides. They share a common side and a common ver",
+    "after_shadow": "tackle out this problem. So, we have two non polygons that one with 6 sides and the other with n sides. They share a common side and a common ver",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2000_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
+   }
+  },
+  {
+   "id": "2016_I_1_confidence_up_0.0",
+   "label": "2016_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 5471,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2855988191598547,
+   "mean_entropy_shadow": 0.2855988191598547,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 15584,
+   "reason_chars_shadow": 15584,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. ",
+    "after_primary": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
+    "after_shadow": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2016_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
+   }
+  },
+  {
+   "id": "2016_I_1_confidence_up_0.2",
+   "label": "2016_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 38,
+   "token_agreement": 0.9908752851473391,
+   "mean_logit_kl": 0.015005885064400606,
+   "mean_entropy_primary": 0.026812019979946217,
+   "mean_entropy_shadow": 0.03570545673199713,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 116414,
+   "reason_chars_shadow": 116717,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 102,
+    "before": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the ",
+    "after_primary": "graph of the parabola y² = px. Hmm, let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the equation of the ellipse is 9",
+    "after_shadow": "par of the parabola y² = px. Let, let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard of the ellipse is giv",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2016_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
+   }
+  },
+  {
+   "id": "2016_I_1_confidence_down_0.0",
+   "label": "2016_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 5471,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2855988191598547,
+   "mean_entropy_shadow": 0.2855988191598547,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 15584,
+   "reason_chars_shadow": 15584,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. ",
+    "after_primary": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
+    "after_shadow": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2016_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
+   }
+  },
+  {
+   "id": "2016_I_1_confidence_down_0.2",
+   "label": "2016_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 11050,
+   "first_diverged_step": 11,
+   "token_agreement": 0.9361143787892499,
+   "mean_logit_kl": 0.07671867410453656,
+   "mean_entropy_primary": 0.3403202171382768,
+   "mean_entropy_shadow": 0.30228340626303113,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 32204,
+   "reason_chars_shadow": 32350,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 38,
+    "before": "\nOkay, so I need to find the value of ",
+    "after_primary": "$ p $ for which the foci of the ellipse $ 9x^2 + 25y^ standard form. Let me start by recalling the standard form of an ellipse. \n\nThe general equ",
+    "after_shadow": "p p $ such which the foci of the ellipse $ 9x^2 + 25y^2 form. Let me start by recalling the standard form of an ellipse. \n\nThe general equation o",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2016_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
+   }
+  },
+  {
+   "id": "2025_I_1_confidence_up_0.0",
+   "label": "2025_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 12923,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.33768485723397607,
+   "mean_entropy_shadow": 0.33768485723397607,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 44524,
+   "reason_chars_shadow": 44524,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal r",
+    "after_primary": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4.",
+    "after_shadow": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4.",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2025_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4. Hmm, let me start by recalling what a regular hexagon looks like. A regular hexagon has six sides, and each side is equal in length. The problem mentions "
+   }
+  },
+  {
+   "id": "2025_I_1_confidence_up_0.2",
+   "label": "2025_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 7,
+   "token_agreement": 0.9855629511577764,
+   "mean_logit_kl": 0.02601378287079158,
+   "mean_entropy_primary": 0.04712432121643527,
+   "mean_entropy_shadow": 0.06422611829529604,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 124025,
+   "reason_chars_shadow": 124404,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 22,
+    "before": "\nOkay, so I need to fi",
+    "after_primary": "nd the number of triangles that can be formed from 28 lattice points arranged in a regular hexagonal region of side length 4. Hmm, let me start b",
+    "after_shadow": "gure the number of triangles that can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4. Hmm, let me sta",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2025_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4. Hmm, let me start by recalling what a regular hexagon looks like. A regular hexagon has six sides, and each side is equal in length. The problem mentions "
+   }
+  },
+  {
+   "id": "2025_I_1_confidence_down_0.0",
+   "label": "2025_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 12923,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.33768485723397607,
+   "mean_entropy_shadow": 0.33768485723397607,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 44524,
+   "reason_chars_shadow": 44524,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal r",
+    "after_primary": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4.",
+    "after_shadow": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4.",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2025_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4. Hmm, let me start by recalling what a regular hexagon looks like. A regular hexagon has six sides, and each side is equal in length. The problem mentions "
+   }
+  },
+  {
+   "id": "2025_I_1_confidence_down_0.2",
+   "label": "2025_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 14739,
+   "first_diverged_step": 27,
+   "token_agreement": 0.9228629579375848,
+   "mean_logit_kl": 0.07486194451905848,
+   "mean_entropy_primary": 0.3725888332779664,
+   "mean_entropy_shadow": 0.3280642870599441,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 48390,
+   "reason_chars_shadow": 48828,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 119,
+    "before": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal ",
+    "after_primary": "pattern with side length 4. Let me start by recalling what a regular hexagon with side length 6 would have, but here it's side length 4. Wait, ac",
+    "after_shadow": "region with side length 4. Hmm me start by recalling some a regular hexagon looks side length 4 has look, but here it's side length 4. Wait, actu",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2025_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4. Hmm, let me start by recalling what a regular hexagon looks like. A regular hexagon has six sides, and each side is equal in length. The problem mentions "
+   }
+  },
   {
    "id": "1983_I_1_confidence_up_0.0",
    "label": "1983_I_1",
@@ -2252,846 +3232,6 @@
     "first_diverged_step": null,
     "texts_identical": true,
     "head": "\nOkay, let's try to figure out this problem. So, there's a square piece of paper with a perimeter of 32 units. Then there's another triangle, which is an isosceles triangle. The base and one of the equal sides of this triangle are both equal in length to the side length of the square. We need to fin"
-   }
-  },
-  {
-   "id": "1987_I_1_confidence_up_0.0",
-   "label": "1987_I_1",
-   "direction": "confidence_up",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 31972,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.16166035405093984,
-   "mean_entropy_shadow": 0.16166035405093984,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 67341,
-   "reason_chars_shadow": 67341,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A prim",
-    "after_primary": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
-    "after_shadow": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1987_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
-   }
-  },
-  {
-   "id": "1987_I_1_confidence_up_0.2",
-   "label": "1987_I_1",
-   "direction": "confidence_up",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 32000,
-   "first_diverged_step": 43,
-   "token_agreement": 0.9732195868879098,
-   "mean_logit_kl": 0.04409844356418376,
-   "mean_entropy_primary": 0.0803851865220963,
-   "mean_entropy_shadow": 0.10149736635731464,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 71810,
-   "reason_chars_shadow": 72442,
-   "closed_think_primary": false,
-   "closed_think_shadow": false,
-   "primary_head": {
-    "split_char": 172,
-    "before": "ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor ",
-    "after_primary": "of m and n is 1. Alright, let's break this down.\n\nFirst, let me understand the problem. We're looking for all pairs (m, n) such that m and n are ",
-    "after_shadow": "( m and n is 1. Alright, let's start this down.\n\nFirst, let me recall the problem. We need looking for all pairs (m, n) where that m and n are no",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1987_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
-   }
-  },
-  {
-   "id": "1987_I_1_confidence_down_0.0",
-   "label": "1987_I_1",
-   "direction": "confidence_down",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 31972,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.16166035405093984,
-   "mean_entropy_shadow": 0.16166035405093984,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 67341,
-   "reason_chars_shadow": 67341,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A prim",
-    "after_primary": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
-    "after_shadow": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where t",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1987_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
-   }
-  },
-  {
-   "id": "1987_I_1_confidence_down_0.2",
-   "label": "1987_I_1",
-   "direction": "confidence_down",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 31936,
-   "first_diverged_step": 19,
-   "token_agreement": 0.9420421454739017,
-   "mean_logit_kl": 0.0681428460492566,
-   "mean_entropy_primary": 0.25357496790062656,
-   "mean_entropy_shadow": 0.21522864635737662,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 80201,
-   "reason_chars_shadow": 80379,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": 70,
-    "before": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) ",
-    "after_primary": "where m and n are non-negative integers, and their sum m + n is less than or equal to 100. A primitive pair is one where the greatest common divi",
-    "after_shadow": "of m and n are non-negative integers, and their sum m + n is less than or equal to 100. A primitive pair is one where the greatest common divisor",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1987_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
-   }
-  },
-  {
-   "id": "1994_I_1_confidence_up_0.0",
-   "label": "1994_I_1",
-   "direction": "confidence_up",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 18380,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.18345958999626905,
-   "mean_entropy_shadow": 0.18345958999626905,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 38706,
-   "reason_chars_shadow": 38706,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a",
-    "after_primary": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
-    "after_shadow": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1994_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
-   }
-  },
-  {
-   "id": "1994_I_1_confidence_up_0.2",
-   "label": "1994_I_1",
-   "direction": "confidence_up",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 32000,
-   "first_diverged_step": 22,
-   "token_agreement": 0.9728758476297615,
-   "mean_logit_kl": 0.04551501192931821,
-   "mean_entropy_primary": 0.07156706214016358,
-   "mean_entropy_shadow": 0.08635865756764771,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 94583,
-   "reason_chars_shadow": 95137,
-   "closed_think_primary": false,
-   "closed_think_shadow": false,
-   "primary_head": {
-    "split_char": 90,
-    "before": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand ",
-    "after_primary": "it correctly.\n\nWe have a cylinder. Let's denote the original radius as r and the original height as h. The original volume of the cylinder is πr²",
-    "after_shadow": "what correctly.We have a cylinder. Let me denote the original radius as r and the original height as h. The problem volume of the cylinder is Vr²",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1994_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
-   }
-  },
-  {
-   "id": "1994_I_1_confidence_down_0.0",
-   "label": "1994_I_1",
-   "direction": "confidence_down",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 18380,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.18345958999626905,
-   "mean_entropy_shadow": 0.18345958999626905,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 38706,
-   "reason_chars_shadow": 38706,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a",
-    "after_primary": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
-    "after_shadow": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1994_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
-   }
-  },
-  {
-   "id": "1994_I_1_confidence_down_0.2",
-   "label": "1994_I_1",
-   "direction": "confidence_down",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 28093,
-   "first_diverged_step": 10,
-   "token_agreement": 0.9428347689898199,
-   "mean_logit_kl": 0.07478014746915908,
-   "mean_entropy_primary": 0.2121766276788841,
-   "mean_entropy_shadow": 0.18488752061333846,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 64494,
-   "reason_chars_shadow": 64878,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": 38,
-    "before": "\nOkay, let's try to solve this problem",
-    "after_primary": ". So, we have a cylinder, and there are two scenarios where changing the radius or the height affects the volume. The problem says that increasin",
-    "after_shadow": " step So, we have a cylinder, and there are two scenarios given changing the radius or height height affects the volume. The problem wants that i",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1994_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
-   }
-  },
-  {
-   "id": "1988_I_1_confidence_up_0.0",
-   "label": "1988_I_1",
-   "direction": "confidence_up",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 13530,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.2325164299496031,
-   "mean_entropy_shadow": 0.2325164299496031,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 36329,
-   "reason_chars_shadow": 36329,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That",
-    "after_primary": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
-    "after_shadow": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1988_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
-   }
-  },
-  {
-   "id": "1988_I_1_confidence_up_0.2",
-   "label": "1988_I_1",
-   "direction": "confidence_up",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 32000,
-   "first_diverged_step": 15,
-   "token_agreement": 0.9920314990156558,
-   "mean_logit_kl": 0.01653980725486992,
-   "mean_entropy_primary": 0.033968008519581844,
-   "mean_entropy_shadow": 0.04997918700451503,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 88534,
-   "reason_chars_shadow": 88740,
-   "closed_think_primary": false,
-   "closed_think_shadow": false,
-   "primary_head": {
-    "split_char": 67,
-    "before": "\nOkay, so I need to find the smallest positive integer n such that ",
-    "after_primary": "n² ends with 1988. That means when I square n, the last four digits should be 1988. So, mathematically, this is equivalent to solving the congrue",
-    "after_shadow": "when² ends with 1988. That means when I square n, the last four digits are be 1988. Let, mathematically, I is equivalent to solving the congruenc",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1988_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
-   }
-  },
-  {
-   "id": "1988_I_1_confidence_down_0.0",
-   "label": "1988_I_1",
-   "direction": "confidence_down",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 13530,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.2325164299496031,
-   "mean_entropy_shadow": 0.2325164299496031,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 36329,
-   "reason_chars_shadow": 36329,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That",
-    "after_primary": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
-    "after_shadow": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 1000",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1988_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
-   }
-  },
-  {
-   "id": "1988_I_1_confidence_down_0.2",
-   "label": "1988_I_1",
-   "direction": "confidence_down",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 32000,
-   "first_diverged_step": 77,
-   "token_agreement": 0.9760007499765633,
-   "mean_logit_kl": 0.034109313026828215,
-   "mean_entropy_primary": 0.10728330076902487,
-   "mean_entropy_shadow": 0.0930625805381462,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 52826,
-   "reason_chars_shadow": 52929,
-   "closed_think_primary": false,
-   "closed_think_shadow": false,
-   "primary_head": {
-    "split_char": 278,
-    "before": "okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking ",
-    "after_primary": "down the modulus into prime factors. Since 10000 is 16 * 100, which is 16 * 2^2 * 5^2. But maybe I can use the Chinese Remainder Theorem here. If",
-    "after_shadow": "them the modulus into prime power and Since 10000 = 26 * 600 = which is 16 * 2^2 * 5^2. Wait maybe it should use the Chinese Remainder Theorem he",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "1988_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the smallest positive integer n such that when I square it, the last four digits are 1988. That means n² ≡ 1988 mod 10000. Hmm, okay. Let me think about how to approach this.\n\nFirst, I remember that solving congruences like this often involves breaking them down into smaller"
-   }
-  },
-  {
-   "id": "2000_I_1_confidence_up_0.0",
-   "label": "2000_I_1",
-   "direction": "confidence_up",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 10892,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.3338270111972925,
-   "mean_entropy_shadow": 0.3338270111972925,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 42127,
-   "reason_chars_shadow": 42127,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides,",
-    "after_primary": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
-    "after_shadow": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2000_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
-   }
-  },
-  {
-   "id": "2000_I_1_confidence_up_0.2",
-   "label": "2000_I_1",
-   "direction": "confidence_up",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 32000,
-   "first_diverged_step": 7,
-   "token_agreement": 0.9899065654198306,
-   "mean_logit_kl": 0.017273003300866934,
-   "mean_entropy_primary": 0.03369470195787879,
-   "mean_entropy_shadow": 0.045566023557818115,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 128244,
-   "reason_chars_shadow": 128453,
-   "closed_think_primary": false,
-   "closed_think_shadow": false,
-   "primary_head": {
-    "split_char": 20,
-    "before": "\nOkay, let's try to ",
-    "after_primary": "solve this problem step by step. So, we have two non-overlapping regular polygons: one with 6 sides and the other with n sides. They share a comm",
-    "after_shadow": "tackle this problem step by step. So, we have two non-overlapping regular polygons. one with 6 sides and the other with n sides. They share a com",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2000_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
-   }
-  },
-  {
-   "id": "2000_I_1_confidence_down_0.0",
-   "label": "2000_I_1",
-   "direction": "confidence_down",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 10892,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.3338270111972925,
-   "mean_entropy_shadow": 0.3338270111972925,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 42127,
-   "reason_chars_shadow": 42127,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides,",
-    "after_primary": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
-    "after_shadow": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n side",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2000_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
-   }
-  },
-  {
-   "id": "2000_I_1_confidence_down_0.2",
-   "label": "2000_I_1",
-   "direction": "confidence_down",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 10161,
-   "first_diverged_step": 7,
-   "token_agreement": 0.9178311356032277,
-   "mean_logit_kl": 0.07502831244181897,
-   "mean_entropy_primary": 0.45553025123118135,
-   "mean_entropy_shadow": 0.3839057634488355,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 40765,
-   "reason_chars_shadow": 41395,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": 20,
-    "before": "\nOkay, let's try to ",
-    "after_primary": "figure out this problem. So, we have two regular polygons, one with 6 sides and the other with n sides. They share a common side and a common ver",
-    "after_shadow": "tackle out this problem. So, we have two non polygons that one with 6 sides and the other with n sides. They share a common side and a common ver",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2000_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
-   }
-  },
-  {
-   "id": "2016_I_1_confidence_up_0.0",
-   "label": "2016_I_1",
-   "direction": "confidence_up",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 5471,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.2855988191598547,
-   "mean_entropy_shadow": 0.2855988191598547,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 15584,
-   "reason_chars_shadow": 15584,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. ",
-    "after_primary": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
-    "after_shadow": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2016_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
-   }
-  },
-  {
-   "id": "2016_I_1_confidence_up_0.2",
-   "label": "2016_I_1",
-   "direction": "confidence_up",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 32000,
-   "first_diverged_step": 38,
-   "token_agreement": 0.9908752851473391,
-   "mean_logit_kl": 0.015005885064400606,
-   "mean_entropy_primary": 0.026812019979946217,
-   "mean_entropy_shadow": 0.03570545673199713,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 116414,
-   "reason_chars_shadow": 116717,
-   "closed_think_primary": false,
-   "closed_think_shadow": false,
-   "primary_head": {
-    "split_char": 102,
-    "before": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the ",
-    "after_primary": "graph of the parabola y² = px. Hmm, let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the equation of the ellipse is 9",
-    "after_shadow": "par of the parabola y² = px. Let, let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard of the ellipse is giv",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2016_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
-   }
-  },
-  {
-   "id": "2016_I_1_confidence_down_0.0",
-   "label": "2016_I_1",
-   "direction": "confidence_down",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 5471,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.2855988191598547,
-   "mean_entropy_shadow": 0.2855988191598547,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 15584,
-   "reason_chars_shadow": 15584,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. ",
-    "after_primary": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
-    "after_shadow": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2016_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
-   }
-  },
-  {
-   "id": "2016_I_1_confidence_down_0.2",
-   "label": "2016_I_1",
-   "direction": "confidence_down",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 11050,
-   "first_diverged_step": 11,
-   "token_agreement": 0.9361143787892499,
-   "mean_logit_kl": 0.07671867410453656,
-   "mean_entropy_primary": 0.3403202171382768,
-   "mean_entropy_shadow": 0.30228340626303113,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 32204,
-   "reason_chars_shadow": 32350,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": 38,
-    "before": "\nOkay, so I need to find the value of ",
-    "after_primary": "$ p $ for which the foci of the ellipse $ 9x^2 + 25y^ standard form. Let me start by recalling the standard form of an ellipse. \n\nThe general equ",
-    "after_shadow": "p p $ such which the foci of the ellipse $ 9x^2 + 25y^2 form. Let me start by recalling the standard form of an ellipse. \n\nThe general equation o",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2016_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
-   }
-  },
-  {
-   "id": "2025_I_1_confidence_up_0.0",
-   "label": "2025_I_1",
-   "direction": "confidence_up",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 12923,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.33768485723397607,
-   "mean_entropy_shadow": 0.33768485723397607,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 44524,
-   "reason_chars_shadow": 44524,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal r",
-    "after_primary": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4.",
-    "after_shadow": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4.",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2025_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4. Hmm, let me start by recalling what a regular hexagon looks like. A regular hexagon has six sides, and each side is equal in length. The problem mentions "
-   }
-  },
-  {
-   "id": "2025_I_1_confidence_up_0.2",
-   "label": "2025_I_1",
-   "direction": "confidence_up",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 32000,
-   "first_diverged_step": 7,
-   "token_agreement": 0.9855629511577764,
-   "mean_logit_kl": 0.02601378287079158,
-   "mean_entropy_primary": 0.04712432121643527,
-   "mean_entropy_shadow": 0.06422611829529604,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 124025,
-   "reason_chars_shadow": 124404,
-   "closed_think_primary": false,
-   "closed_think_shadow": false,
-   "primary_head": {
-    "split_char": 22,
-    "before": "\nOkay, so I need to fi",
-    "after_primary": "nd the number of triangles that can be formed from 28 lattice points arranged in a regular hexagonal region of side length 4. Hmm, let me start b",
-    "after_shadow": "gure the number of triangles that can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4. Hmm, let me sta",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2025_I_1_confidence_up_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4. Hmm, let me start by recalling what a regular hexagon looks like. A regular hexagon has six sides, and each side is equal in length. The problem mentions "
-   }
-  },
-  {
-   "id": "2025_I_1_confidence_down_0.0",
-   "label": "2025_I_1",
-   "direction": "confidence_down",
-   "strength": 0.0,
-   "layer": 20,
-   "n_steps": 12923,
-   "first_diverged_step": null,
-   "token_agreement": 1.0,
-   "mean_logit_kl": 0.0,
-   "mean_entropy_primary": 0.33768485723397607,
-   "mean_entropy_shadow": 0.33768485723397607,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 44524,
-   "reason_chars_shadow": 44524,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": -1,
-    "before": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal r",
-    "after_primary": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4.",
-    "after_shadow": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4.",
-    "note": "两臂逐字相同，没有分岔"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2025_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4. Hmm, let me start by recalling what a regular hexagon looks like. A regular hexagon has six sides, and each side is equal in length. The problem mentions "
-   }
-  },
-  {
-   "id": "2025_I_1_confidence_down_0.2",
-   "label": "2025_I_1",
-   "direction": "confidence_down",
-   "strength": 0.2,
-   "layer": 20,
-   "n_steps": 14739,
-   "first_diverged_step": 27,
-   "token_agreement": 0.9228629579375848,
-   "mean_logit_kl": 0.07486194451905848,
-   "mean_entropy_primary": 0.3725888332779664,
-   "mean_entropy_shadow": 0.3280642870599441,
-   "n_bad_steps": 0,
-   "reason_chars_primary": 48390,
-   "reason_chars_shadow": 48828,
-   "closed_think_primary": true,
-   "closed_think_shadow": true,
-   "primary_head": {
-    "split_char": 119,
-    "before": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal ",
-    "after_primary": "pattern with side length 4. Let me start by recalling what a regular hexagon with side length 6 would have, but here it's side length 4. Wait, ac",
-    "after_shadow": "region with side length 4. Hmm me start by recalling some a regular hexagon looks side length 4 has look, but here it's side length 4. Wait, actu",
-    "note": "分岔处"
-   },
-   "shadow_head": {
-    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
-   },
-   "zero_strength_control": {
-    "id": "2025_I_1_confidence_down_0.0",
-    "token_agreement": 1.0,
-    "first_diverged_step": null,
-    "texts_identical": true,
-    "head": "\nOkay, so I need to figure out how many triangles can be formed from 28 lattice points arranged in a regular hexagonal region with side length 4. Hmm, let me start by recalling what a regular hexagon looks like. A regular hexagon has six sides, and each side is equal in length. The problem mentions "
    }
   }
  ]

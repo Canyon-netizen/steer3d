@@ -243,9 +243,36 @@ def main() -> int:
     for p in pairs:
         by_verdict[p["verdict"]] = by_verdict.get(p["verdict"], 0) + 1
 
+    # Same provenance block as cot_effect, and for the same reason: this screen
+    # is where a reader meets "标准答案" most directly, so it is the worst place
+    # to leave that number looking like an official AIME key. REF is
+    # `_BUILTIN`'s own `answer` field over problems the bank documents as
+    # inspired-by and re-worded; nothing here checks either against the
+    # competition's own text or key.
+    _labels = sorted({p["label"] for p in pairs})
+    _unknown = [l for l in _labels if l not in REF]
+    if _unknown:
+        raise SystemExit(
+            "FAIL: %d label(s) not in the problem bank: %s -- their reference "
+            "answer would be None and every verdict below would be scored "
+            "against nothing." % (len(_unknown), _unknown))
+
     payload = {
         "schema": "steer3d.answer_readout/1",
         "model": MODEL,
+        "problem_set": {
+            "source_file": "backend/core/aime_loader.py :: _BUILTIN",
+            "loader_self_description": (
+                "inspired by AIME 1983-2024 problems. Re-worded but "
+                "mathematically faithful; answers verified"),
+            "is_official_aime": False,
+            "verbatim_checked_against_official": None,
+            "reference_answers_from": "_BUILTIN 的 answer 字段，本仓库未独立核对",
+            "answer_domain_rule": "0–999（题库自述采用的 AIME 答案域约定）",
+            "n_in_bank": len(_BUILTIN),
+            "n_in_screen": len(_labels),
+            "labels": _labels,
+        },
         "source": {
             "divergence": os.path.basename(args.divergence),
             "runs": os.path.basename(args.runs),

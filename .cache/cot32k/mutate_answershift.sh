@@ -3,7 +3,7 @@
 #
 # The block corrects a claim the page used to make without qualification, so
 # the failure mode is not a crash -- it is the old claim quietly surviving next
-# to the new one, or the new one quietly vanishing. All four mutations are
+# to the new one, or the new one quietly vanishing. All ten mutations are
 # built to be silent.
 #
 #   M1  Delete the whole block. Nothing else on the page changes, the old
@@ -99,6 +99,26 @@ B7='对→对 5 · 对→错 ${V["right->wrong"]}'
 A8='${dnAcc.correct_zero} → ${dnAcc.correct_steered}'
 B8='7 → 7'
 
+# M9 flips the provenance declaration to the opposite claim. This is the
+# mutation that matters: the failure mode here is not a missing caveat but a
+# confident wrong one. Every 题号 on the page is shaped like an AIME id
+# (1983_I_1, 2025_I_1), and the instinct when cleaning up a page is to make
+# the problems sound more official, not less. Nothing on the page would look
+# broken afterwards — the numbers are unchanged, the layout is unchanged, and
+# "标准答案 760" would sit right under a sentence promising it is the real
+# AIME key. So the declaration has to be checked for its own wording, not
+# merely for its presence.
+A9='道题不是历年 AIME 原题。'
+B9='道题是历年 AIME 真题。'
+
+# M10 puts "32k" back in the title and drops the budget explanation. The
+# anchor is the whole title line, not the substring: `加长预算重跑` also
+# appears in the function's header comment, and an anchor that matches twice
+# makes the mutation refuse to run — which reads as "the check is fine" when
+# nothing was actually mutated.
+A10='同一件事，加长预算重跑（${C.n_runs} 次运行'
+B10='同一件事，32k 预算重跑（${C.n_runs} 次运行'
+
 cnt() { grep -oF -- "$1" "$F" 2>/dev/null | wc -l | tr -d ' ' ; }
 
 # M6's anchor spans two lines, and `grep -F` matches line by line: a
@@ -119,6 +139,7 @@ anchor_of() {
     M1) printf '%s' "$A1" ;; M2) printf '%s' "$A2" ;; M5) printf '%s' "$A5" ;;
     M3) printf '%s' "$A3" ;; M4) printf '%s' "$A4" ;; M6) printf '%s' "$A6" ;;
     M7) printf '%s' "$A7" ;; M8) printf '%s' "$A8" ;;
+    M9) printf '%s' "$A9" ;; M10) printf '%s' "$A10" ;;
   esac
 }
 
@@ -130,6 +151,7 @@ apply() {
     M5) a="$A5"; b="$B5"; target="$G" ;;
     M6) a="$A6"; b="$B6"; target="$H" ;;
     M7) a="$A7"; b="$B7" ;; M8) a="$A8"; b="$B8" ;;
+    M9) a="$A9"; b="$B9" ;; M10) a="$A10"; b="$B10" ;;
     *) echo "unknown $label"; return 2 ;;
   esac
 
@@ -210,10 +232,11 @@ case "${1:-}" in
   apply-M1) apply M1 ;; apply-M2) apply M2 ;;
   apply-M3) apply M3 ;; apply-M4) apply M4 ;; apply-M5) apply M5 ;;
   apply-M6) apply M6 ;; apply-M7) apply M7 ;; apply-M8) apply M8 ;;
+  apply-M9) apply M9 ;; apply-M10) apply M10 ;;
   revert) revert ;;
   status)
     miss=0
-    for l in M1 M2 M3 M4 M5 M6 M7 M8; do
+    for l in M1 M2 M3 M4 M5 M6 M7 M8 M9 M10; do
       a=$(anchor_of "$l")
       case $l in
         M5) n=$(grep -cF -- "$a" "$G") ;;
@@ -226,7 +249,7 @@ case "${1:-}" in
     ha=$(cnt "$HEALTH")
     printf '  health=%s\n' "$ha"
     [ "$ha" = "1" ] || miss=1
-    [ $miss = 0 ] && echo "all 8 anchors + health + gate + loop present exactly once"
+    [ $miss = 0 ] && echo "all 10 anchors + health + gate + loop present exactly once"
     exit $miss ;;
-  *) echo "usage: $0 apply-M1|apply-M2|apply-M3|apply-M4|apply-M5|apply-M6|apply-M7|apply-M8|revert|status"; exit 2 ;;
+  *) echo "usage: $0 apply-M1|apply-M2|apply-M3|apply-M4|apply-M5|apply-M6|apply-M7|apply-M8|apply-M9|apply-M10|revert|status"; exit 2 ;;
 esac

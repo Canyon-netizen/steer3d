@@ -61,7 +61,11 @@ SELF_CHECK_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Final-answer extraction. AIME answers are integers 0-999.
+# Final-answer extraction. The bank encodes the AIME answer convention
+# (integers 0-999), so that is the range to look for. Note this is the *bank's*
+# convention, not a verified fact about official AIME answers -- see
+# aime_loader._BUILTIN's docstring: the problems are inspired by AIME and
+# re-worded, and nothing here diffs them against the official text.
 ANSWER_RE = re.compile(r"(?:answer|Answer)\s*(?:is)?\s*[:：]?\s*\$?\\?boxed\{?\s*(\d{1,4})", re.IGNORECASE)
 BOXED_RE = re.compile(r"\\boxed\{\s*(\d{1,4})\s*\}")
 TAIL_INT_RE = re.compile(r"(-?\d{1,4})\s*[.。]?\s*$")
@@ -127,12 +131,16 @@ ANSWER_ANY_RE = re.compile(
 
 
 def strict_final_answer(text: str) -> Tuple[Optional[float], bool]:
-    """(stated answer, is it inside the AIME 0-999 range) or (None, False).
+    """(stated answer, is it inside the bank's 0-999 convention) or (None, False).
 
     Only an explicit statement counts. There is no tail guess here on purpose:
     a trace that ran out of budget mid-derivation has no final answer, and
     returning one is how a comparison ends up reporting a change that never
     happened.
+
+    "In domain" is a range filter, not a correctness check: the bound comes
+    from the AIME answer convention that aime_loader._BUILTIN claims for its
+    re-worded problems, and it says nothing about whether the number is right.
     """
     if not text:
         return None, False
@@ -224,7 +232,17 @@ def analyse_run(run: dict) -> dict:
         "direction": run.get("direction"),
         "strength": run.get("strength"),
         "layer": run.get("layer"),
-        "n_steps": summary.get("n_steps"),
+        # The run's own count of GENERATED tokens, not the tracker's.
+        # `summary["n_steps"]` is len(tracker.steps), and tracker.steps holds
+        # one entry per comparison -- including the one made on the prompt
+        # itself before generation starts (run_intervention.py:262 calls
+        # `tracker.compare(-1, "<prompt>", ...)`). So the summary is always
+        # exactly one more than the number of tokens the model produced, and
+        # the page was printing "32001 步" for runs capped at 32000. Prefer the
+        # run-level field, which is len(primary_ids); keep the summary value
+        # beside it rather than dropping it, so the off-by-one stays visible.
+        "n_steps": run.get("n_steps"),
+        "n_steps_tracker": summary.get("n_steps"),
         "token_agreement": summary.get("token_agreement"),
         "mean_logit_kl": summary.get("mean_logit_kl"),
         # reasoning-level
