@@ -134,6 +134,29 @@ class NpzReplayRunner:
         self._index = 0
         self._peek()
 
+    def describe(self) -> List[Dict[str, str]]:
+        """可回放轨迹清单，供 UI 渲染成选择器。
+
+        只回放型的 runner 有这个列表；合成 runner 没有（它接受任意
+        prompt）。UI 拿到非空列表就把自由文本框换成下拉，拿到空列表
+        才保留文本框 —— 这样「只能选真实存在的轨迹」这条约束由数据
+        决定，而不是由 UI 猜。
+        """
+        out: List[Dict[str, str]] = []
+        for r in self.records:
+            rid = r["id"]
+            mode = "think" if rid.endswith("__think") else (
+                "no_think" if rid.endswith("__no_think") else ""
+            )
+            out.append(
+                {
+                    "id": rid,
+                    "label": r.get("problem_id") or rid,
+                    "mode": mode,
+                }
+            )
+        return out
+
     # ------------------------------------------------------------------
 
     def _pick(self, needle: str) -> Optional[Dict[str, str]]:

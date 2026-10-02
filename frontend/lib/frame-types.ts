@@ -34,6 +34,14 @@ export type ReadyMessage = {
     sample_every: number;
     /** Layers the runner can actually replay. Empty = runner doesn't say. */
     layers?: number[];
+    /**
+     * Recordings the runner can replay. Non-empty means `prompt` must be one
+     * of these ids: the replay runner matches against them and falls back to
+     * the first when nothing matches, so a free-text prompt box would show a
+     * different problem than the one that was typed. Empty = the runner takes
+     * any prompt (SyntheticRunner).
+     */
+    trajectories?: { id: string; label: string; mode: string }[];
   };
 };
 

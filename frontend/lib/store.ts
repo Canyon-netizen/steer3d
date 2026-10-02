@@ -27,6 +27,8 @@ type AppState = {
   layer: number;
   /** Layers the backend says it can replay; empty until `ready` says otherwise. */
   availableLayers: number[];
+  /** {id,label,mode}[] the backend can replay; empty = any prompt allowed. */
+  trajectories: { id: string; label: string; mode: string }[];
   prompt: string;
   speed: number;
   paused: boolean;
@@ -67,6 +69,7 @@ export const useApp = create<AppState>((set) => ({
 
   layer: 14,
   availableLayers: [],
+  trajectories: [],
   prompt: "Why is the sky blue?",
   speed: 1.0,
   paused: false,
@@ -95,6 +98,10 @@ export const useApp = create<AppState>((set) => ({
       availablePresets: r.payload.presets,
       layer: r.payload.layer,
       availableLayers: r.payload.layers ?? [],
+      // Which recordings the backend can replay. Non-empty means the prompt
+      // must be one of these ids, so the UI offers a picker instead of a free
+      // text box -- see the note on ReadyMessage.trajectories.
+      trajectories: r.payload.trajectories ?? [],
     })),
 
   ingestSteeringCatalog: (m) =>

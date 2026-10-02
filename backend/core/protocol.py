@@ -143,6 +143,17 @@ class ReadyMessage:
     # by accident -- it offered layers the data does not have and omitted one
     # it does. Empty means "runner does not say"; the UI keeps its defaults.
     layers: List[int] = field(default_factory=list)
+    # The trajectories this runner can actually replay: [{id, label, mode}].
+    #
+    # Why the UI needs this instead of a free-text prompt box: the replay
+    # runner matches `prompt` against the recorded ids and, when nothing
+    # matches, falls back to the first record. Typing "Why is the sky blue?"
+    # therefore silently showed 1983_I_1's real trajectory while the input
+    # still said something else — the page looked right and was about the
+    # wrong problem. Declaring the list lets the UI offer only choices that
+    # exist. Empty means "runner does not say" (e.g. SyntheticRunner, which
+    # accepts any prompt).
+    trajectories: List[Dict[str, str]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {

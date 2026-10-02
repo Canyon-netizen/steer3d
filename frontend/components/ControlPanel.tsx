@@ -36,8 +36,19 @@ export default function ControlPanel({ sendControl }: Props) {
 
   const layers = availableLayers.length > 0 ? availableLayers : FALLBACK_LAYERS;
 
+  // What can actually be replayed. The replay runner matches the prompt
+  // against recorded ids and, when nothing matches, silently shows the first
+  // recording -- so a free-text box let someone type "Why is the sky blue?"
+  // and watch 1983_I_1's real trajectory go by while the box still said
+  // something else. When the backend names its recordings, offer only those.
+  const trajectories = useApp((s) => s.trajectories);
   const [prompt, setPrompt] = useState("Why is the sky blue?");
   const [localPrompt, setLocalPrompt] = useState(prompt);
+  const pickList = trajectories.length > 0;
+  // Open on the first recording rather than on a prompt that does not exist.
+  const effectivePrompt = pickList
+    ? (trajectories.some((t) => t.id === localPrompt) ? localPrompt : trajectories[0].id)
+    : localPrompt;
 
   // Keep local prompt in sync with the store so external resets work.
   useEffect(() => setLocalPrompt(prompt), [prompt]);
@@ -46,7 +57,7 @@ export default function ControlPanel({ sendControl }: Props) {
     setPaused(false);
     sendControl({
       kind: "start",
-      payload: { prompt: localPrompt, layer },
+      payload: { prompt: effectivePrompt, layer },
     });
   };
 
@@ -77,15 +88,45 @@ export default function ControlPanel({ sendControl }: Props) {
         Controls
       </h2>
 
-      {/* Prompt input */}
+      {/* Prompt input. A picker when the backend names its recordings, a free
+          text box only when the runner really does accept any prompt. */}
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-400">Prompt</label>
-        <textarea
-          className="px-3 py-2 rounded bg-bg border border-border text-sm text-gray-100 focus:outline-none focus:border-baseline resize-none"
-          rows={3}
-          value={localPrompt}
-          onChange={(e) => setLocalPrompt(e.target.value)}
-        />
+        <label className="text-xs text-gray-400">
+          {pickList ? "Recording" : "Prompt"}
+        </label>
+        {pickList ? (
+          <>
+            <select
+              className="px-3 py-2 rounded bg-bg border border-border text-sm text-gray-100"
+              value={effectivePrompt}
+              onChange={(e) => {
+                setLocalPrompt(e.target.value);
+                setPrompt(e.target.value);
+              }}
+            >
+              {trajectories.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                  {t.mode ? ` · ${t.mode}` : ""}
+                </option>
+              ))}
+            </select>
+            {/* Say where the tokens come from. A picker alone still leaves the
+                reader guessing whether the stream is generated or replayed. */}
+            <p className="text-[10px] text-gray-500 leading-relaxed">
+              Replaying a recorded Qwen3-1.7B trajectory — the
+              hidden states, tokens and per-step entropy are the ones captured on
+              the cluster, not generated here.
+            </p>
+          </>
+        ) : (
+          <textarea
+            className="px-3 py-2 rounded bg-bg border border-border text-sm text-gray-100 focus:outline-none focus:border-baseline resize-none"
+            rows={3}
+            value={localPrompt}
+            onChange={(e) => setLocalPrompt(e.target.value)}
+          />
+        )}
       </div>
 
       <div className="flex gap-2">

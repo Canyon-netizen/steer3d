@@ -108,6 +108,12 @@ async def ws_endpoint(websocket: WebSocket):
                 or getattr(state.runner, "available_layers", None)
                 or []
             ),
+            # Which recordings can actually be replayed. The replay runner
+            # matches the prompt against these ids and falls back to the
+            # first one when nothing matches, so a free-text prompt box
+            # silently showed the wrong problem. Handing the list to the UI
+            # lets it offer only choices that exist.
+            trajectories=[],  # MUT_NO_TRAJECTORIES
         ).to_dict()
     )
     # Directions carry their own metadata (which layer they were extracted
