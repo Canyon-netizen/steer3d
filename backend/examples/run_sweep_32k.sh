@@ -22,21 +22,37 @@ mkdir -p "$OUT"
 
 export CUDA_VISIBLE_DEVICES=$GPU
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+# Each run does per-step numpy over ~30 layers on two streams, so the workload
+# is CPU-bound, not GPU-bound (GPU sat at 1-21% while this ran). Left unbounded,
+# torch grabbed ~27 threads per process, and six of those on a 64-core box
+# starved each other: zju-46's load average hit 230 and each of my processes
+# got under one core, so shards crawled for 2h+ on a single problem. Cap the
+# thread count so the processes interleave instead of thrashing.
+export OMP_NUM_THREADS=${SWEEP_THREADS:-4}
+export MKL_NUM_THREADS=$OMP_NUM_THREADS
+export OPENBLAS_NUM_THREADS=$OMP_NUM_THREADS
+export TOKENIZERS_PARALLELISM=false
 
 SLICE=$BASE/slice_${IDX}.json
 JOURNAL="$OUT/shard_${IDX}.jsonl"
-# Create up front so `wc -l` below never hits a missing file.
-: > "$JOURNAL"
+# Append-only. The first version truncated the journal at start, so a restart
+# silently destroyed results that had already been paid for.
+touch "$JOURNAL"
 
-echo "shard $IDX/$NSHARD on GPU$GPU  model=$MODEL  start $(date +%T)"
+echo "shard $IDX/$NSHARD on GPU$GPU  threads=$OMP_NUM_THREADS  model=$MODEL  start $(date +%T)"
 HELPER=$BASE/sweep_helpers.py
 python3 "$HELPER" slice_helper "$BASE/problem_index_24.json" "$SLICE" "$IDX" "$NSHARD" \
   || { echo "FATAL: slice build failed"; exit 1; }
 
-# Iterate only this shard's own problems, read from the slice file. Hardcoding
-# the full id list here is what let shard 1 try to run a problem it did not own.
-IDS=$(python3 -c "import json,sys; print(' '.join(r['id'] for r in json.load(open(sys.argv[1]))))" "$SLICE")
-echo "  problems: $IDS"
+# This shard's own problems, minus whatever is already journalled. Hardcoding
+# the full 24-id list here is what let shard 1 try to run a problem it did not
+# own, and a stale DONE_IDS variable is what made restart re-run paid-for work.
+IDS=$(python3 "$HELPER" pending_helper "$SLICE" "$JOURNAL")
+echo "  pending: $IDS"
+if [ -z "$IDS" ]; then
+  echo "SHARD_${IDX}_ALREADY_DONE $(date +%T)  lines=$(wc -l < "$JOURNAL")"
+  exit 0
+fi
 
 for PID in $IDS; do
   ONE=$BASE/one_${IDX}_${PID}.json

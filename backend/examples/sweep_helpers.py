@@ -47,10 +47,36 @@ def append_helper():
     print(f"  appended {len(data)} result(s)")
 
 
+def pending_helper():
+    """Print the slice's problem ids that are not already in the journal.
+
+    Restart safety depends on this: the shell driver used to carry its own
+    DONE_IDS list, which was never populated, and it truncated the journal on
+    start. Together those meant a restart re-ran finished work *and* threw the
+    results away.
+    """
+    src, journal = sys.argv[1], sys.argv[2]
+    rows = json.load(open(src))
+    done = set()
+    if os.path.exists(journal):
+        with open(journal, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    done.add(json.loads(line).get("prompt_label"))
+                except json.JSONDecodeError:
+                    print(f"  !! journal {journal} has an unparsable line; "
+                          f"not counting it as done", file=sys.stderr)
+    print(" ".join(r["id"] for r in rows if r["id"] not in done))
+
+
 if __name__ == "__main__":
     # argv[1] is the function name; shift it away so each helper can keep
     # reading its own arguments from argv[1:].
     name, sys.argv = sys.argv[1], [sys.argv[0]] + sys.argv[2:]
     {"slice_helper": slice_helper,
      "one_helper": one_helper,
-     "append_helper": append_helper}[name]()
+     "append_helper": append_helper,
+     "pending_helper": pending_helper}[name]()
