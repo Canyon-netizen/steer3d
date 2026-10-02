@@ -2606,6 +2606,23 @@ function visTok(s){
     .replace(/^ /, "·");
 }
 
+// visTok for HTML sinks. The three token sites that build markup used to call
+// visTok directly, and the vocab is full of strings that are valid HTML: at
+// step 0 of 1983_I_1 the top candidate is the literal `<think>`, the second is
+// `</think>`, and ranks 6 and 9 are `<tool_response>` / `</tool_response>`.
+// Written into innerHTML those are parsed as tags, so the four rows rendered
+// EMPTY -- including the single most important cell on the screen, the one
+// under the headline "模型这一步选了 __". Every check passed: the row existed,
+// had a probability, was a different id from its neighbour.
+//
+// Deliberately a separate function rather than escaping inside visTok: the
+// ranking chart draws the same string onto a <canvas> with fillText, where
+// `&lt;` would show as literal text. Escaping in the wrong sink is the same
+// class of bug as not escaping at all.
+function visTokHtml(s){
+  return esc(visTok(s)).replace(/>/g, "&gt;");
+}
+
 function renderTop(){
   const t = S.m.trajectories[S.ti], tb = $("#tblTop");
   const rows = topProbs();
@@ -2654,12 +2671,12 @@ function renderTop(){
   // instead of 34. Nothing said here is optional -- it is the answer to
   // "why this token" -- so it is packed, not truncated.
   $("#picked").innerHTML =
-      '<div class="pickedTok">模型这一步选了 <b>' + visTok(tokStr(chosenId)) + '</b>'
+      '<div class="pickedTok">模型这一步选了 <b>' + visTokHtml(tokStr(chosenId)) + '</b>'
     + '　<span class="pickedPct">给了它 <b>' + (p1*100).toFixed(2) + '%</b> 的概率</span></div>'
     + '<div class="pickedNote">' + sure + '。熵 ' + ent.toFixed(4)
     + ' nats（越接近 0 = 越不做取舍）</div>'
     + '<div class="pickedAlt">没选它的话，第二可能是 <b>'
-    + visTok(tokStr(rows[1].id)) + '</b>（' + (rows[1].p*100).toFixed(2) + '%）'
+    + visTokHtml(tokStr(rows[1].id)) + '</b>（' + (rows[1].p*100).toFixed(2) + '%）'
     + (ctx.isMin
         ? '　·　这是本题<b>最犹豫的一步</b>'
         : '　·　还有 <b>' + ctx.less + '</b> 步比它更犹豫（最低 ' + (ctx.minP*100).toFixed(1) + '%）')
@@ -2680,7 +2697,7 @@ function renderTop(){
     const col = isChosen ? "var(--acc)" : (r.p < 0.01 ? "#243149" : "#3d5478");
     h += `<tr${isChosen?' style="background:#1b2740"':''}>`
       + `<td class="n" style="color:${isChosen?"var(--acc)":"var(--dim2)"}">${i+1}</td>`
-      + `<td class="tok" style="color:${isChosen?"var(--acc)":"var(--ink)"}">${visTok(tokStr(r.id))}`
+      + `<td class="tok" style="color:${isChosen?"var(--acc)":"var(--ink)"}">${visTokHtml(tokStr(r.id))}`
       + `${isChosen?' <span style="color:var(--acc);font-size:10px">←选了</span>':''}</td>`
       + `<td class="bar"><div style="width:${w}%;background:${col}"></div></td>`
       + `<td class="n" style="width:62px">${pctTxt}</td></tr>`;

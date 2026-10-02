@@ -51,6 +51,12 @@ for (const r of rows) z += Math.exp(r.logit - mx);
 const ref = rows.map(r => ({ ...r, p: Math.exp(r.logit - mx) / z }));
 const vocab = JSON.parse(readFileSync(DATA + 'vocab.json', 'utf8'));
 const ids = vocab.ids;
+// Step 0's reference ranking, computed the same independent way. Step 0 is
+// where the HTML-shaped candidates live; STEP is usually 2, where they do not.
+const rows0 = [];
+for (let k = 0; k < K; k++) rows0.push({ logit: f32[0 * K + k], id: i32[0 * K + k] });
+rows0.sort((a, b) => b.logit - a.logit);
+const ref0 = rows0;
 const chosenId = traj.tokens[STEP].id;
 console.log(`reference (computed in Node from ${traj.topk}, step ${STEP} of "${traj.problem_id}"):`);
 console.log(`  chosen token ${JSON.stringify(ids[chosenId])} id=${chosenId}`);
@@ -281,8 +287,127 @@ try {
     /\.⏎/.test(torn.picked) || /⏎/.test(torn.picked),
     (torn.picked.match(/第二可能是[^（]*/) || ['not found'])[0]);
 
-  // The first-run orientation overlay covers the app, so a screenshot taken
-  // before dismissing it shows the primer, not the panel under test.
+  // ---------------------------------------------------------------------
+  // Tokens that are valid HTML. The panel above checks step 2, where the top
+  // candidate is the ordinary word "Okay". Step 0 of the same trajectory is
+  // where the bug lived: its top-4 candidates are the literal strings
+  // `<think>`, `</think>`, `<|im_start|>`, `<|im_end|>` and ranks 6/9 are
+  // `<tool_response>` / `</tool_response>`. Written into innerHTML unescaped
+  // those are parsed as tags, so four rows rendered EMPTY -- including the
+  // cell under the headline "模型这一步选了 __". Every check in this file
+  // still passed, because the rows existed and had probabilities.
+  //
+  // So this walks every shipped step of this trajectory, reads the expected
+  // token straight out of vocab.json, and requires the rendered cell to show
+  // exactly that. A blank cell for any token containing "<" is the signature.
+  const htmlish = await page.eval(`(()=>{
+    const K=64, out=[];
+    // Pin the trajectory. The reference above is computed from THIS
+    // trajectory's topk file, and the loop inherited whatever trajectory the
+    // earlier assertions happened to leave selected -- so the page was reading
+    // a different model's candidates than the file the comparison used. Every
+    // other check in this block still passed, because a table from any
+    // trajectory has ten non-empty rows once the escaping is right.
+    S.ti = ${TIDX};
+    const nSteps = S.m.trajectories[S.ti].n_tokens_shipped;
+    for(let k=0;k<nSteps;k++){
+      // renderTop(), not render(). render() schedules its DOM writes, so
+      // reading the table on the next line read the PREVIOUS step's rows --
+      // and the first version of this check then reported a mismatch on
+      // ranks 3..10 that was purely its own off-by-one. renderTop() assigns
+      // tb.innerHTML synchronously, so the read that follows sees this step.
+      S.tok=k; S.view="BAR"; renderTop();
+      const cell=document.querySelector('.pickedTok b');
+      const alt=document.querySelector('.pickedAlt b');
+      const id=S.m.trajectories[S.ti].tokens[k].id;
+      // The TABLE rows, not just the headline. The first version of this check
+      // only compared .pickedTok b, and mutation M3 (which touches the table
+      // cell and not the headline) sailed through 27/27 -- the defect was on
+      // screen the whole time and the assertion was pointed at the other
+      // element. Read all ten rows: the table has a header at
+      // nth-child(1), so rank i is nth-child(i+2).
+      const rows=[...document.querySelectorAll('#tblTop tr')].slice(1, 11)
+        .map(tr=>{const c=tr.querySelector('td.tok'); return c?c.textContent:null;});
+      out.push({k, id, shown: cell?cell.textContent:null,
+                alt: alt?alt.textContent:null, rows});
+    }
+    return {rows: out, vocabLen: (S.vocab||[]).length};
+  })()`);
+  const cellFor = r => String(ids[r.id] || '');
+  const blanks = htmlish.rows.filter(r => {
+    const want = cellFor(r);
+    return /[<>]/.test(want) && String(r.shown || '').trim() === '';
+  });
+  check('no step renders an empty cell for a token that contains "<" or ">"',
+    blanks.length === 0,
+    blanks.length
+      ? `第 ${blanks.slice(0,4).map(b=>b.k+' 步应有 '+JSON.stringify(cellFor(b))).join('、')} 步渲染为空`
+      : `扫了 ${htmlish.rows.length} 步`);
+  // And the headline cell must agree with the payload, token for token --
+  // not merely be non-empty.
+  const mismatch = htmlish.rows.filter(r => {
+    const want = cellFor(r);
+    if (!want) return false;
+    const got = String(r.shown || '').trim();
+    // visTok maps a leading space to '·' and newlines to '⏎'.
+    const norm = want.replace(/\\/g,'\\\\').replace(/\n/g,'⏎').replace(/\r/g,'␍')
+                     .replace(/\t/g,'⇥').replace(/^ /,'·');
+    return got !== norm;
+  });
+  check('每一步的「模型这一步选了 X」与 vocab.json 里的词逐字一致',
+    mismatch.length === 0,
+    mismatch.length
+      ? `第 ${mismatch.slice(0,3).map(m=>m.k+' 步 期望 '+JSON.stringify(cellFor(m))+' 实得 '+JSON.stringify(String(m.shown))).join('；')}`
+      : `${htmlish.rows.length} 步全部逐字一致`);
+  // The runner-up line, which is the other half of "why not that one".
+  const altBad = htmlish.rows.filter(r => /[<>]/.test(cellFor(r)) && String(r.alt||'').trim() === '');
+  check('第二可能那一行同样没有吞掉 HTML 式 token', altBad.length === 0,
+    altBad.length ? `${altBad.length} 步的第二可能是空的` : '');
+  // The table itself: every visible row must print the word, and the word must
+  // be the one the file says. An empty cell in a table that still has a rank
+  // number and a probability is exactly what the HTML parsing produced.
+  const emptyCells = [];
+  for (const r of htmlish.rows) {
+    (r.rows || []).forEach((cellTxt, i) => {
+      if (String(cellTxt || '').trim() === '') emptyCells.push(`第 ${r.k} 步第 ${i+1} 名`);
+    });
+  }
+  check('候选词表里没有一格是空的（表头之外十格逐格检查）',
+    emptyCells.length === 0,
+    emptyCells.length ? `${emptyCells.length} 格为空：${emptyCells.slice(0,5).join('、')}` : '');
+  // One step, read the page's OWN candidate order and require the rendered
+  // cell to print exactly the word that order names. The scope is deliberately
+  // narrow: this asserts the escaping, not the softmax. The softmax is already
+  // reconciled against an independent computation of topk_*.bin above, and an
+  // earlier version of this check re-sorted the file in Node and compared
+  // position by position -- which made it a second, weaker copy of that check
+  // and, because it read the DOM after render() had been called for all 48
+  // steps, compared step 0 against a stale table and reported nine phantom
+  // mismatches. One step, page order, no re-sorting.
+  const step0 = await page.eval(`(()=>{
+    S.ti = ${TIDX}; S.tok = 0; S.view = "BAR"; renderTop();
+    const rows = topProbs().slice(0, 10).map(r => S.vocab[r.id]);
+    const cells = [...document.querySelectorAll('#tblTop tr')].slice(1, 11)
+      .map(tr => { const c = tr.querySelector('td.tok');
+                   return c ? c.textContent.replace(/\s*←选了\s*$/, '').trim() : null; });
+    return { rows, cells };
+  })()`);
+  const normTok = t => String(t).replace(/\\/g, '\\\\').replace(/\n/g, '⏎')
+    .replace(/\r/g, '␍').replace(/\t/g, '⇥').replace(/^ /, '·');
+  const d0 = step0.rows.map((w, i) => normTok(w) === step0.cells[i] ? null
+    : `#${i+1} 期望 ${JSON.stringify(normTok(w))} 实得 ${JSON.stringify(step0.cells[i])}`)
+    .filter(Boolean);
+  check('第 0 步十格与页面自己的候选顺序逐格对上（含 <think> / <tool_response>）',
+    d0.length === 0, d0.length ? d0.join('；') : '10/10');
+  // Spell out the four that used to vanish, so a regression names the words.
+  const html4 = ['<think>', '</think>', '<|im_start|>', '<|im_end|>',
+                 '<tool_response>', '</tool_response>'];
+  const found = step0.rows.filter(r => html4.includes(r));
+  const shownN = found.filter(r => html4.some(h => normTok(h) === step0.cells[step0.rows.indexOf(r)]));
+  check('这些 HTML 式词在页面上真的显示出来了（不是空格子）',
+    found.length === shownN.length && found.length >= 4,
+    `第 0 步里这类词有 ${found.length} 个，显示出来的 ${shownN.length} 个`);
+
   await page.eval(`(()=>{
     const b=[...document.querySelectorAll('button')].find(x=>/开始看|我读完了/.test(x.textContent));
     if(b) b.click();

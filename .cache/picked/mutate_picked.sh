@@ -8,9 +8,19 @@
 #       The percentage assertions must go red, because they compare against
 #       an independent softmax of the same file.
 #
-#   M2  visTok -> esc.  Reverting to plain HTML drops the newline markers, so
-#       '.\n\n' and '.' render identically again. Only the distinctness
+#   M2  visTokHtml -> esc.  Reverting to plain HTML drops the newline markers,
+#       so '.\n\n' and '.' render identically again. Only the distinctness
 #       assertions can catch this -- a percentage check cannot see it.
+#
+#   M3  visTokHtml -> visTok.  Drops the HTML escaping while keeping the
+#       whitespace glyphs, so the whitespace checks stay green and only the
+#       "this row must not be empty" check can notice. It is the exact defect
+#       that shipped, so it is the one worth keeping as a regression test:
+#       the vocabulary is full of strings that are valid HTML, and at step 0
+#       the top-4 candidates are `<think>`, `</think>`, `<|im_start|>`,
+#       `<|im_end|>`, with `<tool_response>` / `</tool_response>` at 6 and 9.
+#       Unescaped, four of the ten visible rows rendered EMPTY -- including
+#       the cell under the headline that answers the user's actual question.
 #
 # Anchors are counted before and after and read back, so a substitution that
 # matches nothing is reported as an invalid mutation rather than being
@@ -28,8 +38,11 @@ B1='    const w = (r.logit - top[27].logit) / (hi - top[27].logit || 1) * wBar;'
 A2='      + `<td class="n" style="width:62px">${pctTxt}</td></tr>`;'
 B2='      + `<td class="n" style="width:62px">${r.logit.toFixed(2)}</td></tr>`;'
 # M2: the whitespace-revealing wrapper.
-A3='<td class="tok" style="color:${isChosen?"var(--acc)":"var(--ink)"}">${visTok(tokStr(r.id))}'
+A3='<td class="tok" style="color:${isChosen?"var(--acc)":"var(--ink)"}">${visTokHtml(tokStr(r.id))}'
 B3='<td class="tok" style="color:${isChosen?"var(--acc)":"var(--ink)"}">${esc(tokStr(r.id))}'
+# M3: drop the HTML escaping but keep the whitespace glyphs.
+A4='${visTokHtml(tokStr(r.id))}'
+B4='${visTok(tokStr(r.id))}'
 
 # Count occurrences, not lines. `grep -c` counts matching *lines*, so an
 # anchor appearing on one line twice reports 1 -- and the read-back then
@@ -73,11 +86,12 @@ PY
 case "${1:-}" in
   apply-M1) apply M1 "$A1" "$B1" "$A2" "$B2" ;;
   apply-M2) apply M2 "$A3" "$B3" ;;
+  apply-M3) apply M3 "$A4" "$B4" ;;
   revert)
     if [ -f "$BAK" ]; then cp "$BAK" "$F"; rm -f "$BAK"; fi
-    echo "reverted: M1 bar=$(cnt "$A1") cell=$(cnt "$A2")  M2 visTok-cell=$(cnt "$A3")" ;;
+    echo "reverted: M1 bar=$(cnt "$A1") cell=$(cnt "$A2")  M2=$(cnt "$A3")  M3=$(cnt "$A4")" ;;
   status)
-    echo "live: M1 bar=$(cnt "$A1") cell=$(cnt "$A2")  M2 visTok-cell=$(cnt "$A3")"
-    echo "      M1bar-mutant=$(cnt "$B1") M1cell-mutant=$(cnt "$B2") M2-mutant=$(cnt "$B3")" ;;
-  *) echo "usage: $0 apply-M1|apply-M2|revert|status"; exit 2 ;;
+    echo "live: M1 bar=$(cnt "$A1") cell=$(cnt "$A2")  M2=$(cnt "$A3")  M3=$(cnt "$A4")"
+    echo "      M1bar-mutant=$(cnt "$B1") M1cell-mutant=$(cnt "$B2") M2-mutant=$(cnt "$B3") M3-mutant=$(cnt "$B4")" ;;
+  *) echo "usage: $0 apply-M1|apply-M2|apply-M3|revert|status"; exit 2 ;;
 esac
