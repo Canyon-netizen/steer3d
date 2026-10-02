@@ -1634,6 +1634,75 @@ function renderCotEffect32k(){
       ${oc ? `<span style="color:#8a94a6">（对照臂 ${oc.closed_think}/${oc.n}）</span>` : ""}</div></div>`;
   });
 
+  // 「答案有没有变」有两个不同的比较，结论相反，必须并排摆出来。
+  // 上面那些 answer_changed 0/N 比的是**同一次运行内** teacher-forced 的两臂：
+  // 影子臂被强制喂主臂的 token 序列，所以最后一个词通常就是同一个，0/N 是
+  // 构造使然。而读者问的是「加了这个向量，模型答得一样吗」——那是
+  // 自由生成 vs 同题零向量对照，两次都是完整贪心解码，唯一差别就是向量。
+  //
+  // 这个比较之所以可信：42/42 个零向量运行的两臂正文逐字相同（同一输入跑两遍
+  // 独立前向、约 32k 步逐 token 一致），说明前向本身可复现，跨运行的差异不能
+  // 归给随机性。
+  //
+  // 提取用的是严格口径（必须有 \\boxed{} 或明说 final answer），不是级联的
+  // 兜底：级联的末级是「正文末尾的整数」，在没写完的 trace 上会从
+  // `...\\sum_{k=1}^{100` 里抓出 100、从 `13690000 + 308000` 的死循环里抓出 9000。
+  // 拿这种编造的答案去和真答案配对，报出来的「答案变了」是假的。
+  const AS = C.answer_shift_free_run;
+  if(AS && AS.by_direction){
+    // `by_direction` is keyed BY the direction; the values have no `.direction`
+    // field. Mapping to the values first and then reading `a.direction` is
+    // undefined, and `esc(undefined)` throws and takes the whole panel with it.
+    const rows2 = Object.keys(AS.by_direction)
+      .map(k => ({ dir: k, ...AS.by_direction[k] }));
+    h += `<div style="font-size:11px;color:#8891a4;margin:11px 0 3px">
+      <b style="color:#b9c4d6">换个问法，答案其实会变。</b>上面那句「答案一次都没变」
+      比的是同一次运行里被强制同步的两臂；这里是同一个问题各跑一遍完整推理，
+      一次带向量、一次喂零向量：</div>`;
+    rows2.forEach(a => {
+      h += `<div class="kv"><div class="k">${esc(LABEL[a.dir] || a.dir)} 的答案</div>
+        <div class="v"><b style="color:${a.changed_both_closed > 0 ? "#ff8fa3" : "#3ddc97"}">`
+        + `${a.changed_both_closed}/${a.comparable_both_closed} 次不同</b>
+        <span style="color:#8a94a6">（两臂都跑完</think>的题）</span></div></div>`;
+      if(a.comparable !== a.comparable_both_closed){
+        h += `<div class="kv"><div class="k">　└ 放宽到「能解析就算」</div>
+          <div class="v">${a.changed}/${a.comparable}
+          <span style="color:#8a94a6">——多出来的那些有一臂根本没写完，
+          拿写完的答案去比没写完的不算改变</span></div></div>`;
+      }
+    });
+    const ex = rows2.flatMap(a => (a.examples || [])
+      .filter(e => e.both_closed && e.both_in_domain)
+      .map(e => ({ dir: a.dir, ...e }))).slice(0, 4);
+    if(ex.length){
+      h += `<div class="note" style="font-size:10.5px;color:#8891a4;margin:4px 0 2px">
+        两臂都写完、且答案都在 0–999 内的真实例子：</div>`;
+      ex.forEach(e => {
+        h += `<div style="font-size:11px;padding:1px 0;color:#b9c4d6">　`
+           + `${esc(e.label)} · ${esc(e.dir === 'confidence_up' ? '自信↑' : '自信↓')}：`
+           + `零向量答 <b>${e.zero}</b> → 加向量答 <b style="color:#ff8fa3">${e.steered}</b></div>`;
+      });
+    }
+    h += `<div class="note" style="margin-top:8px;padding:7px 9px;background:#131a28;
+         border-left:2px solid #ff8fa3;border-radius:0 4px 4px 0;font-size:11px">
+      <b style="color:#ff8fa3">所以两个方向的样子很不一样：</b>
+      <b>压低自信</b>在两臂都写完的题里改了将近一半的答案——它改变的是模型算出来的数。
+      <b>抬高自信</b>一次都没改，但它让大量运行<b>根本写不完</b>（上面那个双峰长度比），
+      所以它的表现长在「能不能答完」上，不在「答得对不对」上。<br>
+      <b style="color:#b9c4d6">这些「变了」是真的变了，不是提取器编的：</b>
+      答案只认模型<b>明确写下的</b> <span style="font-family:var(--mono)">\\boxed{}</span>
+      或明说的 final answer。另一种更宽松的口径会把"正文末尾的整数"当答案——
+      那样一个没写完、把预算烧光、末尾停在
+      <span style="font-family:var(--mono)">…\\sum_{k=1}^{100</span> 的 trace
+      会被读成答案 100，而它其实根本没答完。<br>
+      <b style="color:#b9c4d6">也别把这两个方向合起来说成「有影响」：</b>
+      本批 ${AS.by_direction[Object.keys(AS.by_direction)[0]] ?
+        Object.values(AS.by_direction).reduce((s, a) => s + a.comparable_both_closed, 0) : 0}
+      组可比，${AS.by_direction[Object.keys(AS.by_direction)[0]] ?
+        Object.values(AS.by_direction).reduce((s, a) => s + a.changed_both_closed, 0) : 0}
+      组答案不同，全部来自 confidence_down。</div>`;
+  }
+
   if(closed && open){
     h += `<div class="note" style="margin-top:9px;padding:7px 9px;background:#131a28;
          border-left:2px solid #ffd479;border-radius:0 4px 4px 0;font-size:11px">
@@ -1650,11 +1719,12 @@ function renderCotEffect32k(){
 
   h += `<div class="note" style="margin-top:9px;padding:7px 9px;background:#131a28;
        border-left:2px solid #3ddc97;border-radius:0 4px 4px 0;font-size:11px">
-    <b style="color:#b9c4d6">所以现在能说的是：</b>在 <b>${cov.answer_known}</b> 次能解析出答案的运行里，
-    答案<b>一次都没变</b>——这一维从"没测到"变成了真正的阴性结果。<br>
-    <b style="color:#b9c4d6">但仍有一条要说清：</b>自信 ↑ 会让相当一部分运行<b>根本写不完</b>，
-    没跑完的那些连答案都没有。把"答案没变"说成"干预不影响答案"仍然是错的，
-    准确的说法是"<b>在能写完的那些里，结论没变；写不完的那些不参与这个比较</b>"。<br>
+    <b style="color:#b9c4d6">所以现在能说的是：</b>在 <b>${cov.answer_known}</b> 次能解析出答案的
+    同一次运行内，teacher-forced 的两臂答案<b>一次都没变</b>——那一维从"没测到"
+    变成了真正的阴性结果，<b>但它只覆盖"同一串 token 上换个词"这件事</b>。<br>
+    <b style="color:#ff8fa3">换成上面那个自由生成的比较，结论就反过来了</b>：
+    压低自信确实会改掉答案。别把这一段读成"干预不影响答案"——它说的只是
+    同步两臂之间不打平。<br>
     <span style="color:#8a94a6">数据来源：cot_effect_32k.json。批次未跑完，
     题号集合与 24 题索引比对后才入库。</span></div>`;
 

@@ -108,6 +108,43 @@ def extract_answer_sourced(text: str) -> Tuple[Optional[int], str]:
     return None, "none"
 
 
+# A stated final answer, however the model chose to state it. The digit cap
+# is deliberately wider than the cascade's: `\boxed{11232000}` is eight digits
+# and is a real (wrong) answer, while the cascade reports nothing for it. The
+# value is returned alongside an in-domain flag rather than filtered out, since
+# "the model stated an answer outside 0-999" and "the model stated no answer"
+# are different facts and only one of them means the run went off the rails.
+BOXED_ANY_RE = re.compile(r"\\boxed\{\s*(-?\d+(?:\.\d+)?)", re.IGNORECASE)
+# Plain "the answer is 42", with no attempt to skip LaTeX markup around it. An
+# earlier version tried to tolerate `$\boxed{...}$` inline and would not even
+# compile ("nothing to repeat") -- the fragility was in the hand-rolled markup
+# handling, not in the goal. Boxed is tried first because it is unambiguous;
+# this is only the fallback for a trace that states its answer in prose.
+ANSWER_ANY_RE = re.compile(
+    r"(?:final\s+answer|answer)\s*(?:is)?\s*[:：=]?\s*(-?\d+(?:\.\d+)?)",
+    re.IGNORECASE)
+
+
+def strict_final_answer(text: str) -> Tuple[Optional[float], bool]:
+    """(stated answer, is it inside the AIME 0-999 range) or (None, False).
+
+    Only an explicit statement counts. There is no tail guess here on purpose:
+    a trace that ran out of budget mid-derivation has no final answer, and
+    returning one is how a comparison ends up reporting a change that never
+    happened.
+    """
+    if not text:
+        return None, False
+    m = BOXED_ANY_RE.search(text) or ANSWER_ANY_RE.search(text)
+    if not m:
+        return None, False
+    try:
+        v = float(m.group(1))
+    except ValueError:
+        return None, False
+    return v, 0 <= v <= 999
+
+
 def split_think(text: str) -> Tuple[str, str]:
     """Split a Qwen3 response into (reasoning, answer).
 
@@ -163,9 +200,21 @@ def analyse_run(run: dict) -> dict:
     p_marks = SELF_CHECK_RE.findall(p_reason)
     s_marks = SELF_CHECK_RE.findall(s_reason)
 
-    p_answer = extract_answer(p_ans) if p_ans.strip() else extract_answer(primary)
-    s_answer = extract_answer(s_ans) if s_ans.strip() else extract_answer(shadow)
-
+    p_answer, p_src = extract_answer_sourced(p_ans) if p_ans.strip() \
+        else extract_answer_sourced(primary)
+    s_answer, s_src = extract_answer_sourced(s_ans) if s_ans.strip() \
+        else extract_answer_sourced(shadow)
+    # The cascade's last rung is "whatever integer ends the text", and the
+    # docstring on extract_answer_sourced already explains why that is noise on
+    # a truncated derivation -- but nothing stopped callers from using it.
+    # Measured on this 84-run batch the two extractors disagree on 9 runs:
+    # four where the cascade invents an answer out of an unfinished trace
+    # (`...\sum_{k=1}^{100` -> 100, `13690000 + 308000` repeated -> 9000) and
+    # two where it misses a real one (`\boxed{11232000}` and `\boxed{8.0}`).
+    # Pairing an invented answer with a real one makes a comparison report a
+    # change that did not happen, so the strict value is carried alongside.
+    p_strict, p_in_domain = strict_final_answer(p_ans or primary)
+    s_strict, s_in_domain = strict_final_answer(s_ans or shadow)
     div = first_divergence(p_reason, s_reason)
     closed_think = primary.count("</think>") > 0
 
@@ -188,6 +237,16 @@ def analyse_run(run: dict) -> dict:
         "selfcheck_delta": len(p_marks) - len(s_marks),
         "answer_primary": p_answer,
         "answer_shadow": s_answer,
+        "answer_primary_source": p_src,
+        "answer_shadow_source": s_src,
+        # Boxed/explicit only. `None` here means "this run did not state a
+        # final answer", which is a fact; `None` in answer_primary can also
+        # mean "the fallback found no integer", which is an absence of
+        # evidence wearing the same costume.
+        "answer_primary_strict": p_strict,
+        "answer_shadow_strict": s_strict,
+        "answer_primary_in_domain": p_in_domain,
+        "answer_shadow_in_domain": s_in_domain,
         "answer_known": p_answer is not None and s_answer is not None,
         "answer_changed": (p_answer is not None and s_answer is not None
                            and p_answer != s_answer),

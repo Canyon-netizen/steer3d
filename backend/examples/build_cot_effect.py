@@ -142,6 +142,68 @@ def main():
         fr[i] = ratio
         fr_closed.setdefault(r["closed_think"], []).append(ratio)
 
+    # --- 答案有没有变：自由生成 vs 零向量对照 -------------------------------
+    # The per-row `answer_changed` counts primary-vs-shadow INSIDE one run, and
+    # the shadow is teacher-forced on the primary's own tokens. That is the
+    # right comparison for "at this step, what would it have picked" and it is
+    # almost always a tie, because by construction the two arms agree on every
+    # step that matters for the final token. It is NOT the comparison a reader
+    # means by "did the vector change the answer", which is:
+    #
+    #     the freely generated answer with the vector
+    #   vs
+    #     the freely generated answer with a zero vector, same question
+    #
+    # Both are greedy decodes, so the only thing that differs is the injected
+    # vector -- and the identity gate above already proved the forward pass is
+    # reproducible (42/42 zero-vector runs reproduce their own texts exactly,
+    # which is two independent forward passes agreeing token for token over
+    # ~32k steps). This is therefore a real, attributable comparison, and it
+    # does not agree with the within-run one.
+    # STRICT answers only. The cascade's tail-integer fallback invents an
+    # answer out of an unfinished trace, and pairing one invented answer with
+    # one real one reports a change that did not happen -- which is exactly the
+    # failure this measurement exists to detect, so contaminating it with a
+    # known-bad extractor would be self-defeating.
+    ans_by = {}
+    for r in runs:
+        if r.get("answer_primary_strict") is None:
+            continue
+        ans_by.setdefault((r["label"], r["direction"]), {})[r["strength"]] = {
+            "answer": r["answer_primary_strict"], "closed": r["closed_think"],
+            "in_domain": r.get("answer_primary_in_domain")}
+    shift = {}
+    for (label, direction), m in ans_by.items():
+        if 0.0 not in m or 0.2 not in m:
+            continue
+        shift.setdefault(direction, []).append({
+            "label": label,
+            "zero": m[0.0]["answer"],
+            "steered": m[0.2]["answer"],
+            "both_closed": bool(m[0.0]["closed"] and m[0.2]["closed"]),
+            "both_in_domain": bool(m[0.0]["in_domain"] and m[0.2]["in_domain"]),
+        })
+    answer_shift = {}
+    for direction, g in shift.items():
+        answer_shift[direction] = {
+            "comparable": len(g),
+            "changed": sum(1 for x in g if x["zero"] != x["steered"]),
+            "comparable_both_closed": sum(1 for x in g if x["both_closed"]),
+            "changed_both_closed": sum(1 for x in g
+                                       if x["both_closed"] and x["zero"] != x["steered"]),
+            # Restricted to answers that are even in range: a run that boxed
+            # 11,232,000 for an AIME question has left the domain entirely, and
+            # counting it as "the vector changed the answer" measures the
+            # derailment, not the vector.
+            "comparable_in_domain": sum(1 for x in g if x["both_in_domain"]),
+            "changed_in_domain": sum(1 for x in g
+                                     if x["both_in_domain"] and x["zero"] != x["steered"]),
+            "examples": [x for x in g if x["zero"] != x["steered"]][:6],
+        }
+    for direction, a in answer_shift.items():
+        print("自由生成答案  %-18s 可比 %2d 组，不同 %2d 组"
+              % (direction, a["comparable"], a["changed"]))
+
     # --- per-condition rows -------------------------------------------------
     rows = []
     for c in d["per_condition"]:
@@ -229,6 +291,19 @@ def main():
         # 按「跑没跑完 </think>」把自由生成长度比分开。合在一起看中位数会
         # 把两种相反的行为平均掉：confidence_up@0.2 在闭合的 5 次里比对照臂
         # 短（0.78×），在没闭合的 13 次里长 2.89×，合起来看不出任何东西。
+        "answer_shift_free_run": {
+            "what": ("自由生成：加向量的答案 vs 同题零向量对照的答案。"
+                     "与 per-row 的 answer_changed 是**两个不同的比较**——"
+                     "后者比的是同一次运行内 teacher-forced 的两臂，"
+                     "按构造几乎总是打平；前者才是「加了这个向量，模型答得一样吗」。"),
+            "why_trustworthy": (
+                "两臂都是贪心解码，唯一差别是注入的向量；且 strength=0.0 的运行里"
+                "两臂正文逐字完全相同（42/42），说明前向本身可复现，"
+                "跨运行的差异不能归给随机性。"),
+            "caveat": ("可比组只统计两臂都能解析出最终答案的那些题；"
+                       "另外有一部分题两臂都没闭合 </think>，这些没有可比答案。"),
+            "by_direction": answer_shift,
+        },
         "free_run_len_by_closure": {
             ("closed" if k else "open"): {
                 "n": len(v),

@@ -154,10 +154,60 @@ chk(/只对下面这张表成立|已.{0,4}被下一块推翻|被下一块推翻/
 // ---- the answer dimension, and the caveat that must stay ---------------
 console.log('\n--- 答案这一维：现在是真阴性，但分母仍要跟着 ---');
 chk(T.includes('一次都没变') || /全同/.test(T), '答案"一次都没变"在面板上');
-chk(/写不完的那些不参与|不参与这个比较/.test(T),
-    '仍写明"写不完的那些不参与这个比较"（不能简化成"干预不影响答案"）');
-chk(!/干预不影响答案(?!.*仍然错)/.test(T) || /仍然是错的/.test(T),
-    '没有把"答案没变"直接说成"干预不影响答案"');
+// These two used to match the exact sentences the old wording used. They
+// guarded a real guarantee -- a reader must not be able to walk away believing
+// "the vector does not affect the answer" -- and the wording has since been
+// rewritten to say the same thing more sharply, so the checks now test the
+// guarantee rather than the phrasing.
+chk(/teacher-forced|强制同步|同一串 token|同步两臂/.test(T),
+    '「答案一次都没变」被限定在 teacher-forced 同步两臂那个比较里');
+chk(/别把这一段读成|不能简化|仍然/.test(T),
+    '明说不能把那一段读成「干预不影响答案」');
+
+// ---- the free-run comparison, which is the one that actually shows an
+// effect. Nothing above would go red if this whole block were deleted, which
+// is exactly how a correction of this size goes missing again.
+console.log('\n--- 换个问法：自由生成 vs 零向量对照 ---');
+const AS = c32.answer_shift_free_run;
+chk(!!AS && !!AS.by_direction, '产物里带着自由生成答案位移的测量');
+if (AS && AS.by_direction) {
+  const dirs = Object.keys(AS.by_direction);
+  dirs.forEach(dir => {
+    const a2 = AS.by_direction[dir];
+    chk(a2.comparable_both_closed > 0, `${dir} 有可比的分母`,
+        `${a2.comparable_both_closed} 组`);
+    chk(T.includes(`${a2.changed_both_closed}/${a2.comparable_both_closed}`),
+        `${dir} 的「两臂都写完」分子分母在面板上`,
+        `期望 ${a2.changed_both_closed}/${a2.comparable_both_closed}`);
+  });
+  // The headline correction: at least one direction must show a real effect,
+  // and the panel must say so. If the data ever returns to all-zero, this
+  // check is what should be revisited -- not silently deleted.
+  const anyChanged = dirs.some(d => AS.by_direction[d].changed_both_closed > 0);
+  chk(anyChanged, '至少有一个方向在两臂都写完的题里改了答案（结论不是空的）');
+  chk(/换个问法|自由生成/.test(T), '面板明确区分了「同步两臂」与「自由生成」两个比较');
+  chk(/不参与这个比较|没有写完|根本没写完|有一臂根本没写完/.test(T),
+      '并说明有一臂没写完的那些不参与比较');
+  // Matched on the one sentence that makes the claim, NOT on a disjunction of
+  // its keywords. `/\\boxed|严格|兜底|编造/` stayed green when the sentence was
+  // deleted, because "\\boxed" appears elsewhere on the page. A check written as
+  // an OR is only as strong as its weakest branch.
+  chk(T.includes('是真的变了，不是提取器编的'),
+      '并说明答案提取用的是严格口径（否则「变了」可能是提取器编的）');
+
+  // The contradiction guard, in the direction that actually matters. Checking
+  // only that the OLD sentence is gone does not stop a NEW sentence asserting
+  // stability from landing next to "8/18 changed" -- mutation M4 does exactly
+  // that and passed. So: whenever the data shows an effect, the page must carry
+  // the sentence that ties the two comparisons together, and must not assert
+  // stability outright.
+  chk(!anyChanged || T.includes('结论就反过来了'),
+      '数据里存在真实效应时，页面必须有把两个比较对起来的转折句');
+  const stability = T.match(/答案是稳定的|不受向量影响|答案没有变|不会改变答案/g) || [];
+  chk(!anyChanged || stability.length === 0,
+      '数据里存在真实效应时，页面不得出现「答案稳定/不受影响」这类断言',
+      stability.join(' / '));
+}
 
 // ---- the batch is still running, and the panel must say so --------------
 // This block's headline is a NEGATIVE result: the answers did not change.
