@@ -2702,6 +2702,18 @@ function renderTop(){
       + `<td class="bar"><div style="width:${w}%;background:${col}"></div></td>`
       + `<td class="n" style="width:62px">${pctTxt}</td></tr>`;
   });
+  // A table that shows a lone replacement character twice in its top ten reads
+  // as a bug to anyone who has not met byte-level BPE. Qwen's vocabulary holds
+  // 1067 such fragments out of 151936 (0.7%): they are one byte of a multi-byte
+  // character, and they score like any other candidate because the model is
+  // still deciding which byte comes next. Say so where the table is, rather
+  // than leaving the reader to wonder whether the page mangled the text.
+  const fragN = rows.slice(0, 10).filter(r => tokStr(r.id) === "�").length;
+  if(fragN > 0) h += `<tr><td colspan="4" class="note" style="border:0;padding:4px 0 0;line-height:1.5">
+    这十名里有 <b>${fragN}</b> 个 <b>�</b>，它们不是词，是<b>一个多字节字符被切开的一半</b>
+    （Qwen 词表 151936 个里有 1067 个这样的碎片）。模型这一步正在逐字节拼一个
+    非 ASCII 字符，所以「下一个字节是什么」也进入了候选——这不是页面把字显示坏了。
+    </td></tr>`;
   h += `<tr><td colspan="4" class="note" style="border:0;padding:5px 0 0;line-height:1.5">`
      + `第 64 名之后还有 ${(V-K).toLocaleString()} 个词，分走的概率不超过 `
      + `${(tailUpper*100).toFixed(2)}% —— 所以上面每个概率都是<b>略微偏低</b>的真实值。`

@@ -300,15 +300,20 @@ try {
   // So this walks every shipped step of this trajectory, reads the expected
   // token straight out of vocab.json, and requires the rendered cell to show
   // exactly that. A blank cell for any token containing "<" is the signature.
-  const htmlish = await page.eval(`(()=>{
+  const htmlish = await page.eval(`(async()=>{
     const K=64, out=[];
-    // Pin the trajectory. The reference above is computed from THIS
-    // trajectory's topk file, and the loop inherited whatever trajectory the
-    // earlier assertions happened to leave selected -- so the page was reading
-    // a different model's candidates than the file the comparison used. Every
-    // other check in this block still passed, because a table from any
-    // trajectory has ten non-empty rows once the escaping is right.
-    S.ti = ${TIDX};
+    // Go through loadTraj(), NOT by assigning S.ti directly. S.ti and the
+    // candidate-word buffers are set together inside loadTraj, and the
+    // assertion block above deliberately left trajectory 10 loaded. Assigning
+    // S.ti alone left S.topk holding 1994_I_1's top-64 while S.ti said 0, so
+    // the table showed one problem's candidates under another problem's
+    // tokens. Nothing caught it: every id in the loop came from the same
+    // desynced pair, so the checks agreed with themselves. A comment twenty
+    // lines above this one already said switching trajectory has to go
+    // through loadTraj() -- written for a different assertion, and I read
+    // straight past it. (No backticks in this comment: it lives inside a
+    // template literal and a stray one closes the string.)
+    await loadTraj(${TIDX});
     const nSteps = S.m.trajectories[S.ti].n_tokens_shipped;
     for(let k=0;k<nSteps;k++){
       // renderTop(), not render(). render() schedules its DOM writes, so
@@ -384,13 +389,13 @@ try {
   // and, because it read the DOM after render() had been called for all 48
   // steps, compared step 0 against a stale table and reported nine phantom
   // mismatches. One step, page order, no re-sorting.
-  const step0 = await page.eval(`(()=>{
-    S.ti = ${TIDX}; S.tok = 0; S.view = "BAR"; renderTop();
+  const step0 = await page.eval(`(async()=>{
+    await loadTraj(${TIDX}); S.tok = 0; S.view = "BAR"; renderTop();
     const rows = topProbs().slice(0, 10).map(r => S.vocab[r.id]);
     const cells = [...document.querySelectorAll('#tblTop tr')].slice(1, 11)
       .map(tr => { const c = tr.querySelector('td.tok');
                    return c ? c.textContent.replace(/\s*←选了\s*$/, '').trim() : null; });
-    return { rows, cells };
+    return { rows, cells, note: document.querySelector('#tblTop').innerText };
   })()`);
   const normTok = t => String(t).replace(/\\/g, '\\\\').replace(/\n/g, '⏎')
     .replace(/\r/g, '␍').replace(/\t/g, '⇥').replace(/^ /, '·');
@@ -415,6 +420,33 @@ try {
   })()`);
   await sleep(900);
   await page.screenshot(HERE + 'out/picked_torn.png');
+  // The replacement character is not a rendering bug, and a beginner cannot
+  // tell that from the table alone. When any of the top ten is a byte-level
+  // fragment the panel has to say what it is.
+  //
+  // The expected count is computed here from the file, not read back out of
+  // the page. A first version asked the page how many fragments it had and
+  // compared the note against that answer -- which is circular, and it also
+  // inherited whatever state the 48-step sweep above had left behind and
+  // reported 1 where the page actually has 2.
+  const FRAG = String.fromCharCode(0xFFFD);
+  // From the FILE, not from step0.rows (which is the page's own list --
+  // comparing the page's note against the page's count is circular and
+  // agreed with itself no matter what was rendered).
+  const wantFrag = ref0.slice(0, 10).map(r => ids[r.id]).filter(t => t === FRAG).length;
+  check('第 0 步前十名里的字节碎片条数（从文件独立算出）', wantFrag >= 0,
+    `前十里有 ${wantFrag} 个 \uFFFD`);
+  if (wantFrag > 0) {
+    // Same eval that already reconciles the ten cells, so this cannot be
+    // thrown off by state the 48-step sweep left behind. A version that ran
+    // its own eval to re-read the note got "1" where the page has 2, and the
+    // honest file-derived count is what exposed it.
+    check('面板解释了 \uFFFD 是什么（半个多字节字符，不是显示坏了）',
+      new RegExp('这十名里有\\s*' + wantFrag + '\\s*个').test(step0.note || '')
+      && /多字节字符被切开/.test(step0.note || '')
+      && /不是页面把字显示坏了/.test(step0.note || ''),
+      ((step0.note || '').match(/这十名里有[^\n]*/) || ['<表格里没有这行>'])[0]);
+  }
   check('no uncaught exception during the whole run', errors.length === 0,
     errors.length ? errors[0].slice(0, 160) : 'clean');
 } catch (e) {
