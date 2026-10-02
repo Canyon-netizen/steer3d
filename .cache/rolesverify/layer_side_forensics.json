@@ -1,0 +1,64 @@
+{
+ "schema": "steer3d.layer_side_forensics/1",
+ "claim": "hidden_states[:,L] 是第 L 个 block 的输出，不是进入 block L 的残差",
+ "layers_compared": [
+  13,
+  14
+ ],
+ "layer_semantics_evidence": {
+  "max_abs_diff_hs27_vs_last_hidden": 0.0,
+  "bitwise_identical": true,
+  "mean_norm_by_layer": {
+   "0": 14.797508426179421,
+   "12": 125.90760851184409,
+   "13": 143.57285700834538,
+   "14": 167.58594537237371,
+   "15": 197.5958167680289,
+   "26": 3081.2537021635953,
+   "27": 126.78812090169784
+  },
+  "norm_drop_26_to_27_ratio": 0.041148225091841586,
+  "verdict": "L27 == 最后一个 block 经最终 RMSNorm 后的状态 ⇒ 下标 L = 第 L 个 block 的输出"
+ },
+ "code_evidence": {
+  "vector_extraction": "compute_steering_vectors.py:89  gen_hidden = hs[:, layer, :]  (--layer 14)",
+  "injection": "model_runner._install_add_hook / activation.install_residual_add_hook = block.register_forward_pre_hook(layer_idx) ⇒ 改的是 block layer_idx 的输入 = hidden_states[:, layer_idx-1]",
+  "mismatch": "向量取自 hidden_states[:,14]（block 14 输出），注入 layer_idx=14 改的是 hidden_states[:,13]（block 13 输出）。相差一块，注入比提取早一块。"
+ },
+ "recompute": {
+  "grouping": "entropy p30 (low) vs p75 (high)，与 steering_vectors.json 的 positive_group/negative_group 同口径",
+  "n_positive": 22705,
+  "n_negative": 17299,
+  "n_trajectories": 48,
+  "mean_hidden_norm": {
+   "13": 139.37692279469584,
+   "14": 164.42098847676215
+  },
+  "cos_recomputed_L13_vs_L14": 0.9564887762663499,
+  "cos_stored_vs_recomputed": {
+   "13": 0.9545780873055227,
+   "14": 0.9989588782869807
+  },
+  "norm_ratio_14_over_13": 1.179685884721078
+ },
+ "consequences": {
+  "offline_scan": {
+   "perturbed_state": "hidden_states[:,L]",
+   "relative_amplitude": 0.1,
+   "law": "Δ ≈ ½·s²，自洽"
+  },
+  "live_path": {
+   "perturbed_state": "hidden_states[:,L-1]",
+   "relative_amplitude": 0.11796858847210781,
+   "value_at_s_0.1": 0.11796858847210781,
+   "amplification_vs_offline": 1.179685884721078
+  },
+  "injected_vector_norm_at_s_0.1": 16.442098847676217,
+  "direction_error": {
+   "cos_L13_L14": 0.9564887762663499,
+   "cos_stored_vs_L14": 0.9989588782869807,
+   "cos_stored_vs_L13": 0.9545780873055227,
+   "reading": "若 cos(L13,L14) 接近 1，则差一块主要是标量问题（在线幅度偏大）；若明显小于 1，则连方向也不一样，在线注入的东西不是被表征过的那个方向"
+  }
+ }
+}
