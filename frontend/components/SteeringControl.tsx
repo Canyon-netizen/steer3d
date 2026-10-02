@@ -64,6 +64,10 @@ export default function SteeringControl({ sendControl }: Props) {
   // so rather than letting the number stand.
   const layerRms = calibration?.layer_rms?.[String(targetLayer)];
   const calibrated = calibration?.calibrated === true && layerRms != null;
+  // 上一个 block 的 ‖h‖：注入实际作用的那份残差。见下方口径说明。
+  const rmsPrev = calibration?.layer_rms?.[String(targetLayer - 1)];
+  const relRatio = rmsPrev && layerRms ? layerRms / rmsPrev : 1;
+  const relAmp = strength * relRatio;
 
   const onInject = () => {
     if (!selected) return;
@@ -226,6 +230,25 @@ export default function SteeringControl({ sendControl }: Props) {
             </>
           )}
         </p>
+        {/* 口径：向量从 hidden_states[:,L]（= 第 L 个 block 的输出）提取，
+            而在线注入走的是 block L 的 forward_pre_hook，也就是写进
+            hidden_states[:,L-1]。被扰动的那份残差比标定用的那份小一圈，
+            所以真实相对幅度是 s·rms(L)/rms(L-1)，不是 s。
+            比值由 layer_rms 现算，不写死 —— 写死会和后端漂移。 */}
+        {calibrated && rmsPrev != null && rmsPrev > 0 ? (
+          <p
+            className="mt-1 text-[10px] text-amber-500/90 leading-snug"
+            data-relamp={`${relAmp.toFixed(4)}`}
+            data-relamp-ratio={`${relRatio.toFixed(4)}`}
+            data-relamp-layer={targetLayer}
+          >
+            实际相对幅度 ={" "}
+            <span className="font-mono">{(relAmp * 100).toFixed(1)}%</span>，
+            不是 {strength} — 注入写的是 block {targetLayer} 的<b>输入</b>
+            （= L{targetLayer - 1}），而标定用的 ‖h‖ 取自 L{targetLayer}，
+            比值 {relRatio.toFixed(3)}×。
+          </p>
+        ) : null}
       </div>
 
       {/* Layer */}
