@@ -40,6 +40,7 @@ MUTS = {
     "D5": ("step slider pinned to window start", "F3c"),
     # 读错轨迹（按索引取而不是按 id）
     "D6": ("looks the trajectory up by index, not by id", "F9"),
+    "D7": ("keeps the previous record's focusedStep after a switch", "F9"),
 }
 
 
@@ -162,14 +163,39 @@ def apply(which):
              "    const i = lens.trajectories.findIndex((t) => t.id === currentTrajectory);\n"
              "    return lens.trajectories[(i + 1) % lens.trajectories.length] ?? null;"
              "    // MUT_INDEX_LOOKUP", "D6")
+    elif which == "D7":
+        # 去掉「换记录时清掉陈旧 focusedStep」的那段。
+        # 真实缺陷：步号只在**一条记录内部**有意义，换记录后 remembered
+        # step 指向上一条轨迹，面板会永远停在 out-of-window —— 而滑块的
+        # value 已经 clamp 到 win[0]，读者看到手柄在一个面板拒绝绘制的
+        # 步上，不动一下滑块永远恢复不了。
+        edit(PANEL,
+             "  const trajId = traj?.id ?? null;\n"
+             "  const prevTrajId = useRef<string | null>(null);\n"
+             "  useEffect(() => {\n"
+             "    if (prevTrajId.current !== null && prevTrajId.current !== trajId) {\n"
+             "      setFocusedStep(null);\n"
+             "    }\n"
+             "    prevTrajId.current = trajId;\n"
+             "  }, [trajId, setFocusedStep]);\n",
+             "  // MUT_NO_STALE_PICK_CLEAR\n", "D7")
     else:
         raise SystemExit("unknown mutation " + which)
 
 
 def build_frontend():
+    """Banner alone is not enough: Next prints "Compiled successfully"
+    *before* linting and type-checking, so a TypeScript error still emits
+    it and the build then dies without writing BUILD_ID. `next start` then
+    answers "Could not find a production build", which the orchestrator can
+    only report as a bare ABORT."""
+    build_id = os.path.join(REPO, "frontend/.next/BUILD_ID")
+    if os.path.exists(build_id):
+        os.remove(build_id)
     r = subprocess.run(["npx", "next", "build"], cwd=os.path.join(REPO, "frontend"),
-                       capture_output=True, text=True, timeout=600)
-    return "Compiled successfully" in (r.stdout + r.stderr)
+                       capture_output=True, text=True, timeout=900)
+    out = r.stdout + r.stderr
+    return ("Compiled successfully" in out) and os.path.exists(build_id)
 
 
 def main():

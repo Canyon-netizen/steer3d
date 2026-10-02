@@ -42,7 +42,7 @@
  * the artifact's choice is the correct one.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 
 type LensStep = {
@@ -125,6 +125,27 @@ export default function LayerDerivationPanel() {
 
   // Follow the newest frame unless the reader picked a step.
   const stepId = focusedStep ?? latest?.step_id ?? null;
+
+  // A step number only indexes a step *within one record*. After switching
+  // records, the remembered step points into the previous trace, so the
+  // panel sat on "out-of-window" indefinitely: the slider's `value` prop
+  // already clamps to win[0], so the reader saw the handle on a step the
+  // panel refused to draw, and nothing recovered until they nudged the
+  // slider by hand. That was F9 of verify_derivation — a real defect.
+  //
+  // Drop the stale pick on a trajectory change. Deliberately NOT done by
+  // falling back to win[0] when out of window: that would make the panel
+  // draw a chain for a step the model has not reached yet, which is
+  // exactly the dishonesty F3/F3b exist to prevent. "Out of window, and
+  // nothing drawn" stays the honest answer for early playback.
+  const trajId = traj?.id ?? null;
+  const prevTrajId = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevTrajId.current !== null && prevTrajId.current !== trajId) {
+      setFocusedStep(null);
+    }
+    prevTrajId.current = trajId;
+  }, [trajId, setFocusedStep]);
 
   const step = useMemo(() => {
     if (!traj || stepId == null) return null;
