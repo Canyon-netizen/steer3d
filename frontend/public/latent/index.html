@@ -450,7 +450,7 @@ const S = {
   // × 61 步，不是上面那条配对流。两者数字混读是最容易犯的错，所以面板标题
   // 直接写明。1.7B 才有这份数据；0.6B 上 fetch 404，这里保持 null，
   // 绝不回退去用另一个模型的值。
-  cot: null, cotDir: null,
+  cot: null, cotDir: null, cot32k: null,
 };
 
 const DEC = new TextDecoder("utf-8");
@@ -809,6 +809,14 @@ async function loadPairMeta(){
       if((S.cot.directions || []).length) S.cotDir = S.cot.directions[0];
     }else trace("cot_effect.json: HTTP " + cr.status);
   }catch(e){ trace("cot_effect unavailable: " + e.message); }
+  // 第二批：32k 预算重跑。与上面那批 60 步的实验是不同的实验，单独一个文件，
+  // 不覆盖它。两批的结论并不一致——见 renderCotEffect32k。
+  try{
+    const cr2 = await fetch(dataBase()+"cot_effect_32k.json");
+    if(cr2.ok){
+      S.cot32k = await cr2.json();
+    }else trace("cot_effect_32k.json: HTTP " + cr2.status);
+  }catch(e){ trace("cot_effect_32k unavailable: " + e.message); }
   return true;
 }
 
@@ -1345,16 +1353,97 @@ function renderCotEffect(){
 
   h += `<div class="note" style="margin-top:10px;padding:7px 9px;background:#131a28;` +
        `border-left:2px solid #3ddc97;border-radius:0 4px 4px 0;font-size:11px">` +
-       `<b style="color:#b9c4d6">一句话：</b>改的是词，不是思路，也不是长度。` +
-       `把措辞换掉 ${(100 - rows[0].verbatim_overlap * 100).toFixed(0)}% 之后，` +
-       `模型推理的条数、长度和自查次数都没动。<br>` +
-       `<b style="color:#b9c4d6">但别拿它证明"答案不受影响"</b>：` +
+       `<b style="color:#b9c4d6">一句话（只对下面这张表成立）：</b>在这批 ${C.n_runs} 次运行里，` +
+       `改的是词，不是思路——措辞换掉 ${(100 - rows[0].verbatim_overlap * 100).toFixed(0)}% 之后，` +
+       `推理的条数和自查次数都没动。<br>` +
+       `<b style="color:#ffd479">"长度也没动"这句已被下一块推翻：</b>` +
+       `这张表的"推理长度比"是对 teacher-forced 影子臂比的，恒等于 1，测不出啰嗦。` +
+       `换成对零向量对照臂的自由生成长度比之后，32k 那批是双峰的（见下）。<br>` +
+       `<b style="color:#b9c4d6">也别拿它证明"答案不受影响"：</b>` +
        `${C.coverage.runs} 次运行里只有 <b>${C.coverage.answer_known}</b> 次能解析出最终答案，` +
        `而且<b>一次都没有跑完 </think></b>（每题只给 ${C.steps_per_run} 步）。` +
        `这一维是没测到，不是测了没变。</div>`;
 
+  // 放在 data-cotblock 的 </div> **之内**：它是同一块思维链面板的内容，
+  // 拼在外面会变成兄弟节点，任何按 [data-cotblock] 取内容的代码都看不到它。
+  h += renderCotEffect32k();
   h += `</div>`;
   return wrap(h);
+}
+
+/* ---- 32k 预算重跑 --------------------------------------------------------
+   上面那张表来自 60 步预算的实验：每题只给 60~1025 步，几乎所有轨迹都被预算
+   截断，所以「答案」那一维基本没测到，只能说"没测到"。
+
+   32k 预算把这件事修好了：72 次运行里 56 次跑完 </think>、54 次能解析出最终
+   答案（60 步那批是 0/168 和 7/168）。于是「答案」从"没测到"变成了一个
+   真正的阴性结果。
+
+   但同一批数据也**推翻了**上面那句"改的是词，不是思路，也不是长度"：
+   confidence_up@0.2 的行为是双峰的——闭合 </think> 的那几次比对照臂更短
+   （0.78×），没闭合的那几次长到 2.89×（最高 15.6×），把预算烧光。合在一起
+   看中位数（2.05×）会把这个结构抹平，所以这里按闭合与否分开报。 */
+function renderCotEffect32k(){
+  const C = S.cot32k;
+  if(!C) return "";
+  const byC = C.free_run_len_by_closure || {};
+  const closed = byC.closed || null, open = byC.open || null;
+  const cov = C.coverage || {};
+  const oldCov = (S.cot && S.cot.coverage) || {};
+  const oldRows = (S.cot && S.cot.rows) || [];
+
+  const LABEL = {"confidence_up": "自信 ↑（更敢说）", "confidence_down": "自信 ↓（更犹豫）"};
+
+  let h = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #232a36">`;
+  h += `<div style="font-size:12.5px;font-weight:600;margin-bottom:7px;color:#e8edf5">
+    同一件事，32k 预算重跑（${C.n_runs} 次运行 · ${C.n_problems} 题 · 注入 L${C.layer}）</div>`;
+
+  h += `<div class="kv"><div class="k">跑完 </think></div><div class="v">
+    <b style="color:#3ddc97">${cov.closed_think}/${cov.runs}</b>
+    <span style="color:#8a94a6">（60 步那批是 ${oldCov.closed_think}/${oldCov.runs}）</span></div></div>`;
+  h += `<div class="kv"><div class="k">能解析出最终答案</div><div class="v">
+    <b style="color:#3ddc97">${cov.answer_known}/${cov.runs}</b>
+    <span style="color:#8a94a6">（60 步那批是 ${oldCov.answer_known}/${oldCov.runs}）</span></div></div>`;
+
+  (C.rows || []).forEach(r => {
+    const okN = r.answer_known, chN = r.n;
+    const oc = oldRows.find(x => x.direction === r.direction);
+    h += `<div class="kv"><div class="k">${esc(LABEL[r.direction] || r.direction)} 的答案</div>
+      <div class="v">${okN ? (r.answer_changed
+        ? `<b style="color:#ff8fa3">${r.answer_changed}/${okN} 次不同</b>`
+        : `<b style="color:#3ddc97">${okN}/${okN} 次全同</b>`)
+        : `<b style="color:#ff8fa3">一次都没跑完，无从比较</b>`}</div></div>`;
+    h += `<div class="kv"><div class="k">　└ 跑完 </think></div><div class="v">
+      <b style="color:${r.closed_think / chN >= 0.8 ? "#3ddc97" : "#ff8fa3"}">${r.closed_think}/${chN}</b>
+      ${oc ? `<span style="color:#8a94a6">（对照臂 ${oc.closed_think}/${oc.n}）</span>` : ""}</div></div>`;
+  });
+
+  if(closed && open){
+    h += `<div class="note" style="margin-top:9px;padding:7px 9px;background:#131a28;
+         border-left:2px solid #ffd479;border-radius:0 4px 4px 0;font-size:11px">
+      <b style="color:#ffd479">先看这句：</b>下面这个"长度比"是<b>干预臂的推理长度 ÷ 同题零向量对照臂的长度</b>，
+      两条都是自由生成，所以它能动。表里另一个"推理长度比"是对 teacher-forced 的影子臂比的，
+      按构造恒等于 1，<b>测不出啰嗦</b>，别拿它下结论。<br>
+      这一批是<b>双峰</b>的：跑完的 ${closed.n} 次中位 ${closed.median}×，
+      没跑完的 ${open.n} 次中位 ${open.median}×（最高 ${open.max}×）。把两组合起来看会把这个结构抹平。</div>`;
+    h += `<div class="kv"><div class="k">推理长度比 · 跑完了</div><div class="v">
+      <b>${closed.median}×</b> <span style="color:#8a94a6">n=${closed.n}，范围 ${closed.min}–${closed.max}×</span></div></div>`;
+    h += `<div class="kv"><div class="k">推理长度比 · 没跑完</div><div class="v">
+      <b style="color:#ff8fa3">${open.median}×</b> <span style="color:#8a94a6">n=${open.n}，范围 ${open.min}–${open.max}×</span></div></div>`;
+  }
+
+  h += `<div class="note" style="margin-top:9px;padding:7px 9px;background:#131a28;
+       border-left:2px solid #3ddc97;border-radius:0 4px 4px 0;font-size:11px">
+    <b style="color:#b9c4d6">所以现在能说的是：</b>在 <b>${cov.answer_known}</b> 次能解析出答案的运行里，
+    答案<b>一次都没变</b>——这一维从"没测到"变成了真正的阴性结果。<br>
+    <b style="color:#b9c4d6">但仍有一条要说清：</b>自信 ↑ 会让相当一部分运行<b>根本写不完</b>，
+    没跑完的那些连答案都没有。把"答案没变"说成"干预不影响答案"仍然是错的，
+    准确的说法是"<b>在能写完的那些里，结论没变；写不完的那些不参与这个比较</b>"。<br>
+    <span style="color:#8a94a6">数据来源：cot_effect_32k.json。批次未跑完，
+    题号集合与 24 题索引比对后才入库。</span></div>`;
+
+  h += `</div>`;
+  return h;
 }
 
 function drawDeltaSide(){
