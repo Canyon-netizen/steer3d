@@ -183,6 +183,21 @@ if (AS && AS.by_direction) {
   // The headline correction: at least one direction must show a real effect,
   // and the panel must say so. If the data ever returns to all-zero, this
   // check is what should be revisited -- not silently deleted.
+  // The attribution gate. Without it the numbers above are uninterpretable:
+  // if two zero-vector runs of the same question could differ, every
+  // "changed" verdict could be the GPU rather than the vector.
+  const DET = c32.determinism_gate;
+  chk(!!DET, '产物里带着归因闸门（同题两个零向量运行是否逐字相同）');
+  if (DET) {
+    chk(DET.pairs >= 5, '闸门有足够多的配对', `${DET.pairs} 对`);
+    chk(DET.identical === DET.pairs,
+        '零向量重复运行全部逐字相同 ⇒ 差异不能归给数值噪声',
+        `${DET.identical}/${DET.pairs}`);
+    chk(DET.max_steps_compared >= 8000,
+        '闸门覆盖了足够长的生成（不是只比了几百步）',
+        `最长 ${DET.max_steps_compared} 步`);
+    chk(/不是 GPU 噪声|浮点累积没有改变/.test(T), '页面上写明这不是 GPU 噪声');
+  }
   const anyChanged = dirs.some(d => AS.by_direction[d].changed_both_closed > 0);
   chk(anyChanged, '至少有一个方向在两臂都写完的题里改了答案（结论不是空的）');
   chk(/换个问法|自由生成/.test(T), '面板明确区分了「同步两臂」与「自由生成」两个比较');

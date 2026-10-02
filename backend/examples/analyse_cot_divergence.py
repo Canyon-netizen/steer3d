@@ -44,6 +44,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import statistics
@@ -228,6 +229,14 @@ def analyse_run(run: dict) -> dict:
         "mean_logit_kl": summary.get("mean_logit_kl"),
         # reasoning-level
         "reason_chars_primary": len(p_reason),
+        # A digest of the reasoning text, so a consumer can assert "these two
+        # runs are character-for-character identical" without the payload
+        # having to carry the text twice. The determinism gate in
+        # build_cot_effect.py needs exactly that and cannot be done on lengths
+        # alone: two runs can agree to the character count and still differ.
+        "reason_text_digest": hashlib.sha256(p_reason.encode("utf-8")).hexdigest(),
+        "full_text_digest": hashlib.sha256(
+            (run.get("primary_text") or "").encode("utf-8")).hexdigest(),
         "reason_chars_shadow": len(s_reason),
         "reason_len_ratio": (len(p_reason) / len(s_reason)) if s_reason else None,
         "n_steps_primary": len(p_steps),

@@ -1649,6 +1649,21 @@ function renderCotEffect32k(){
   // `...\\sum_{k=1}^{100` 里抓出 100、从 `13690000 + 308000` 的死循环里抓出 9000。
   // 拿这种编造的答案去和真答案配对，报出来的「答案变了」是假的。
   const AS = C.answer_shift_free_run;
+  const DET = C.determinism_gate;
+  if(DET){
+    h += `<div class="note" style="margin-top:6px;padding:7px 9px;background:#131a28;
+         border-left:2px solid #4a90d9;border-radius:0 4px 4px 0;font-size:11px">
+      <b style="color:#7cc0ff">这些差异不是 GPU 噪声。</b>同一道题的
+      <span style="font-family:var(--mono)">${esc(LABEL['confidence_up'] || 'confidence_up')}</span> 与
+      <span style="font-family:var(--mono)">${esc(LABEL['confidence_down'] || 'confidence_down')}</span>
+      在<b>强度 0</b> 时其实是同一个计算（零向量乘任何方向还是零），而采集程序把
+      两次完整生成放在同一次进程里先后跑。本批 <b>${DET.identical}/${DET.pairs}</b> 对
+      逐字相同，最长的一次比到 <b>${DET.max_steps_compared}</b> 步——
+      也就是说<b>一整轮生成的浮点累积没有改变任何一个 token</b>。
+      所以下面那个差异只能是向量造成的。<br>
+      <span style="color:#8a94a6">这一条是出产物的硬闸门：只要它不为
+      ${DET.pairs}/${DET.pairs}，整份答案位移分析直接拒绝生成。</span></div>`;
+  }
   if(AS && AS.by_direction){
     // `by_direction` is keyed BY the direction; the values have no `.direction`
     // field. Mapping to the values first and then reading `a.direction` is

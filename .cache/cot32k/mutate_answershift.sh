@@ -28,6 +28,7 @@
 set -u
 ROOT="/Users/zhourui/code/steer3d"
 F="$ROOT/frontend/public/latent/index.html"
+G="$ROOT/backend/examples/build_cot_effect.py"
 BAK="$ROOT/.cache/cot32k/index.html.orig"
 HEALTH='const AS = C.answer_shift_free_run;'
 
@@ -43,31 +44,45 @@ B3='这些「变了」：'
 A4='换成上面那个自由生成的比较，结论就反过来了'
 B4='所以答案是稳定的，不受向量影响'
 
+# M5, in the ANALYSIS SCRIPT rather than the page: relax the gate so a batch
+# with an unreproducible forward pass still builds. This is the one that
+# matters most -- the gate is the only thing standing between "the vector did
+# it" and "the GPU did it", and a gate nobody can see failing is not a gate.
+A5='    if n_same != len(det):'
+B5='    if False:'
+
 cnt() { grep -oF -- "$1" "$F" 2>/dev/null | wc -l | tr -d ' ' ; }
 
 anchor_of() {
   case "$1" in
-    M1) printf '%s' "$A1" ;; M2) printf '%s' "$A2" ;;
+    M1) printf '%s' "$A1" ;; M2) printf '%s' "$A2" ;; M5) printf '%s' "$A5" ;;
     M3) printf '%s' "$A3" ;; M4) printf '%s' "$A4" ;;
   esac
 }
 
 apply() {
-  local label="$1" a b
+  local label="$1" a b target="$F"
   case "$label" in
     M1) a="$A1"; b="$B1" ;; M2) a="$A2"; b="$B2" ;;
     M3) a="$A3"; b="$B3" ;; M4) a="$A4"; b="$B4" ;;
+    M5) a="$A5"; b="$B5"; target="$G" ;;
     *) echo "unknown $label"; return 2 ;;
   esac
 
-  local ha; ha=$(cnt "$HEALTH")
+  local ha
+  if [ "$label" = "M5" ]; then
+    ha=$(grep -cF -- "$A5" "$G")
+  else
+    ha=$(cnt "$HEALTH")
+  fi
   if [ "$ha" != "1" ]; then
-    echo "FATAL: health anchor count=$ha (want 1). The page is not the tree this"
-    echo "       script targets. Refusing to mutate."
+    echo "FATAL: health anchor count=$ha (want 1). Not the tree this script"
+    echo "       targets. Refusing to mutate."
     return 6
   fi
 
-  local n; n=$(cnt "$a")
+  local n
+  if [ "$label" = "M5" ]; then n=$(grep -cF -- "$a" "$G"); else n=$(cnt "$a"); fi
   if [ "$n" != "1" ]; then
     echo "FATAL: $label anchor matched $n times (want 1). Refusing to mutate:"
     echo "       an anchor that matches nothing is a no-op, and a no-op reads"
@@ -75,15 +90,17 @@ apply() {
     return 3
   fi
 
-  cp "$F" "$BAK"
-  python3 - "$F" "$a" "$b" <<'PY'
+  cp "$target" "$BAK"
+  python3 - "$target" "$a" "$b" <<'PY'
 import sys
 path, a, b = sys.argv[1:4]
 s = open(path, encoding='utf-8').read()
 assert s.count(a) == 1, 'anchor count %d' % s.count(a)
 open(path, 'w', encoding='utf-8').write(s.replace(a, b))
 PY
-  local k m; k=$(cnt "$a"); m=$(cnt "$b")
+  local k m
+  if [ "$label" = "M5" ]; then k=$(grep -cF -- "$a" "$G"); m=$(grep -cF -- "$b" "$G")
+  else k=$(cnt "$a"); m=$(cnt "$b"); fi
   if [ "$k" != "0" ] || [ "$m" -lt 1 ]; then
     echo "FATAL: $label did not take (anchor $k, replacement $m)"
     cp "$BAK" "$F"; return 4
@@ -94,26 +111,30 @@ PY
 revert() {
   [ -f "$BAK" ] || { echo "no backup to revert"; return 1; }
   cp "$BAK" "$F"; rm -f "$BAK"
-  local ha; ha=$(cnt "$HEALTH")
+  local ha
+  ha=$(grep -cF -- "$A5" "$G")
+  [ "$ha" = "1" ] || { echo "FATAL: reverted script lost its gate ($ha)"; return 7; }
+  ha=$(cnt "$HEALTH")
   [ "$ha" = "1" ] || { echo "FATAL: reverted file lost its health anchor ($ha)"; return 7; }
   echo "reverted (backup removed, health anchor intact)"
 }
 
 case "${1:-}" in
   apply-M1) apply M1 ;; apply-M2) apply M2 ;;
-  apply-M3) apply M3 ;; apply-M4) apply M4 ;;
+  apply-M3) apply M3 ;; apply-M4) apply M4 ;; apply-M5) apply M5 ;;
   revert) revert ;;
   status)
     miss=0
-    for l in M1 M2 M3 M4; do
-      a=$(anchor_of "$l"); n=$(cnt "$a")
+    for l in M1 M2 M3 M4 M5; do
+      a=$(anchor_of "$l")
+      case $l in M5) n=$(grep -cF -- "$a" "$G") ;; *) n=$(cnt "$a") ;; esac
       printf '  %s anchor=%s\n' "$l" "$n"
       [ "$n" = "1" ] || miss=1
     done
     ha=$(cnt "$HEALTH")
     printf '  health=%s\n' "$ha"
     [ "$ha" = "1" ] || miss=1
-    [ $miss = 0 ] && echo "all 4 anchors + health present exactly once"
+    [ $miss = 0 ] && echo "all 5 anchors + health + gate present exactly once"
     exit $miss ;;
-  *) echo "usage: $0 apply-M1|apply-M2|apply-M3|apply-M4|revert|status"; exit 2 ;;
+  *) echo "usage: $0 apply-M1|apply-M2|apply-M3|apply-M4|apply-M5|revert|status"; exit 2 ;;
 esac

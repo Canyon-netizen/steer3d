@@ -142,6 +142,41 @@ def main():
         fr[i] = ratio
         fr_closed.setdefault(r["closed_think"], []).append(ratio)
 
+    # --- 归因闸门：同题两个零向量运行必须逐字相同 --------------------------
+    # The answer-shift measurement below compares a free run with the vector
+    # against a free run with a zero vector. Those two differ by the vector and
+    # by nothing else -- unless the forward pass is not reproducible, in which
+    # case a 32k-token generation's worth of accumulated float drift could
+    # flip a token somewhere and the whole comparison is measuring the GPU.
+    #
+    # The check is free: at strength 0.0 the injected vector is multiplied by
+    # zero, so `confidence_up@0.0` and `confidence_down@0.0` of the SAME problem
+    # are the same computation under two labels, and the harness runs them
+    # back to back in one process. Measured on the current batch, 21/21 such
+    # pairs are character-for-character identical, including the three that ran
+    # the full 32000 steps. A non-zero count here would invalidate the
+    # comparison outright, so it is a gate and not a statistic.
+    det = []
+    bylabel = {}
+    for r in runs:
+        if r["strength"] == 0.0:
+            bylabel.setdefault(r["label"], {})[r["direction"]] = r
+    for label, m in sorted(bylabel.items()):
+        if "confidence_up" in m and "confidence_down" in m:
+            a, b = m["confidence_up"], m["confidence_down"]
+            det.append({"label": label,
+                        "identical": a["reason_text_digest"] == b["reason_text_digest"],
+                        "steps": a["n_steps"]})
+    n_same = sum(1 for d in det if d["identical"])
+    print("归因闸门：同题两个零向量运行逐字相同 %d/%d" % (n_same, len(det)))
+    if len(det) < 5:
+        raise SystemExit("零向量同题配对只有 %d 对，不足以支撑任何跨运行的归因。" % len(det))
+    if n_same != len(det):
+        bad = [d["label"] for d in det if not d["identical"]]
+        raise SystemExit(
+            "FATAL：同题两个零向量运行正文不同：%s。前向不可复现，"
+            "「加向量 vs 零向量」的差异不能归给向量，answer_shift_free_run 不可用。" % bad)
+
     # --- 答案有没有变：自由生成 vs 零向量对照 -------------------------------
     # The per-row `answer_changed` counts primary-vs-shadow INSIDE one run, and
     # the shadow is teacher-forced on the primary's own tokens. That is the
@@ -291,6 +326,16 @@ def main():
         # 按「跑没跑完 </think>」把自由生成长度比分开。合在一起看中位数会
         # 把两种相反的行为平均掉：confidence_up@0.2 在闭合的 5 次里比对照臂
         # 短（0.78×），在没闭合的 13 次里长 2.89×，合起来看不出任何东西。
+        "determinism_gate": {
+            "what": "同题 confidence_up@0.0 与 confidence_down@0.0 是同一个计算"
+                    "（零向量乘任何方向仍是零），在同一次进程里先后完整生成，"
+                    "正文必须逐字相同。",
+            "pairs": len(det),
+            "identical": n_same,
+            "max_steps_compared": max((d["steps"] or 0) for d in det) if det else 0,
+            "why_it_matters": "它给出「一次完整生成的浮点累积会不会改变 token」"
+                              "的答案。0 差异 ⇒ 自由生成答案位移不可能是 GPU 噪声。",
+        },
         "answer_shift_free_run": {
             "what": ("自由生成：加向量的答案 vs 同题零向量对照的答案。"
                      "与 per-row 的 answer_changed 是**两个不同的比较**——"
