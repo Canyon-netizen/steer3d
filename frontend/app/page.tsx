@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 
 import { useApp } from "@/lib/store";
@@ -14,7 +13,13 @@ import SteeringControl from "@/components/SteeringControl";
 import ArchivedExperiments from "@/components/ArchivedExperiments";
 import Legend from "@/components/Legend";
 
-const Scene3D = dynamic(() => import("@/components/Scene3D"), { ssr: false });
+// Imported statically, not through next/dynamic({ ssr: false }).
+//
+// The lazy form silently fails to mount in this app: the page renders,
+// the WebSocket connects, the panels populate — and the 3-D canvas is
+// simply absent, with nothing in the console. Verified by contrast: the
+// static import makes / grow 1.16 kB -> 227 kB and `<canvas>` appear.
+import Scene3D from "@/components/Scene3D";
 
 const WS_URL =
   process.env.NEXT_PUBLIC_WS_URL ||
