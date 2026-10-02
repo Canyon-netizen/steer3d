@@ -207,10 +207,29 @@ async function runSize(S) {
     e.value=${k};e.dispatchEvent(new Event('input',{bubbles:true}));return 1;})()`);
   const readRow = () => page.eval(`(()=>{
     const t=s=>{const e=document.querySelector(s);return e?e.textContent.replace(/\\s+/g,' ').trim():'';};
-    const rows=[...document.querySelectorAll('#tblTop tr')].slice(0,2)
+    // Take the first two rows that actually contain cells, rather than the
+    // first two <tr>. The candidate table grew a header (#/候选词/概率/占比)
+    // built from <th>, so slice(0,2) returned the header -- whose cells are
+    // th, not td -- plus only one candidate. Index 0 came back undefined and
+    // index 1 held what should have been the first candidate, so C8 reported
+    // "undefined / 's" and looked like a data failure. Filtering on the cell
+    // type states the intent ("the first two candidates") and does not break
+    // again if the header is added, removed or reordered.
+    const rows=[...document.querySelectorAll('#tblTop tr')]
+      .filter(r=>r.querySelector('td'))
+      .slice(0,2)
       .map(r=>[...r.querySelectorAll('td')].map(x=>x.textContent.replace(/\\s+/g,' ').trim()));
+    // Raw cell text, markers still attached -- C8b checks them.
+    const raw1 = rows[0]?rows[0][1]:'', raw2 = rows[1]?rows[1][1]:'';
     return {raw:t('#stRaw'),ent:t('#stEnt'),d:t('#stD'),max:document.getElementById('rngLayer').max,
-            top1:rows[0]?rows[0][1]:'',top2:rows[1]?rows[1][1]:''};})()`);
+            top1Raw:raw1, top2Raw:raw2,
+            // Two presentation markers were added on purpose and are not part
+            // of the token: '←选了' marks the emitted one, and '·' stands in
+            // for a leading space that HTML would otherwise eat (the runner-up
+            // is ' me', which used to render as 'me' -- a different word on
+            // screen). Strip them for the identity comparison only.
+            top1:raw1.replace('←选了','').trim(),
+            top2:raw2.replace('←选了','').trim()};})()`);
   await setTok(0); await sleep(350);
   const r0 = await readRow();
   const exText = st.ex.join(' ');
@@ -224,8 +243,15 @@ async function runSize(S) {
   chk(r5.ent === '0.530 / 0.777', 'C5 第 5 步熵/top1 概率已读到', r5.ent);
   chk(exText.includes(r5.ent), 'C6 导读层写着第 5 步的真实读数', r5.ent);
   chk(exText.includes("'s"), 'C7 导读层写着第 1 候选词', "'s");
-  chk(r5.top1 === "'s" && r5.top2 === 'me', 'C8 候选词表第 1/2 名已读到',
+  chk(r5.top1 === "'s" && r5.top2 === '·me', 'C8 候选词表第 1/2 名已读到',
       r5.top1 + ' / ' + r5.top2);
+  // The two markers must actually be there. Otherwise stripping them in C8
+  // would let the page quietly go back to swallowing the leading space and
+  // to an unmarked table, and C8 would keep passing on the stripped values.
+  chk(/←选了/.test(r5.top1Raw), 'C8b 第 1 名标出了「模型选了它」',
+      r5.top1Raw);
+  chk(/^·me$/.test(r5.top2Raw), 'C8c 第 2 名的前导空格被显式化（·me 而不是 me）',
+      r5.top2Raw);
   chk(exText.includes('me'), 'C9 导读层写着第 2 候选词', r5.top2);  chk(r0.d === '2048', 'C10 原始向量维度 2048', r0.d);
   chk(exText.includes(r0.d), 'C11 导读层写着 2048', r0.d);
   chk(r0.max === '27', 'C12 层滑块上限 27（=28 道工序）', 'max=' + r0.max);

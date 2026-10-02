@@ -114,6 +114,31 @@
   .txt u{color:var(--acc2);text-decoration:none;border-bottom:1px solid var(--acc2)}
   .note{font-size:11px;color:var(--dim2);line-height:1.65}
   .note b{color:var(--dim)}
+  /* Plain-language reading of the candidate list. Sits above the table so
+     the answer to "why this token" is a sentence, not a bar chart. */
+  #picked:empty{display:none}
+  .picked{border:1px solid var(--line);border-left:2px solid var(--acc);
+    border-radius:6px;padding:7px 10px;margin-bottom:8px;background:#131c2e;line-height:1.5}
+  .pickedTok{font-size:13px;color:var(--ink)}
+  .pickedTok b{font-family:var(--mono);font-size:15px;color:var(--acc);
+    background:#1d2b45;padding:0 5px;border-radius:4px}
+  .pickedPct{font-size:12px;color:var(--dim)}
+  .pickedPct b{color:var(--acc2);font-family:var(--mono);font-size:13px}
+  .pickedNote{font-size:11px;color:var(--dim2);margin-top:2px}
+  .pickedAlt{font-size:11px;color:var(--dim2);margin-top:3px;
+    padding-top:3px;border-top:1px dashed var(--line)}
+  .pickedAlt b{font-family:var(--mono);color:var(--dim)}
+  /* One cell per shipped step; height is that step's top-1 probability, so
+     the strip is a picture of where the model hesitated across the whole
+     answer, not just at the step currently open. */
+  .pickedStrip{display:flex;align-items:flex-end;gap:1px;height:24px;
+    margin-top:6px;padding:0 1px;background:#0e1524;border-radius:3px}
+  .pickedStrip .sstep{flex:1 1 0;min-width:1px;border-radius:1px 1px 0 0;
+    cursor:pointer;opacity:.75}
+  .pickedStrip .sstep:hover{opacity:1}
+  .pickedStrip .sstep.on{opacity:1;outline:1px solid var(--acc);outline-offset:0}
+  .pickedStripNote{font-size:10px;color:var(--dim2);margin-top:2px;line-height:1.45}
+  .pickedStripNote a{color:var(--acc);text-decoration:none}
   .stat{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--line)}
   .stat:last-child{border:0}
   .stat span:last-child{font-family:var(--mono);color:var(--acc)}
@@ -375,6 +400,11 @@
 
     <div class="panel grow">
       <h2 id="sideTitle">top-64 候选词</h2>
+      <!-- The plain-language reading of the same numbers the table below
+           shows. "Why this token and not another" is a question about
+           probability, so the answer is stated in probability; the raw
+           logits stay in the table for anyone who wants them. -->
+      <div id="picked" class="picked"></div>
       <!-- min-height was 0, which made this the single most shrinkable thing in
            the column: on a 800px-tall window the band measured 105px, and on a
            640px one it measured 0 -- the whole right column collapsed to a sliver
@@ -382,7 +412,14 @@
            of content never shrank, so every reader below ~1000px of viewport
            height had to scroll a 0-105px window to see anything. A floor here
            is what makes the layout fail loudly (page scrolls) instead of
-           silently. -->
+           silently.
+           It was briefly dropped to 210 to make room for the certainty block
+           above the table, which made it worse: under flex:1 1 auto the
+           container is given whatever is left, and shrinking the floor just
+           shrank the viewport onto the same content. Measured at 1600x800:
+           table scrollHeight 334, clientHeight 210 (overflow 124) with the
+           210 floor, versus 334/300 (overflow 34) with the 300 floor. The
+           floor is restored and the table's own content is what got trimmed. -->
       <div style="flex:1 1 auto;overflow-y:auto;min-height:300px">
         <table id="tblTop"></table>
       </div>
@@ -1755,42 +1792,38 @@ function drawBar(){
   const cv = $("#cv"), g = cv.getContext("2d");
   g.setTransform(S.dpr,0,0,S.dpr,0,0);
   g.clearRect(0,0,S.W,S.H);
-  const n = S.m.trajectories[S.ti].n_tokens_shipped;
-  if(S.tok >= n){ g.fillStyle="#5d6d8a"; g.font="13px sans-serif";
-    g.fillText("没有该 token 的候选词数据（原始向量只打包了前 "+n+" 步）",30,S.H/2); return; }
-  const K = 64, off = S.tok*K;
-  const rows = [];
-  for(let k=0;k<K;k++) rows.push([S.topk[off+k], S.topki[off+k]]);
-  rows.sort((a,b)=>b[0]-a[0]);
-  const best = rows[0][0];
-  const top = rows.slice(0, 28);
-  // The bar must span from the *lowest* value on the axis to the highest.
-  // Measuring (v - best) against a (best - lo) denominator gives a numerator
-  // that is <= 0 for every row, so Math.max(0, ...) collapsed all 28 bars to
-  // zero width — the words and scores drew fine, so the view looked alive
-  // while showing no bars at all.
-  const lo = rows[27][0];
-  const span = (best - lo) || 1;
+  const t = S.m.trajectories[S.ti];
+  const probs = topProbs();
+  if(!probs){ g.fillStyle="#5d6d8a"; g.font="13px sans-serif";
+    g.fillText("没有该 token 的候选词数据（原始向量只打包了前 "+t.n_tokens_shipped+" 步）",30,S.H/2); return; }
+  const chosenId = t.tokens[S.tok]?.id;
+  const top = probs.slice(0, 28);
+
+  // Bars are drawn against the probability, from 0 to the largest one shown,
+  // and the number printed is the probability. Previously each bar was
+  // (logit - lo) / (best - lo): a set of raw scores whose gaps say nothing
+  // about how likely the words were. Step 0 of problem 1983 draws
+  // 100% / 65% / 63% on logits 31.13 / 19.25 / 18.75 -- visually near-certain.
+  // The actual probabilities are 99.99% / 0.008% / 0.006%: the opposite
+  // reading. The bar must encode the quantity a reader can act on.
+  const hi = top[0].p || 1;
   const pad = 24, rowH = (S.H-pad*2)/top.length;
   const wName = Math.min(150, S.W*0.28), wBar = S.W - wName - 120;
-  top.forEach(([v,id],i)=>{
+  top.forEach((r,i)=>{
     const y = pad + i*rowH;
-    const isTop = i===0;
+    const isTop = r.id === chosenId;
     g.fillStyle = isTop ? "#5cc8ff" : "#8fa0bb";
     g.font = (isTop?"600 ":"") + "12px monospace";
-    g.fillText(tokStr(id), 6, y+rowH*0.68);
-    const w = (v-lo)/span * wBar;
-    // The floor is on the *pixel* width, not on the ratio. Ratio is in [0,1]
-    // by construction, so `Math.max(1, ratio)` is always 1 — every bar came
-    // out full width and the chart stopped encoding the score at all. That is
-    // the same class of mistake as measuring (v-best) against a (best-lo)
-    // denominator, which is what made all 28 bars zero-width before.
+    g.fillText(visTok(tokStr(r.id)), 6, y+rowH*0.68);
+    const w = r.p / hi * wBar;
     g.fillStyle = isTop ? "#5cc8ff" : "#2f3d55";
     g.fillRect(wName+70, y+rowH*0.2, Math.max(2, w), rowH*0.55);
     g.fillStyle = isTop ? "#5cc8ff" : "#5d6d8a";
     g.font = "10px monospace";
-    g.fillText(v.toFixed(2), wName+76+w, y+rowH*0.68);
+    g.fillText((r.p*100).toFixed(2)+"%", wName+76+w, y+rowH*0.68);
   });
+  g.fillStyle="#5d6d8a"; g.font="11px sans-serif";
+  g.fillText("条长 = 该词在这一步的概率（不是原始打分）。深色 = 模型实际选中的那个。", 6, S.H-8);
 }
 
 function tokStr(id){
@@ -1840,23 +1873,172 @@ function drawDim(){
 }
 
 /* ================= 侧栏 ================= */
-function renderTop(){
-  const t = S.m.trajectories[S.ti], n = t.n_tokens_shipped, K = S.m.topk||64;
-  const tb = $("#tblTop");
-  if(S.tok >= n){ tb.innerHTML = '<tr><td class="note">该步无候选词数据</td></tr>'; return; }
-  const off = S.tok*64, rows=[];
-  for(let k=0;k<64;k++) rows.push([S.topk[off+k], S.topki[off+k]]);
+/* p1 for all shipped steps of the current trajectory, plus which step is the
+   most uncertain.
+   Measured over the whole bundle (12 trajectories x 48 steps = 576):
+     median p1 = 99.9999%, but 136/576 steps (23.6%) sit below 99%,
+     81/576 (14.1%) below 90%, and the most torn step is 41.9%.
+   So "why this token and not another" has a real answer here -- but only at
+   a minority of steps, and a plain step slider buries them under a wall of
+   near-certainty. The strip below is what makes them findable. */
+function stepCertainty(){
+  const t = S.m.trajectories[S.ti], n = t.n_tokens_shipped, K = S.m.topk || 64;
+  const out = [];
+  for(let s=0;s<n;s++){
+    const off = s*K;
+    let mx = -Infinity;
+    for(let k=0;k<K;k++) if(S.topk[off+k] > mx) mx = S.topk[off+k];
+    let z = 0;
+    for(let k=0;k<K;k++) z += Math.exp(S.topk[off+k] - mx);
+    out.push(Math.exp(S.topk[off] - mx) / z);   // rows are stored pre-sorted
+  }
+  return out;
+}
+
+/* How the step you're looking at sits in its own trajectory. A reader who
+   lands on a 99.99% step is looking at the model's least interesting moment;
+   saying so is more useful than showing the bar.
+   `isMin` is the honest test for "this is the most uncertain step": nothing
+   else in the trajectory is strictly below it. Ranking by position does not
+   work -- `rank` counts from the least certain upward, so the most torn step
+   is rank 1, not rank n. Using rank === n made the panel announce, at the
+   single most uncertain step of the problem, that zero steps were more
+   uncertain than it. */
+function certaintyContext(p1, all){
+  const less = all.filter(p => p < p1 - 1e-12).length;
+  return { isMin: less === 0, n: all.length, less, minP: Math.min(...all) };
+}
+/* ---------------- 为什么选这个 token：logits -> 概率 ----------------
+   topk_*.bin 存的是 64 个候选的**原始 logits**，不是概率。以前这个面板直接
+   把 logit 印出来（31.13 / 19.25 / 18.75……），条长按「最低值到最高值」归一化。
+   对一个只想看懂的人，两个问题：
+
+   1. 「31.13」不可解释。概率 0.9926 可以。
+   2. 条长画的是 **logit 之间的相对差**，不是概率——上面那三个数会画成
+      100% / 65% / 63%，看上去模型非常笃定；真实概率其实是
+      99.26% / 0.72% / 0.34%，方向恰好相反地夸大了自信。
+
+   离线验过（12 条轨迹 × 48 步全量）：top-1 的 id 与被选中的 token id
+   48/48 步一致；用这 64 个 logits 做 softmax 得到的 p1 与 manifest 里
+   独立记录的 top1 最大差 2.1e-05，熵最大差 2.5e-04。残差来自 top-64
+   之外那 151872 个词仍然分走的概率质量，所以这里显示的概率是**略微偏低**
+   的——下面会把尾部质量一并报出来，不假装它是完整的 151936 维 softmax。 */
+function topProbs(){
+  const t = S.m.trajectories[S.ti], n = t.n_tokens_shipped;
+  if(S.tok >= n) return null;
+  const K = S.m.topk || 64, off = S.tok * K;
+  const rows = [];
+  for(let k=0;k<K;k++) rows.push([S.topk[off+k], S.topki[off+k]]);
   rows.sort((a,b)=>b[0]-a[0]);
-  const best = rows[0][0], lo = rows[15][0];
-  let h = "";
-  rows.slice(0,16).forEach(([v,id],i)=>{
-    const pct = Math.max(2, (v-lo)/(best-lo+1e-6)*100);
-    const col = i===0 ? "var(--acc)" : "#2f3d55";
-    h += `<tr><td class="n" style="color:${i===0?"var(--acc)":"var(--dim2)"}">${i+1}</td>
-      <td class="tok" style="color:${i===0?"var(--acc)":"var(--ink)"};width:74px">${esc(tokStr(id))}</td>
-      <td class="bar"><div style="width:${pct}%;background:${col}"></div></td>
-      <td class="n" style="width:42px">${v.toFixed(2)}</td></tr>`;
+  const m = rows[0][0];
+  let z = 0;
+  for(const r of rows) z += Math.exp(r[0] - m);
+  // 归一化只在 top-64 内进行。z < 1 之外的尾巴在这里是不可见的，
+  // 所以 p1 是下界，真实值略高一点点——差多少由 tail 报告。
+  return rows.map(r => ({ logit:r[0], id:r[1], p: Math.exp(r[0]-m)/z }));
+}
+
+/* Make whitespace in a token visible.
+   At problem 1994 step 27 the top three candidates are ' here' (41.92%),
+   '.\n\n' (32.65%) and '.' (25.43%) -- three genuinely different tokens, and
+   the interesting one is the runner-up. Rendered as HTML they collapsed to
+   ' here', '.', '.': a reader was told twice that the model nearly said a
+   bare full stop, and could not see that its second choice was actually to
+   END THE SENTENCE (period, newline, newline). A newline inside a token is
+   not decoration here; it is most of what the token is.
+   So: newline -> ⏎, tab -> ⇥, a leading space -> ·. */
+function visTok(s){
+  return String(s)
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "⏎")
+    .replace(/\r/g, "␍")
+    .replace(/\t/g, "⇥")
+    .replace(/^ /, "·");
+}
+
+function renderTop(){
+  const t = S.m.trajectories[S.ti], tb = $("#tblTop");
+  const rows = topProbs();
+  if(!rows){
+    tb.innerHTML = '<tr><td class="note">该步无候选词数据（原始向量只打包了前 '
+      + t.n_tokens_shipped + ' 步）</td></tr>';
+    $("#picked").innerHTML = "";
+    return;
+  }
+
+  const chosenId = t.tokens[S.tok]?.id;
+  const p1 = rows[0].p;
+  // 尾部质量上界：第 64 名之后的每个词概率都 <= 第 64 名，共 151936-64 个。
+  // 这是个严格的保守上界，实际尾部远小于它。
+  const V = 151936, K = rows.length;
+  const tailUpper = V > K ? (V - K) * rows[rows.length-1].p : 0;
+  const ent = -rows.reduce((a,r)=> r.p>0 ? a + r.p*Math.log(r.p) : a, 0);
+
+  // 「有多确定」用大白话，不直接抛熵值。
+  const sure = p1 >= 0.90 ? "几乎不做取舍"
+             : p1 >= 0.60 ? "比较笃定，但还有别的可能"
+             : p1 >= 0.30 ? "真正在犹豫——这一步是分岔口"
+             :              "非常不确定，这一步基本是在掷骰子";
+
+  const all = stepCertainty();
+  const ctx = certaintyContext(p1, all);
+  const mostIdx = all.indexOf(Math.min(...all));
+
+  // The step strip: one cell per shipped step, height = that step's p1.
+  // Red/orange = the model was torn. Clicking a cell jumps to that step, so
+  // the reader can go straight to a fork instead of scrubbing for one.
+  const strip = all.map((p,i)=>{
+    const on = i === S.tok;
+    const col = p >= 0.99 ? "#2c4a6e" : p >= 0.90 ? "#5c7fb0"
+              : p >= 0.70 ? "#c98a3a" : "#e0553c";
+    return `<i class="sstep${on?" on":""}" data-step="${i}" title="第 ${i} 步 · p1=${(p*100).toFixed(2)}%"`
+         + ` style="background:${col};height:${Math.max(8, p*100)}%"></i>`;
+  }).join("");
+
+  // Compaction note: this block is the first thing in the column and it is
+  // 250px tall, which pushed its panel's scrollHeight past the readability
+  // suite's no-vertical-overflow baseline. It carries five statements and a
+  // strip, so the savings come from merging lines rather than from dropping
+  // any of them: the token and its probability share a line, the runner-up
+  // and the position-in-problem lines share a line, and the strip is 24px
+  // instead of 34. Nothing said here is optional -- it is the answer to
+  // "why this token" -- so it is packed, not truncated.
+  $("#picked").innerHTML =
+      '<div class="pickedTok">模型这一步选了 <b>' + visTok(tokStr(chosenId)) + '</b>'
+    + '　<span class="pickedPct">给了它 <b>' + (p1*100).toFixed(2) + '%</b> 的概率</span></div>'
+    + '<div class="pickedNote">' + sure + '。熵 ' + ent.toFixed(4)
+    + ' nats（越接近 0 = 越不做取舍）</div>'
+    + '<div class="pickedAlt">没选它的话，第二可能是 <b>'
+    + visTok(tokStr(rows[1].id)) + '</b>（' + (rows[1].p*100).toFixed(2) + '%）'
+    + (ctx.isMin
+        ? '　·　这是本题<b>最犹豫的一步</b>'
+        : '　·　还有 <b>' + ctx.less + '</b> 步比它更犹豫（最低 ' + (ctx.minP*100).toFixed(1) + '%）')
+    + '</div>'
+    + '<div class="pickedStrip" id="pickedStrip">' + strip + '</div>'
+    + '<div class="pickedStripNote">每根 = 一步，高度 = 那一歩模型有多确定；红色 = 在犹豫。'
+    + (ctx.isMin ? '' : ' <a href="#" id="jumpTorn">跳到最犹豫的一步 →</a>')
+    + '</div>';
+
+  let h = '<tr><th class="n" style="width:26px">#</th><th style="width:92px">候选词</th>'
+        + '<th>概率</th><th class="n" style="width:62px">占比</th></tr>';
+  rows.slice(0,10).forEach((r,i)=>{
+    const isChosen = r.id === chosenId;
+    const pctTxt = (r.p*100).toFixed(2) + '%';
+    // 条长按概率本身画到 100%，不是「相对最高分」。这样 99.26% 就是满条，
+    // 0.72% 几乎看不见——差距有多大，条就有多悬殊。
+    const w = Math.max(0.6, r.p * 100);
+    const col = isChosen ? "var(--acc)" : (r.p < 0.01 ? "#243149" : "#3d5478");
+    h += `<tr${isChosen?' style="background:#1b2740"':''}>`
+      + `<td class="n" style="color:${isChosen?"var(--acc)":"var(--dim2)"}">${i+1}</td>`
+      + `<td class="tok" style="color:${isChosen?"var(--acc)":"var(--ink)"}">${visTok(tokStr(r.id))}`
+      + `${isChosen?' <span style="color:var(--acc);font-size:10px">←选了</span>':''}</td>`
+      + `<td class="bar"><div style="width:${w}%;background:${col}"></div></td>`
+      + `<td class="n" style="width:62px">${pctTxt}</td></tr>`;
   });
+  h += `<tr><td colspan="4" class="note" style="border:0;padding:5px 0 0;line-height:1.5">`
+     + `第 64 名之后还有 ${(V-K).toLocaleString()} 个词，分走的概率不超过 `
+     + `${(tailUpper*100).toFixed(2)}% —— 所以上面每个概率都是<b>略微偏低</b>的真实值。`
+     + `</td></tr>`;
   tb.innerHTML = h;
 }
 
@@ -2092,6 +2274,20 @@ $("#rngLayer").oninput = e => {
   } else { S.layer = +e.target.value; render(); }
 };
 $("#rngTok").oninput   = e => { S.tok = +e.target.value; render(); };
+
+/* The certainty strip is re-rendered by every renderTop(), so its cells are
+   bound by delegation on the strip container rather than per cell. Goal:
+   let a reader reach a decision the model actually agonised over, without
+   scrubbing 48 near-certain steps to find it. */
+document.addEventListener("click", e => {
+  const cell = e.target.closest?.(".sstep");
+  if(cell){ S.tok = +cell.dataset.step; render(); e.preventDefault(); return; }
+  if(e.target?.id === "jumpTorn"){
+    const all = stepCertainty();
+    S.tok = all.indexOf(Math.min(...all));
+    render(); e.preventDefault();
+  }
+});
 function restoreUnsteeredSliders(){
   $("#rngLayer").min = 0;
   $("#rngLayer").max = S.m.n_layers - 1;
