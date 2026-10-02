@@ -40,7 +40,8 @@ MUTS = {
     "D5": ("step slider pinned to window start", "F3c"),
     # 读错轨迹（按索引取而不是按 id）
     "D6": ("looks the trajectory up by index, not by id", "F9"),
-    "D7": ("keeps the previous record's focusedStep after a switch", "F9"),
+    "D8": ("clears even a pick that is valid in the new record", "F12"),
+    "D9": ("never clears the previous record's pick", "F11"),
 }
 
 
@@ -163,22 +164,32 @@ def apply(which):
              "    const i = lens.trajectories.findIndex((t) => t.id === currentTrajectory);\n"
              "    return lens.trajectories[(i + 1) % lens.trajectories.length] ?? null;"
              "    // MUT_INDEX_LOOKUP", "D6")
-    elif which == "D7":
-        # 去掉「换记录时清掉陈旧 focusedStep」的那段。
-        # 真实缺陷：步号只在**一条记录内部**有意义，换记录后 remembered
-        # step 指向上一条轨迹，面板会永远停在 out-of-window —— 而滑块的
-        # value 已经 clamp 到 win[0]，读者看到手柄在一个面板拒绝绘制的
-        # 步上，不动一下滑块永远恢复不了。
+    elif which == "D9":
+        # 彻底删掉轨迹切换的清理逻辑。F11 走的是"只 dispatch change、
+        # 不点 reset"的路径，reset 帮不上忙，所以这条变异是 F11 真正的牙齿。
         edit(PANEL,
-             "  const trajId = traj?.id ?? null;\n"
-             "  const prevTrajId = useRef<string | null>(null);\n"
-             "  useEffect(() => {\n"
-             "    if (prevTrajId.current !== null && prevTrajId.current !== trajId) {\n"
-             "      setFocusedStep(null);\n"
-             "    }\n"
-             "    prevTrajId.current = trajId;\n"
-             "  }, [trajId, setFocusedStep]);\n",
-             "  // MUT_NO_STALE_PICK_CLEAR\n", "D7")
+             "      const w = traj?.window ?? null;\n"
+             "      const s = focusedStep;               // \u540c\u4e00\u6b21\u6e32\u67d3\u91cc\u7684\u503c\uff0c\u5207\u6362\u90a3\u4e00\u523b\u7684 pick\n"
+             "      if (s != null && (!w || s < w[0] || s >= w[1])) setFocusedStep(null);",
+             "      // MUT_NEVER_CLEAR_STALE_PICK\n"
+             "      void traj; void focusedStep;", "D9")
+    elif which == "D8":
+        # 去掉「新窗口内就保留 pick」的判断，退回无条件清。
+        # 这不是等价变异：它会清掉**新记录里也有效**的 pick，于是「切记录 +
+        # 立刻选步」这条正常路径被打断 —— 表现为 F9 间歇性转红。
+        # 与 D7 的区别：D7 是稳定复现的卡死，D8 是竞态。
+        edit(PANEL,
+             "      const w = traj?.window ?? null;\n"
+             "      const s = focusedStep;               // \u540c\u4e00\u6b21\u6e32\u67d3\u91cc\u7684\u503c\uff0c\u5207\u6362\u90a3\u4e00\u523b\u7684 pick\n"
+             "      if (s != null && (!w || s < w[0] || s >= w[1])) setFocusedStep(null);",
+             "      setFocusedStep(null);  // MUT_CLEAR_EVERYTHING", "D8")
+    # D7 被删掉了，不是漏掉，是它**编不出来**：
+    #   * 把整个 effect 块删掉 ⇒ 根节点的 data-traj={trajId} 引用未定义
+    #     变量 ⇒ TS 编译失败 ⇒ 变异从未进到页面上（与 V6 同一类）。
+    #   * 只删 effect 而留下"清陈旧 pick"这件事 ⇒ 那就是 D9。
+    # 另外还试过"去掉滑块的 win[0] clamp"，那是**等价变异**：range input
+    # 的 min/max 由浏览器强制执行，React 里少一层 clamp 肉眼无差别，
+    # 换任何判据都抓不到。
     else:
         raise SystemExit("unknown mutation " + which)
 

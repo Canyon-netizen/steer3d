@@ -73,7 +73,11 @@ const readPanel = () => page.eval(`(() => {
     p: Number(r.getAttribute('data-pfinal')),
   }));
   return { state, bars, text: (el.innerText || '').replace(/\\s+/g, ' '),
-           head: (el.innerText || '').replace(/\\s+/g, ' ').slice(0, 200) };
+           head: (el.innerText || '').replace(/\\s+/g, ' ').slice(0, 200),
+           // 当前记录窗口。F9 要靠它确认"面板真的切到新记录了"——
+           // 没有它就只能盲等，而盲等正是 50% flake 的来源。
+           win: (() => { const m = /steps (\\d+)[–-](\\d+)/.exec(el.innerText || '');
+             return m ? [Number(m[1]), Number(m[2]) + 1] : null; })() };
 })()`);
 
 // 柱子的**实际绘制高度**。必须单独读：`data-pfinal` 是面板拿到的数字，
@@ -300,16 +304,41 @@ try {
       `/^${other.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$/.test(o.value)`);
     const otherT = other.window[0] + 2;
     const ot = other.steps.find((s) => s.t === otherT);
-    await page.eval(`(() => {
+
+    // 必须等面板**真的切到**新记录之后再设滑块。
+    //
+    // pickAndStart 是「换记录 → reset → start」同步连发，而 React 的
+    // state 更新是异步落地的。第一版在这里紧接着就 dispatch 滑块的
+    // input 事件（setFocusedStep(994)），于是和 reset() 的
+    // `focusedStep: null` 抢同一个 state：谁后落地谁赢。reset 晚落地
+    // 时 pick 被抹掉，stepId 退回 latest.step_id —— 而新流刚开头，
+    // 那时 step_id 约 96，落在窗口 992–1023 之外，面板就永远停在
+    // out-of-window。表现为 F9 约 50% 概率转红。
+    //
+    // 等的是**面板的窗口**变成新记录的窗口：这一步只有 currentTrajectory
+    // 已经更新、且 reset 已经落地之后才会发生。
+    const winMoved = await (async () => {
+      for (let i = 0; i < 20; i++) {
+        await sleep(500);
+        const p = await readPanel();
+        if (p.win && p.win[0] === other.window[0]
+            && p.win[1] === other.window[1]) return true;
+      }
+      return false;
+    })();
+
+    const setRes = await page.eval(`(() => {
       const r = document.querySelector('[data-deriv-step]');
-      if (!r) return null;
+      if (!r) return { err: 'no slider' };
       const setter = Object.getOwnPropertyDescriptor(
         window.HTMLInputElement.prototype, 'value').set;
       setter.call(r, ${otherT});
+      const afterSet = r.value;      // 浏览器会按 min/max 夹取
       r.dispatchEvent(new Event('input', { bubbles: true }));
       r.dispatchEvent(new Event('change', { bubbles: true }));
-      return r.value;
+      return { min: r.min, max: r.max, want: ${otherT}, afterSet };
     })()`);
+
     let sig = null, sigState = null, sigText = '';
     for (let i = 0; i < 12; i++) {
       await sleep(700);
@@ -318,10 +347,20 @@ try {
       sigText = String(p.head || '');
       if (p.state === 'ready' && p.bars.length >= 28) { sig = p; break; }
     }
+    const after = await page.eval(`(() => {
+      const r = document.querySelector('[data-deriv-step]');
+      const el = document.querySelector('[data-derivation]');
+      return { sliderValue: r ? r.value : null,
+               min: r ? r.min : null, max: r ? r.max : null,
+               state: el ? el.getAttribute('data-derivation') : null };
+    })()`);
     let ok = false;
-    // 失败时把面板说的整段话打出来。只报 bars=0 分不清是"没进窗口"、
-    // "JSON 没 join 上"还是"画错了"——三种修法完全不同。
-    let why = `other=${other.id} state=${sigState} bars=${sig ? sig.bars.length : 0} | ${sigText.slice(0, 130)}`;
+    // 失败时把面板说的整段话 + 滑块状态一起打出来。只报 bars=0 分不清是
+    // "没进窗口"、"JSON 没 join 上"还是"画错了"——三种修法完全不同；
+    // 而"没进窗口"又要分清是判据没等、还是面板真没切过去。
+    let why = `other=${other.id} winMoved=${winMoved} want t=${otherT} `
+            + `set=${JSON.stringify(setRes)} after=${JSON.stringify(after)} | `
+            + `state=${sigState} bars=${sig ? sig.bars.length : 0} | ${sigText.slice(0, 130)}`;
     if (sig && sig.bars.length === 28 && ot) {
       const bad = [];
       for (let l = 0; l < 28; l++) {
@@ -335,6 +374,170 @@ try {
     rec('F9 换记录后链条跟着换成新记录的数据', ok, why);
   } else {
     rec('F9 换记录后链条跟着换成新记录的数据', false, '找不到对照记录');
+  }
+
+  /* ---------------------------------------------------------------- */
+  // F11：轨迹切换本身要清掉陈旧 pick —— **不经过 reset**。
+  //
+  // 为什么必须单列一条：F9 的流程里 pickAndStart 会点 reset，而 reset()
+  // 本来就把 focusedStep 清成 null。所以 F9 就算等稳了，也测不到
+  // "换记录不清陈旧 pick"这个缺陷 —— 修好 F9 的等待之后，D7/D8 两条
+  // 变异反而双双变绿。判据变稳的同时变弱了，这不行。
+  //
+  // 这里直接走 select 的 change，**不点 reset**：
+  //   1. 在记录 A 上把滑块拖到 A 窗口内的某一步（面板画出来）
+  //   2. 只 dispatch change 切到记录 B
+  //   3. 断言面板自报的步号是 B 的步，或者是 null（等第一帧）
+  // 缺陷状态下，面板会继续报 A 的步号 —— 一个在 B 里根本不存在的 t。
+  {
+    const A = BY_ID.get(recId) || LENS.trajectories.find(t => t.mode === 'think');
+    // 必须挑**窗口不相交**的 B。第一版只要求 window[0] 不同，结果选到
+    // window[0] 相同、窗口完全重叠的记录，于是 A 的 pick 在 B 里也"合法"，
+    // 判据根本分不清修好没修好。
+    const disjoint = (x, y) => y.window[0] >= x.window[1] || y.window[1] <= x.window[0];
+    const B = LENS.trajectories.find(
+      (t) => t.id !== A.id && t.mode === 'think' && disjoint(A, t));
+    if (!B) {
+      rec('F11 切记录时清掉上一条记录的步号（不经 reset）', false,
+          '找不到窗口与 A 不相交的记录');
+    } else {
+      const aT = A.window[0] + 5;
+      await page.eval(`(() => {
+        const s = [...document.querySelectorAll('select')].find(x =>
+          [...x.options].some(o => /^aime__/.test(o.value)));
+        const opt = [...s.options].find(o => o.value === ${JSON.stringify(A.id)});
+        if (opt) { s.value = opt.value; s.dispatchEvent(new Event('change', { bubbles: true })); }
+        const r = document.querySelector('[data-deriv-step]');
+        if (r) {
+          const setter = Object.getOwnPropertyDescriptor(
+            window.HTMLInputElement.prototype, 'value').set;
+          setter.call(r, ${aT});
+          r.dispatchEvent(new Event('input', { bubbles: true }));
+          r.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return r ? r.value : null;
+      })()`);
+      await sleep(1500);
+      const onA = await page.eval(`(() => {
+        const el = document.querySelector('[data-derivation]');
+        return { traj: el.getAttribute('data-traj'),
+                 step: el.getAttribute('data-step-id') };
+      })()`);
+
+      // 只切记录，不点 reset
+      await page.eval(`(() => {
+        const s = [...document.querySelectorAll('select')].find(x =>
+          [...x.options].some(o => /^aime__/.test(o.value)));
+        const opt = [...s.options].find(o => o.value === ${JSON.stringify(B.id)});
+        if (!opt) return null;
+        s.value = opt.value;
+        s.dispatchEvent(new Event('change', { bubbles: true }));
+        return opt.value;
+      })()`);
+
+      let saw = null;
+      for (let i = 0; i < 20; i++) {
+        await sleep(400);
+        saw = await page.eval(`(() => {
+          const el = document.querySelector('[data-derivation]');
+          return { traj: el.getAttribute('data-traj'),
+                   step: el.getAttribute('data-step-id'),
+                   state: el.getAttribute('data-derivation') };
+        })()`);
+        if (saw.traj === B.id) break;
+      }
+      // 口径：面板自报的步**不得落在 A 的窗口里**。
+      //
+      // 第一版去查 `B 的 steps 里有没有这个 t`，是错的：logit_lens.json
+      // 的 `steps` 只含**读出窗口那 32 步**，而新流开头的 step_id（比如
+      // 64）是 B 轨迹里真实存在、只是还没到窗口的步。拿窗口的步集合当
+      // "合法步"的全集，会把正确的行为判成红的。
+      //
+      // 真正对应缺陷的是：读者在 A 上选的步一定落在 A 的窗口内；面板在
+      // 切到 B 之后还报着它，就说明陈旧 pick 没被清掉。A、B 窗口不相交，
+      // 所以「报的步是否落在 A 的窗口内」是一个干净的判别式。
+      const stepNum = saw.step === '' || saw.step == null ? null : Number(saw.step);
+      const inAWin = stepNum != null
+                     && stepNum >= A.window[0] && stepNum < A.window[1];
+      rec('F11 切记录时清掉上一条记录的步号（不经 reset）',
+          saw.traj === B.id && !inAWin,
+          `A=${A.id} win=${JSON.stringify(A.window)} 在 A 上选 t=${aT} -> `
+          + `面板 ${JSON.stringify(onA)}; `
+          + `切到 B=${B.id} win=${JSON.stringify(B.window)}（不相交）后 面板 `
+          + `${JSON.stringify(saw)}; `
+          + `报的步 ${stepNum} 落在 A 窗口内? ${inAWin}`
+          + (inAWin ? `  <-- 还在报 A 的步` : ''));
+    }
+  }
+
+  /* ---------------------------------------------------------------- */
+  // F12：窗口**重叠**时，读者在新记录里也合法的那个 pick 必须存活。
+  //
+  // F11 管的是"该清的清掉"，F12 管的是"不该清的别清"。两者一起，产品
+  // 行为才是完整的：在新记录里无意义的步要丢，在新记录里仍然成立的步
+  // 留着（读者不必重新选）。
+  //
+  // 有了 F12 之后，变异 D8（无条件全清）才有牙齿：它会把这个合法的
+  // pick 也抹掉。没有 F12 的话，D8 天然满足 F11，判据"没红"并不说明
+  // 缺陷不存在，只说明那条判据测的不是这件事 —— 那是**变异指错了
+  // 判据**，不是判据没牙齿。
+  {
+    const A2 = BY_ID.get(recId) || LENS.trajectories.find(t => t.mode === 'think');
+    const overlap = (x, y) => y.window[0] < x.window[1] && y.window[1] > x.window[0];
+    const B2 = LENS.trajectories.find(
+      (t) => t.id !== A2.id && t.mode === 'think' && overlap(A2, t));
+    if (!B2) {
+      rec('F12 窗口重叠时保留在新记录里仍合法的步号', false,
+          '找不到窗口与 A 重叠的记录');
+    } else {
+      const a2T = A2.window[0] + 5;
+      await page.eval(`(() => {
+        const s = [...document.querySelectorAll('select')].find(x =>
+          [...x.options].some(o => /^aime__/.test(o.value)));
+        const opt = [...s.options].find(o => o.value === ${JSON.stringify(A2.id)});
+        if (opt) { s.value = opt.value; s.dispatchEvent(new Event('change', { bubbles: true })); }
+        const r = document.querySelector('[data-deriv-step]');
+        if (r) {
+          const setter = Object.getOwnPropertyDescriptor(
+            window.HTMLInputElement.prototype, 'value').set;
+          setter.call(r, ${a2T});
+          r.dispatchEvent(new Event('input', { bubbles: true }));
+          r.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      })()`);
+      await sleep(1500);
+      const before2 = await page.eval(`(() => {
+        const el = document.querySelector('[data-derivation]');
+        return { traj: el.getAttribute('data-traj'),
+                 step: el.getAttribute('data-step-id') };
+      })()`);
+      await page.eval(`(() => {
+        const s = [...document.querySelectorAll('select')].find(x =>
+          [...x.options].some(o => /^aime__/.test(o.value)));
+        const opt = [...s.options].find(o => o.value === ${JSON.stringify(B2.id)});
+        if (!opt) return null;
+        s.value = opt.value;
+        s.dispatchEvent(new Event('change', { bubbles: true }));
+        return opt.value;
+      })()`);
+      let saw2 = null;
+      for (let i = 0; i < 20; i++) {
+        await sleep(400);
+        saw2 = await page.eval(`(() => {
+          const el = document.querySelector('[data-derivation]');
+          return { traj: el.getAttribute('data-traj'),
+                   step: el.getAttribute('data-step-id'),
+                   state: el.getAttribute('data-derivation') };
+        })()`);
+        if (saw2.traj === B2.id) break;
+      }
+      rec('F12 窗口重叠时保留在新记录里仍合法的步号',
+          saw2.traj === B2.id && Number(saw2.step) === a2T,
+          `A=${A2.id} win=${JSON.stringify(A2.window)} 选 t=${a2T} -> ${JSON.stringify(before2)}; `
+          + `切到 B=${B2.id} win=${JSON.stringify(B2.window)}（重叠）后 ${JSON.stringify(saw2)}; `
+          + `pick 是否存活 ${Number(saw2.step) === a2T}`
+          + (Number(saw2.step) === a2T ? '' : '  <-- 合法 pick 被误清'));
+    }
   }
 
   const errs = page.events

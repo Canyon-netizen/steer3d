@@ -127,25 +127,35 @@ export default function LayerDerivationPanel() {
   const stepId = focusedStep ?? latest?.step_id ?? null;
 
   // A step number only indexes a step *within one record*. After switching
-  // records, the remembered step points into the previous trace, so the
-  // panel sat on "out-of-window" indefinitely: the slider's `value` prop
+  // records, a remembered step usually points into the previous trace, so
+  // the panel sat on "out-of-window" indefinitely: the slider's `value` prop
   // already clamps to win[0], so the reader saw the handle on a step the
   // panel refused to draw, and nothing recovered until they nudged the
   // slider by hand. That was F9 of verify_derivation — a real defect.
   //
-  // Drop the stale pick on a trajectory change. Deliberately NOT done by
-  // falling back to win[0] when out of window: that would make the panel
-  // draw a chain for a step the model has not reached yet, which is
-  // exactly the dishonesty F3/F3b exist to prevent. "Out of window, and
-  // nothing drawn" stays the honest answer for early playback.
+  // Drop the pick only when it is **meaningless in the new record** — i.e.
+  // outside its window. A step that happens to fall inside the new window is
+  // a legitimate pick for it and has to survive. Clearing unconditionally
+  // opens a race: a reader (or a test) can choose a step in the new record
+  // in the same tick as the switch, and the cleanup would throw that away,
+  // dropping the panel back to whatever frame arrived next. That is exactly
+  // how F9 became flaky rather than fixed.
+  //
+  // Deliberately NOT done by falling back to win[0] when out of window: that
+  // would draw a chain for a step the model has not reached yet, which is
+  // the dishonesty F3/F3b exist to prevent. "Out of window, and nothing
+  // drawn" stays the honest answer for early playback.
   const trajId = traj?.id ?? null;
   const prevTrajId = useRef<string | null>(null);
   useEffect(() => {
     if (prevTrajId.current !== null && prevTrajId.current !== trajId) {
-      setFocusedStep(null);
+      const w = traj?.window ?? null;
+      const s = focusedStep;               // 同一次渲染里的值，切换那一刻的 pick
+      if (s != null && (!w || s < w[0] || s >= w[1])) setFocusedStep(null);
     }
     prevTrajId.current = trajId;
-  }, [trajId, setFocusedStep]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trajId, traj, setFocusedStep]);
 
   const step = useMemo(() => {
     if (!traj || stepId == null) return null;
@@ -271,7 +281,7 @@ export default function LayerDerivationPanel() {
 
   if (!step) {
     return (
-      <div className="rounded bg-bg/40 border border-border p-3" data-derivation="out-of-window">
+      <div className="rounded bg-bg/40 border border-border p-3" data-derivation="out-of-window" data-traj={trajId ?? ""} data-step-id={stepId ?? ""}>
         {header}
         {stepPicker}
         <p className="text-[10px] text-gray-500 leading-relaxed mt-1">
@@ -315,7 +325,7 @@ export default function LayerDerivationPanel() {
   const flx = first != null && first >= 0 ? bx(first) + bw / 2 : null;
 
   return (
-    <div className="rounded bg-bg/40 border border-border p-3" data-derivation="ready">
+    <div className="rounded bg-bg/40 border border-border p-3" data-derivation="ready" data-traj={trajId ?? ""} data-step-id={stepId ?? ""}>
       {header}
       {stepPicker}
 
