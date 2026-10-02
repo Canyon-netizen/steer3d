@@ -8,7 +8,7 @@
   "shadow_is_not_an_essay": "run_intervention.py:272-282 取出 shadow 的 argmax，但下一步两臂都吃 primary 的词。所以 shadow 是 primary 原文被逐词打补丁的产物，不是一篇「没有向量时会写的文章」。把它当散文读，会在每个换词处看到语法断裂——那不是无干预模型变笨了，而是补丁的接缝。所有数字都来自 summary（生成时逐步实测），不从文字反推。",
   "why_no_word_diff": "两臂在 token 层对齐但在词边界不对齐，一个词的删除会让后面所有词错位，difflib 会把尾巴报成一大段「改动」。实测 token 一致率 98.3% 的运行，词级 diff 会报 3000 词里 2585 词不同——那是伪影，不是测量。"
  },
- "n_runs": 76,
+ "n_runs": 84,
  "planned_runs": 96,
  "batch_complete": false,
  "head_chars": 300,
@@ -152,6 +152,146 @@
     "first_diverged_step": null,
     "texts_identical": true,
     "head": "\nOkay, so I need to find the number of primitive ordered pairs (m, n) of non-negative integers where m + n ≤ 100. A primitive pair is one where the greatest common divisor (gcd) of m and n is 1. Alright, let's break this down.\n\nFirst, let me recall that for two numbers m and n, their gcd being 1 mea"
+   }
+  },
+  {
+   "id": "1994_I_1_confidence_up_0.0",
+   "label": "1994_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 18380,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.18345958999626905,
+   "mean_entropy_shadow": 0.18345958999626905,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 38706,
+   "reason_chars_shadow": 38706,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a",
+    "after_primary": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
+    "after_shadow": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1994_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
+   }
+  },
+  {
+   "id": "1994_I_1_confidence_up_0.2",
+   "label": "1994_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 22,
+   "token_agreement": 0.9728758476297615,
+   "mean_logit_kl": 0.04551501192931821,
+   "mean_entropy_primary": 0.07156706214016358,
+   "mean_entropy_shadow": 0.08635865756764771,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 94583,
+   "reason_chars_shadow": 95137,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 90,
+    "before": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand ",
+    "after_primary": "it correctly.\n\nWe have a cylinder. Let's denote the original radius as r and the original height as h. The original volume of the cylinder is πr²",
+    "after_shadow": "what correctly.We have a cylinder. Let me denote the original radius as r and the original height as h. The problem volume of the cylinder is Vr²",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1994_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
+   }
+  },
+  {
+   "id": "1994_I_1_confidence_down_0.0",
+   "label": "1994_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 18380,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.18345958999626905,
+   "mean_entropy_shadow": 0.18345958999626905,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 38706,
+   "reason_chars_shadow": 38706,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a",
+    "after_primary": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
+    "after_shadow": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original r",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1994_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
+   }
+  },
+  {
+   "id": "1994_I_1_confidence_down_0.2",
+   "label": "1994_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 28093,
+   "first_diverged_step": 10,
+   "token_agreement": 0.9428347689898199,
+   "mean_logit_kl": 0.07478014746915908,
+   "mean_entropy_primary": 0.2121766276788841,
+   "mean_entropy_shadow": 0.18488752061333846,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 64494,
+   "reason_chars_shadow": 64878,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 38,
+    "before": "\nOkay, let's try to solve this problem",
+    "after_primary": ". So, we have a cylinder, and there are two scenarios where changing the radius or the height affects the volume. The problem says that increasin",
+    "after_shadow": " step So, we have a cylinder, and there are two scenarios given changing the radius or height height affects the volume. The problem wants that i",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "1994_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, let's try to solve this problem step by step. First, let me make sure I understand what's being asked.\n\nWe have a cylinder. The original radius is some value, let's call it r, and the original height is h. The problem says that if we increase the radius by 6 units, the volume increases by 192"
    }
   },
   {
@@ -432,6 +572,146 @@
     "first_diverged_step": null,
     "texts_identical": true,
     "head": "\nOkay, let's try to tackle this problem step by step. So, we have two non-overlapping regular polygons. One has 6 sides, and the other has n sides. They share a common side and a common vertex. We need to find the sum of the interior angles at this common vertex in degrees.\n\nFirst, let me recall som"
+   }
+  },
+  {
+   "id": "2016_I_1_confidence_up_0.0",
+   "label": "2016_I_1",
+   "direction": "confidence_up",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 5471,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2855988191598547,
+   "mean_entropy_shadow": 0.2855988191598547,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 15584,
+   "reason_chars_shadow": 15584,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. ",
+    "after_primary": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
+    "after_shadow": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2016_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
+   }
+  },
+  {
+   "id": "2016_I_1_confidence_up_0.2",
+   "label": "2016_I_1",
+   "direction": "confidence_up",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 32000,
+   "first_diverged_step": 38,
+   "token_agreement": 0.9908752851473391,
+   "mean_logit_kl": 0.015005885064400606,
+   "mean_entropy_primary": 0.026812019979946217,
+   "mean_entropy_shadow": 0.03570545673199713,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 116414,
+   "reason_chars_shadow": 116717,
+   "closed_think_primary": false,
+   "closed_think_shadow": false,
+   "primary_head": {
+    "split_char": 102,
+    "before": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the ",
+    "after_primary": "graph of the parabola y² = px. Hmm, let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the equation of the ellipse is 9",
+    "after_shadow": "par of the parabola y² = px. Let, let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard of the ellipse is giv",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2016_I_1_confidence_up_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
+   }
+  },
+  {
+   "id": "2016_I_1_confidence_down_0.0",
+   "label": "2016_I_1",
+   "direction": "confidence_down",
+   "strength": 0.0,
+   "layer": 20,
+   "n_steps": 5471,
+   "first_diverged_step": null,
+   "token_agreement": 1.0,
+   "mean_logit_kl": 0.0,
+   "mean_entropy_primary": 0.2855988191598547,
+   "mean_entropy_shadow": 0.2855988191598547,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 15584,
+   "reason_chars_shadow": 15584,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": -1,
+    "before": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. ",
+    "after_primary": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
+    "after_shadow": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling",
+    "note": "两臂逐字相同，没有分岔"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2016_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
+   }
+  },
+  {
+   "id": "2016_I_1_confidence_down_0.2",
+   "label": "2016_I_1",
+   "direction": "confidence_down",
+   "strength": 0.2,
+   "layer": 20,
+   "n_steps": 11050,
+   "first_diverged_step": 11,
+   "token_agreement": 0.9361143787892499,
+   "mean_logit_kl": 0.07671867410453656,
+   "mean_entropy_primary": 0.3403202171382768,
+   "mean_entropy_shadow": 0.30228340626303113,
+   "n_bad_steps": 0,
+   "reason_chars_primary": 32204,
+   "reason_chars_shadow": 32350,
+   "closed_think_primary": true,
+   "closed_think_shadow": true,
+   "primary_head": {
+    "split_char": 38,
+    "before": "\nOkay, so I need to find the value of ",
+    "after_primary": "$ p $ for which the foci of the ellipse $ 9x^2 + 25y^ standard form. Let me start by recalling the standard form of an ellipse. \n\nThe general equ",
+    "after_shadow": "p p $ such which the foci of the ellipse $ 9x^2 + 25y^2 form. Let me start by recalling the standard form of an ellipse. \n\nThe general equation o",
+    "note": "分岔处"
+   },
+   "shadow_head": {
+    "note": "见 primary_head.after_primary —— 切分后两臂各自那一段"
+   },
+   "zero_strength_control": {
+    "id": "2016_I_1_confidence_down_0.0",
+    "token_agreement": 1.0,
+    "first_diverged_step": null,
+    "texts_identical": true,
+    "head": "\nOkay, so I need to find the value of p for which the foci of the ellipse 9x² + 25y² = 225 lie on the parabola y² = px. Let me start by recalling some properties of ellipses and parabolas.\n\nFirst, the standard form of an ellipse is (x²/a²) + (y²/b²) = 1, where a and b are the lengths of the semi-maj"
    }
   },
   {
