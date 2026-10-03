@@ -99,6 +99,7 @@ try {
           level: d.getAttribute('data-rung'),
           state: d.getAttribute('data-rung-state'),
           mark: (d.querySelector('[data-rung-mark]')||{}).textContent || '',
+          here: d.getAttribute('data-rung-here') || '',
           text: (d.innerText||'').replace(/\\s+/g, ' '),
         })),
       };
@@ -229,6 +230,70 @@ try {
             ? '逐字命中'
             : '⚠ 产物里有这句，但页面上**没有**（属性与状态都照旧，读者会误读成 L6）')
         + `　L6 句：${l6line.slice(0, 96)}`);
+
+  // ---------- L13 每一级「本项目：…」那串证据里的数，必须在**别的产物**里有出处 ----------
+  // 这一级阶梯（以及整个 §8 阶梯）之所以可被反驳，靠的是每级那串 `here`：
+  //   L1  s ≤ 0.2：实测 2.026%–2.245% vs 解析 2.018%–2.268%
+  //   L2  14 条
+  //   L4  0.3688（地板 0.0045，82×）
+  //   L5  0 条（余量 1.15× < 2×）
+  //   L6  92 个真 run / 23 题配对
+  // 它们是**从别的产物手抄进 evidence_ladder.json 的**，而 `data-rung-here`
+  // 一直是**九个未读标记之一**（C4）—— 也就是说：任何一份来源产物重算之后，
+  // 阶梯的「为什么站在这一级」可以静默过期，而**没有任何判据会红**。
+  //   这与第八笔是同一个形状，只是位置从 JSX 搬到了**产物之间**：
+  //   那边是「同一屏表格 vs 散文」，这边是「阶梯 vs 它引用的四份产物」。
+  // ⇒ 判据主体是 `here` 里的数本身：每一个带 ≥2 位小数的数，
+  //   都必须能在 SUB / HEL / ARM / COT 里找到一个四舍五入后等于它的值。
+  // ⚠ **只查带 ≥2 位小数的数**：一位数与两位整数（2 / 14 / 23 / 92）
+  //   在这些产物里到处都是，判它们等于没判 —— 短值最容易被喂饱
+  //   （§L12 那一族）。所以整数只报不判，这一点必须写在判据名字里。
+  {
+    // ⚠⚠ haystack 必须**照阶梯自己声明的 built_from 动态加载**，不能手写名单。
+    //   我第一版手写了 SUB / HEL / ARM / COT 四份，于是 L1 的
+    //   2.026 / 2.245 / 2.018 / 2.268（出自 linearity_law.json）全都「找不到出处」——
+    //   **判据红，而红的原因是它没读该读的那份产物**。
+    //   ⇒ 手写名单的失败方向是「假红 + 漏覆盖」，而且它自己看不出来。
+    //   改成按 built_from 读，既补上了覆盖，也让名单随产物自己变。
+    const nums = [];
+    const loaded = [];
+    for (const f of (LAD.built_from || [])) {
+      let j;
+      try { j = JSON.parse(readFileSync(DATA + '/' + f, 'utf8')); }
+      catch { continue; }
+      loaded.push(f);
+      (function walk(o) {
+        if (typeof o === 'number' && Number.isFinite(o)) nums.push(o);
+        else if (Array.isArray(o)) o.forEach(walk);
+        else if (o && typeof o === 'object') Object.values(o).forEach(walk);
+      })(j);
+    }
+    const missDec = [], missPage = [];
+    let nDec = 0;
+    for (const r of LAD.ladder) {
+      const toks = String(r.here || '').match(/\d+\.\d{2,}/g) || [];
+      for (const t of toks) {
+        nDec++;
+        const d = (t.split('.')[1] || '').length;
+        const v = parseFloat(t), tol = 0.5 * Math.pow(10, -d);
+        if (!nums.some(x => Math.abs(x - v) <= tol)) missDec.push(`L${r.level} ${t}`);
+      }
+      // 页面必须逐字印出同一串（属性对、文案错 ⇒ 读者读到的是另一句话）
+      const got = (st.rungs || []).find(x => String(x.level) === String(r.level));
+      if (!got || !String(got.here || '').includes(String(r.here))) {
+        missPage.push(`L${r.level} 页面读到「${(got && got.here) || '(无)'}」≠ 产物「${r.here}」`);
+      }
+    }
+    rec('L13 每一级 `here` 里的带小数证据都必须在其它产物里有出处（阶梯不能是手抄的）',
+        missDec.length === 0,
+        `haystack = built_from 声明的 ${loaded.length} 份：${loaded.join('、')}`
+        + `；共查 ${nDec} 个带 ≥2 位小数的数；找不到出处的：`
+        + (missDec.length ? missDec.join('、') : '无')
+        + `　（整数 token 不判：2 / 14 / 23 / 92 在这些产物里到处都是）`);
+    rec('L13b 每一级 `here` 必须在页面上逐字印出（属性对、文案错 ⇒ 读者读到另一句话）',
+        missPage.length === 0,
+        missPage.length ? missPage.join('　|　') : `八级逐字一致`);
+  }
 
   // 可见性：阶梯是竖排块，但每一行内不能被裁
   const vis = await page.eval(`(() => {

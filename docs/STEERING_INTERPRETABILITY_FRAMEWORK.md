@@ -3457,3 +3457,76 @@ J11 是这样读那 6 个画布属性的：
 九个脚本各 +1 条 X0（outcome 53→54、law 14→16、ladder 14→15、structure 15→16、
 derivation 17→19、subspace 39→40、axis 46→47、heldout 60→61、scene_link 仍 6 条，
 因为它的 E0 换成了共享实现、不新增条数）。
+
+#### 第十一笔：阶梯每一级的「为什么站在这一级」，是手抄的，而且没人核
+
+C4 剩下那 16 个未读标记里，**只有一个是真缺口**，而它恰好落在整条阶梯最吃重的地方。
+
+`evidence_ladder.json` 的每一级都带一个 `here` 字段 ——
+**它不是标签，是那一级的具体证据**：
+
+    L1  s ≤ 0.2：实测 2.026%–2.245% vs 解析 2.018%–2.268%
+    L2  14 条
+    L3  1 条干净
+    L4  0.3688（地板 0.0045，82×）
+    L5  0 条（余量 1.15× < 2×）
+    L6  92 个真 run / 23 题配对
+    L7  一次都没测
+
+组件把它**印给读者看**（`本项目：{r.here}`），同时发出 `data-rung-here={r.here}`。
+而 `data-rung-here` 是那 16 个未读标记之一 ⇒ **没有任何判据读它**。
+
+⇒ 后果很具体：这些数是**从别的产物手抄进 `evidence_ladder.json` 的**。
+  任何一份来源产物重算之后，阶梯的「为什么站在这一级」可以**静默过期**，
+  而 `data-rungs` / `data-selfcheck` / `data-max-level` 仍全部自洽 ⇒ **不会红**。
+  这与第八笔是同一个形状，只是位置从 JSX 搬到了**产物之间**：
+  那边是「同一屏表格 vs 散文」，这边是「阶梯 vs 它引用的五份产物」。
+
+**判据 L13 / L13b**（`verify_ladder.mjs`，15 → 17）：
+
+- **L13**：`here` 里每一个**带 ≥2 位小数**的数，都必须能在
+  `evidence_ladder.json` 自己声明的 `built_from` 五份产物里
+  找到一个四舍五入后等于它的值。
+- **L13b**：每一级的 `here` 必须在页面上**逐字印出**（属性对、文案错 ⇒ 读者读到另一句话）。
+
+⚠ **只判带 ≥2 位小数的数。** 一位数与两位整数（2 / 14 / 23 / 92）
+  在这五份产物里到处都是，判它们等于没判 ——
+  短值最容易被邻近的相同值喂饱（§L12 那一族）。所以整数**只报不判**，
+  这一点写进了判据的名字与 detail。
+
+**变异验证**（当场做、用 `git checkout` 逐字还原）：
+
+    把 L4 的 here「0.3688」改成「0.3712」（产物真值 0.368799…）
+      → [FAIL] L13，16/17
+      → git checkout 还原，git status 为空 → 17/17
+
+⚠ 而 L13 第一次跑就红了，**红的原因是判据自己**：
+  我手写了 haystack 名单（SUB / HEL / ARM / COT 四份），
+  于是 L1 的 2.026 / 2.245 / 2.018 / 2.268 全都「找不到出处」——
+  它们出自 **`linearity_law.json`**，也就是阶梯自己在 `built_from` 里
+  声明的第五份，我漏了。
+  ⇒ **手写名单的失败方向是「假红 + 漏覆盖」，而且它自己看不出来。**
+  改成**按 `built_from` 动态加载**之后：7 个小数 token 全部有出处，
+  haystack 打印为 `linearity_law / readable_subspace / heldout_readability /
+  arm_asymmetry / cot_texts` 五份 ⇒ 17/17。
+  ⇒ 一般形态：**判据的取样范围要由被测物自己声明**，不要手抄名单 ——
+  手抄的那份会既漏又错，而它不会吭声。
+
+##### 剩下 15 个未读标记的定性（不是洞，但有代价）
+
+| 标记 | 为什么不是缺口 | 代价 |
+|---|---|---|
+| `data-extent-fraction` / `-maxabs` / `data-has-entropy` / `data-on-screen-points` | J11 **每次都读**，只是用 `getAttribute('data-' + n)` 拼出来，静态扫描看不见 | 覆盖矩阵的「未读」栏会**永远**多报这 4 个 |
+| `data-diagonal` / `data-floor` / `data-decay` | 同一行单元格里以 `data-kind` + `data-value` 渲染，**B1 / B3 已核属性与可见文字** | 同一事实有两个来源，可能各改各的 |
+| `data-lower-bound-old` / `data-bound-caveat-text` | G6 已逐字核「上一版…它是 12 条」 | 同上 |
+| `data-control-delta100` | G7 已逐字核 `control.note` 全文（含该数） | 同上 |
+| `data-specific` / `data-strongest` | D4 已**独立从产物重算** strongest 并核页面角色标记 | 同上 |
+| `data-beats` | 行上的 `data-beating` 被读，且 `n_layers_beating_control` / `min_ratio_over_control` 都渲染成可见文字 | 同上 |
+| `data-decay-label` | 纯标签容器，值在 `data-decay-value` | 无 |
+| `data-not-one-axis` | 容器标记；里面的余弦由 `data-cos-digit-newline` 核 | 那句里的「4 条」是字面量，与 `surface_directions.length` 重复 |
+
+⇒ 结论：**15 个里没有一个承载无人核的判决**，但 11 个是**重复标记**。
+  重复的代价不是「多写了几个属性」，而是**同一个事实有两个来源** ——
+  正是第八笔那种「同屏矛盾」的温床；再加上它们让覆盖矩阵的「未读」栏
+  长期停在 16，**真缺口会被淹掉**。
+  （去重是下一步；本轮只做了定性 + 把唯一那个真洞补上。）
