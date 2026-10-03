@@ -219,6 +219,34 @@ type ClaimAudit = {
   }>;
 };
 
+// §8.7 把尺子指向真实论文摘要。写它的是 .cache/xcheck/lit_audit.py。
+type LitAudit = {
+  what: string;
+  source: { api: string; query: string; n_papers: number; only_abstracts: boolean };
+  headline: {
+    n_papers: number;
+    n_with_verbatim_claim: number;
+    n_naming_any_control_in_abstract: number;
+    n_with_same_norm_random_control_known: number;
+    same_norm_unknown: number;
+    statement: string;
+    what_this_is_not: string;
+  };
+  hard_rule: string;
+  why_not_levels: string;
+  rendered_fields: string[];
+  rows: Array<{
+    arxiv_id: string; title: string; url: string;
+    claim_verbatim: string | null;
+    max_level_from_abstract: number | null;
+    verdict: string;
+    controls_named_in_abstract: string[];
+    same_norm_random_control: string;
+    must_read_in_methods: string[];
+    note: string;
+  }>;
+};
+
 type AnswerPower = {
   what: string;
   direction: string;
@@ -294,6 +322,7 @@ export default function InterventionOutcomePanel() {
   const [sd, setSd] = useState<DirCompare | null>(null);
   const [rep, setRep] = useState<Repetition | null>(null);
   const [ca, setCa] = useState<ClaimAudit | null>(null);
+  const [lit, setLit] = useState<LitAudit | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   // Mounted with a cancellation guard, same shape as InterpretationPanel's
@@ -331,9 +360,13 @@ export default function InterventionOutcomePanel() {
       // 不从阶梯产物**推导** —— 推导会让两者一改就一起错。
       fetch("/latent/data/claim_audit.json").then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
+      // 尺子指向真实论文摘要。与上一份**独立**：它带 arXiv 原文与逐字引述，
+      // 两者一起变坏时还能互相指出问题。
+      fetch("/latent/data/lit_audit.json").then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
     ])
-      .then(([c, a, m, p, d, rp, q]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower, DirCompare, Repetition, ClaimAudit]) => {
-        if (alive) { setCot(c); setAns(a); setArm(m); setPw(p); setSd(d); setRep(rp); setCa(q); }
+      .then(([c, a, m, p, d, rp, q, li]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower, DirCompare, Repetition, ClaimAudit, LitAudit]) => {
+        if (alive) { setCot(c); setAns(a); setArm(m); setPw(p); setSd(d); setRep(rp); setCa(q); setLit(li); }
       })
       .catch((e) => { if (alive) setErr(String(e.message || e)); });
     return () => { alive = false; };
@@ -871,6 +904,83 @@ export default function InterventionOutcomePanel() {
             <b>一个强度点、一层</b>。
             {rep.dedup_note}
           </p>
+        </div>
+        );
+      })()}
+
+      {/* --- §8.7 把尺子指向真实论文的摘要 --- */}
+      {lit && (() => {
+        const H = lit.headline;
+        const withClaim = lit.rows.filter((r) => r.claim_verbatim);
+        const named = lit.rows.filter((r) => r.controls_named_in_abstract.length > 0);
+        return (
+        <div className="rounded bg-bg/60 border border-border px-2 py-1.5"
+             data-lit-audit
+             data-lit-n={String(lit.source.n_papers)}
+             data-lit-claim={String(H.n_with_verbatim_claim)}
+             data-lit-ctrl={String(H.n_naming_any_control_in_abstract)}
+             data-lit-samenorm={String(H.n_with_same_norm_random_control_known)}
+             data-lit-samenorm-unknown={String(H.same_norm_unknown)}
+             data-lit-rendered-fields={String(lit.rendered_fields.length)}>
+          <div className="text-[11px] text-gray-200 font-semibold">
+            把这把尺子指向真实论文的摘要：{H.n_papers} 篇，0 篇可判
+          </div>
+          <p className="text-[10px] text-gray-400 leading-relaxed mt-1"
+             data-lit-rule>
+            <b>硬规矩：摘要里没有的东西，不许替论文填。</b>
+            {lit.hard_rule}
+            抓取源 <code>{lit.source.api}</code>，查询{" "}
+            <code className="font-mono">{lit.source.query}</code>，
+            只入库摘要（每条引述都可对着原文核）。
+          </p>
+          <ul className="mt-1.5 space-y-1 text-[10px] text-gray-300 leading-relaxed">
+            <li data-lit-item="headline">
+              {H.statement}
+              {H.n_with_same_norm_random_control_known === 0 && (
+                <b className="text-amber-300">
+                  {" "}注意这是「未知」不是「没有」。
+                </b>
+              )}
+            </li>
+            <li data-lit-item="notaccuse">
+              <b className="text-amber-200">这不是指控。</b>
+              {H.what_this_is_not}
+            </li>
+            <li data-lit-item="levels">
+              <b>为什么不给「级别低」，只给「未定」。</b>
+              {lit.why_not_levels}
+            </li>
+            <li data-lit-item="read">
+              抽到逐字主张句 <b className="font-mono text-gray-200">
+                {H.n_with_verbatim_claim}</b> / {H.n_papers} 篇；
+              摘要里点名过任何对照的{" "}
+              <b className="font-mono text-gray-200">
+                {H.n_naming_any_control_in_abstract}</b> 篇
+              （含 {named.slice(0, 2).map((r) => r.arxiv_id).join("、")
+                 || "无"}）。要真判定，方法章节里必须逐条核这{" "}
+              {lit.rows[0]?.must_read_in_methods.length ?? 0} 项。
+            </li>
+          </ul>
+          <details className="mt-1" data-lit-detail>
+            <summary className="text-[10px] text-gray-500 cursor-pointer">
+              展开 {withClaim.length} 条逐字引述
+            </summary>
+            <ul className="mt-1 space-y-1.5">
+              {withClaim.map((r) => (
+                <li key={r.arxiv_id} className="text-[10px] text-gray-400 leading-relaxed"
+                    data-lit-row={r.arxiv_id}>
+                  <a className="text-gray-300 font-mono" href={r.url}
+                     target="_blank" rel="noreferrer">{r.arxiv_id}</a>
+                  {" "}<span className="text-gray-500">{r.title.slice(0, 60)}</span>
+                  <div className="text-gray-300 mt-0.5">「{r.claim_verbatim}」</div>
+                  <div className="text-gray-500 mt-0.5">
+                    摘要点名对照 {r.controls_named_in_abstract.length} 处 ·
+                    同范数随机方向 = {r.same_norm_random_control}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </details>
         </div>
         );
       })()}

@@ -1,0 +1,261 @@
+{
+ "schema": "lit_audit/1",
+ "what": "把 §8.6 的主张降级器指向真实论文的摘要，并如实报出摘要判不了什么",
+ "source": {
+  "api": "export.arxiv.org/api/query",
+  "query": "abs:\"activation steering\" AND abs:\"representation\"",
+  "n_papers": 12,
+  "cache": "/Users/zhourui/code/steer3d/.cache/litaudit/arxiv_feed.xml",
+  "only_abstracts": true
+ },
+ "headline": {
+  "n_papers": 12,
+  "n_with_verbatim_claim": 11,
+  "n_naming_any_control_in_abstract": 3,
+  "n_with_same_norm_random_control_known": 0,
+  "same_norm_unknown": 12,
+  "statement": "12 篇里，摘要点名过任何对照的只有 3 篇；能从摘要证明有同范数随机方向臂的是 0 篇，其余 12 篇是 unknown。",
+  "what_this_is_not": "这不是指控。unknown 是「摘要里没写」，不是「论文里没有」。绝大多数这类工作会在方法章节里做随机对照，只是摘要不会把它写进去。⇒ 要真判定，必须读方法章节；本产物只负责把「该去读什么」列清楚。"
+ },
+ "hard_rule": "摘要里没有的东西，不许替论文填。每一行的门控字段都是 unknown —— 凭题目和印象替别人填方法学细节，比不审计坏得多。",
+ "why_not_levels": "全 unknown 的门控会让尺子判出「级别未定」而不是「级别低」。这两者不一样：未定是证据不足，低是测过了就这样。混起来就成了 §4.14 推翻过的那句话。",
+ "rendered_fields": [
+  "what",
+  "headline.statement",
+  "headline.what_this_is_not",
+  "why_not_levels",
+  "hard_rule",
+  "rows[].claim_verbatim",
+  "rows[].note",
+  "rows[].must_read_in_methods[]"
+ ],
+ "rows": [
+  {
+   "arxiv_id": "2502.15090v4",
+   "title": "ExpertLens: Activation steering features are highly interpretable",
+   "url": "https://arxiv.org/abs/2502.15090v4",
+   "claim_verbatim": "We identify neurons responsible for specific concepts (e.g., ``cat'') using the ``finding experts'' method from research on activation steering and show that the ExpertLens, i.e., inspection of these neurons provides insights about model representation.",
+   "abstract": "Activation steering methods in large language models (LLMs) have emerged as an effective way to perform targeted updates to enhance generated language without requiring large amounts of adaptation data. We ask whether the features discovered by activation steering methods are interpretable. We identify neurons responsible for specific concepts (e.g., ``cat'') using the ``finding experts'' method from research on activation steering and show that the ExpertLens, i.e., inspection of these neurons provides insights about model representation. We find that ExpertLens representations are stable across models and datasets and closely align with human representations inferred from behavioral data, matching inter-human alignment levels. ExpertLens significantly outperforms the alignment captured by word/sentence embeddings. By reconstructing human concept organization through ExpertLens, we show that it enables a granular view of LLM concept representation. Our findings suggest that ExpertLens is a flexible and lightweight approach for capturing and analyzing model representations.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：无 —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  },
+  {
+   "arxiv_id": "2610.01062v1",
+   "title": "Kernelized Activation Steering",
+   "url": "https://arxiv.org/abs/2610.01062v1",
+   "claim_verbatim": "Across standard activation steering tasks, including jailbreaking LLMs and image style control, KAS outperforms or is on par with the existing methods.",
+   "abstract": "Activation steering provides a simple, training-free mechanism for controlling attributes of generative models such as sentiment, style, and helpfulness. However, standard approaches such as Difference-in-Means apply a single input-independent steering vector across all activations, limiting expressivity and ignoring the local geometry of the activation space. We propose Kernelized Activation Steering (KAS), a unifying framework that lifts activation steering into a reproducing kernel Hilbert space. KAS formulates steering as an optimization problem expressed purely via kernel evaluations, yielding an implicit, activation-dependent steering score without constructing explicit feature maps. Unlike DiM, KAS induces locally adaptive steering: each activation is modified according to its relative position with respect to source and target reference sets, producing a nonlinear steering field over the representation space. Importantly, DiM is recovered as a special case under a linear kernel, while richer kernels enable geometry-aware interventions. Across standard activation steering tasks, including jailbreaking LLMs and image style control, KAS outperforms or is on par with the existing methods.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：无 —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  },
+  {
+   "arxiv_id": "2609.10658v1",
+   "title": "GEOSTEER: Geodesic Optimization for Activation Steering in Large Language Models",
+   "url": "https://arxiv.org/abs/2609.10658v1",
+   "claim_verbatim": "Across TruthfulQA, RealToxicityPrompts, and UltraFeedback benchmarks, GeoSteer consistently improves over state-of-the-art activation steering baselines.",
+   "abstract": "Activation steering provides a lightweight way to control large language models (LLMs) by modifying their hidden activations at inference time. Among these approaches, norm-preserving steering aims to change model behavior without altering the activation norm, reducing the risk of representation collapse and degradation. However, existing norm-preserving methods are limited by predefined steering trajectories and by their reliance on one-step updates, which may fail to capture the complex structure of activation distributions. We propose GeoSteer, an optimization-based method for norm-preserving activation steering. GeoSteer formulates steering as a Riemannian optimization problem and updates activations through a sequence of small geodesic steps on the representation manifold. To avoid fixed steering directions, GeoSteer learns a nonlinear activation-space objective that distinguishes desired from undesired activations, and uses this function to adaptively guide each steering step. This multistep formulation yields smoother, more stable, and more consistent steering behavior while preserving the activation norm. Across TruthfulQA, RealToxicityPrompts, and UltraFeedback benchmarks, GeoSteer consistently improves over state-of-the-art activation steering baselines. These results suggest that norm-preserving steering can be made more effective by replacing predefined one-step edits with adaptive, geometry-aware optimization.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [
+    "Across TruthfulQA, RealToxicityPrompts, and UltraFeedback benchmarks, GeoSteer consistently improves over state-of-the-art activation steering baselines."
+   ],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：Across TruthfulQA, RealToxicityPrompts, and UltraFeedback benchmarks, GeoSteer consistently improves over state-of-the-art activation steering baselines. —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  },
+  {
+   "arxiv_id": "2607.20803v2",
+   "title": "The Geometry of Personality: Activation Steering with Jungian Cognitive Functions",
+   "url": "https://arxiv.org/abs/2607.20803v2",
+   "claim_verbatim": null,
+   "verdict": "摘要里抽不出可引用的主张句",
+   "max_level_from_abstract": null,
+   "controls_named_in_abstract": [],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [],
+   "note": "宁可不引，也不改写摘要凑一句。"
+  },
+  {
+   "arxiv_id": "2510.13285v1",
+   "title": "In-Distribution Steering: Balancing Control and Coherence in Language Model Generation",
+   "url": "https://arxiv.org/abs/2510.13285v1",
+   "claim_verbatim": "Experiments demonstrate that IDS achieves strong accuracy on classification tasks while producing coherent text without collapse, making IDS particularly well suited for real-world applications.",
+   "abstract": "Activation steering methods control large language model (LLM) behavior by modifying internal activations at inference time. However, most existing activation steering methods rely on a fixed steering strength, leading to either insufficient control or unadapted intervention that degrades text plausibility and coherence. We introduce In-Distribution Steering (IDS), a novel method that adapts steering strength based on the input data distribution in representation space. IDS dynamically adjusts interventions according to how far a given input lies within the distribution, enabling adaptive intervention and generation stability during text generation. Experiments demonstrate that IDS achieves strong accuracy on classification tasks while producing coherent text without collapse, making IDS particularly well suited for real-world applications.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：无 —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  },
+  {
+   "arxiv_id": "2602.17560v2",
+   "title": "ODESteer: A Unified ODE-Based Steering Framework for LLM Alignment",
+   "url": "https://arxiv.org/abs/2602.17560v2",
+   "claim_verbatim": "Compared to state-of-the-art activation steering methods, ODESteer achieves consistent empirical improvements on diverse LLM alignment benchmarks, a notable $5.7\\%$ improvement over TruthfulQA, $2.5\\%$ over UltraFeedback, and $2.4\\%$ over RealToxicityPrompts.",
+   "abstract": "Activation steering, or representation engineering, offers a lightweight approach to align large language models (LLMs) by manipulating their internal activations at inference time. However, current methods suffer from two key limitations: (i) the lack of a unified theoretical framework for guiding the design of steering directions, and (ii) an over-reliance on one-step steering that fail to capture complex patterns of activation distributions. In this work, we propose a unified ordinary differential equations (ODEs)-based theoretical framework for activation steering in LLM alignment. We show that conventional activation addition can be interpreted as a first-order approximation to the solution of an ODE. Based on this ODE perspective, identifying a steering direction becomes equivalent to designing a barrier function from control theory. Derived from this framework, we introduce ODESteer, a kind of ODE-based steering guided by barrier functions, which shows empirical advancement in LLM alignment. ODESteer identifies steering directions by defining the barrier function as the log-density ratio between positive and negative activations, and employs it to construct an ODE for multi-step and adaptive steering. Compared to state-of-the-art activation steering methods, ODESteer achieves consistent empirical improvements on diverse LLM alignment benchmarks, a notable $5.7\\%$ improvement over TruthfulQA, $2.5\\%$ over UltraFeedback, and $2.4\\%$ over RealToxicityPrompts. Our work establishes a principled new view of activation steering in LLM alignment by unifying its theoretical foundations via ODEs, and validating it empirically through the proposed ODESteer method.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [
+    "Compared to state-of-the-art activation steering methods, ODESteer achieves consistent empirical improvements on diverse LLM alignment benchmarks, a notable $5.7\\%$ improvement over TruthfulQA, $2.5\\%$ over UltraFeedback, and $2.4\\%$ over RealToxicityPrompts."
+   ],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：Compared to state-of-the-art activation steering methods, ODESteer achieves consistent empirical improvements on diverse LLM alignment benchmarks, a notable $5.7\\%$ improvement over TruthfulQA, $2.5\\%$ over UltraFeedback, and $2.4\\%$ over RealToxicityPrompts. —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  },
+  {
+   "arxiv_id": "2607.19806v2",
+   "title": "OPIUM: Mitigating Steering Externalities and Over-Refusal via Dual Objective Latent Optimization",
+   "url": "https://arxiv.org/abs/2607.19806v2",
+   "claim_verbatim": "Across steering-externality and over-refusal settings, OPIUM improves the safety--utility tradeoff relative to vanilla steering and directional ablation, suggesting that harmful side effects of activation steering can often be mitigated directly in activation space.",
+   "abstract": "Activation steering provides a lightweight mechanism for controlling large language models at inference time, but steering vectors can have unintended externalities: utility vectors may weaken safety behavior, while refusal vectors may induce over-refusal on benign prompts. We introduce OPIUM (Optimizing Protected Injections via Utility Manifolds), a training-free method for sanitizing steering vectors through representation matching. Given reference behaviors on two prompt sets, OPIUM optimizes a new steering vector that preserves the downstream representations induced by the desired intervention while matching a safer reference behavior on prompts where the original vector fails. Across steering-externality and over-refusal settings, OPIUM improves the safety--utility tradeoff relative to vanilla steering and directional ablation, suggesting that harmful side effects of activation steering can often be mitigated directly in activation space.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [
+    "Across steering-externality and over-refusal settings, OPIUM improves the safety--utility tradeoff relative to vanilla steering and directional ablation, suggesting that harmful side effects of activation steering can often be mitigated directly in activation space."
+   ],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：Across steering-externality and over-refusal settings, OPIUM improves the safety--utility tradeoff relative to vanilla steering and directional ablation, suggesting that harmful side effects of activation steering can often be mitigated directly in activation space. —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  },
+  {
+   "arxiv_id": "2410.12877v2",
+   "title": "Improving Instruction-Following in Language Models through Activation Steering",
+   "url": "https://arxiv.org/abs/2410.12877v2",
+   "claim_verbatim": "We demonstrate how this method can enhance model adherence to constraints such as output format, length, and word inclusion, providing inference-time control over instruction following.",
+   "abstract": "The ability to follow instructions is crucial for numerous real-world applications of language models. In pursuit of deeper insights and more powerful capabilities, we derive instruction-specific vector representations from language models and use them to steer models accordingly. These vectors are computed as the difference in activations between inputs with and without instructions, enabling a modular approach to activation steering. We demonstrate how this method can enhance model adherence to constraints such as output format, length, and word inclusion, providing inference-time control over instruction following. Our experiments across four models demonstrate how we can use the activation vectors to guide models to follow constraints even without explicit instructions and to enhance performance when instructions are present. Additionally, we explore the compositionality of activation steering, successfully applying multiple instructions simultaneously. Finally, we demonstrate that steering vectors computed on instruction-tuned models can transfer to improve base models. Our findings demonstrate that activation steering offers a practical and scalable approach for fine-grained control in language generation. Our code and data are available at https://github.com/microsoft/llm-steer-instruct.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：无 —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  },
+  {
+   "arxiv_id": "2406.17563v1",
+   "title": "Multi-property Steering of Large Language Models with Dynamic Activation Composition",
+   "url": "https://arxiv.org/abs/2406.17563v1",
+   "claim_verbatim": "Our experiments on multi-property steering show that our method successfully maintains high conditioning while minimizing the impact of conditioning on generation fluency.",
+   "abstract": "Activation steering methods were shown to be effective in conditioning language model generation by additively intervening over models' intermediate representations. However, the evaluation of these techniques has so far been limited to single conditioning properties and synthetic settings. In this work, we conduct a comprehensive evaluation of various activation steering strategies, highlighting the property-dependent nature of optimal parameters to ensure a robust effect throughout generation. To address this issue, we propose Dynamic Activation Composition, an information-theoretic approach to modulate the steering intensity of one or more properties throughout generation. Our experiments on multi-property steering show that our method successfully maintains high conditioning while minimizing the impact of conditioning on generation fluency.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：无 —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  },
+  {
+   "arxiv_id": "2501.11036v2",
+   "title": "LF-Steering: Latent Feature Activation Steering for Enhancing Semantic Consistency in Large Language Models",
+   "url": "https://arxiv.org/abs/2501.11036v2",
+   "claim_verbatim": "Recently, activation steering, a technique that modulates LLMs' behaviours by adjusting their latent representations during inference time, has been explored to improve the semantic consistency of LLMs.",
+   "abstract": "Large Language Models (LLMs) often generate inconsistent responses when prompted with semantically equivalent paraphrased inputs. Recently, activation steering, a technique that modulates LLMs' behaviours by adjusting their latent representations during inference time, has been explored to improve the semantic consistency of LLMs. However, these methods typically operate at the model component level, such as layer hidden states or attention head outputs. They face a challenge due to the ``polysemanticity issue'', where the model components of LLMs typically encode multiple entangled features, making precise steering difficult. To address this challenge, we drill down to feature-level representations and propose LF-Steering, a novel activation steering approach to precisely identify latent feature representations responsible for semantic inconsistency. More specifically, our method maps the hidden states of the relevant transformer layer into a sparsely activated, high-dimensional feature space based on a sparse autoencoder (SAE), ensuring model steering based on decoupled feature representations with minimal interference. Comprehensive experiments on NLU and NLG datasets demonstrate the effectiveness of our method in enhancing semantic consistency, resulting in significant performance gains for various NLU and NLG tasks.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：无 —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  },
+  {
+   "arxiv_id": "2601.16390v1",
+   "title": "Cross-Lingual Activation Steering for Multilingual Language Models",
+   "url": "https://arxiv.org/abs/2601.16390v1",
+   "claim_verbatim": "We discover that effective transfer operates through functional divergence rather than strict alignment; performance gains correlate with increased language cluster separation.",
+   "abstract": "Large language models exhibit strong multilingual capabilities, yet significant performance gaps persist between dominant and non-dominant languages. Prior work attributes this gap to imbalances between shared and language-specific neurons in multilingual representations. We propose Cross-Lingual Activation Steering (CLAS), a training-free inference-time intervention that selectively modulates neuron activations. We evaluate CLAS on classification and generation benchmarks, achieving average improvements of 2.3% (Acc.) and 3.4% (F1) respectively, while maintaining high-resource language performance. We discover that effective transfer operates through functional divergence rather than strict alignment; performance gains correlate with increased language cluster separation. Our results demonstrate that targeted activation steering can unlock latent multilingual capacity in existing models without modification to model weights.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：无 —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  },
+  {
+   "arxiv_id": "2607.00946v1",
+   "title": "A Geometric Perspective on Composable Emotion Steering in Text-to-Speech Models",
+   "url": "https://arxiv.org/abs/2607.00946v1",
+   "claim_verbatim": "Our results show that SLM offers a clean, low-dimensional emotion-specific subspace with strong speaker--emotion disentanglement, while CFM exhibitspoor cross-speaker generalization due to speaker--emotion entanglement.",
+   "abstract": "While prior work has explored emotion control in hybrid text-to-speech systems, the geometric properties of these modules, and their implications for steerability, remain poorly understood. We present the first comparative study of speech language model (SLM) and conditional flow-matching (CFM) modules as activation steering sites for mixed emotion speech synthesis. We first characterize emotion representations using linear probing and local intrinsic dimensionality (LID), and then evaluate single-site and joint steering for mixed-emotion synthesis. Our results show that SLM offers a clean, low-dimensional emotion-specific subspace with strong speaker--emotion disentanglement, while CFM exhibitspoor cross-speaker generalization due to speaker--emotion entanglement. Joint steering increases emotion intensity but degrades proportional control and speech quality on in-distribution data. These findings provide practical guidance for multi-site activation steering in hybrid TTS systems and highlight the importance of representation geometry in controllable speech generation.",
+   "max_level_from_abstract": null,
+   "verdict": "摘要不足以定级：它没说用了什么证据，所以这把尺子现在给出的级别是「未定」而不是「低」",
+   "controls_named_in_abstract": [],
+   "same_norm_random_control": "unknown",
+   "must_read_in_methods": [
+    "有没有同范数随机方向臂（摘要不写，这是关键那一项）",
+    "有没有留出集 / 打乱地板（摘要不写）",
+    "有没有专属性矩阵：这条方向是否比同表其它方向都强",
+    "「净变化」是否报了（含变差的那部分）与分母",
+    "对照到底是随机方向还是只跟自家方法比"
+   ],
+   "note": "摘要里点名的对照：无 —— 但点到一个对照与「那个对照是同范数随机方向」不是一回事，后者写在方法章节里。"
+  }
+ ]
+}

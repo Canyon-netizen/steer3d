@@ -126,6 +126,14 @@ MUTS = {
     "M4": ("drops the coverage limitation of the audit tool", "M4"),
     "M5": ("replaces the quantile ceiling with a magic threshold", "M5"),
     "M6": ("hardcodes the self-audit level in the data attribute", "M0"),
+    # --- N 组：§8.7 把尺子指向真实论文 ---
+    # N1 是本组唯一真正危险的一条：它把「摘要里没写」印成「论文没做」。
+    # 数字一个字都不改，改的只是**读法**。
+    "N1": ("turns unknown into a no-one-did-it verdict", "N1"),
+    "N2": ("drops the not-an-accusation disclaimer", "N2"),
+    "N3": ("drops the do-not-fill-in-what-is-not-there rule", "N3"),
+    "N4": ("rewrites a verbatim quote instead of quoting", "N4"),
+    "N5": ("hardcodes the paper count in the data attribute", "N0"),
 }
 
 
@@ -264,6 +272,19 @@ def verify_source_untouched():
         "排除不了",
         "覆盖限制",
         "不设魔法阈值",
+        # §8.7 文献审计块
+        "data-lit-audit",
+        "data-lit-rule",
+        "data-lit-detail",
+        "data-lit-item=\"headline\"",
+        "data-lit-item=\"notaccuse\"",
+        "data-lit-item=\"levels\"",
+        "data-lit-item=\"read\"",
+        "data-lit-row",
+        "摘要里没有的东西，不许替论文填",
+        "这不是指控",
+        "为什么不给「级别低」",
+        "只入库摘要",
         # ⚠ 「未经检验」「n/(n+1)」**不在源码里** —— 它们是从 claim_audit.json
         #   渲染进来的。我第一版把它们当源码标记，verify_source_untouched()
         #   立刻报缺 ⇒ 其实是我把「产物内容」当成了「源码结构」。
@@ -536,6 +557,41 @@ def apply(which):
              "             data-ca-self-supported={String(s3.audit.max_level_supported)}\n",
              "             data-ca-self-supported={6}  // MUT_M6\n",
              "M6")
+    elif which == "N1":
+        # 数字一个都不动。只把「未知」读成「没做」。
+        edit(PANEL,
+             "                <b className=\"text-amber-300\">\n"
+             "                  {\" \"}注意这是「未知」不是「没有」。\n"
+             "                </b>\n",
+             "                <b className=\"text-red-300\">\n"
+             "                  {\" \"}也就是说这些论文都没做随机方向对照。\n"
+             "                </b>\n",
+             "N1")
+    elif which == "N2":
+        edit(PANEL,
+             "              <b className=\"text-amber-200\">这不是指控。</b>\n"
+             "              {H.what_this_is_not}\n",
+             "              {H.statement}\n",
+             "N2")
+    elif which == "N3":
+        # 硬规矩整条删掉：剩下的话读起来就像「摘要=全文」。
+        edit(PANEL,
+             "            <b>硬规矩：摘要里没有的东西，不许替论文填。</b>\n"
+             "            {lit.hard_rule}\n",
+             "            {lit.why_not_levels}\n",
+             "N3")
+    elif which == "N4":
+        # 逐字引述被改写 —— 这正是自证 1 要防的事，
+        # 而它在页面上表现为「引述仍在、但不是原文」。
+        edit(PANEL,
+             "                  <div className=\"text-gray-300 mt-0.5\">「{r.claim_verbatim}」</div>\n",
+             "                  <div className=\"text-gray-300 mt-0.5\">「本文证明该方向确实编码了目标概念。」</div>\n",
+             "N4")
+    elif which == "N5":
+        edit(PANEL,
+             "             data-lit-n={String(lit.source.n_papers)}\n",
+             "             data-lit-n={3}  // MUT_N5\n",
+             "N5")
     elif which == "O12":
         # 数字一个都不动：净变化仍从 answer_power.json 读、data-* 仍诚实。
         edit(PANEL,

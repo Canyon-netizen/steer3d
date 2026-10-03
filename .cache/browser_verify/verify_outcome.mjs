@@ -36,6 +36,7 @@ const PW  = JSON.parse(readFileSync(DATA + '/answer_power.json', 'utf8'));
 const SD  = JSON.parse(readFileSync(DATA + '/steer_directions.json', 'utf8'));
 const RP  = JSON.parse(readFileSync(DATA + '/steer_repetition.json', 'utf8'));
 const CA  = JSON.parse(readFileSync(DATA + '/claim_audit.json', 'utf8'));
+const LIT = JSON.parse(readFileSync(DATA + '/lit_audit.json', 'utf8'));
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = [];
@@ -215,6 +216,44 @@ try {
             l2supported: g('data-ca-l2-supported'),
             selfDeclared: g('data-ca-self-declared'),
             selfSupported: g('data-ca-self-supported'),
+          };
+        })(),
+        lit: (() => {
+          const d = el.querySelector('[data-lit-audit]');
+          if (!d) return { missing: true, text: '', items: {}, rule: null,
+                           detail: null, rows: [] };
+          const g = a => d.getAttribute(a);
+          const items = {};
+          d.querySelectorAll('[data-lit-item]').forEach(li => {
+            items[li.getAttribute('data-lit-item')] =
+              (li.innerText || '').replace(/\\s+/g, ' ').trim();
+          });
+          const q = sel => { const n = d.querySelector(sel);
+            return n ? (n.innerText || '').replace(/\\s+/g, ' ').trim() : null; };
+          const rows = [];
+          d.querySelectorAll('[data-lit-row]').forEach(li => {
+            rows.push({ id: li.getAttribute('data-lit-row'),
+                        // ⚠ 必须用 textContent，**不能用 innerText**：
+                        //   引述在折叠的 <details> 里，而 innerText 尊重渲染 ——
+                        //   折叠时它只给 <summary> 的可见文字，
+                        //   于是 N4 在**干净源码上**就红了。
+                        //   N4 验的是「引述有没有被改写」（数据忠实度），
+                        //   不是「读者看不看得见」；后者由渲染守卫负责。
+                        text: (li.textContent || '').replace(/\\s+/g, ' ').trim() });
+          });
+          return {
+            missing: false,
+            text: (d.innerText || '').replace(/\\s+/g, ' ').trim(),
+            items, rule: q('[data-lit-rule]'),
+            // <details> 折叠 ⇒ innerText 只给 <summary>，必须用 textContent
+            detail: (d.querySelector('[data-lit-detail]')?.textContent || '')
+                      .replace(/\\s+/g, ' ').trim(),
+            rows,
+            n: g('data-lit-n'), claim: g('data-lit-claim'),
+            ctrl: g('data-lit-ctrl'),
+            sameNorm: g('data-lit-samenorm'),
+            sameNormUnknown: g('data-lit-samenorm-unknown'),
+            renderedFields: g('data-lit-rendered-fields'),
           };
         })(),
         rows: el.querySelectorAll('[data-answer-rows] > div').length,
@@ -877,6 +916,100 @@ try {
       // 反向断言：产物里真的没有魔法阈值这句话
       && !/n\s*[≥>=]\s*\d+\s*(就够|足够)/.test(CA.random_ceiling_note),
       MCE ? MCE.slice(0, 230) : '缺 [data-ca-ceiling]');
+
+  // ==================== N 组：把尺子指向真实论文 ====================
+  // 这一组最容易出的错不是数字错，而是**语气错** ——
+  // 把「摘要里没写」印成「论文没做」。
+  const L = state.lit || {};
+  const LH = LIT.headline;
+
+  rec('N0 文献审计块存在，且 5 个计数与产物逐值相同（可见文案 + 属性两处）',
+      !L.missing
+      && Number(L.n) === LIT.source.n_papers
+      && Number(L.claim) === LH.n_with_verbatim_claim
+      && Number(L.ctrl) === LH.n_naming_any_control_in_abstract
+      && Number(L.sameNorm) === LH.n_with_same_norm_random_control_known
+      && Number(L.sameNormUnknown) === LH.same_norm_unknown
+      && Number(L.renderedFields) === LIT.rendered_fields.length
+      && LIT.source.only_abstracts === true
+      // 内部一致性：known + unknown 必须等于总数
+      && LH.n_with_same_norm_random_control_known + LH.same_norm_unknown
+           === LIT.source.n_papers,
+      L.missing ? '缺 [data-lit-audit]'
+        : `n=${L.n} claim=${L.claim} ctrl=${L.ctrl} `
+          + `sameNorm=${L.sameNorm} unknown=${L.sameNormUnknown} `
+          + `rendered=${L.renderedFields} | 产物 n=${LIT.source.n_papers} `
+          + `claim=${LH.n_with_verbatim_claim} ctrl=${LH.n_naming_any_control_in_abstract} `
+          + `sameNorm=${LH.n_with_same_norm_random_control_known} `
+          + `unknown=${LH.same_norm_unknown} `
+          + `rendered=${LIT.rendered_fields.length}`);
+
+  // ⚠ 全组最要紧的一条：0 篇可判**不等于** 0 篇没做。
+  const NL = L.items.headline || '';
+  rec('N1 「0 篇可判」必须紧跟「未知不是没有」，不许印成「论文都没做」',
+      !!NL
+      && NL.includes(String(LH.n_papers))
+      && NL.includes(String(LH.n_naming_any_control_in_abstract))
+      && NL.includes(String(LH.n_with_same_norm_random_control_known))
+      && /未知.*不是.*没有|不是没有/.test(NL)
+      // 反向断言：产物里 0 是「可判数」，不是「做过数」
+      && LH.n_with_same_norm_random_control_known === 0
+      && LH.same_norm_unknown > 0
+      && !/没有一篇|全部没有|都没做/.test(NL),
+      NL ? NL.slice(0, 230) : '缺 [data-lit-item="headline"]');
+
+  const NA = L.items.notaccuse || '';
+  rec('N2 必须明写「这不是指控」，并说清 unknown 是「摘要里没写」',
+      !!NA
+      && /这不是指控/.test(NA)
+      && /摘要里没写/.test(NA)
+      && /方法章节/.test(NA)
+      && NA.includes(LIT.headline.what_this_is_not.slice(0, 10)),
+      NA ? NA.slice(0, 230) : '缺 [data-lit-item="notaccuse"]');
+
+  // 硬规矩必须印出来：不许替论文填摘要里没有的东西
+  const NR = L.rule || '';
+  rec('N3 硬规矩必须印出：摘要里没有的不许替论文填，并给出来源与查询式',
+      !!NR
+      && /摘要里没有的东西，不许替论文填/.test(NR)
+      && NR.includes(LIT.source.api)
+      && NR.includes(LIT.source.query)
+      && /只入库摘要/.test(NR),
+      NR ? NR.slice(0, 230) : '缺 [data-lit-rule]');
+
+  // 逐字引述必须真的是摘要的子串 —— 判据自己在产物上复核一遍
+  const LQ = LIT.rows.filter(x => x.claim_verbatim);
+  const NVD = L.detail || '';
+  const norm = t => (t || '').replace(/\\s+/g, ' ').trim();
+  const byPaper = {};
+  LIT.rows.forEach(x => { byPaper[x.arxiv_id] = x; });
+  // ⚠ N4 的第一版只核了三件**与页面无关**的事：
+  //   「产物里引述是摘要子串」「DOM 行数 = 产物条数」「每个 id 出现在展开区」。
+  //   三件全都不看**页面上真正渲染出来的那句话** ——
+  //   于是 N4 变异把引述整句改写成「本文证明该方向确实编码了目标概念」，
+  //   N4 依然 53/53 全绿。
+  //   这就是「只查属性」那条老毛病的又一例：查了一堆**元数据**，
+  //   唯独没查**读者看到的那句话**。
+  const mismatched = L.rows.filter(r => {
+    const a = byPaper[r.id];
+    return !a || !a.claim_verbatim || !r.text.includes(norm(a.claim_verbatim));
+  });
+  rec('N4 逐字引述必须真的是对应摘要的子串，**且页面上渲染的就是那句话**'
+      + '（判据自己复核产物，不信脚本自证）',
+      LQ.length > 0
+      && LQ.every(x => x.abstract.indexOf(x.claim_verbatim) >= 0)
+      && L.rows.length === LQ.length
+      && L.rows.every(r => NVD.includes(r.id))
+      // 反向断言：不能有引述等于整段摘要
+      && LQ.every(x => x.claim_verbatim.length <= 0.6 * x.abstract.length)
+      && NVD.includes(String(LQ.length))
+      // ★ 缺的就是这一条：渲染文本必须**包含**产物里那句逐字引述
+      && mismatched.length === 0,
+      `产物内 ${LQ.length} 条引述全部是摘要子串；页面列出 ${L.rows.length} 条；`
+      + `渲染与产物不一致 ${mismatched.length} 条`
+      + (mismatched.length
+         ? ` —— 例如 ${mismatched[0].id} 渲染成「${mismatched[0].text.slice(0, 60)}」`
+         : ` | notaccuse: ${NA.slice(0, 30)}`));
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {
