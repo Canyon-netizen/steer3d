@@ -29,7 +29,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = [];
 const rec = (n, p, d) => { R.push({ n, p }); console.log(`[${p ? 'PASS' : 'FAIL'}] ${n}\n       ${d}`); };
 
-const { proc, version } = await launch({ port: 9462, userDataDir: PROFILE,
+const { proc, version } = await launch({ port: 9533, userDataDir: PROFILE,
   windowSize: '1600,1200', url: 'about:blank' });
 const cdp = await CDP.connect(version.webSocketDebuggerUrl);
 const page = await Page.create(cdp);
@@ -161,6 +161,34 @@ try {
       && /能回答/.test(st.answerable) && /不能回答/.test(st.notAnswerable)
       && /L5/.test(st.notAnswerable),
       `能: ${String(st.answerable).slice(0, 70)} || 不能: ${String(st.notAnswerable).slice(0, 70)}`);
+
+  // ---------- L12 「有数据」与「能声称」必须分开印，且必须是**那句话** ----------
+  // ⚠ L9 只查了「能回答 / 不能回答 / L5」三个关键词，**恰恰漏掉 L6 那一句** ——
+  //   而那一句是页面上唯一说明「L6 有数据但不能声称」的地方。
+  //   删掉它或改个措辞，读者就看不出 L4(能声称) 与 L6(有数据) 的区别，
+  //   而 L6 在阶梯上仍是 partial、还印着 92 个 run ⇒ 极容易被读成「我们到 L6 了」。
+  //   这正是本项目吃过一次的亏（产物 bug #11）：
+  //   「最高有数据」与「最高能声称」混成一个数，就会写出「L5 及以上一行都没有」
+  //   这种自相矛盾的话。
+  // ⇒ 判据主体是**那句渲染文本**本身，且必须与产物逐字对得上。
+  const naList = Array.isArray(LAD.not_answerable) ? LAD.not_answerable
+                                                    : [String(LAD.not_answerable)];
+  const l6line = naList.find(s => /L6/.test(s)) || '';
+  const need = [
+    ['L6 有数据', /L6/.test(l6line)],
+    ['说清「有数据」', /有数据/.test(l6line)],
+    ['点名缺随机臂', /随机(方向)?臂/.test(l6line)],
+    ['区分「改变了」与「特有地改变了」',
+     /只能声称.*改变了/.test(l6line) && /特有地/.test(l6line)],
+  ];
+  const naMiss = need.filter(([, ok]) => !ok).map(([w]) => w);
+  rec('L12 「有数据」与「能声称」必须分开印，且 L6 那句必须逐字在页面上',
+      !!l6line && naMiss.length === 0 && st.notAnswerable.includes(l6line),
+      naMiss.length ? '产物 L6 句缺：' + naMiss.join('、')
+        : (st.notAnswerable.includes(l6line)
+            ? '逐字命中'
+            : '⚠ 产物里有这句，但页面上**没有**（属性与状态都照旧，读者会误读成 L6）')
+        + `　L6 句：${l6line.slice(0, 96)}`);
 
   // 可见性：阶梯是竖排块，但每一行内不能被裁
   const vis = await page.eval(`(() => {
