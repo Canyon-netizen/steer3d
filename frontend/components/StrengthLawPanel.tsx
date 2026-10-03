@@ -83,7 +83,6 @@ type Law = {
   };
 };
 
-const SHOW_LAYER = 20;     // where the 32k batch injects
 const W = 340;
 const H = 120;
 const PAD_L = 30;
@@ -118,10 +117,24 @@ export default function StrengthLawPanel() {
 
   const view = useMemo(() => {
     if (!law?.rows) return null;
-    const rows = law.rows.filter((r) => r.layer === SHOW_LAYER)
+    // ⚠⚠ 第二十七笔：这里原来筛的是 `r.layer === SHOW_LAYER`，
+    //   而 SHOW_LAYER 是模块级 `const SHOW_LAYER = 20`。
+    //   **同一个面板下面十几行的可见文字已经在印 `(L{batch.layer})`**
+    //   —— 那个 batch 就是 steer_directions.json，而它的 layer 恰好也是 20。
+    //   ⇒ 同一个数在同一个面板里有**两个来源**：可见文字用产物，
+    //     数据筛选用字面量。两者今天相等，可一旦产物换层，
+    //     面板会一边印「L20」一边画 L24 的曲线，**而没有任何判据会红**
+    //     （曲线与文字各自都对，只是互相矛盾）——
+    //     正是第八笔「同屏矛盾」的形状，只是矛盾源在代码里而不在文案里。
+    //   ⇒ 改成同一个字段。取不到就返回 null，让早退分支明说取不到，
+    //     绝不拿字面量兜底（兜底会让「不知道该看哪层」重新变回「假装知道」）。
+    if (batch?.layer == null) return null;
+    const rows = law.rows.filter((r) => r.layer === batch.layer)
                         .sort((a, b) => a.strength - b.strength);
-    return rows.length ? { rows, safe: law.conclusions.safe_regime } : null;
-  }, [law]);
+    return rows.length
+      ? { rows, safe: law.conclusions.safe_regime, layer: batch.layer }
+      : null;
+  }, [law, batch]);
 
   if (err) {
     return (
@@ -136,14 +149,23 @@ export default function StrengthLawPanel() {
 
   if (!law || !view) {
     return (
-      <div className="rounded bg-bg/40 border border-border p-3" data-law="loading">
+      <div className="rounded bg-bg/40 border border-border p-3"
+           data-law={law ? "no-layer" : "loading"}>
         <Head nRandom={null} />
-        <p className="text-[10px] text-gray-500 leading-relaxed mt-1">Loading…</p>
+        <p className="text-[10px] text-gray-500 leading-relaxed mt-1">
+          {/* ⚠ 第二十七笔：「Loading…」与「取到了 law 但不知道该看哪一层」
+              必须印成两句话。第二十七笔之前这里只有 Loading，
+              于是 steer_directions.json 一旦 404，这个面板就会
+              **永远**停在 Loading，而页面上没有任何地方说为什么。 */}
+          {law
+            ? "steer_directions.json 没取到 ⇒ 不知道该看哪一层，不拿字面量兜底。"
+            : "Loading…"}
+        </p>
       </div>
     );
   }
 
-  const { rows, safe } = view;
+  const { rows, safe, layer: showLayer } = view;
   const maxY = Math.max(...rows.map((r) => r.pred_pct), ...rows.map((r) => r.real_dev_mean)) * 1.12;
   const maxA = Math.max(...rows.map((r) => r.a_mean));
   const sx = (a: number) => PAD_L + (a / maxA) * (W - PAD_L - PAD_R);
@@ -155,11 +177,17 @@ export default function StrengthLawPanel() {
     r.strength <= safe.strength_max && r.a_mean > best ? r.a_mean : best, 0);
 
   return (
-    <div className="rounded bg-bg/40 border border-border p-3" data-law="ready">
+    <div className="rounded bg-bg/40 border border-border p-3"
+         data-law="ready"
+         /* ⚠ 第二十七笔：把「实际筛了哪一层」暴露出来。
+            可见文字已经印 (L{batch.layer})，而这个属性让判据能核
+            「文字里那个层」与「曲线数据用的那个层」是**同一个**。
+            第二十六笔的 S18 同理：判据要落在输入上，不只落在答案上。 */
+         data-show-layer={showLayer}>
       <Head nRandom={law.design.n_random} />
 
       <p className="text-[10px] text-gray-500 leading-relaxed mt-1">
-        Push the residual stream at L{SHOW_LAYER} and measure how far its norm
+        Push the residual stream at L{showLayer} and measure how far its norm
         departs from what a first-order expansion predicts:
       </p>
 

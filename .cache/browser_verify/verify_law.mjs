@@ -24,7 +24,14 @@ const LAW = JSON.parse(readFileSync(DATA + '/linearity_law.json', 'utf8'));
 // 而 32k 批次的强度在 steer_directions 里。判据必须两边都读，
 // 否则就是「判据与产品引用同一份东西」——等于没有独立参照。
 const DIR = JSON.parse(readFileSync(DATA + '/steer_directions.json', 'utf8'));
-const SHOW_LAYER = 20;
+// ⚠⚠ 第二十七笔：这一行原来也是 `const SHOW_LAYER = 20;` ——
+//   判据的**期望值**也锚在一个手抄层号上，而产品侧锚的也是同一个 20
+//   ⇒ 两边一起错时 L2 判不出差异（同第十三/二十六笔的形状：
+//   判据与产品共用同一份字面量，这个错在判据里表达不出来）。
+//   ⇒ 判据锚到产物字段 steer_directions.layer（= 20，与 DIR.strength 同一份），
+//     判据的参照物与产品一样来自 steer_directions，但**不再是字面量**：
+//     产物换层时判据会跟着换，而产品若没跟着换，L2 立刻转红。
+const SHOW_LAYER = DIR.layer;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = [];
@@ -114,6 +121,13 @@ try {
       };
       return {
         state: el.getAttribute('data-law'),
+        // 第二十七笔：面板**实际拿哪一层的数据**去画的。
+        // 原来筛层用的是模块级 const SHOW_LAYER = 20 这个字面量，
+        // 而同一块可见文字印的是 (L{batch.layer}) —— 同一个数两个来源。
+        // ⚠⚠ 这几行注释里**不许出现反引号**：本块在一个模板字面量里，
+        //   反引号会当场终止它，报错还指在 eval 那一行、离这里差二十行。
+        //   （我第一版就在这里踩了；verify_outcome.mjs 早就写过这条。）
+        showLayer: el.getAttribute('data-show-layer'),
         text: (el.innerText || '').replace(/\\s+/g, ' '),
         gap: g('[data-gap]', ['data-gap']),
         spread: g('[data-spread]', ['data-spread']),
@@ -316,6 +330,19 @@ rec('L14 源级：图例里的命名方向条数必须取自 design.real_directi
   })(),
   '图例里「N 个命名方向」的 N 必须来自 linearity_law.design.real_directions.length；'
   + '写死时页面与真值相同（design 里正好是 4），渲染层在构造上无解');
+
+rec('L15 面板筛数据的层、可见文字里的层、产物里的层必须**是同一个**',
+  st.showLayer === String(DIR.layer)
+  // 可见文字那一句也核：它是读者真正读到的东西，
+  // 而它与曲线数据若来自不同层，页面会一边印 L20 一边画 L24 的曲线 ——
+  // 两者各自都与某个真值相符，**互相矛盾却没有任何一条会红**。
+  && st.text.includes(`at L${DIR.layer} and measure`)
+  && st.text.includes(`(L${DIR.layer})`),
+  `产物 steer_directions.layer=${DIR.layer}  页面 data-show-layer=${st.showLayer}  `
+  + `可见文字含 "at L${DIR.layer} and measure"=`
+  + `${st.text.includes(`at L${DIR.layer} and measure`)}  `
+  + `含 "(L${DIR.layer})"=${st.text.includes(`(L${DIR.layer})`)}`
+  + `（law.rows 里可用的层：${[...new Set(LAW.rows.map(r => r.layer))].join(',')}）`);
 
 rec('L11 页面无 console error', errs.length === 0,
       errs.length ? errs.slice(0, 2).join(' | ') : 'none');

@@ -80,13 +80,25 @@ type LensArtifact = {
     all_steps?: { pass?: number; total?: number };
     max_logit_error_vs_stored_topk?: number;
   };
+  // 第二十七笔新增：层数**不写死**，从这两处取（见下面 N_LAYERS 的说明）。
+  model?: { n_layers?: number };
+  per_layer_mean_p_final?: { values?: number[] };
   trajectories?: LensTrajectory[];
 };
 
 const W = 328;
 const H = 132;
 const PAD = { top: 12, right: 10, bottom: 20, left: 10 };
-const N_LAYERS = 28;
+// ⚠⚠ 第二十七笔：`const N_LAYERS = 28;` 已从模块级删掉。
+//   它是**这个组件自己刚取回来的那份产物**里的一个字段
+//   （logit_lens.json 的 model.n_layers = 28，另有一条独立证据
+//   per_layer_mean_p_final.values 正好 28 项）——
+//   也就是说，这个面板**手里拿着真值，却在旁边写了一个字面量**。
+//   而它决定的东西很关键：横轴刻度 `L0 … L{N_LAYERS-1}`、每层柱宽
+//   `plotW / N_LAYERS`、以及那句「layers 0–27 were read」的**可见文字**。
+//   判据侧 verify_derivation.mjs 同时把 28 抄了四处（bars.length === 28 ×3
+//   与一处守卫）⇒ 与第十三/二十六笔同形：两边一起错，判据自己不会红。
+//   ⇒ 现在从产物派生；取不到就明说取不到（见下面那句 fallback）。
 
 export default function LayerDerivationPanel() {
   const currentTrajectory = useApp((s) => s.currentTrajectory);
@@ -249,6 +261,17 @@ export default function LayerDerivationPanel() {
     );
   }
 
+  // ⚠ 第二十七笔：层数由产物给出。两条独立证据取其一：
+  //   model.n_layers 是模型自述的层数；per_layer_mean_p_final.values 是
+  //   逐层均值的实际长度。两者不一致本身就是一件该看见的事，
+  //   所以下面把它**暴露成可核的属性**，而不是内部悄悄取其一。
+  // ⚠ 取不到时给 0 而不是 28：那会让 `plotW / N_LAYERS` = Infinity、
+  //   刻度印 `L-1` —— 一个**看起来正常**的错误。
+  //   早退分支已经保证 lens 非 null，所以这里不会是「还没取到」。
+  const N_LAYERS = lens.model?.n_layers
+    ?? lens.per_layer_mean_p_final?.values?.length
+    ?? 0;
+
   if (!traj) {
     return (
       <div className="rounded bg-bg/40 border border-border p-3" data-derivation="no-lens">
@@ -281,7 +304,7 @@ export default function LayerDerivationPanel() {
 
   if (!step) {
     return (
-      <div className="rounded bg-bg/40 border border-border p-3" data-derivation="out-of-window" data-traj={trajId ?? ""} data-step-id={stepId ?? ""}>
+      <div className="rounded bg-bg/40 border border-border p-3" data-derivation="out-of-window" data-traj={trajId ?? ""} data-step-id={stepId ?? ""} data-n-layers={N_LAYERS}>
         {header}
         {stepPicker}
         <p className="text-[10px] text-gray-500 leading-relaxed mt-1">
@@ -326,7 +349,7 @@ export default function LayerDerivationPanel() {
   const flx = first != null && first >= 0 ? bx(first) + bw / 2 : null;
 
   return (
-    <div className="rounded bg-bg/40 border border-border p-3" data-derivation="ready" data-traj={trajId ?? ""} data-step-id={stepId ?? ""}>
+    <div className="rounded bg-bg/40 border border-border p-3" data-derivation="ready" data-traj={trajId ?? ""} data-step-id={stepId ?? ""} data-n-layers={N_LAYERS}>
       {header}
       {stepPicker}
 

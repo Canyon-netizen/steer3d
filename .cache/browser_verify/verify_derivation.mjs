@@ -22,6 +22,18 @@ const LENS_PATH =
   '/Users/zhourui/code/steer3d/frontend/public/latent/data/logit_lens.json';
 
 const LENS = JSON.parse(readFileSync(LENS_PATH, 'utf8'));
+// ⚠⚠ 第二十七笔：这一支原来把 28 **抄了九处**（bars.length 的 ===/!==/>=
+//   共 6 处、逐层循环上界 l < 28 三处，外加判据名与两条诊断文案里的
+//   「28 层」「28/28」——我第一版注释写的是「四处」，数错了；
+//   一个自己都数错的计数，正好是这一族缺陷的缩影），
+//   而产品侧 LayerDerivationPanel 同样写着 `const N_LAYERS = 28`。
+//   ⇒ 与第十三/二十六笔完全同形：判据与产品共用同一份手抄字面量，
+//     产物换模型、层数变了，两边**一起错**而判据自己不会红。
+//   现在判据从产物取，并要求两条独立证据一致（不一致本身就是该看见的事）。
+const NL_MODEL = LENS.model?.n_layers ?? null;
+const NL_VALUES = Array.isArray(LENS.per_layer_mean_p_final?.values)
+  ? LENS.per_layer_mean_p_final.values.length : null;
+const NL = NL_MODEL ?? NL_VALUES;
 const BY_ID = new Map((LENS.trajectories || []).map((t) => [t.id, t]));
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -235,15 +247,15 @@ try {
   for (let i = 0; i < 12; i++) {
     await sleep(700);
     got = await readPanel();
-    if (got.state === 'ready' && got.bars.length >= 28) {
+    if (got.state === 'ready' && got.bars.length >= NL) {
       const m = String(got.text).match(/Step\s+(\d+)/);
       landedT = m ? Number(m[1]) : null;
       break;
     }
   }
 
-  rec('F4 定位到窗口内步后面板画出 28 层链条',
-      got.state === 'ready' && got.bars.length === 28,
+  rec(`F4 定位到窗口内步后面板画出 ${NL} 层链条`,
+      got.state === 'ready' && got.bars.length === NL,
       `state=${got.state} bars=${got.bars.length} t=${landedT} slider=${slid}`);
 
   /* ---------------------------------------------------------------- */
@@ -252,11 +264,11 @@ try {
       landedT === targetT,
       `panel t=${landedT} slider=${slid} json has t=${targetT}: ${!!target}`);
 
-  if (got.bars.length === 28 && target) {
+  if (got.bars.length === NL && target) {
     const pl = target.per_layer;
     const drawn = await readDrawn();
     const bad = [];
-    for (let l = 0; l < 28; l++) {
+    for (let l = 0; l < NL; l++) {
       const wantP = pl.p_final[l];
       const wantOk = !!pl.correct[l];
       const g = got.bars[l];
@@ -273,9 +285,29 @@ try {
       }
     }
     rec('F5 每根柱子的 p_final、correct 与实际绘制高度都与 JSON 一致',
-        bad.length === 0 && drawn.length === 28,
+        bad.length === 0 && drawn.length === NL,
         bad.length ? bad.slice(0, 4).join(' | ')
-                   : `28/28 一致 (t=${target.t}, 高度也由 p_final 决定)`);
+                   : `${NL}/${NL} 一致 (t=${target.t}, 高度也由 p_final 决定)`);
+
+    // ⚠⚠ 第二十七笔新增：判据核**输入**（面板认为自己有几层），不只核答案。
+    //   第二十六笔 S18 的同款：把 N_LAYERS 换成别的数而柱高仍按同样比例缩放，
+    //   答案是对的，可「一共几层」这件事已经错了。
+    //   两条独立证据（model.n_layers 与 per_layer 逐层长度）必须一致 ——
+    //   不一致本身就是该看见的事，那时「取其一」会把矛盾藏起来。
+    const nlPage = JSON.parse(await page.eval(`(() => {
+      const el = document.querySelector('[data-derivation]');
+      const v = el.getAttribute('data-n-layers');
+      return JSON.stringify({ state: el.getAttribute('data-derivation'),
+                              nLayers: v === null ? null : Number(v) });
+    })()`));
+    rec('F5b 面板自称的层数 == 产物层数（判输入；两条产物证据须一致）',
+        NL_MODEL != null && NL_VALUES === NL_MODEL
+        && nlPage.state === 'ready' && nlPage.nLayers === NL,
+        `产物 model.n_layers=${NL_MODEL}  per_layer_mean_p_final.values.length=${NL_VALUES}  `
+        + `页面 data-n-layers=${nlPage.nLayers}（state=${nlPage.state}）  `
+        + (NL_MODEL !== NL_VALUES
+           ? '❌ 两条产物证据不一致 ⇒ 「取其一」会把矛盾藏起来'
+           : '两条产物证据一致'));
 
     const flc = target.first_layer_correct;
     const firstGreen = got.bars.findIndex((b) => b.ok);
@@ -307,12 +339,12 @@ try {
       })()`);
       await sleep(450);
       const p = await readPanel();
-      if (p.state !== 'ready' || p.bars.length !== 28) {
+      if (p.state !== 'ready' || p.bars.length !== NL) {
         scanBad.push(`t=${st.t} state=${p.state} bars=${p.bars.length}`);
         continue;
       }
       scanSteps++;
-      for (let l = 0; l < 28; l++) {
+      for (let l = 0; l < NL; l++) {
         if (p.bars[l].ok !== !!st.per_layer.correct[l]) {
           scanBad.push(`t=${st.t} L${l}`);
         }
@@ -321,7 +353,7 @@ try {
     rec('F6b 跨 8 步扫描：绿柱逐层等于 JSON 的 correct[]',
         scanBad.length === 0 && scanSteps >= 6,
         scanBad.length ? scanBad.slice(0, 4).join(' | ')
-                       : `${scanSteps} 步 × 28 层 = ${scanSteps * 28} 格全对`);
+                       : `${scanSteps} 步 × ${NL} 层 = ${scanSteps * NL} 格全对`);
 
     rec('F7 文案诚实标注这是 probe 而非 forward pass',
         /probe, not a forward pass/.test(got.text),
@@ -385,7 +417,7 @@ try {
       const p = await readPanel();
       sigState = p.state;
       sigText = String(p.head || '');
-      if (p.state === 'ready' && p.bars.length >= 28) { sig = p; break; }
+      if (p.state === 'ready' && p.bars.length >= NL) { sig = p; break; }
     }
     const after = await page.eval(`(() => {
       const r = document.querySelector('[data-deriv-step]');
@@ -401,13 +433,13 @@ try {
     let why = `other=${other.id} winMoved=${winMoved} want t=${otherT} `
             + `set=${JSON.stringify(setRes)} after=${JSON.stringify(after)} | `
             + `state=${sigState} bars=${sig ? sig.bars.length : 0} | ${sigText.slice(0, 130)}`;
-    if (sig && sig.bars.length === 28 && ot) {
+    if (sig && sig.bars.length === NL && ot) {
       const bad = [];
-      for (let l = 0; l < 28; l++) {
+      for (let l = 0; l < NL; l++) {
         if (Math.abs(sig.bars[l].p - ot.per_layer.p_final[l]) > 1e-6) bad.push(`L${l}`);
       }
       ok = bad.length === 0;
-      why = ok ? `28/28 匹配 ${other.id} t=${otherT}` : `不符层: ${bad.slice(0, 5).join(',')}`;
+      why = ok ? `${NL}/${NL} 匹配 ${other.id} t=${otherT}` : `不符层: ${bad.slice(0, 5).join(',')}`;
     } else if (!ot) {
       why += ` (JSON 里没有 t=${otherT})`;
     }
@@ -666,7 +698,8 @@ try {
       // ⚠ 防真空通过：修复后的写法必须在场
       return /N_LAYERS\s*-\s*1/.test(seg) && !/0[–-]27\b/.test(seg);
     })(),
-    '层跨度上界写成 0–27 时与 N_LAYERS=28 的真值相同，渲染层在构造上无解');
+    '层跨度上界写成字面量 0–27 时与现算的真值相同，渲染层在构造上无解；'
+  + '第二十七笔已把它改成现算，本条守的是「那个字面量不许回来」');
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {
