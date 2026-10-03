@@ -82,6 +82,8 @@ DIRECTION = "confidence_down"
 STRENGTH = 0.2
 STRENGTHS = (0.0, STRENGTH)
 TOKEN_CAP = 32000
+# 「只动了不到 100」里的 100 也是门槛，原来在正文与字段里各写一次。
+SMALL_MAG = 100
 
 
 def _other_named_axes():
@@ -98,6 +100,23 @@ def _other_named_axes():
         raise SystemExit("ABORT axis_readouts.axes 里没有 confidence 轴（%s）—— "
                          "「只覆盖 confidence 一条轴」这句话不成立" % named)
     return [a for a in named if not a.startswith("confid")]
+
+
+def _opposite_direction(per_run) -> str:
+    """not_claimed ⑤ 说的「正的 <名字> 臂」—— 从日志里的方向名单推。
+
+    原来那句里 `confidence_up` 是写死的字符串。它与 DIRECTION 是**同一个轴
+    的两端**，而 DIRECTION 是配置项：改了配置不改这句话，那句话就会指着
+    一个不存在的臂。源是这批 run 实际出现过的方向集合。
+    恰好只有一个「别的」方向时才算数，否则这句话没有确定的所指。
+    """
+    seen = sorted({r.get("direction") for r in per_run if r.get("direction")})
+    others = [d for d in seen if d != DIRECTION]
+    if len(others) != 1:
+        raise SystemExit(
+            "ABORT 日志里除 %s 之外还有 %d 个方向（%s）——"
+            "「正的 <名字> 臂」这句话没有唯一所指" % (DIRECTION, len(others), seen))
+    return others[0]
 
 
 def _binom_tail_ge(k, n, x):
@@ -212,6 +231,7 @@ def main():
 
     labels = sorted(by)
     other_named_axes = _other_named_axes()
+    opposite_direction = _opposite_direction(div["per_run"])
     shipped = [i["label"] for i in ans["items"]]
     fail = []
 
@@ -341,7 +361,7 @@ def main():
               if r["n_steps_zero"] and r["n_steps_steered"]]
 
     mag_med = statistics.median(mag_vals) if mag_vals else 0.0
-    n_below_100 = sum(1 for m in mag_vals if m < 100)
+    n_below_100 = sum(1 for m in mag_vals if m < SMALL_MAG)
     one_arm = inc.get("one_arm_closed", 0)
     neither = inc.get("neither_closed", 0)
     n_incomplete = len(incomplete)
@@ -355,8 +375,8 @@ def main():
     #   位置还落在 dict 字面量中间，完全看不出是哪个数漏了。
     #   命名占位符漏一个会直接 KeyError 并指出名字。
     verdict_txt = (
-        "「净变化 0」在**完整配对**上依然成立，而且**不受筛选规则影响**。\n"
-        "① 23 题里 {nc} 题两臂都跑完 </think>，这 {nc} 题的 verdict 全表："
+        "「净变化 {net:+d}」在**完整配对**上依然成立，而且**不受筛选规则影响**。\n"
+        "① {npb} 题里 {nc} 题两臂都跑完 </think>，这 {nc} 题的 verdict 全表："
         "right->right {rr}、right->wrong {rw}、wrong->right {wr}、"
         "wrong->wrong {ww}。基线答对 {base}、注入后答对 {steer} ⇒ "
         "**净变化 {net:+d}**。\n"
@@ -368,7 +388,7 @@ def main():
         "是点估计不是上界；而这 {chg} 次改变里 **{w2w} 次是 wrong->wrong**。"
         "⇒ 「答案变了」不等于「概念变了」。\n"
         "④ wrong->wrong 那 {w2w} 次的中位 |Δ| = {mag_med:.1f}，"
-        "{below100} 次只动了不到 100，其中 {ood} 次两臂答案都落在 AIME 答案域外。\n"
+        "{below100} 次只动了不到 {small}，其中 {ood} 次两臂答案都落在 AIME 答案域外。\n"
         "⑤ 真正未知的只有 **{ninc}** 题（{one} 题只跑完一臂、{nei} 题都没跑完），"
         "而它们的 {inc_arms} 条 arm 里有 **{cap_arms} 条撞了 {cap} token 上限** "
         "⇒ 未知的那几题恰恰是**跑飞了**的题，也就是干预影响最大的那批。\n"
@@ -379,38 +399,42 @@ def main():
     ).format(nc=n_complete, rr=fv["right->right"], rw=fv["right->wrong"],
              wr=fv["wrong->right"], ww=fv["wrong->wrong"], base=n_base_right,
              steer=n_steer_right, net=net, unch=len(unchanged),
+             npb=len(labels),
              ship=len(shipped), chg=len(changed), chg_pct=chg_pct,
              w2w=len(w2w), mag_med=mag_med, below100=n_below_100,
-             ood=len(ood), ninc=n_incomplete, one=one_arm, nei=neither,
+             ood=len(ood), small=SMALL_MAG, ninc=n_incomplete,
+             one=one_arm, nei=neither,
              inc_arms=incomplete_arms, cap_arms=cap_arms, cap=TOKEN_CAP,
              flips=n_break + n_fix, fix=n_fix, brk=n_break, p=p_obs,
              need=k_needed)
 
     not_claimed_txt = (
-        "① 不能说「干预对答案正确性无影响」—— 净变化 0 仍然是**欠功效**"
+        "① 不能说「干预对答案正确性无影响」—— 净变化 {net:+d} 仍然是**欠功效**"
         "（{flips} 次翻转，双侧精确 p = {p:.3f}）。\n"
         "② 不能把「{chg_pct:.0f}% 的答案变了」说成「{chg_pct:.0f}% 的语义变了」"
         "—— {chg} 次改变里 {w2w} 次前后都是错的，中位只动了 {mag_med:.1f}。\n"
-        "③ 不能用这 {nc} 个完整配对说「准确率没有下降」：净变化 0 只是"
+        "③ 不能用这 {nc} 个完整配对说「准确率没有下降」：净变化 {net:+d} 只是"
         "「{fix} 修 {brk} 破」相抵，破坏率 1/{base}、修复率 1/{wrong}，"
         "两者的 95% CI 都极宽。\n"
         "④ **不能忽略那 {ninc} 题**：它们两臂没跑完、答案正确性完全未知，"
         "而 {cap_arms}/{inc_arms} 条 arm 撞了 {cap} token 上限（跑飞）。\n"
-        "⑤ 这一格只覆盖 {dir} 一条轴的 −0.2 单档；"
-        "另外 3 条命名轴与正的 confidence_up 臂都不在这里。\n"
+        "⑤ 这一格只覆盖 {dir} 一条轴的 −{st:.1f} 单档；"
+        "另外 {noax} 条命名轴与正的 {odir} 臂都不在这里。\n"
         "⑥ **L7（改变的是概念而非位置/格式）一次都没测** —— "
         "「答案对不对」连位置轴对照都没有。③ 说明「数字变了」，"
         "说明不了「变的是概念」。"
     ).format(flips=n_break + n_fix, p=p_obs, chg_pct=chg_pct, chg=len(changed),
              w2w=len(w2w), mag_med=mag_med, nc=n_complete, fix=n_fix, brk=n_break,
              base=n_base_right, wrong=n_wrong, ninc=n_incomplete,
+             net=net, st=STRENGTH, noax=len(other_named_axes),
+             odir=opposite_direction,
              cap_arms=cap_arms, inc_arms=incomplete_arms, cap=TOKEN_CAP,
              dir=DIRECTION)
 
     payload = {
         "schema": "answer_power/2",
-        "what": "23 题逐题去向 + 20 个完整配对的全部 verdict；"
-                "「净变化 0」对筛选规则不变，但对「答案变了 ≠ 概念变了」不成立",
+        "what": f"{len(labels)} 题逐题去向 + {n_complete} 个完整配对的全部 verdict；"
+                f"「净变化 {net:+d}」对筛选规则不变，但对「答案变了 ≠ 概念变了」不成立",
         "direction": DIRECTION,
         "strength": STRENGTH,
         # 面板上「这一格只覆盖 confidence 一条轴的 −0.2 单档，另外 N 条命名轴
@@ -458,7 +482,8 @@ def main():
             "median": statistics.median(mag_vals) if mag_vals else None,
             "min": mag_vals[0] if mag_vals else None,
             "max": mag_vals[-1] if mag_vals else None,
-            "n_below_100": sum(1 for m in mag_vals if m < 100),
+            "n_below_100": sum(1 for m in mag_vals if m < SMALL_MAG),
+            "small_magnitude_threshold": SMALL_MAG,
             "out_of_domain_labels": ood,
         },
 
@@ -484,10 +509,11 @@ def main():
                    encoding="utf-8")
 
     print("自证全过（6 条）")
-    print("  23 题 → 完整 %d + 未闭合 %d（%d 只跑完一臂 / %d 都没跑完 / "
-          "0 解析不出）"
-          % (n_complete, len(incomplete), inc.get("one_arm_closed", 0),
-             inc.get("neither_closed", 0)))
+    print("  %d 题 → 完整 %d + 未闭合 %d（%d 只跑完一臂 / %d 都没跑完 / "
+          "%d 解析不出）"
+          % (len(labels), n_complete, len(incomplete),
+             inc.get("one_arm_closed", 0), inc.get("neither_closed", 0),
+             inc.get("unparseable", 0)))
     print("  完整 %d 对的 verdict 全表：%s" % (n_complete, dict(fv)))
     print("  基线答对 %d / 注入后答对 %d ⇒ 净变化 %+d"
           % (n_base_right, n_steer_right, steer_a - base_a))

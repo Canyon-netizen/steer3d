@@ -1607,6 +1607,208 @@ try {
       eHit.length === 0,
       `页面命中独有片段 ${eHit.length}/${eFrags.length}：`
       + `${JSON.stringify(eHit)}；面板第四节 refusal 明确不渲染 necessity`);
+
+  /* ============ AP 组：answer_power 的 verdict / not_claimed / what（第二十二笔） ============ */
+  // ⚠ 整组在产物层：这三个字段**都没有被渲染** ——
+  //   面板读的是 answer_power.json 的**字段**（net_change / n_complete_pairs /
+  //   n_other_named_axes …，见 IOP.tsx:583-589），散文那三段字符串
+  //   （IOP.tsx / index.html 里 0 次出现 `pw.verdict` / `pw.not_claimed` / `pw.what`）
+  //   一个字都没进页面。⇒ I 组（渲染层，11 条）核的是面板上那 11 个数，
+  //   **不能**替 AP 组（产物层）作证。
+  //
+  // ⚠ 这一组的设计要点来自一次**失败的做法**：
+  //   我先写了个扫描器，把 verdict/not_claimed 里每个数字拿去和「某个字段的值」
+  //   比对，结果 **46/46 全部对上**，看起来一个缺口都没有。
+  //   但那个扫描**分不清用的是哪个字段** —— 这一份产物里 `6` 既是
+  //   `full_verdicts["right->right"]` 又是 `incomplete_arms_total`，
+  //   `2` 既是 `flips_up` 又是 `incomplete_breakdown.one_arm_closed`。
+  //   ⇒ **按值匹配会给出虚假的信心。** 下面每一条都必须带词锚点，
+  //     钉住「这句里的这个数」对应「**这个**字段」。
+  const APw = PW, AJv = APw.verdict || '', AJn = APw.not_claimed || '',
+        AJw = APw.what || '';
+  const jRe = (s, re) => re.test(s);
+  const jMag = APw.changed_but_still_wrong_magnitude || {};
+  const jFb = APw.full_verdicts || {}, jInv = APw.net_change_invariance || {};
+  // net_change 的**带符号**写法。这一份产物里同一个量曾经印成两种形状：
+  //   not_claimed 两处是「净变化 0」、verdict 的行内是「**净变化 +0**」，
+  //   what 与 verdict 开头又都是「净变化 0」⇒ 同一个产物、同一个量、三种写法。
+  const jNet = (APw.net_change >= 0 ? '+' : '') + APw.net_change;
+
+  rec('AP0 [产物层] 三段散文都存在，且 I 组核的字段齐备（本组自报层级：不渲染）',
+      AJv.length > 0 && AJn.length > 0 && AJw.length > 0
+      && jFb && jMag && jInv,
+      `verdict ${AJv.length} 字 / not_claimed ${AJn.length} 字 / what ${AJw.length} 字；`
+      + `I 组核的是字段（n_complete_pairs=${APw.n_complete_pairs} 等），`
+      + `AP 组核的是这三段散文本身`);
+
+  rec('AP1 [产物层] verdict ① 的题数与配对数 = n_problems_in_batch / n_complete_pairs',
+      jRe(AJv, new RegExp('① ' + APw.n_problems_in_batch + ' 题里 '
+                          + APw.n_complete_pairs + ' 题两臂都跑完'))
+      && jRe(AJw, new RegExp(APw.n_problems_in_batch + ' 题逐题去向 \\+ '
+                            + APw.n_complete_pairs + ' 个完整配对')),
+      `① ${APw.n_problems_in_batch} 题里 ${APw.n_complete_pairs} 题；`
+      + `what 同源=${APw.n_problems_in_batch}/${APw.n_complete_pairs}`);
+
+  // J2 是这一组最要紧的一条：**「净变化」在行内与在引号里必须是同一个写法**。
+  rec('AP2 [产物层] 「净变化」在三段散文里必须是**同一个带符号写法**（本轮的真发现）',
+      (AJv.match(new RegExp('净变化 ' + jNet.replace('+', '\\+'), 'g')) || []).length >= 2
+      && !/净变化 0(?![.\d])/.test(AJv.replace('净变化 +0', '净变化 #'))
+      && (AJn.match(/净变化 \+0/g) || []).length === 2
+      && AJw.includes('净变化 ' + jNet),
+      `net_change=${APw.net_change} ⇒ 应写作「净变化 ${jNet}」；`
+      + `verdict 出现 ${(AJv.match(/净变化 /g) || []).length} 次、`
+      + `not_claimed ${(AJn.match(/净变化 /g) || []).length} 次、`
+      + `what ${(AJw.match(/净变化 /g) || []).length} 次；`
+      + `仍存在不带号的「净变化 0」=${/净变化 0(?![\d.])/.test(AJv + AJn + AJw)}`
+      + `（本轮之前 verdict 开头/what 是「净变化 0」而行内是「+0」，同一产物三种写法）`);
+
+  rec('AP3 [产物层] verdict ① 的 verdict 全表 + 基线/注入答对数 + 净变化，逐项钉字段',
+      jRe(AJv, new RegExp('right->right ' + jFb['right->right']
+                          + '、right->wrong ' + jFb['right->wrong']
+                          + '、wrong->right ' + jFb['wrong->right']
+                          + '、wrong->wrong ' + jFb['wrong->wrong']))
+      && jRe(AJv, new RegExp('基线答对 ' + APw.baseline_correct
+                             + '、注入后答对 ' + APw.steered_correct
+                             + ' ⇒ \\*\\*净变化 ' + jNet.replace('+', '\\+') + '\\*\\*'))
+      && Object.values(jFb).reduce((s, x) => s + x, 0) === APw.n_complete_pairs,
+      `全表 rr=${jFb['right->right']} rw=${jFb['right->wrong']} `
+      + `wr=${jFb['wrong->right']} ww=${jFb['wrong->wrong']} `
+      + `合计 ${Object.values(jFb).reduce((s, x) => s + x, 0)}（须 = n_complete_pairs `
+      + `${APw.n_complete_pairs}）；基线 ${APw.baseline_correct} → 注入 `
+      + `${APw.steered_correct}，差 ${APw.steered_correct - APw.baseline_correct}`);
+
+  rec('AP4 [产物层] verdict ② 的不变性声明：三处净变化逐位相同，且分母对得上',
+      jInv.net_over_shipped_10 === jInv.net_over_complete_20
+      && jInv.net_over_complete_20 === APw.net_change
+      && jRe(AJv, new RegExp('入表 ' + APw.n_shipped + ' 题净 ' + jNet.replace('+', '\\+')
+                            + ' / 完整 ' + APw.n_complete_pairs + ' 题净 '
+                            + jNet.replace('+', '\\+') + '，逐位相同'))
+      && jRe(AJv, new RegExp('被剔除的 ' + (APw.n_complete_pairs - APw.n_shipped)
+                            + ' 题 verdict 恒为 X->X')),
+      `入表 ${APw.n_shipped} 净 ${jInv.net_over_shipped_10} / 完整 `
+      + `${APw.n_complete_pairs} 净 ${jInv.net_over_complete_20} / 字段 `
+      + `${APw.net_change}；被剔除 ${APw.n_complete_pairs - APw.n_shipped} 题`
+      + `（**完整配对**里没入表的那些。第一版我按「总题数 − 入表数」算成 `
+      + `${APw.n_problems_in_batch - APw.n_shipped}，那是把 `
+      + `${APw.n_incomplete_pairs} 道未闭合的题也算进去了，判据红而散文没红）`);
+
+  rec('AP5 [产物层] verdict ③ 的 答案改变率 = changed_n / n_complete_pairs，且百分数由字段算出',
+      jRe(AJv, new RegExp('答案改变率 = \\*\\*' + APw.changed_n + '/'
+                            + APw.n_complete_pairs + ' = '
+                            + (APw.answer_change_rate_complete * 100).toFixed(0) + '%\\*\\*'))
+      && Math.abs(APw.changed_n / APw.n_complete_pairs
+                  - APw.answer_change_rate_complete) < 5e-2,
+      `字段 ${APw.changed_n}/${APw.n_complete_pairs} = `
+      + `${(APw.changed_n / APw.n_complete_pairs).toFixed(3)}，`
+      + `字段 answer_change_rate_complete=${APw.answer_change_rate_complete}`
+      + `（容差 5e-2：印出的是取整后的百分数）`);
+
+  rec('AP6 [产物层] verdict ④ 的 wrong→wrong 次数/中位/门槛/域外次数，逐项钉字段',
+      jRe(AJv, new RegExp('wrong->wrong 那 ' + APw.changed_but_still_wrong
+                          + ' 次的中位 \\|Δ\\| = ' + jMag.median.toFixed(1)))
+      && jRe(AJv, new RegExp(jMag.n_below_100 + ' 次只动了不到 '
+                            + jMag.small_magnitude_threshold))
+      && jRe(AJv, new RegExp('其中 ' + jMag.out_of_domain_labels.length
+                            + ' 次两臂答案都落在 AIME 答案域外'))
+      && jMag.n === APw.changed_but_still_wrong,
+      `w2w=${APw.changed_but_still_wrong}（= mags.n=${jMag.n}）；中位 ${jMag.median.toFixed(1)}；`
+      + `门槛 ${jMag.small_magnitude_threshold}（<它的有 ${jMag.n_below_100} 次）；`
+      + `域外 ${jMag.out_of_domain_labels.length} 题`);
+
+  rec('AP7 [产物层] verdict ⑤ 的未闭合分解与撞上限计数，每个数都带分母',
+      jRe(AJv, new RegExp('真正未知的只有 \\*\\*' + APw.n_incomplete_pairs
+        + '\\*\\* 题（' + APw.incomplete_breakdown.one_arm_closed + ' 题只跑完一臂、'
+        + APw.incomplete_breakdown.neither_closed + ' 题都没跑完）'))
+      && jRe(AJv, new RegExp('它们的 ' + APw.incomplete_arms_total
+        + ' 条 arm 里有 \\*\\*' + APw.incomplete_arms_at_token_cap
+        + ' 条撞了 ' + APw.token_cap + ' token 上限'))
+      && APw.incomplete_breakdown.one_arm_closed
+         + APw.incomplete_breakdown.neither_closed
+         + APw.incomplete_breakdown.unparseable === APw.n_incomplete_pairs,
+      `未闭合 ${APw.n_incomplete_pairs} = ${APw.incomplete_breakdown.one_arm_closed}`
+      + `+${APw.incomplete_breakdown.neither_closed}+${APw.incomplete_breakdown.unparseable}；`
+      + `撞上限 ${APw.incomplete_arms_at_token_cap}/${APw.incomplete_arms_total}`
+      + `（须带分母）`);
+
+  rec('AP8 [产物层] verdict ⑥ 的翻转/p/所需数 = 三个字段，且 p 与字段同位小数',
+      jRe(AJv, new RegExp('功效仍然不够：' + APw.flips + ' 次正确性翻转（'
+        + APw.flips_up + ' 正 ' + APw.flips_down + ' 反）'))
+      && jRe(AJv, new RegExp('双侧 p = '
+        + APw.two_sided_sign_p_if_all_same_direction.toFixed(3)))
+      && jRe(AJv, new RegExp('需要 \\*\\*' + APw.flips_needed_for_p05 + '\\*\\* 个同向翻转'))
+      && APw.flips_up + APw.flips_down === APw.flips
+      && APw.flips_needed_for_p05 <= APw.max_possible_flips,
+      `翻转 ${APw.flips} = ${APw.flips_up}+${APw.flips_down}；p=${APw.flips_needed_for_p05
+        ? APw.two_sided_sign_p_if_all_same_direction : '?'}；`
+      + `需 ${APw.flips_needed_for_p05} 个，上限 ${APw.max_possible_flips} 个`);
+
+  // J9 交叉核对：那句覆盖面声明的 N 必须**同时**等于产物字段与
+  // axis_readouts.json 自己声明的名单长度 —— 两份产物各自声明同一个事实。
+  const jAxes = (function () {
+    try {
+      // ⚠ axes 是**字典**（轴名 → 定义），不是数组。
+      //   Python 的 sorted(dict) 给的是键，JS 的 .filter 会直接 TypeError —-
+      //   而判据崩掉时脚本报的是「X 脚本崩了」，看不出是哪一行。
+      return Object.keys(
+        JSON.parse(readFileSync(DATA + '/axis_readouts.json', 'utf8')).axes);
+    } catch (e) { return null; }
+  })();
+  const jOther = jAxes ? jAxes.filter(a => !a.startsWith('confid')) : null;
+  rec('AP9 [产物层] not_claimed ⑤ 的「另外 N 条命名轴」= n_other_named_axes'
+      + ' = axis_readouts.axes 现算（独立交叉核对）',
+      jRe(AJn, new RegExp('只覆盖 ' + APw.direction + ' 一条轴的 −'
+                          + Number(APw.strength).toFixed(1) + ' 单档；'
+                          + '另外 ' + APw.n_other_named_axes + ' 条命名轴'))
+      && jOther !== null && jOther.length === APw.n_other_named_axes
+      && APw.other_named_axes.join(',') === jOther.slice().sort().join(','),
+      `N=${APw.n_other_named_axes}；axis_readouts.axes=${JSON.stringify(jAxes)} → `
+      + `除 confidence 外 ${jOther === null ? '?' : jOther.length} 条 `
+      + `${JSON.stringify(APw.other_named_axes)}（两份产物各自声明同一个事实）`);
+
+  // AP10：那半句「正的 <名字> 臂」必须是一个**日志里真实出现过**的方向，
+  // 而不是写死的字符串。
+  //
+  // ⚠ 第一版用 `direction.replace(/_(up|down)$/, '_$1')` 去「翻转」后缀 ——
+  //   那个替换把 `_down` 换成了 `_down` 自己（$1 就是捕获到的 down），
+  //   于是正则找的是「与正的 confidence_down 臂」，而散文写的是
+  //   confidence_up，判红。**判红先怀疑判据** —— 而且这里是我写的正则不对，
+  //   不是产物错。翻转要显式写，且**从日志的方向集合里取**而不是拼字符串。
+  const jDirs = [...new Set(COT.runs.map(r => r.direction))].sort();
+  const jOtherDir = jDirs.filter(d => d !== APw.direction);
+  rec('AP10 [产物层] not_claimed ⑤ 说的「正的 <名字> 臂」必须在日志的方向集合里，'
+      + '且与本产物测的那条不同',
+      jOtherDir.length === 1 && jDirs.length === 2
+      && jRe(AJn, new RegExp('与正的 ' + jOtherDir[0] + ' 臂都不在这里')),
+      `日志里出现过的方向=${JSON.stringify(jDirs)}；本产物测的是 `
+      + `${APw.direction}，句子里指的是 ${JSON.stringify(jOtherDir)}`);
+
+  // AP11 源级：手抄一旦打回源码，红。
+  //
+  // ⚠ 剥的范围要覆盖 **docstring**：`#` 行注释只是其中一种。
+  //   这个文件的模块 docstring 里也写着「23 题 / 20 个完整配对」，
+  //   而那是**文档**——它说明这个脚本在算什么，删掉它比留着它更坏。
+  //   ⇒ 判据只该守「会被写进产物 / 印到控制台的那些字面量」，
+  //     所以 `#` 注释与 `"""…"""` 块都要剥掉。
+  //   （同第二十一笔 F8：先剥注释再扫，且额外直接扫产物。）
+  const jSrcRaw = readFileSync('/Users/zhourui/code/steer3d/.cache/xcheck/'
+    + 'answer_power.py', 'utf8');
+  const jStripPy = t => t.replace(/^\s*#.*$/gm, '').replace(/"""[\s\S]*?"""/g, '');
+  const jSrc = jStripPy(jSrcRaw);
+  const jBanned = ['23 题', '20 个完整配对', '另外 3 条命名轴', '的 −0.2 单档',
+    '「净变化 0」', 'n_below_100": sum(1 for m in mag_vals if m < 100'];
+  const jHit = jBanned.filter(s => jSrc.includes(s));
+  const jWant = ['{npb}', '{noax}', '{st:.1f}', '{odir}', '{small}', '{net:+d}',
+    'SMALL_MAG', 'opposite_direction'];
+  const jMiss = jWant.filter(s => !jSrc.includes(s));
+  rec('AP11 [源级] 生成器里（剥行注释与 docstring 后）没有这 6 个手抄副本，'
+      + '且 8 个插值占位符/常量都在',
+      jHit.length === 0 && jMiss.length === 0,
+      `手抄残留 ${jHit.length}/${jBanned.length}`
+      + `${jHit.length ? '：' + jHit.join(' / ') : ''}；`
+      + `缺失占位符 ${jMiss.length}/${jWant.length}`
+      + `${jMiss.length ? '：' + jMiss.join(' / ') : ''}；`
+      + `docstring 与注释里保留旧文案（有意留，交代来历）`
+      + `${jBanned.filter(s => jSrcRaw.includes(s)).length} 处`);
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {
