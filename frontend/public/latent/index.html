@@ -959,10 +959,10 @@ async function loadNarrative(){
     }else trace("cot_texts.json: HTTP " + cr3.status);
   }catch(e){ trace("cot_texts unavailable: " + e.message); }
   // 第五批：逐层 logit lens。这是「各个 hidden states 最后如何推导出这个
-  // token」的直接答案——把最后一层的 RMSNorm+unembedding 套到 0..27 层
+  // token」的直接答案——把最后一层的 RMSNorm+unembedding 套到每一层
   // 每一层上，看第几层开始就指向最终 token。
   //
-  // 这份数据自己带一个锚点：第 27 层的 readout 必须复现模型真实选择的
+  // 这份数据自己带一个锚点：**最后一层**的 readout 必须复现模型真实选择的
   // token（npz 里的 topk_indices[t,0]）。我独立复算过 40/40 全中。它进页面
   // 之前必须先过这道锚点，否则页面上那条曲线只是"某种算法画的图"。
   try{
@@ -1685,20 +1685,28 @@ function renderProblemSetNote(PS, where){
 
 /* ---- 逐层 logit lens：每一层离「模型最后说出这个词」还有多远 -------------
    这是「各个 hidden states 到底最后如何推导出这个 token」的直接答案。
-   做法：把最后一层的 RMSNorm + unembedding 套到第 0..27 层每一层的残差流
+   做法：把最后一层的 RMSNorm + unembedding 套到每一层（0..model.n_layers-1）的残差流
    上，看每一层自己预测哪个 token，看第几层开始和最终 token 一致。
 
    两条不写在页面上、但决定了这条曲线可不可信的事：
-   1. **锚点**：第 27 层的 readout 必须复现模型真实选择的 token
+   1. **锚点**：最后一层的 readout 必须复现模型真实选择的 token
       （npz 里的 topk_indices[t,0]）。我独立复算 40/40 全中，产物里记着
       1532/1536 全量 / 1420/1420 可判定步。锚点不过，这条曲线只是
       「某种算法画的图」，所以它的数字和分母都在页面上。
-   2. **层 27 是 post-norm 的**（存盘时已归一化，L24 的 L2=1774 掉到 L27=136）。
+   2. **末层是 post-norm 的**（存盘时已归一化，末两层前 L2=1774 掉到 136）。
       再归一化一次会让 logit 差 34.9、命中率掉到 85%。这是仓库里
       analyse_divergence_logits.py:25-32 记着的同一个坑。
 
-   这份数据来自 16k 采集批（48 条轨迹 × 每条最后 32 步），**和上面那些
-   32k 干预批不是同一批**，所以它自带题目/步数选择器，不跟上面的控件联动。 */
+   这份数据是 48 条轨迹 × 每条最后 32 步（这两个数在产物 sampling 段里），
+   **和上面那些 32k 干预批不是同一批**，所以它自带题目/步数选择器，
+   不跟上面的控件联动。
+
+   ⚠ 第二十五笔：这段注释原来还写着「16k 采集批」和「第 27 层」，
+   而 **logit_lens.json 里没有任何字段记着这个批次的上下文长度**
+   （sampling 只有 n_traj / n_problems / n_modes / steps_per_traj / n_steps）。
+   渲染层那两处已改成现算或明说「产物未记录」，这里一并改 ——
+   否则**注释会替未测量的东西作证**，而读代码的人会把注释当成事实。
+   层数一律用 model.n_layers。 */
 /* ---- 三块与配对数据无关的附加屏 ------------------------------------------
    逐层 readout / 向量三角色 / token 反向映射。
    单独一个函数，而不是内联进 render()：这三块各自要重画一次，
@@ -1831,6 +1839,25 @@ function renderLogitLens(){
   const st = steps[si];
   const agg = L.aggregate || {};
   const esc2 = s => esc(s == null ? "" : String(s));
+  // ⚠⚠ 第二十五笔：这一块原来有 6 处写死的东西 ——
+  //   「0–27 层」「第 27 层」「28 层」「间距 ≥ 1」「约 0.09 个 logit」
+  //   「峰值在 L20–L21」「L27 前」。逐个处理：
+  //   · 层数与判定口径产物里都有（model.n_layers / decidable_steps.definition）⇒ 读字段
+  //   · 那个 **0.09 全仓没有任何产物记过它** —— 产物自己的 honest_caveat 只说
+  //     「top1-top2 间距低于 float16 重建误差」这个**关系**、不给量级，
+  //     说明当时就没钉死这个数。⇒ 删掉它，并明说产物只给了上界。
+  //     （不猜一个新数替换：猜出来的数看起来一样没有源。）
+  //   · 「16k 采集」产物里也没有字段 ⇒ 改成明说未记录。
+  //   · 峰值与累计口径由 counts 现算（见下面全体统计那段）。
+  //
+  // ⚠⚠ 这两行必须在**第一次使用之前**。我第一版把它们放在锚点那一段（本块中段），
+  //   而标题那段已经用上了 ${LASTL} ⇒ const 暂时性死区抛 ReferenceError，
+  //   而 renderExtras() 的第一句恰好是 renderLogitLens()
+  //   ⇒ 整块 #extras 静默消失、页面照常，探针只看到 5 个标记（原来 33）。
+  //   这是「抛异常的 render 让整块静默消失」第二次同款：
+  //   上一次是 esc2 不是全局的，这一次是 const 的声明位置。
+  const NL = Number((L.model && L.model.n_layers) || 0);
+  const LASTL = NL > 0 ? NL - 1 : null;
 
   let h = `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #232a36"
        data-lensroot="1">`;
@@ -1838,23 +1865,56 @@ function renderLogitLens(){
     每一层离「模型最后说出这个词」还有多远</div>`;
   h += `<div class="note" style="font-size:10.5px;margin:0 0 7px">
     把<b>最后一层</b>的读出方式（归一化 + 词表投影）套到<b>每一层</b>的
-    隐状态上，看它自己会说出哪个词。横轴 0–27 层，柱子越高表示这一层
-    越接近模型最后真的选中的那个词。<b>这批是 16k 采集的数据</b>，
-    和上面那些干预臂不是同一批。</div>`;
+    隐状态上，看它自己会说出哪个词。横轴 0–${LASTL == null ? "—" : LASTL} 层，柱子越高表示这一层
+    越接近模型最后真的选中的那个词。本块的采集批次<b>产物里没有记录</b> ——
+    第二十五笔全仓查过，没有任何产物记着这个批次的上下文长度，
+    所以这里不写「16k」；与上面那些干预臂是不是同一批，要回采集日志才能确认，
+    本页不替它断言。</div>`;
 
   // 锚点。放在最前面，因为它是整块内容的可信度来源。
   const A = L.anchor || {};
   const ad = A.decidable_steps || {}, aa = A.all_steps || {};
+  // ⚠⚠ 第二十五笔：这一段原来印「重建误差就有**约 0.09** 个 logit」。
+  //   那个数**产物里没有任何字段是它** —— 产物只记了上界
+  //   max_logit_error_vs_stored_topk = 0.125，而 0.09 既不是上界也不是中位数
+  //   （逐步 anchor_logit_err 的中位数实测 **0.079**，离 0.09 差 13%）
+  //   ⇒ 它既没有源，**而且是错的**。
+  //   产物里有 1536 个逐步的 anchor_logit_err，统计量可以自己算，
+  //   所以现在现算：全量中位数 / 上界，以及「没中那几步」的真实 margin。
+  const _errs = [], _missMargin = [];
+  for(const _t of (L.trajectories || [])){
+    for(const _s of (_t.steps || [])){
+      if(typeof _s.anchor_logit_err === "number") _errs.push(_s.anchor_logit_err);
+      if(_s.anchor_ok === false && typeof _s.real_margin === "number")
+        _missMargin.push(_s.real_margin);
+    }
+  }
+  _errs.sort((a, b) => a - b);
+  const _median = a => a.length
+    ? (a.length % 2 ? a[(a.length - 1) / 2]
+                    : (a[a.length / 2 - 1] + a[a.length / 2]) / 2) : null;
+  const medErr = _median(_errs);
+  const maxErr = _errs.length ? _errs[_errs.length - 1] : null;
+  const medMiss = _median(_missMargin.sort((a, b) => a - b));
+  const nMiss = _missMargin.length;
   h += `<div class="note" style="margin:0 0 7px;padding:7px 9px;background:#131a28;
        border-left:2px solid #4a90d9;border-radius:0 4px 4px 0;font-size:10.5px">
-    <b style="color:#7cc0ff">先确认这条曲线不是随便画的：</b>第 27 层的读出
+    <b style="color:#7cc0ff">先确认这条曲线不是随便画的：</b>第 ${LASTL == null ? "—" : LASTL} 层的读出
     必须说出模型真实选中的那个词。实测 <b>${ad.pass ?? "—"}/${ad.total ?? "—"}</b>
-    全中（可判定步 = 模型自己 top1 与 top2 间距 ≥ 1 的步），
+    全中（可判定步 = ${esc2(ad.definition || "产物未记录判定口径")}），
     全部抽样步 <b>${aa.pass ?? "—"}/${aa.total ?? "—"}</b>，
     与记录的 logits 相比最大误差 ${esc2(A.max_logit_error_vs_stored_topk)}。
     ${A.honest_caveat ? `<br><span style="color:#8a94a6">没中的那几步没有被丢掉，它们
-    是模型自己 top1 与 top2 几乎打平的步——隐状态用 float16 存盘，重建误差就有
-    约 0.09 个 logit，比那几步的间距还大。这些步单独计数、如实写在这里。
+    是模型自己 top1 与 top2 几乎打平的步。这一批实测：没中的 <b>${nMiss}</b> 步里
+    top1-top2 间距中位数 <b>${medMiss == null ? "—" : medMiss}</b>（≈0 就是「几乎打平」），
+    而锚点重建误差（逐步 <span style="font-family:var(--mono)">anchor_logit_err</span>，
+    共 ${_errs.length} 步）中位数 <b>${medErr == null ? "—" : medErr}</b>、
+    上界 <b>${maxErr == null ? "—" : maxErr}</b> —— 足以把它们翻过来。
+    这些步单独计数、如实写在这里。
+    <br><span style="color:#5f6b80">⚠ 这一段原来印「重建误差就有<b>约 0.09</b> 个 logit」。
+    那个数<b>产物里没有任何字段是它</b>（产物只给上界 0.125），
+    而且它<b>连中位数都不是</b>（实测 0.079，差 13%）⇒ 它既没有源、也是错的。
+    现在改成由逐步字段现算，而不是换成另一个猜的数。
     （产物里的英文原文：<span title="${esc(A.honest_caveat)}">点此查看</span>）</span>` : ""}</div>`;
 
   // 题号选择器。标签只取题号本身：产物里 problem 是 "1983__1983_I_1"
@@ -1904,20 +1964,20 @@ function renderLogitLens(){
       <span style="font-family:var(--mono);color:#ffd479">${esc2(st.tok || st.final_id)}</span>
       ${flc != null
         ? `——<b style="color:#3ddc97">第 ${flc} 层</b>开始就说对它了`
-        : `<b style="color:#ff8fa3">28 层里没有一层说对过</b>`}</div>`;
+        : `<b style="color:#ff8fa3">${NL} 层里没有一层说对过</b>`}</div>`;
     h += `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"
          data-lenschart="1" style="display:block;background:#0d1420;border-radius:4px">
       ${bars}
       ${fx ? `<line x1="${fx}" y1="0" x2="${fx}" y2="${H}" stroke="#ffd479"
             stroke-width="1" stroke-dasharray="2,2"></line>` : ""}
       <text x="2" y="9" fill="#5f6b80" font-size="8">L0</text>
-      <text x="${W-20}" y="9" fill="#5f6b80" font-size="8">L27</text>
+      <text x="${W-20}" y="9" fill="#5f6b80" font-size="8">L${LASTL == null ? "—" : LASTL}</text>
     </svg>`;
     h += `<div class="note" style="font-size:10px;margin:2px 0 6px">
       绿柱 = 这一层说对了模型最后选中的词；灰柱 = 还在说别的。
       虚线 = 第一次说对的那一层。
       ${st.anchor_ok === false
-        ? `<b style="color:#ff8fa3">本步的锚点没过（第 27 层没能复现真实选择），
+        ? `<b style="color:#ff8fa3">本步的锚点没过（第 ${LASTL == null ? "—" : LASTL} 层没能复现真实选择），
             这一行不要当真。</b>` : ""}</div>`;
 
     // 步滑块
@@ -1935,25 +1995,46 @@ function renderLogitLens(){
   if(fc && fc.counts){
     const tot = fc.total || 0, c = fc.counts;
     let cum = 0, out = "", marks = "";
-    for(let l = 0; l < c.length; l++){
+    // ⚠⚠ 第二十五笔：这一整段的 **20 / 21 / 27 / 28 全是写死的**，
+    //   而其中两处已经和产物对不上了：
+    //
+    //   1) 「峰值在 L20–L21」—— counts 的 argmax 实测是 **21**：
+    //      c[20]=236、c[21]=327、c[22]=141，峰值单点就在 21。
+    //      写死的「L20–L21」是**过期的**，而且它和下面那个 l===20 的标记
+    //      被混成了同一件事（那是注入层，不是峰值）。
+    //   2) 「L27 前 ${cum/tot}%」—— 循环结束时 cum 是把 counts **整个**加完
+    //      （索引 0..LASTC 全部），所以那个数是「到最后为止」而不是「L27 前」。
+    //      真正的「L27 前」应该是 cum(c[0:LASTC])。
+    //   ⇒ 峰值、层数、累计口径全部现算，标签与口径一一对应。
+    //   ⚠ 而标记层从 20 改成 PEAK：产物里**没有** inject_layer 字段，
+    //   所以这个标记不能自称「注入层」；标「峰值层」至少有源（counts 的 argmax）。
+    const NLAY = c.length;
+    const LASTC = NLAY - 1;
+    const PEAK = c.indexOf(Math.max(...c));
+    const MARK = PEAK;
+    const pct = n => tot > 0 ? Math.round(n / tot * 100) : 0;
+    for(let l = 0; l < NLAY; l++){
       cum += c[l];
       const bh = Math.max(1, Math.round(c[l] / Math.max(...c) * 30));
-      const col = l >= 20 ? "#3ddc97" : "#2a3346";
+      const col = l >= MARK ? "#3ddc97" : "#2a3346";
       out += `<rect x="${(l*10.4).toFixed(1)}" y="${(34-bh)}" width="8" height="${bh}"
         fill="${col}"></rect>`;
-      if(l === 20) marks = `<line x1="${(l*10.4+4).toFixed(1)}" y1="0"
+      if(l === MARK) marks = `<line x1="${(l*10.4+4).toFixed(1)}" y1="0"
         x2="${(l*10.4+4).toFixed(1)}" y2="34" stroke="#ffd479" stroke-dasharray="2,2"></line>`;
     }
     h += `<div style="font-size:11px;color:#b9c4d6;margin:6px 0 2px">
       全体 ${tot} 步里，各层<b>第一次</b>说对最终 token 的步数：</div>`;
     h += `<svg viewBox="0 0 291 34" width="291" height="34" data-lenshist="1"
       style="display:block;background:#0d1420;border-radius:4px">${out}${marks}</svg>`;
+    // 「L${k} 前」= 前 k 层（索引 0..k-1）之和，即 c.slice(0, k)。
+    // ⚠ 上一版那个 `cum` 是「全部层之和」却标成「L27 前」，口径与标签差一层。
+    const cumTo = k => c.slice(0, k).reduce((a, b) => a + b, 0);
     h += `<div class="note" style="font-size:10px;margin:2px 0 0">
-      峰值在 <b style="color:#3ddc97">L20–L21</b>。累计：L20 前
-      <b>${Math.round(c.slice(0,20).reduce((a,b)=>a+b,0)/tot*100)}%</b>、
-      L21 前 <b>${Math.round(c.slice(0,21).reduce((a,b)=>a+b,0)/tot*100)}%</b>、
-      L27 前 <b>${Math.round(cum/tot*100)}%</b>。
-      ${fc.never_correct ? `另有 <b>${fc.never_correct}</b> 步 28 层全都没说对，
+      峰值在 <b style="color:#3ddc97">L${PEAK}</b>（由 counts 的 argmax 现算；
+      虚线与绿色柱都标的是这一层）。累计：L${PEAK} 前
+      <b>${pct(cumTo(PEAK))}%</b>、L${PEAK + 1} 前 <b>${pct(cumTo(PEAK + 1))}%</b>、
+      到最后一层（L${LASTC}）为止 <b>${pct(cum)}%</b>。
+      ${fc.never_correct ? `另有 <b>${fc.never_correct}</b> 步 ${NLAY} 层全都没说对，
       单独计数没有丢掉。` : ""}</div>`;
   }
 
