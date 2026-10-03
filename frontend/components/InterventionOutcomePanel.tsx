@@ -122,7 +122,16 @@ type DirCompare = {
   strength: number;
   n_problems: number;
   shared_control: { claim: string; n_identical_zero_arms: number; n_problems: number; holds: boolean };
-  closed_counts: { zero_shared: number; down_minus_v: number; up_plus_v: number; n_problems: number };
+  closed_counts: {
+    zero_shared: number;
+    // ⚠ down_minus_v / up_plus_v 是**与共享零臂配对后的交集**，
+    //   不是各臂自己的闭合数。两个口径第十七笔起都必须在页面上分开印。
+    down_minus_v: number; up_plus_v: number;
+    down_arm_own: number; up_arm_own: number;
+    zero_closed_down_blew: number; down_closed_zero_blew: number;
+    caliber: string;
+    n_problems: number;
+  };
   blew_up: {
     table_on_shared_zero_control: {
       n_zero_closed: number; both_closed: number;
@@ -710,6 +719,10 @@ export default function InterventionOutcomePanel() {
              data-zero-closed={sd.closed_counts.zero_shared}
              data-down-closed={sd.closed_counts.down_minus_v}
              data-up-closed={sd.closed_counts.up_plus_v}
+             data-down-own={sd.closed_counts.down_arm_own}
+             data-up-own={sd.closed_counts.up_arm_own}
+             data-zero-closed-down-blew={sd.closed_counts.zero_closed_down_blew}
+             data-down-closed-zero-blew={sd.closed_counts.down_closed_zero_blew}
              data-up-only={sd.blew_up.table_on_shared_zero_control.up_only_blew_up}
              data-down-only={sd.blew_up.table_on_shared_zero_control.down_only_blew_up}
              data-mcnemar-p={sd.blew_up.mcnemar_exact_p}
@@ -725,14 +738,32 @@ export default function InterventionOutcomePanel() {
             它们共享同一份对照，配对里没有「两次运行」的噪声源，
             只差注入向量这一个变量。
           </p>
+          {/* ⚠ 第十七笔：这三格原来印的是 `closed_counts.down_minus_v` /
+              `up_plus_v`，而那两个字段是**与零臂配对后的交集**，不是各臂
+              自己的闭合数。并排读成三个同口径「闭合率」时，21 / 20 / 5
+              会读成「−v 跑挂了 1 题」—— 而这一节要说的恰恰是「−v 不跑飞」。
+              真实情况：−v 自己跑完 {down_arm_own}/23，与零臂同数；
+              配对那格少 1 题是因为两侧各有 1 题没跑完（对称）。 */}
           <div className="grid grid-cols-3 gap-1.5 my-1">
             <Stat label="零臂（共享对照）" v={`${sd.closed_counts.zero_shared}/${sd.n_problems}`}
-                  sub="跑完 </think>" />
-            <Stat label="注入 −v 后" v={`${sd.closed_counts.down_minus_v}/${sd.n_problems}`}
-                  sub="几乎没变差" />
-            <Stat label="注入 +v 后" v={`${sd.closed_counts.up_plus_v}/${sd.n_problems}`}
+                  sub="自己跑完 </think>" />
+            <Stat label="−v 臂自己跑完" v={`${sd.closed_counts.down_arm_own}/${sd.n_problems}`}
+                  sub="与零臂同数" />
+            <Stat label="+v 臂自己跑完" v={`${sd.closed_counts.up_arm_own}/${sd.n_problems}`}
                   sub="大面积跑飞" />
           </div>
+          <p className="text-[9.5px] text-gray-500 leading-relaxed mb-1"
+             data-dir-item="paired-caliber">
+            <b>另一口径：与零臂配对比较</b>（零臂 ∧ 该臂都跑完的<b>交集</b>）
+            —— −v <b className="font-mono text-gray-300">
+              {sd.closed_counts.down_minus_v}/{sd.n_problems}</b>{" "}
+            vs +v <b className="font-mono text-gray-300">
+              {sd.closed_counts.up_plus_v}/{sd.n_problems}</b>。
+            ⚠ −v 那格比零臂少 {sd.closed_counts.zero_closed_down_blew} 题，原因是
+            <b>{sd.closed_counts.zero_closed_down_blew} 题零臂跑完而 −v 没跑完</b>、
+            另有 <b>{sd.closed_counts.down_closed_zero_blew} 题反过来</b>
+            —— <b>两侧对称，所以这 1 题不构成 −v 跑飞</b>。
+          </p>
           <ul className="mt-0.5 text-[10px] text-gray-400 leading-relaxed">
             <li data-dir-item="mcnemar">
               在零臂闭合的 {sd.blew_up.table_on_shared_zero_control.n_zero_closed} 题里：

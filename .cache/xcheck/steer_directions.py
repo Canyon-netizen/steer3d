@@ -254,6 +254,35 @@ def main():
     zero_closed = sum(1 for r in rows if r["zero_closed"])
     zero_cap = sum(1 for r in rows if r["n_zero"] >= CAP)
 
+    # ---- 每个方向**自己**跑完了几题（不要求零臂也跑完）----
+    # ⚠⚠ 这是第十七笔补上的：payload 里的 closed_counts.down_minus_v /
+    #   up_plus_v 取的是 `per_dir[...]["n_complete"]`，那是
+    #   **零臂 ∧ 该臂都跑完的交集**，不是「该臂自己跑完了几题」。
+    #   两者在 −v 上差 1（自己 21 / 交集 20），在 +v 上恰好相同（5 / 5）
+    #   ⇒ 页面把三格并排印成 21 / 20 / 5，读起来是三个同口径闭合率，
+    #   而中间那格其实是配对交集。后果正好与本节结论相反：
+    #   读者会以为 **−v 跑挂了 1 题**，而这一节要说的恰恰是「−v 不跑飞」。
+    # ⇒ 两个口径必须都进产物，并由面板分别印出来、说清哪个是哪个。
+    own_down = sum(1 for r in rows if r["down_closed"])
+    own_up = sum(1 for r in rows if r["up_closed"])
+    # 零臂与某臂的对称差：两格各 1 ⇒ 「配对那格少的那题」不是单方向的。
+    zero_not_down = sum(1 for r in rows if r["zero_closed"] and not r["down_closed"])
+    down_not_zero = sum(1 for r in rows if r["down_closed"] and not r["zero_closed"])
+    # ⚠ 恒等式要挑**真的能红**的那些。第一版我写了
+    #   `zero_not_down == len(zc) - len(both_ok) - len(neither)`
+    #   —— 那是**恒真**的：四格表比的是 up vs down，比不出 zero vs down；
+    #   而 zero_not_down 恰好就是「zc 里 down 没闭合的题数」= down_only+neither，
+    #   等式两边定义相同 ⇒ 永远成立 ⇒ 判据看起来在核、实际核不到任何东西。
+    #   （第一版就是这么被生成器 ABORT 挡下来的：实际 1，它推出 15。）
+    # ⇒ 改成拿 `rows` 的逐题口径去对 `per_dir` 的**另写一遍**的聚合口径：
+    #   两条独立代码路径，对不上才是真分歧。
+    if zero_not_down + per_dir["down"]["n_complete"] != zero_closed:
+        fail.append("零臂闭合 %d ≠ 配对交集 %d + 「零臂闭合而 −v 没闭合」%d"
+                    % (zero_closed, per_dir["down"]["n_complete"], zero_not_down))
+    if down_not_zero + per_dir["down"]["n_complete"] != own_down:
+        fail.append("−v 自己闭合 %d ≠ 配对交集 %d + 「−v 闭合而零臂没闭合」%d"
+                    % (own_down, per_dir["down"]["n_complete"], down_not_zero))
+
     # 步数比（配对：同题、同零臂）
     def ratios(a, b):
         return [r[b] / r[a] for r in rows if r[a] and r[b]]
@@ -305,8 +334,18 @@ def main():
         },
         "closed_counts": {
             "zero_shared": zero_closed,
+            # ⚠ 这两个是**配对交集**（零臂 ∧ 该臂都跑完），不是该臂自己的闭合数。
+            #   面板上必须带口径印，不许当成「注入后闭合率」并排比。
             "down_minus_v": per_dir["down"]["n_complete"],
             "up_plus_v": per_dir["up"]["n_complete"],
+            # 第十七笔补上：各臂**自己**的闭合数。
+            "down_arm_own": own_down,
+            "up_arm_own": own_up,
+            # 两个口径不一致的具体题数（对称差，各 1）
+            "zero_closed_down_blew": zero_not_down,
+            "down_closed_zero_blew": down_not_zero,
+            "caliber": "down_minus_v / up_plus_v = 与共享零臂**配对**后两臂都跑完的题数；"
+                       "down_arm_own / up_arm_own = 该臂自己跑完的题数（不要求零臂也跑完）",
             "n_problems": len(labels),
         },
         "blew_up": {
@@ -351,7 +390,11 @@ def main():
         "verdict": (
             "**同一条轴，符号一换，行为完全不同。**\n"
             "① 零臂 {zc}/{n} 闭合（两臂共享同一份对照，见 shared_control）。"
-            "注入 −v 后 {dn}/{n} 闭合，注入 **+v** 后只剩 **{up}/{n}**。\n"
+            "各臂**自己**跑完：−v {own_dn}/{n}、+v {own_up}/{n}\n"
+            "⇒ 与共享零臂**配对**比较（零臂 ∧ 该臂都跑完）：−v {dn}/{n}、+v {up}/{n}。"
+            "⚠ 这两个数**不是**各臂自己的闭合数：−v 少的那 {znd} 题是"
+            "**零臂跑完而 −v 没跑完**、另有 {dnnz} 题反过来，"
+            "两侧各 {symd} 题 —— 所以「−v 配对 {dn} < 零臂 {zc}」**不构成 −v 跑飞**。\n"
             "⇒ 四格表（只在零臂闭合的 {zc} 题里）：三臂都跑完 {both}、"
             "**只有 +v 跑不完 {uponly}**、只有 −v 跑不完 {downonly}、"
             "两臂都没跑完 {neith}。McNemar 双侧精确 p = **{p:.3g}**。\n"
@@ -368,6 +411,8 @@ def main():
             "它从「答错」变成了「答不出来」，而按 verdict 计数**看不见**。"
         ).format(zc=zero_closed, n=len(labels), dn=per_dir["down"]["n_complete"],
                  up=per_dir["up"]["n_complete"], both=len(both_ok),
+                 own_dn=own_down, own_up=own_up, znd=zero_not_down,
+                 dnnz=down_not_zero, symd=zero_not_down,
                  uponly=len(up_only), downonly=len(down_only), neith=len(neither),
                  p=p_mcnemar, kl_up=kl_up, kl_dn=kl_dn,
                  r_up=statistics.median(r_up), r_dn=statistics.median(r_down),
@@ -400,8 +445,13 @@ def main():
 
     print("自证全过（7 条）")
     print("  零臂逐字相同：%d/%d（配对设计成立）" % (n_same, len(labels)))
-    print("  闭合率：零 %d/%d | −v %d/%d | +v %d/%d"
-          % (zero_closed, len(labels), per_dir["down"]["n_complete"], len(labels),
+    # ⚠ 三个数**不是**同一口径：零臂是共享对照的闭合数，
+    #   后两个是「与零臂配对后两臂都跑完」的交集，而各臂自己跑完的是 21/5。
+    #   并排印成「闭合率」会把配对损失说成该臂跑飞。
+    print("  闭合：零臂自己 %d/%d | −v 自己 %d/%d | +v 自己 %d/%d"
+          % (zero_closed, len(labels), own_down, len(labels), own_up, len(labels)))
+    print("  与零臂配对后（交集）：−v %d/%d | +v %d/%d"
+          % (per_dir["down"]["n_complete"], len(labels),
              per_dir["up"]["n_complete"], len(labels)))
     print("  跑飞题：+v %d vs −v %d  McNemar p = %.3g"
           % (len(up_broke), len(down_broke), p_mcnemar))

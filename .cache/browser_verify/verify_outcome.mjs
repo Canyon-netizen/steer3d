@@ -181,7 +181,9 @@ try {
                            n: null, zeroIdentical: null, zeroClosed: null,
                            downClosed: null, upClosed: null, upOnly: null,
                            downOnly: null, mcnemarP: null, upRw: null,
-                           upNet: null, opposite: null, lenP: null };
+                           upNet: null, opposite: null, lenP: null,
+                           downOwn: null, upOwn: null,
+                           zeroClosedDownBlew: null, downClosedZeroBlew: null };
           const g = a => d.getAttribute(a);
           const items = {};
           d.querySelectorAll('[data-dir-item]').forEach(li => {
@@ -199,6 +201,11 @@ try {
             upClosed: g('data-up-closed'), upOnly: g('data-up-only'),
             downOnly: g('data-down-only'), mcnemarP: g('data-mcnemar-p'),
             upRw: g('data-up-rw'), upNet: g('data-up-net'),
+            // 第十七笔：两个口径的属性。缺分支必须返回**完整**的键，
+            //   否则下面 B 组取到 undefined 会打成 NaN 而不是 null。
+            downOwn: g('data-down-own'), upOwn: g('data-up-own'),
+            zeroClosedDownBlew: g('data-zero-closed-down-blew'),
+            downClosedZeroBlew: g('data-down-closed-zero-blew'),
             opposite: g('data-opposite'), lenP: g('data-len-p'),
           };
         })(),
@@ -529,6 +536,189 @@ try {
       + `含 not_claimed 独有片段「${axNFrag}」=${(state.text || '').includes(axNFrag)}`);
 
 
+  /* ==================== B 组：steer_directions 的两个闭合口径 ==================== */
+  // ⚠ 同样先说清层级：B 组**大半在产物层**（从已发布的 cot_texts.json 独立
+  //   现算 19 个量），只有 B5/B6 读 DOM。与 A 组一样，这里任何一条都**不能**
+  //   单独当作「读者看到的就是这些数」的证据。
+  //
+  // ⚠ 为什么全部从 cot_texts.json 算，而不是生成器读的那个 journal：
+  //   生成器读 `.cache/32k_journal/cot_divergence_32k.json`（本地中间产物），
+  //   判据若也读它，两边就共用同一份**没被核过的**输入。
+  //   已逐条核对：journal 的 92 条 run 与 cot_texts 的 92 条在
+  //   `closed_think` / `n_steps` / `mean_logit_kl` 上**零处不一致**
+  //   ⇒ 用已发布的那份是等价且更强的选择（它至少经过 json_strict 与面板渲染）。
+  const bxBy = {};
+  for (const r of COT.runs) {
+    (bxBy[r.label] = bxBy[r.label] || {})[r.direction + '|' + Number(r['strength'])] = r;
+  }
+  const bxLabels = Object.keys(bxBy).sort();
+  const bxC = (l, dirn, st) => {
+    const r = bxBy[l][dirn + '|' + st];
+    return r ? !!r.closed_think_primary : false;
+  };
+  const bxN = (l, dirn, st) => {
+    const r = bxBy[l][dirn + '|' + st];
+    return r ? Number(r.n_steps) : 0;
+  };
+  const bxStrs = [...new Set(COT.runs.map(r => Number(r['strength'])).filter(s => s !== 0))];
+  const bxSt = bxStrs.length === 1 ? bxStrs[0] : null;
+  const bxLayers = [...new Set(COT.runs.map(r => r['layer']))];
+  const bxZc = bxLabels.filter(l => bxC(l, 'confidence_up', 0) && bxC(l, 'confidence_down', 0));
+  const bxOwn = dirn => bxLabels.filter(l => bxC(l, dirn, bxSt)).length;
+  const bxComp = dirn => bxLabels.filter(l => bxC(l, dirn, 0) && bxC(l, dirn, bxSt)).length;
+  // 四格：只在零臂闭合的题里，按 (up 闭合?, down 闭合?) 分
+  const bxBoth = bxZc.filter(l => bxC(l, 'confidence_up', bxSt) && bxC(l, 'confidence_down', bxSt));
+  const bxUpOnly = bxZc.filter(l => !bxC(l, 'confidence_up', bxSt) && bxC(l, 'confidence_down', bxSt));
+  const bxDownOnly = bxZc.filter(l => bxC(l, 'confidence_up', bxSt) && !bxC(l, 'confidence_down', bxSt));
+  const bxNeither = bxZc.filter(l => !bxC(l, 'confidence_up', bxSt) && !bxC(l, 'confidence_down', bxSt));
+  // 步数比：生成器用 n_steps（不是 reason_len_ratio），且跳过 0
+  const bxRatio = dirn => bxLabels
+    .map(l => [bxN(l, dirn, 0), bxN(l, dirn, bxSt)])
+    .filter(([a, b]) => a && b).map(([a, b]) => b / a);
+  // 中位数：Python statistics.median 对偶数长度取中间两个的均值
+  const bxMedian = arr => {
+    const s = [...arr].sort((x, y) => x - y), h = s.length >> 1;
+    return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
+  };
+  // 组合数：Pascal 表，避免任何浮点近似（n ≤ 64 足够这批数据）
+  const bxCmb = (() => {
+    const T = [[1]];
+    for (let n = 1; n <= 64; n++) {
+      const row = [1]; const prev = T[n - 1];
+      for (let k = 1; k < n; k++) row.push(prev[k - 1] + prev[k]);
+      row.push(1); T[n] = row;
+    }
+    return (n, k) => (k < 0 || k > n ? 0 : T[n][k]);
+  })();
+  // ⚠ 必须与生成器 mcnemar_exact() **逐字同语义**（含 n==0 返回 1.0）
+  const bxMcnemar = (b, c) => {
+    const n = b + c;
+    if (n === 0) return 1.0;
+    let tail = 0;
+    for (let i = 0; i <= Math.min(b, c); i++) tail += bxCmb(n, i);
+    return Math.min(1.0, 2.0 * tail / Math.pow(2, n));
+  };
+  const bxCC = SD.closed_counts;
+
+  rec('B0 前置：层唯一 / 非零强度唯一 / 恰好 ±v 两臂 / 题数一致（取不到就不判）',
+      bxLayers.length === 1 && bxSt !== null && bxLabels.length === SD.n_problems
+      && bxLayers[0] === SD.layer && bxSt === SD.strength,
+      `层=${JSON.stringify(bxLayers)} 强度=${JSON.stringify(bxStrs)} 题数=${bxLabels.length}`
+      + ` | 产物 layer=${SD.layer} strength=${SD.strength} n=${SD.n_problems}`);
+
+  rec('B1 零臂 / 两臂各自闭合 / 两个口径的配对交集，四格划分：全部与 cot_texts 现算吻合',
+      bxCC.zero_shared === bxZc.length
+      && bxCC.down_arm_own === bxOwn('confidence_down')
+      && bxCC.up_arm_own === bxOwn('confidence_up')
+      && bxCC.down_minus_v === bxComp('confidence_down')
+      && bxCC.up_plus_v === bxComp('confidence_up')
+      && bxCC.zero_closed_down_blew === bxZc.filter(l => !bxC(l, 'confidence_down', bxSt)).length
+      && bxCC.down_closed_zero_blew
+        === bxLabels.filter(l => bxC(l, 'confidence_down', bxSt) && !bxC(l, 'confidence_up', 0)).length
+      && SD.blew_up.table_on_shared_zero_control.n_zero_closed === bxZc.length
+      && SD.blew_up.table_on_shared_zero_control.both_closed === bxBoth.length
+      && SD.blew_up.table_on_shared_zero_control.up_only_blew_up === bxUpOnly.length
+      && SD.blew_up.table_on_shared_zero_control.down_only_blew_up === bxDownOnly.length
+      && SD.blew_up.table_on_shared_zero_control.both_blew_up === bxNeither.length,
+      `零臂=${bxZc.length} | −v 自己=${bxOwn('confidence_down')} 交集=${bxComp('confidence_down')}`
+      + ` | +v 自己=${bxOwn('confidence_up')} 交集=${bxComp('confidence_up')}`
+      + ` | 四格 ${bxBoth.length}/${bxUpOnly.length}/${bxDownOnly.length}/${bxNeither.length}`
+      + ` (合计 ${bxBoth.length + bxUpOnly.length + bxDownOnly.length + bxNeither.length} 应=${bxZc.length})`
+      + ` | 产物 零臂=${bxCC.zero_shared} −v=${bxCC.down_minus_v} +v=${bxCC.up_plus_v}`
+      + ` −v自己=${bxCC.down_arm_own} +v自己=${bxCC.up_arm_own}`);
+
+  rec('B2 四格必须是零臂闭合题的**划分**，且两个破坏数 = discordant + 两臂都没跑完',
+      bxBoth.length + bxUpOnly.length + bxDownOnly.length + bxNeither.length === bxZc.length
+      && SD.blew_up.n_up_vs_shared_control === bxUpOnly.length + bxNeither.length
+      && SD.blew_up.n_down_vs_shared_control === bxDownOnly.length + bxNeither.length,
+      `四格合计 ${bxBoth.length + bxUpOnly.length + bxDownOnly.length + bxNeither.length} / 零臂 ${bxZc.length}`
+      + ` | +v 破坏 ${SD.blew_up.n_up_vs_shared_control}（应 ${bxUpOnly.length + bxNeither.length}）`
+      + ` | −v 破坏 ${SD.blew_up.n_down_vs_shared_control}（应 ${bxDownOnly.length + bxNeither.length}）`);
+
+  rec('B3 McNemar 精确 p 必须由四格表现算，不得是印出来的数',
+      axNear(SD.blew_up.mcnemar_exact_p, bxMcnemar(bxUpOnly.length, bxDownOnly.length), 12)
+      && SD.blew_up.mcnemar_exact_p < 1e-3,
+      `产物 p=${SD.blew_up.mcnemar_exact_p} | 现算 mcnemar(up_only=${bxUpOnly.length},`
+      + ` down_only=${bxDownOnly.length}) = ${bxMcnemar(bxUpOnly.length, bxDownOnly.length)}`);
+
+  rec('B4 步数比中位数 / 更长的题数 / 符号检验 p 与现算吻合（步数不是 reason_len_ratio）',
+      axNear(SD.length.ratio_median_down, bxMedian(bxRatio('confidence_down')), 9)
+      && axNear(SD.length.ratio_median_up, bxMedian(bxRatio('confidence_up')), 9)
+      && (() => {
+          const rd = bxRatio('confidence_down'), ru = bxRatio('confidence_up');
+          const gt = rd.filter((v, i) => ru[i] > v).length;
+          return SD.length.n_up_ratio_gt_down === gt
+            && axNear(SD.length.sign_test_p, bxMcnemar(gt, bxLabels.length - gt), 12);
+        })(),
+      `中位数 现算 −v=${bxMedian(bxRatio('confidence_down')).toFixed(6)}`
+      + ` +v=${bxMedian(bxRatio('confidence_up')).toFixed(6)}`
+      + ` | 产物 −v=${SD.length.ratio_median_down} +v=${SD.length.ratio_median_up}`
+      + ` | 更长题数 产物=${SD.length.n_up_ratio_gt_down} p=${SD.length.sign_test_p}`);
+
+  rec('B5 撞 token 上限的题数与 KL 均值与现算吻合（CAP 来自产物 token_cap）',
+      SD.blew_up.zero_arm_at_cap
+        === bxLabels.filter(l => bxN(l, 'confidence_down', 0) >= SD.token_cap).length
+      && SD.per_direction.up.arms_at_token_cap
+        === bxLabels.filter(l => bxN(l, 'confidence_up', bxSt) >= SD.token_cap).length
+      && SD.per_direction.down.arms_at_token_cap
+        === bxLabels.filter(l => bxN(l, 'confidence_down', bxSt) >= SD.token_cap).length
+      && axNear(SD.kl_contrast.mean_logit_kl_up,
+                bxLabels.reduce((a, l) => a + bxBy[l]['confidence_up|' + bxSt].mean_logit_kl, 0) / bxLabels.length, 9)
+      && axNear(SD.kl_contrast.mean_logit_kl_down,
+                bxLabels.reduce((a, l) => a + bxBy[l]['confidence_down|' + bxSt].mean_logit_kl, 0) / bxLabels.length, 9)
+      // 「幅度大的方向」必须真的是大的那个，且 opposite 必须在语义上成立
+      && SD.kl_contrast.larger_kl_direction
+        === (SD.kl_contrast.mean_logit_kl_down > SD.kl_contrast.mean_logit_kl_up
+             ? 'confidence_down' : 'confidence_up')
+      && SD.kl_contrast.opposite === true,
+      `撞上限 零臂=${SD.blew_up.zero_arm_at_cap} +v=${SD.per_direction.up.arms_at_token_cap}`
+      + ` −v=${SD.per_direction.down.arms_at_token_cap} | KL 产物 up=${SD.kl_contrast.mean_logit_kl_up}`
+      + ` down=${SD.kl_contrast.mean_logit_kl_down}`);
+
+  // ---- B6：本笔的核心。down_arm_own 与 down_minus_v **不等**，页面必须
+  //   把两个口径都印出来，并说清那 1 题的去向；否则「−v 配对 20 < 零臂 21」
+  //   会被读成「−v 跑飞了一题」，与整块结论相反。
+  const BX = state.dir || {};
+  const bxCal = BX.items['paired-caliber'] || '';
+  rec('B6 两个闭合口径在页面上必须分开印，并说清差的那 1 题是对称的（核心判据）',
+      !!BX.text
+      && bxCal.length > 0
+      // 三格必须是「自己跑完」口径
+      && Number(BX.downOwn) === bxCC.down_arm_own && Number(BX.upOwn) === bxCC.up_arm_own
+      && /−v 臂自己跑完/.test(BX.text) && /\+v 臂自己跑完/.test(BX.text)
+      // 另一口径那行必须印出两个交集数，并给出对称差
+      && bxCal.includes(`${bxCC.down_minus_v}/${SD.n_problems}`)
+      && bxCal.includes(`${bxCC.up_plus_v}/${SD.n_problems}`)
+      // ⚠ 下面三条**不许**写成 `bxCal.includes(String(1))`：
+      //   对称差那个数恰好是 1，而「1」在这段文字里出现过好几次
+      //   （20/23、5/23 里没有，但「1 题」有三处）⇒ 改对了仍会绿。
+      //   换成带词锚点的正则，把数与它所在的句子绑在一起。
+      && new RegExp('少 ' + bxCC.zero_closed_down_blew + ' 题').test(bxCal)
+      && new RegExp(bxCC.zero_closed_down_blew + ' 题零臂跑完而 .v 没跑完').test(bxCal)
+      && new RegExp('另有 ' + bxCC.down_closed_zero_blew + ' 题反过来').test(bxCal)
+      && /对称/.test(bxCal) && /不构成/.test(bxCal)
+      // 前置：只有当两个口径真的不等时，这条才要求「分开印」
+      && (bxCC.down_arm_own === bxCC.down_minus_v || /另一口径/.test(bxCal)),
+      `页面三格 downOwn=${BX.downOwn} upOwn=${BX.upOwn} | 另一口径行：${bxCal.slice(0, 190)}`);
+
+  // ---- B7：跨产物一致性（arm / power / steer_directions 三方）
+  rec('B7 层与强度在三份产物间三方一致（判据独立从 cot_texts 现算）',
+      bxLayers.length === 1 && bxSt !== null
+      && SD.layer === bxLayers[0] && ARM.layer === bxLayers[0] && PW.strength === bxSt
+      && SD.strength === bxSt && ARM.strength === bxSt
+      && SD.n_problems === ARM.n_pairs,
+      `层 产物 steer=${SD.layer}/arm=${ARM.layer} 现算=${JSON.stringify(bxLayers)}`
+      + ` | 强度 steer=${SD.strength}/arm=${ARM.strength}/power=${PW.strength} 现算=${bxSt}`
+      + ` | 题数 steer=${SD.n_problems} arm=${ARM.n_pairs}`);
+
+  // ---- B8：产物那两段散文**未渲染** —— 与 A7 同一件事，必须自报层级
+  const bxVFrag = '同一条轴，符号一换，行为完全不同';
+  const bxNFrag = '不能说「+v 更差」是普遍规律';
+  rec('B8 产物 verdict / not_claimed 确实未渲染到页面（本组大半在产物层，必须说清）',
+      !(state.text || '').includes(bxVFrag) && !(state.text || '').includes(bxNFrag),
+      `页面含 verdict 独有片段「${bxVFrag}」=${(state.text || '').includes(bxVFrag)}；`
+      + `含 not_claimed 独有片段「${bxNFrag}」=${(state.text || '').includes(bxNFrag)}`);
+
   /* ==================== H 组：±v 配对检验 ==================== */
 
   // 这一块是补 §G3 的：面板原来把 up/down **合并**取中位数，
@@ -857,14 +1047,18 @@ try {
       && SD.shared_control.n_identical_zero_arms === SD.n_problems,
       D.text ? D.text.slice(0, 170) : '缺块');
 
-  // 三个闭合率必须都印出，且 +v 那个不能被弱化成「掉了一点」
-  rec('J2 三个闭合率（零臂 / −v / +v）必须并排印出，且 +v 那格不许淡化',
+  // ⚠ 第十七笔改写：原来这条叫「三个闭合率（零臂 / −v / +v）并排印出」，
+  //   并用 `21/23`、`20/23`、`5/23` 三个数判。而 20/23 那个数是
+  //   **与零臂配对后的交集**，不是 −v 臂自己的闭合数 ⇒
+  //   判据**自己**把两个口径当成一个口径在要求，名字也在替它背书。
+  //   现在三格取「各臂自己跑完」，交集那对数由 B6 在另一行里要求。
+  rec('J2 三格必须是「各臂自己跑完」（不是配对交集），且 +v 那格不许淡化',
       D.text
       && D.text.includes(`${SD.closed_counts.zero_shared}/${SD.n_problems}`)
-      && D.text.includes(`${SD.closed_counts.down_minus_v}/${SD.n_problems}`)
-      && D.text.includes(`${SD.closed_counts.up_plus_v}/${SD.n_problems}`)
+      && D.text.includes(`${SD.closed_counts.down_arm_own}/${SD.n_problems}`)
+      && D.text.includes(`${SD.closed_counts.up_arm_own}/${SD.n_problems}`)
       && /大面积跑飞/.test(D.text)
-      && SD.closed_counts.up_plus_v < SD.closed_counts.zero_shared / 2,
+      && SD.closed_counts.up_arm_own < SD.closed_counts.zero_shared / 2,
       D.text ? D.text.slice(0, 200) : '缺块');
 
   const MC = D.items.mcnemar || '';
