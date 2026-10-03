@@ -182,6 +182,43 @@ type Repetition = {
   }>;
 };
 
+// §8.6 主张降级器。写它的是 .cache/xcheck/claim_audit.py：
+// 给一句结论和它的证据字段，机械地报出「它实际站得住的第几级」。
+// 它是本项目对「别人给我的结论」唯一能**反过来用**的工具 ——
+// §6 答「我该做什么」，§8.1 答「本项目到哪了」，两者都不回答这个。
+type ClaimAudit = {
+  what: string;
+  why: string;
+  levels: Array<{
+    level: number; label: string; needs: string[];
+    entails: string; cheapest_next: string;
+  }>;
+  random_ceiling_note: string;
+  direction_substitution_note: string;
+  coverage_limitation: {
+    intended_primary_input: string;
+    status: string;
+    why: string;
+    decision: string;
+    consequence: string;
+  };
+  samples: Array<{
+    id: string; source: string; kind: string; quote: string;
+    declared_level: number | null;
+    audit: {
+      max_level_supported: number;
+      declared_level: number | null;
+      overreach_vs_declared: boolean;
+      survives_direction_substitution: boolean;
+      random_same_norm_arms: number;
+      random_control_ceiling_quantile: number;
+      entails: string;
+      violations: Array<{ assertion: string; why: string }>;
+      cheapest_next_step: { to_level: number; gate: string; how: string } | null;
+    };
+  }>;
+};
+
 type AnswerPower = {
   what: string;
   direction: string;
@@ -256,6 +293,7 @@ export default function InterventionOutcomePanel() {
   const [pw, setPw] = useState<AnswerPower | null>(null);
   const [sd, setSd] = useState<DirCompare | null>(null);
   const [rep, setRep] = useState<Repetition | null>(null);
+  const [ca, setCa] = useState<ClaimAudit | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   // Mounted with a cancellation guard, same shape as InterpretationPanel's
@@ -289,9 +327,13 @@ export default function InterventionOutcomePanel() {
       // 「谁生成哪个字段」看不出来 —— 这一支的窗口/阈值都不是别处能推出来的。
       fetch("/latent/data/steer_repetition.json").then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
+      // 主张降级器。读的是它自己的产物（门控表 + 样本判定），
+      // 不从阶梯产物**推导** —— 推导会让两者一改就一起错。
+      fetch("/latent/data/claim_audit.json").then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
     ])
-      .then(([c, a, m, p, d, rp]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower, DirCompare, Repetition]) => {
-        if (alive) { setCot(c); setAns(a); setArm(m); setPw(p); setSd(d); setRep(rp); }
+      .then(([c, a, m, p, d, rp, q]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower, DirCompare, Repetition, ClaimAudit]) => {
+        if (alive) { setCot(c); setAns(a); setArm(m); setPw(p); setSd(d); setRep(rp); setCa(q); }
       })
       .catch((e) => { if (alive) setErr(String(e.message || e)); });
     return () => { alive = false; };
@@ -833,8 +875,95 @@ export default function InterventionOutcomePanel() {
         );
       })()}
 
-      <div className="flex flex-col gap-1" data-answer-rows>
-        {ans.items.slice(0, 4).map((it) => (
+      {/* --- §8.6 主张降级器：把一句结论换算成它站得住的第几级 --- */}
+      {ca && (() => {
+        // ⚠ 按 id 取，**不要用下标**。我第一版写 ca.samples[0]/[2]/[3]，
+        //   而 samples[2] 其实是 l6 那条（声明 6 / 实测 4），不是 l2 ——
+        //   M0 立刻报出 DOM 是 6/4、产物是 3/2。下标错位在数据变动时静默。
+        const byId = (id: string) => ca.samples.find((x) => x.id === id)!;
+        const s0 = byId("l0-only"), s1 = byId("l2-no-specificity"),
+              s2 = byId("l6-no-random-arm"),
+              s3 = byId("project-confidence-claim");
+        return (
+        <div className="rounded bg-bg/60 border border-border px-2 py-1.5"
+             data-claim-audit
+             data-ca-n={String(ca.samples.length)}
+             data-ca-l0-declared={String(s0.audit.declared_level)}
+             data-ca-l0-supported={String(s0.audit.max_level_supported)}
+             data-ca-l0-survives={String(s0.audit.survives_direction_substitution ? 1 : 0)}
+             data-ca-l2-declared={String(s1.audit.declared_level)}
+             data-ca-l2-supported={String(s1.audit.max_level_supported)}
+             data-ca-l6-declared={String(s2.audit.declared_level)}
+             data-ca-l6-supported={String(s2.audit.max_level_supported)}
+             data-ca-self-declared={String(s3.audit.declared_level)}
+             data-ca-self-supported={String(s3.audit.max_level_supported)}
+             data-ca-nlevels={String(ca.levels.length)}>
+          <div className="text-[11px] text-gray-200 font-semibold">
+            这句话站得住第几级？—— 反过来用的那把尺子
+          </div>
+          <p className="text-[10px] text-gray-400 leading-relaxed mt-1"
+             data-ca-why>
+            {ca.why}
+            它不猜语义，只按<b>可机械核查的证据门控</b>算，共{" "}
+            <b className="font-mono text-gray-200">{ca.levels.length}</b> 级。
+            下面四句是它跑出来的结果：
+          </p>
+          <ul className="mt-1.5 space-y-1 text-[10px] text-gray-300 leading-relaxed">
+            <li data-ca-item="l0">
+              「Steering along this direction shifts internal representations」
+              声明 L{s0.audit.declared_level} ⇒ 只能站住{" "}
+              <b className="font-mono text-gray-200">
+                L{s0.audit.max_level_supported}</b>，而且
+              <b className={s0.audit.survives_direction_substitution
+                ? "text-amber-300" : "text-emerald-300"}>
+                {s0.audit.survives_direction_substitution
+                  ? "换个随机方向逐字成立" : "换个随机方向就不成立"}
+              </b>。
+              {s0.audit.entails}
+            </li>
+            <li data-ca-item="l2">
+              「This direction linearly encodes the honesty state」
+              声明 L{s1.audit.declared_level} ⇒{" "}
+              <b className="font-mono text-gray-200">
+                L{s1.audit.max_level_supported}</b>
+              （差一级：没做专属性矩阵）。{s1.audit.entails}
+            </li>
+            <li data-ca-item="l6">
+              「Injecting the vector improves accuracy」
+              声明 L{s2.audit.declared_level} ⇒{" "}
+              <b className="font-mono text-gray-200">
+                L{s2.audit.max_level_supported}</b>，
+              缺<b>同范数随机方向臂</b>，排除不了「随便什么方向都能做到」。
+              {s2.audit.cheapest_next_step
+                ? <>升到 L{s2.audit.cheapest_next_step.to_level} 只需：{
+                    s2.audit.cheapest_next_step.how}</>
+                : null}
+            </li>
+            <li data-ca-item="self">
+              <b>本项目自己那句话</b>（±v 闭合率 5/23 vs 20/23，破坏模式是逐字重复退化）
+              声明 L{s3.audit.declared_level} ⇒ 按它自己的尺子只到{" "}
+              <b className="font-mono text-gray-200">
+                L{s3.audit.max_level_supported}</b>。
+              差的正是那条随机臂。
+            </li>
+          </ul>
+          <p className="text-[10px] text-gray-400 leading-relaxed mt-1.5"
+             data-ca-ceiling>
+            <b>随机臂不设魔法阈值，只报你能说到哪。</b>
+            {ca.random_ceiling_note}
+            {ca.direction_substitution_note}
+          </p>
+          <p className="text-[10px] text-amber-200/90 leading-relaxed mt-1"
+             data-ca-coverage>
+            <b>这条尺子有个覆盖限制，必须一起说。</b>
+            {ca.coverage_limitation.decision}
+            {ca.coverage_limitation.consequence}
+          </p>
+        </div>
+        );
+      })()}
+
+      <div className="flex flex-col gap-1" data-answer-rows>        {ans.items.slice(0, 4).map((it) => (
           <div key={it.label} className="rounded bg-bg/60 border border-border px-2 py-1">
             <div className="flex items-baseline justify-between text-[10px]">
               <span className="text-gray-400 font-mono truncate">{it.label}</span>

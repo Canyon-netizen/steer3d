@@ -1,0 +1,469 @@
+{
+ "schema": "claim_audit/1",
+ "what": "把一句结论和它的证据机械地换算成「它实际站得住的第几级」",
+ "why": "§6 答「我该做什么」、§8.1 答「本项目到哪了」，两者都不能反过来用在别人已经写好的结论上。",
+ "gate_fields": [
+  "behavior_metric",
+  "denominator_reported",
+  "heldout_prediction",
+  "logit_shift_shown",
+  "margin_over_2sem",
+  "net_change_reported",
+  "position_axis_control",
+  "recipe_heldout",
+  "recipe_injectable",
+  "shuffle_floor",
+  "specificity_matrix",
+  "strength_law_checked",
+  "random_same_norm_arms"
+ ],
+ "levels": [
+  {
+   "level": 0,
+   "label": "注进去模型变了",
+   "needs": [
+    "logit_shift_shown"
+   ],
+   "entails": "在这个强度、这个位置上，输出分布确实动了。",
+   "cheapest_next": "（L0 是起点：一次前向的 logit 位移，没有可再做的事）"
+  },
+  {
+   "level": 1,
+   "label": "破坏量 = ½(s·rms/‖h‖)²，与方向无关",
+   "needs": [
+    "logit_shift_shown",
+    "strength_law_checked"
+   ],
+   "entails": "代价项已经定量，且由强度解释、与方向无关。",
+   "cheapest_next": "把破坏量与 ½(s·rms/‖h‖)² 对一下，看它是不是只由强度决定。"
+  },
+  {
+   "level": 2,
+   "label": "这个方向线性编码了观测量 y",
+   "needs": [
+    "logit_shift_shown",
+    "strength_law_checked",
+    "heldout_prediction",
+    "shuffle_floor"
+   ],
+   "entails": "在这条轴上，y 可被线性读出（留出轨迹 + 打乱地板）。",
+   "cheapest_next": "换一个同长度随机方向，看它是否给出同样的读出 —— 如果给出，这个指标测的是幅度，不能用来支持方向。"
+  },
+  {
+   "level": 3,
+   "label": "这条方向专属于 y",
+   "needs": [
+    "logit_shift_shown",
+    "strength_law_checked",
+    "heldout_prediction",
+    "shuffle_floor",
+    "specificity_matrix",
+    "margin_over_2sem"
+   ],
+   "entails": "不只是「能预测 y」，而是「预测 y 比同表其它方向都强」。",
+   "cheapest_next": "做专属性矩阵 M[A][B] + 余量 + 差距/sem。"
+  },
+  {
+   "level": 4,
+   "label": "能写成可注入的 diff_of_means 配方",
+   "needs": [
+    "logit_shift_shown",
+    "strength_law_checked",
+    "heldout_prediction",
+    "shuffle_floor",
+    "specificity_matrix",
+    "margin_over_2sem",
+    "recipe_injectable",
+    "recipe_heldout"
+   ],
+   "entails": "这条方向有配方，且配方跨轨迹成立。",
+   "cheapest_next": "把配方写成 diff_of_means，在留一轨迹上检验它仍预测得动。"
+  },
+  {
+   "level": 5,
+   "label": "这条配方专一到能注入",
+   "needs": [
+    "logit_shift_shown",
+    "strength_law_checked",
+    "heldout_prediction",
+    "shuffle_floor",
+    "specificity_matrix",
+    "margin_over_2sem",
+    "recipe_injectable",
+    "recipe_heldout",
+    "random_control_present"
+   ],
+   "entails": "配方不是随便什么方向都能替代的。",
+   "cheapest_next": "同范数随机方向臂 + 约束方换人检查（配方是否专一到能注入）。"
+  },
+  {
+   "level": 6,
+   "label": "注入改变行为，且改变是这条方向特有的",
+   "needs": [
+    "logit_shift_shown",
+    "strength_law_checked",
+    "random_control_present",
+    "behavior_metric",
+    "net_change_reported",
+    "denominator_reported"
+   ],
+   "entails": "行为确实变了，且不是随机方向也能做到的。",
+   "cheapest_next": "在生成上注入，比行为指标，报净变化（含变差）与分母。"
+  },
+  {
+   "level": 7,
+   "label": "改变的是这个概念，不是位置或格式",
+   "needs": [
+    "logit_shift_shown",
+    "strength_law_checked",
+    "heldout_prediction",
+    "shuffle_floor",
+    "specificity_matrix",
+    "margin_over_2sem",
+    "recipe_injectable",
+    "recipe_heldout",
+    "random_control_present",
+    "behavior_metric",
+    "net_change_reported",
+    "denominator_reported",
+    "position_axis_control"
+   ],
+   "entails": "这是本框架能支持的最强主张。",
+   "cheapest_next": "加位置轴对照，确认改变的是概念而不是位置或格式。"
+  }
+ ],
+ "random_ceiling_note": "n 个同范数随机臂只能否证超过经验分位数 n/(n+1) 的效应。不设魔法阈值：直接报你能说到哪。",
+ "direction_substitution_note": "L0/L1 的结论与方向无关 —— 把方向换成同范数随机方向后逐字成立 ⇒ 这类句子对「X 的方向」没有任何支持力。",
+ "coverage_limitation": {
+  "intended_primary_input": "外部论文已经写好的结论（摘要或正文里的一句）",
+  "status": "本轮未纳入",
+  "why": "web_search 在本环境里持续失败，取不到任何可核对的原文。",
+  "decision": "不凭印象编造论文主张填表。编一条「某论文声称 X」来演示工具，比不演示坏得多 —— 而这正是本框架要反对的那类动作。",
+  "consequence": "当前只演示了构造样本 + 一条本项目自己的主张。对外部文献的判定力未经检验。"
+ },
+ "samples": [
+  {
+   "id": "l0-only",
+   "source": "构造样本：只有 logit 位移",
+   "kind": "constructed",
+   "quote": "Steering along this direction shifts the model's internal representations.",
+   "evidence": {
+    "logit_shift_shown": true
+   },
+   "declared_level": 1,
+   "audit": {
+    "max_level_supported": 0,
+    "declared_level": 1,
+    "overreach_vs_declared": true,
+    "evidence_out_of_order": [],
+    "survives_direction_substitution": true,
+    "random_same_norm_arms": 0,
+    "random_control_ceiling_quantile": 0.0,
+    "gates": [
+     {
+      "level": 0,
+      "passed": true
+     },
+     {
+      "level": 1,
+      "first_missing": "strength_law_checked",
+      "all_missing": [
+       "strength_law_checked"
+      ]
+     }
+    ],
+    "entails": "在这个强度、这个位置上，输出分布确实动了。",
+    "cheapest_next_step": {
+     "to_level": 1,
+     "gate": "logit_shift_shown",
+     "how": "把破坏量与 ½(s·rms/‖h‖)² 对一下，看它是不是只由强度决定。"
+    },
+    "evidence": {
+     "behavior_metric": false,
+     "denominator_reported": false,
+     "heldout_prediction": false,
+     "logit_shift_shown": true,
+     "margin_over_2sem": false,
+     "net_change_reported": false,
+     "position_axis_control": false,
+     "recipe_heldout": false,
+     "recipe_injectable": false,
+     "shuffle_floor": false,
+     "specificity_matrix": false,
+     "strength_law_checked": false
+    },
+    "violations": [
+     {
+      "assertion": "①",
+      "why": "声明的级别高于证据支持的级别（声明 L1，实测支持 L0）。"
+     }
+    ]
+   }
+  },
+  {
+   "id": "l2-no-specificity",
+   "source": "构造样本：留出可预测，但没做专属性矩阵",
+   "kind": "constructed",
+   "quote": "This direction linearly encodes the model's honesty state.",
+   "evidence": {
+    "logit_shift_shown": true,
+    "strength_law_checked": true,
+    "heldout_prediction": true,
+    "shuffle_floor": true
+   },
+   "declared_level": 3,
+   "audit": {
+    "max_level_supported": 2,
+    "declared_level": 3,
+    "overreach_vs_declared": true,
+    "evidence_out_of_order": [],
+    "survives_direction_substitution": false,
+    "random_same_norm_arms": 0,
+    "random_control_ceiling_quantile": 0.0,
+    "gates": [
+     {
+      "level": 0,
+      "passed": true
+     },
+     {
+      "level": 1,
+      "passed": true
+     },
+     {
+      "level": 2,
+      "passed": true
+     },
+     {
+      "level": 3,
+      "first_missing": "specificity_matrix",
+      "all_missing": [
+       "specificity_matrix",
+       "margin_over_2sem"
+      ]
+     }
+    ],
+    "entails": "在这条轴上，y 可被线性读出（留出轨迹 + 打乱地板）。",
+    "cheapest_next_step": {
+     "to_level": 3,
+     "gate": "logit_shift_shown",
+     "how": "做专属性矩阵 M[A][B] + 余量 + 差距/sem。"
+    },
+    "evidence": {
+     "behavior_metric": false,
+     "denominator_reported": false,
+     "heldout_prediction": true,
+     "logit_shift_shown": true,
+     "margin_over_2sem": false,
+     "net_change_reported": false,
+     "position_axis_control": false,
+     "recipe_heldout": false,
+     "recipe_injectable": false,
+     "shuffle_floor": true,
+     "specificity_matrix": false,
+     "strength_law_checked": true
+    },
+    "violations": [
+     {
+      "assertion": "①",
+      "why": "声明的级别高于证据支持的级别（声明 L3，实测支持 L2）。"
+     }
+    ]
+   }
+  },
+  {
+   "id": "l6-no-random-arm",
+   "source": "构造样本：行为变了，但没有随机方向臂",
+   "kind": "constructed",
+   "quote": "Injecting the vector improves accuracy on held-out problems.",
+   "evidence": {
+    "logit_shift_shown": true,
+    "strength_law_checked": true,
+    "heldout_prediction": true,
+    "shuffle_floor": true,
+    "specificity_matrix": true,
+    "margin_over_2sem": true,
+    "recipe_injectable": true,
+    "recipe_heldout": true,
+    "behavior_metric": true,
+    "net_change_reported": true,
+    "denominator_reported": true,
+    "position_axis_control": true
+   },
+   "declared_level": 6,
+   "audit": {
+    "max_level_supported": 4,
+    "declared_level": 6,
+    "overreach_vs_declared": true,
+    "evidence_out_of_order": [
+     {
+      "level": 6,
+      "present_but_unsupported": "denominator_reported",
+      "missing": [
+       "random_control_present"
+      ]
+     },
+     {
+      "level": 7,
+      "present_but_unsupported": "position_axis_control",
+      "missing": [
+       "random_control_present"
+      ]
+     }
+    ],
+    "survives_direction_substitution": false,
+    "random_same_norm_arms": 0,
+    "random_control_ceiling_quantile": 0.0,
+    "gates": [
+     {
+      "level": 0,
+      "passed": true
+     },
+     {
+      "level": 1,
+      "passed": true
+     },
+     {
+      "level": 2,
+      "passed": true
+     },
+     {
+      "level": 3,
+      "passed": true
+     },
+     {
+      "level": 4,
+      "passed": true
+     },
+     {
+      "level": 5,
+      "first_missing": "random_control_present",
+      "all_missing": [
+       "random_control_present"
+      ]
+     }
+    ],
+    "entails": "这条方向有配方，且配方跨轨迹成立。",
+    "cheapest_next_step": {
+     "to_level": 5,
+     "gate": "logit_shift_shown",
+     "how": "同范数随机方向臂 + 约束方换人检查（配方是否专一到能注入）。"
+    },
+    "evidence": {
+     "behavior_metric": true,
+     "denominator_reported": true,
+     "heldout_prediction": true,
+     "logit_shift_shown": true,
+     "margin_over_2sem": true,
+     "net_change_reported": true,
+     "position_axis_control": true,
+     "recipe_heldout": true,
+     "recipe_injectable": true,
+     "shuffle_floor": true,
+     "specificity_matrix": true,
+     "strength_law_checked": true
+    },
+    "violations": [
+     {
+      "assertion": "①",
+      "why": "声明的级别高于证据支持的级别（声明 L6，实测支持 L4）。"
+     },
+     {
+      "assertion": "②",
+      "why": "主张到「可注入配方」这一级，但没有同范数随机方向臂，无法排除「随便什么方向都能注入」。"
+     }
+    ]
+   }
+  },
+  {
+   "id": "project-confidence-claim",
+   "source": "本项目：§4.16 对 confidence 轴的一句能站住的主张",
+   "kind": "self",
+   "quote": "在同一根轴上注入 +v 会让生成跑飞（闭合率 5/23 vs 共享对照 21/23），而 −v 几乎不变（20/23）；破坏模式是逐字重复退化。",
+   "evidence": {
+    "logit_shift_shown": true,
+    "strength_law_checked": true,
+    "heldout_prediction": true,
+    "shuffle_floor": true,
+    "specificity_matrix": true,
+    "margin_over_2sem": true,
+    "recipe_injectable": false,
+    "recipe_heldout": false,
+    "random_same_norm_arms": 0,
+    "behavior_metric": true,
+    "net_change_reported": true,
+    "denominator_reported": true,
+    "position_axis_control": false
+   },
+   "declared_level": 6,
+   "audit": {
+    "max_level_supported": 3,
+    "declared_level": 6,
+    "overreach_vs_declared": true,
+    "evidence_out_of_order": [
+     {
+      "level": 6,
+      "present_but_unsupported": "denominator_reported",
+      "missing": [
+       "random_control_present"
+      ]
+     }
+    ],
+    "survives_direction_substitution": false,
+    "random_same_norm_arms": 0,
+    "random_control_ceiling_quantile": 0.0,
+    "gates": [
+     {
+      "level": 0,
+      "passed": true
+     },
+     {
+      "level": 1,
+      "passed": true
+     },
+     {
+      "level": 2,
+      "passed": true
+     },
+     {
+      "level": 3,
+      "passed": true
+     },
+     {
+      "level": 4,
+      "first_missing": "recipe_injectable",
+      "all_missing": [
+       "recipe_injectable",
+       "recipe_heldout"
+      ]
+     }
+    ],
+    "entails": "不只是「能预测 y」，而是「预测 y 比同表其它方向都强」。",
+    "cheapest_next_step": {
+     "to_level": 4,
+     "gate": "logit_shift_shown",
+     "how": "把配方写成 diff_of_means，在留一轨迹上检验它仍预测得动。"
+    },
+    "evidence": {
+     "behavior_metric": true,
+     "denominator_reported": true,
+     "heldout_prediction": true,
+     "logit_shift_shown": true,
+     "margin_over_2sem": true,
+     "net_change_reported": true,
+     "position_axis_control": false,
+     "recipe_heldout": false,
+     "recipe_injectable": false,
+     "shuffle_floor": true,
+     "specificity_matrix": true,
+     "strength_law_checked": true
+    },
+    "violations": [
+     {
+      "assertion": "①",
+      "why": "声明的级别高于证据支持的级别（声明 L6，实测支持 L3）。"
+     }
+    ]
+   }
+  }
+ ]
+}

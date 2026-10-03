@@ -21,6 +21,7 @@ L4 的 0.3688/82×、L6 的 92 个 run）。手打的话，
 6. `cot_texts.json` 确实**没有**随机方向臂（这是 L6 停在 ⚠ 的根据）
 """
 import json
+import re
 from pathlib import Path
 
 ROOT = Path("/Users/zhourui/code/steer3d")
@@ -166,6 +167,22 @@ def main():
     assert not any(x["state"] == "done" for x in ladder[5:]), \
         "L5 及以上不允许标 done"
 
+    # ⚠ 自称「哪一级没测」的那段话，本身必须和上面这张表**逐级一致**。
+    #   我原来写死「L5 及以上：一行都没有」，而同一份产物的 L6 是 partial
+    #   （92 个真 run）—— 产物自己打自己的脸。
+    #   而且「一行都没有」正是 §4.14 推翻过的那个错误：**未测 ≠ 实测为 0**。
+    _missing, _partial = [], []
+    for x in ladder:
+        if x["state"] == "missing":
+            _missing.append(x["level"])
+        elif x["state"] == "partial":
+            _partial.append(x["level"])
+    _above = [x["level"] for x in ladder
+              if int(re.sub(r"[^0-9]", "", x["level"])) > 4]
+    for _lv in _above:
+        assert _lv in _missing or _lv in _partial, \
+            "%s 既不在 missing 也不在 partial 里，not_answerable 会说错" % _lv
+
     payload = {
         "schema": "evidence_ladder/1",
         "what": "任何「某 steering vector 编码了概念 X」的断言，能被放上去量的八级阶梯",
@@ -178,11 +195,25 @@ def main():
             "一个这样的断言需要什么证据才成立",
             "哪些级别的证据在**任何**方向上都成立（因此不能区分方向）",
         ],
+        # 逐级写，不用「L5 及以上」这种一刀切的措辞 ——
+        # L6 有数据（缺随机臂），L5/L7 才是真的没测。
         "not_answerable": [
             "模型内部到底在算什么",
-            "L5 及以上：本项目一行都没有",
+            "L5：0 条配方通过专一性门槛（余量 %.2f× < 2×），**未测**，不是「实测为 0」" % l5_margin,
+            "L6：%d 个真 run / %d 题配对，**有数据但缺同范数随机方向臂** ⇒ "
+            "只能声称「改变了」，不能声称「这条方向特有地改变了」" % (l6_runs, l6_pairs),
+            "L7：一次都没测（缺位置轴对照）",
         ],
-        "max_level_reached": "L4",
+        # ⚠ 这两个是**不同的量**，混成一个数字正是上面那个矛盾的来源。
+        #   claimed = 净位置（有连续门控、每一级都站得住的最高级）
+        #   with_data = 手上有任何数据的最高级（可以 partial）
+        "max_level_claimed": "L4",
+        "max_level_with_data": "L6",
+        "why_two_numbers": ("L6 上有 92 个真 run，但它**缺随机臂**，"
+                            "所以不能声称；而 L5 一条都没有。"
+                            "「最高有数据」与「最高能声称」必须分开印，"
+                            "否则就会写出「L5 及以上一行都没有」这种自相矛盾的话。"),
+        "max_level_reached": "L4",   # 保留旧键，语义 = max_level_claimed
         "most_common_overreach": "L2 → L5：把「找到 N 条可读方向」读成「有 N 条可用的轴」",
         "overreach_numbers": {"readable_directions": l2, "usable_axes": 0,
                               "note": "「0」是**未测**，不是「实测为 0」"},

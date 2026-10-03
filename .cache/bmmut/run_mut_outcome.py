@@ -117,6 +117,15 @@ MUTS = {
     "K4": ("collapses the two-layer mechanism conclusion into one claim", "K4"),
     "K5": ("drops the random-arm / one-strength-point restrictions", "K5"),
     "K6": ("hardcodes the +v strong-repetition count in the data attribute", "K0"),
+    # --- M 组：§8.6 主张降级器 ---
+    # M4 是本组最要紧的一条：产物自己写明「对外部文献的判定力未经检验」，
+    # 页面一旦只印工具不印限制，这把尺子就成了过度自信的来源。
+    "M1": ("hides the direction-substitution survival verdict", "M1"),
+    "M2": ("claims the L6 sample survives at its declared level", "M2"),
+    "M3": ("prints a passing self-audit for this project's own claim", "M3"),
+    "M4": ("drops the coverage limitation of the audit tool", "M4"),
+    "M5": ("replaces the quantile ceiling with a magic threshold", "M5"),
+    "M6": ("hardcodes the self-audit level in the data attribute", "M0"),
 }
 
 
@@ -242,6 +251,24 @@ def verify_source_untouched():
         "缺同范数",
         "一个强度点",
         "重复就是跑飞的全部机制",
+        # §8.6 主张降级块
+        "data-claim-audit",
+        "data-ca-why",
+        "data-ca-ceiling",
+        "data-ca-coverage",
+        "data-ca-item=\"l0\"",
+        "data-ca-item=\"l2\"",
+        "data-ca-item=\"l6\"",
+        "data-ca-item=\"self\"",
+        "换个随机方向逐字成立",
+        "排除不了",
+        "覆盖限制",
+        "不设魔法阈值",
+        # ⚠ 「未经检验」「n/(n+1)」**不在源码里** —— 它们是从 claim_audit.json
+        #   渲染进来的。我第一版把它们当源码标记，verify_source_untouched()
+        #   立刻报缺 ⇒ 其实是我把「产物内容」当成了「源码结构」。
+        #   源码层的标记只该是 data-* 和 JSX 里的字面文案；
+        #   产物内容的核对交给 M4/M5（它们拿渲染文本对产物，更强）。
     ]
     missing = [m for m in required if m not in s]
     if missing:
@@ -467,6 +494,48 @@ def apply(which):
              "             data-rep-plus={String(best.plus_v.n_strong)}\n",
              "             data-rep-plus={1}  // MUT_K6\n",
              "K6")
+    elif which == "M1":
+        # 换方向存活测试是这把尺子的核心输出，藏掉它整块就没用了。
+        edit(PANEL,
+             "                {s0.audit.survives_direction_substitution\n"
+             "                  ? \"换个随机方向逐字成立\" : \"换个随机方向就不成立\"}\n",
+             "                这个方向是特有的\n",
+             "M1")
+    elif which == "M2":
+        # 把「降级」印成「按声明级别成立」—— 数字在页面上，但读法被改了。
+        edit(PANEL,
+             "              缺<b>同范数随机方向臂</b>，排除不了「随便什么方向都能做到」。\n",
+             "              证据齐备，可以按声明的 L{s2.audit.declared_level} 引用。\n",
+             "M2")
+    elif which == "M3":
+        # 尺子量自己却给高分 —— 这是让整把尺子失去意义的唯一方式。
+        edit(PANEL,
+             "              <b className=\"font-mono text-gray-200\">\n"
+             "                L{s3.audit.max_level_supported}</b>。\n"
+             "              差的正是那条随机臂。\n",
+             "              <b className=\"font-mono text-gray-200\">\n"
+             "                L{s3.audit.declared_level}</b>，站得住。\n",
+             "M3")
+    elif which == "M4":
+        # 产物里白纸黑字写着「对外部文献的判定力未经检验」，
+        # 页面只印工具不印限制 ⇒ 读者会以为它评过论文。
+        edit(PANEL,
+             "            <b>这条尺子有个覆盖限制，必须一起说。</b>\n"
+             "            {ca.coverage_limitation.decision}\n"
+             "            {ca.coverage_limitation.consequence}\n",
+             "            <b>这条尺子可以直接拿来评别人的论文结论。</b>\n",
+             "M4")
+    elif which == "M5":
+        # 换成魔法阈值 —— 正是这个工具设计上要拒绝的东西。
+        edit(PANEL,
+             "            {ca.random_ceiling_note}\n",
+             "            随机臂只要 n \u2265 8 就够了。\n",
+             "M5")
+    elif which == "M6":
+        edit(PANEL,
+             "             data-ca-self-supported={String(s3.audit.max_level_supported)}\n",
+             "             data-ca-self-supported={6}  // MUT_M6\n",
+             "M6")
     elif which == "O12":
         # 数字一个都不动：净变化仍从 answer_power.json 读、data-* 仍诚实。
         edit(PANEL,

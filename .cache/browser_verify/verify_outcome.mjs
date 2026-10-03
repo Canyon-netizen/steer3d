@@ -35,6 +35,7 @@ const ARM = JSON.parse(readFileSync(DATA + '/arm_asymmetry.json', 'utf8'));
 const PW  = JSON.parse(readFileSync(DATA + '/answer_power.json', 'utf8'));
 const SD  = JSON.parse(readFileSync(DATA + '/steer_directions.json', 'utf8'));
 const RP  = JSON.parse(readFileSync(DATA + '/steer_repetition.json', 'utf8'));
+const CA  = JSON.parse(readFileSync(DATA + '/claim_audit.json', 'utf8'));
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = [];
@@ -186,6 +187,34 @@ try {
             maxMinus: g('data-rep-max-minus'),
             k: g('data-rep-k'), thresh: g('data-rep-thresh'),
             n: g('data-rep-n'),
+          };
+        })(),
+        ca: (() => {
+          const d = el.querySelector('[data-claim-audit]');
+          if (!d) return { missing: true, text: '', items: {}, why: null,
+                           ceiling: null, coverage: null };
+          const g = a => d.getAttribute(a);
+          const items = {};
+          d.querySelectorAll('[data-ca-item]').forEach(li => {
+            items[li.getAttribute('data-ca-item')] =
+              (li.innerText || '').replace(/\\s+/g, ' ').trim();
+          });
+          const q = sel => { const n = d.querySelector(sel);
+            return n ? (n.innerText || '').replace(/\\s+/g, ' ').trim() : null; };
+          return {
+            missing: false,
+            text: (d.innerText || '').replace(/\\s+/g, ' ').trim(),
+            items, why: q('[data-ca-why]'),
+            ceiling: q('[data-ca-ceiling]'),
+            coverage: q('[data-ca-coverage]'),
+            n: g('data-ca-n'), nlevels: g('data-ca-nlevels'),
+            l0declared: g('data-ca-l0-declared'),
+            l0supported: g('data-ca-l0-supported'),
+            l0survives: g('data-ca-l0-survives'),
+            l2declared: g('data-ca-l2-declared'),
+            l2supported: g('data-ca-l2-supported'),
+            selfDeclared: g('data-ca-self-declared'),
+            selfSupported: g('data-ca-self-supported'),
           };
         })(),
         rows: el.querySelectorAll('[data-answer-rows] > div').length,
@@ -770,6 +799,84 @@ try {
       && /重复就是跑飞的全部机制/.test(CN)
       && /不能说/.test(CN),
       CN ? CN.slice(0, 240) : '缺 [data-rep-cannot]');
+
+  // ==================== M 组：主张降级器 ====================
+  // 这组盯的是一把**反过来用**的尺子：拿到一句已经写好的结论，
+  // 报出它实际站得住的第几级。M 组最容易出的错是**只印工具、不印限制** ——
+  // 产物自己写明了「对外部文献的判定力未经检验」，页面就必须也印。
+  const C3 = state.ca || {};
+  const SA = CA.samples;
+  const byId = id => SA.find(x => x.id === id);
+
+  rec('M0 主张降级块存在，且三个样本的声明/实测级别与产物逐值相同（可见文案 + 属性两处）',
+      !C3.missing
+      && Number(C3.n) === SA.length
+      && Number(C3.nlevels) === CA.levels.length
+      && Number(C3.l0declared) === byId('l0-only').audit.declared_level
+      && Number(C3.l0supported) === byId('l0-only').audit.max_level_supported
+      && Number(C3.l2declared) === byId('l2-no-specificity').audit.declared_level
+      && Number(C3.l2supported) === byId('l2-no-specificity').audit.max_level_supported
+      && Number(C3.selfDeclared) === byId('project-confidence-claim').audit.declared_level
+      && Number(C3.selfSupported) === byId('project-confidence-claim').audit.max_level_supported
+      && CA.levels.length === 8,
+      C3.missing ? '缺 [data-claim-audit]'
+        : `n=${C3.n} levels=${C3.nlevels} l0=${C3.l0declared}/${C3.l0supported} `
+          + `l2=${C3.l2declared}/${C3.l2supported} self=${C3.selfDeclared}/${C3.selfSupported} `
+          + `| 产物 n=${SA.length} levels=${CA.levels.length} `
+          + `l0=${byId('l0-only').audit.declared_level}/${byId('l0-only').audit.max_level_supported} `
+          + `l2=${byId('l2-no-specificity').audit.declared_level}/${byId('l2-no-specificity').audit.max_level_supported} `
+          + `self=${byId('project-confidence-claim').audit.declared_level}/${byId('project-confidence-claim').audit.max_level_supported}`);
+
+  const ML0 = C3.items.l0 || '';
+  rec('M1 换方向存活测试必须印出，且 L0 样本在产物里确实存活',
+      byId('l0-only').audit.max_level_supported === 0
+      && byId('l0-only').audit.survives_direction_substitution === true
+      && ML0.includes(String(byId('l0-only').audit.declared_level))
+      && ML0.includes(String(byId('l0-only').audit.max_level_supported))
+      && /换个随机方向逐字成立/.test(ML0)
+      && Number(C3.l0survives) === 1
+      // 反向断言：只有 L0/L1 允许存活
+      && CA.levels.filter(l => l.level <= 1).length === 2,
+      ML0 ? ML0.slice(0, 220) : '缺 [data-ca-item="l0"]');
+
+  const ML6 = C3.items.l6 || '';
+  rec('M2 「声明 L6 ⇒ 实测降到 L4」必须印出，并点名缺的是随机臂',
+      byId('l6-no-random-arm').audit.declared_level === 6
+      && byId('l6-no-random-arm').audit.max_level_supported < 6
+      && ML6.includes('6') && ML6.includes(String(byId('l6-no-random-arm').audit.max_level_supported))
+      && /随机方向臂/.test(ML6)
+      && /排除不了/.test(ML6)
+      && !!byId('l6-no-random-arm').audit.cheapest_next_step,
+      ML6 ? ML6.slice(0, 230) : '缺 [data-ca-item="l6"]');
+
+  const MSL = C3.items.self || '';
+  rec('M3 本项目自己的那句话必须被这把尺子量过，并印出实测级别',
+      MSL.includes(String(byId('project-confidence-claim').audit.declared_level))
+      && MSL.includes(String(byId('project-confidence-claim').audit.max_level_supported))
+      && /只到/.test(MSL)
+      && /随机臂/.test(MSL)
+      // 诚实性：尺子对自己的判定必须是**降级**，不能给高分
+      && byId('project-confidence-claim').audit.overreach_vs_declared === true,
+      MSL ? MSL.slice(0, 220) : '缺 [data-ca-item="self"]');
+
+  const MCC = C3.coverage || '';
+  rec('M4 覆盖限制必须印出：对外部文献的判定力未经检验（不许只印工具不印限制）',
+      !!MCC
+      && /覆盖限制/.test(MCC)
+      && /不.{0,3}凭印象编造|未经检验/.test(MCC)
+      && MCC.includes(CA.coverage_limitation.consequence.slice(0, 12))
+      && CA.coverage_limitation.status === "本轮未纳入",
+      MCC ? MCC.slice(0, 230) : '缺 [data-ca-coverage]');
+
+  const MCE = C3.ceiling || '';
+  rec('M5 随机臂分位数上限必须印出，且不许出现魔法阈值式的「n≥8 就够」',
+      !!MCE
+      && /不设魔法阈值/.test(MCE)
+      && MCE.includes('n/(n+1)')
+      && /换.{0,4}随机方向/.test(MCE)
+      // 反向断言：产物里真的没有魔法阈值这句话
+      && !/n\s*[≥>=]\s*\d+\s*(就够|足够)/.test(CA.random_ceiling_note),
+      MCE ? MCE.slice(0, 230) : '缺 [data-ca-ceiling]');
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {
