@@ -14,6 +14,13 @@
 // 但那个向量就是用这批 token 的分组均值差定义的，再拿回同一批
 // token 与定义它的标签求相关 —— 通过与否是恒等式。渲染成 PASS 等于
 // 把循环判定当发现。
+//
+// 后来的两组把同一类错误往上追了一层：
+//  H 组（§4.13）盯「两臂合并后差异被盖住」
+//  I 组（§4.14）盯「净变化 0 被读成零效应」
+// I 组是最需要反向断言的一组：数字本来就全对，错的是**这个 0 允许被
+// 读成什么**。所以 I2/I5/I8 断言的是「哪些话不许出现」，而不是
+// 「哪个数等于几」。
 import { launch, Page, CDP } from './cdp_client.mjs';
 import { readFileSync } from 'node:fs';
 
@@ -25,6 +32,7 @@ const DATA = '/Users/zhourui/code/steer3d/frontend/public/latent/data';
 const COT = JSON.parse(readFileSync(DATA + '/cot_texts.json', 'utf8'));
 const ANS = JSON.parse(readFileSync(DATA + '/answer_readout.json', 'utf8'));
 const ARM = JSON.parse(readFileSync(DATA + '/arm_asymmetry.json', 'utf8'));
+const PW  = JSON.parse(readFileSync(DATA + '/answer_power.json', 'utf8'));
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = [];
@@ -88,6 +96,37 @@ try {
               dist: li.getAttribute('data-arm-distinguishable'),
               text: (li.innerText||'').replace(/\\s+/g,' ').trim(),
             })),
+          };
+        })(),
+        power: (() => {
+          const p = el.querySelector('[data-answer-power]');
+          // ⚠ 同上面 arm 分支的老教训：缺失时返回**完整**的键（值置
+          //   null），不能让下游 P.items.flips 抛 TypeError 被外层
+          //   catch 吞掉 —— 那会把 I 组后面几条一起记成「装置错」，
+          //   看着像「只有 I0 红」。
+          // ⚠ 这整段在一个**模板字面量**里：反斜杠要写两遍（\\s），
+          //   且注释里绝不能出现反引号 —— 两者都会以很难看懂的方式
+          //   把整个 eval 打挂，报错还指在第 64 行的开头。
+          if (!p) return { missing: true, text: '', items: {}, notClaimed: null,
+                           net: null, flips: null, needed: null,
+                           shipped: null, batch: null, ciLo: null, ciHi: null,
+                           outDomain: null };
+          const g = a => p.getAttribute(a);
+          const items = {};
+          p.querySelectorAll('[data-power-item]').forEach(li => {
+            items[li.getAttribute('data-power-item')] =
+              (li.innerText || '').replace(/\\s+/g, ' ').trim();
+          });
+          const nc = p.querySelector('[data-power-not-claimed]');
+          return {
+            missing: false,
+            text: (p.innerText || '').replace(/\\s+/g, ' ').trim(),
+            items,
+            notClaimed: nc ? (nc.innerText || '').replace(/\\s+/g, ' ').trim() : null,
+            net: g('data-net-change'), flips: g('data-flips'),
+            needed: g('data-flips-needed'), shipped: g('data-n-shipped'),
+            batch: g('data-n-batch'), ciLo: g('data-ci-lo'), ciHi: g('data-ci-hi'),
+            outDomain: g('data-out-domain'),
           };
         })(),
         rows: el.querySelectorAll('[data-answer-rows] > div').length,
@@ -234,6 +273,144 @@ try {
       && H.limitation.includes(String(A.strength))
       && H.limitation.includes(String(A.n_pairs)),
       H.limitation ? H.limitation.slice(0, 200) : '缺 [data-arm-limitation]');
+
+  /* ==================== I 组：「净变化 0」是欠功效不是零效应 ==================== */
+  // 这一块补的是面板**自己**的头条数字。原来印的是
+  //   「Net change in correct answers: 0. Steering moved things; it did
+  //    not make them better.」
+  // 后半句把「没算出来」读成了「没有」—— 而这 10 题的分母是按
+  // 「两臂答案不同」筛出来的，符号检验要 10 里 6 个同向翻转才够 p<0.05，
+  // 实测 2 个一正一反。判据盯的不是数字对不对（数字本来就对），
+  // 盯的是**这个 0 被允许读成什么**。
+  const P = state.power || {};
+  const NC = P.notClaimed || '';
+  const f3 = n => Number(n).toFixed(3);
+  const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  rec('I0 功效块存在，且六个关键数字与 answer_power.json 逐值相同',
+      !P.missing
+      && Number(P.net) === PW.net_change
+      && Number(P.flips) === PW.flips
+      && Number(P.needed) === PW.flips_needed_for_p05
+      && Number(P.shipped) === PW.n_shipped
+      && Number(P.batch) === PW.n_problems_in_batch
+      && Math.abs(Number(P.ciLo) - PW.up_rate_ci95[0]) < 1e-12
+      && Math.abs(Number(P.ciHi) - PW.up_rate_ci95[1]) < 1e-12,
+      P.missing ? '缺 [data-answer-power]'
+        : `net=${P.net} flips=${P.flips} needed=${P.needed} `
+          + `n=${P.shipped}/${P.batch} ci=[${P.ciLo}, ${P.ciHi}] | 产物 `
+          + `net=${PW.net_change} flips=${PW.flips} needed=${PW.flips_needed_for_p05} `
+          + `n=${PW.n_shipped}/${PW.n_problems_in_batch} `
+          + `ci=[${PW.up_rate_ci95[0]}, ${PW.up_rate_ci95[1]}]`);
+
+  // 屏幕上三个地方说同一件事：verdict 标签、功效块的 data-net-change、
+  // 另一份产物。任一处漂移都会让读者看到两个互相打架的净变化。
+  const chipNum = k => {
+    const v = state.verdicts.find(x => x.k === k);
+    const m = v && v.t.match(/\d+/);
+    return m ? Number(m[0]) : NaN;
+  };
+  const netFromChips = chipNum('wrong->right') - chipNum('right->wrong');
+  const netFromAns = (ANS.selection.by_verdict['wrong->right'] || 0)
+                   - (ANS.selection.by_verdict['right->wrong'] || 0);
+  rec('I1 屏幕上的「净变化」必须等于同屏 verdict 标签推出的净变化（三处一致）',
+      Number.isFinite(netFromChips)
+      && netFromChips === netFromAns
+      && netFromChips === Number(P.net)
+      && netFromChips === PW.net_change,
+      `verdict 标签 ${chipNum('wrong->right')}−${chipNum('right->wrong')}`
+      + `=${netFromChips} | data-net-change=${P.net} | answer_power=${PW.net_change}`
+      + ` | answer_readout 推出=${netFromAns}`);
+
+  // ⚠ 反向断言：零效应读法**只能**以否定句形式出现。
+  //   「干预对答案正确性无影响」这句话在正确版本里出现且仅出现一次，
+  //   并且被「不能说」领着；一旦被改成正面陈述，这条立刻红。
+  const zeroClaimCount = (NC.match(/干预对答案正确性无影响/g) || []).length;
+  rec('I2 「净变化 0」必须标为欠功效，且「无影响」只允许出现在否定句里',
+      !/did not make them better/i.test(state.text)
+      && /欠功效/.test(P.text)
+      && /不是零效应/.test(P.text)
+      && zeroClaimCount === 1
+      && new RegExp('不能说[^。]*干预对答案正确性无影响').test(NC),
+      `欠功效=${/欠功效/.test(P.text)} 不是零效应=${/不是零效应/.test(P.text)} `
+      + `「无影响」出现 ${zeroClaimCount} 次（在 not_claimed 内，`
+      + `被「不能说」领着=${new RegExp('不能说[^。]*干预对答案正确性无影响').test(NC)}）`
+      + ` | 旧零效应句仍在=${/did not make them better/i.test(state.text)}`);
+
+  // 为什么 0 不是零效应：**核心算术必须印在屏幕上**。
+  const FI = P.items.flips || '';
+  rec('I3 必须印出「要 p<0.05 需要 N 个同向翻转」与本设计上限',
+      new RegExp('需要\\s*' + esc(PW.flips_needed_for_p05) + '\\s*个同向翻转').test(FI)
+      && new RegExp('上限只有\\s*' + esc(PW.n_shipped) + '\\s*个').test(FI)
+      && new RegExp('符号检验').test(FI)
+      && new RegExp('p\\s*<\\s*0\\.05').test(FI)
+      && FI.includes(String(PW.flips))
+      && FI.includes(String(PW.two_sided_sign_p_if_all_same_direction)),
+      FI ? FI.slice(0, 170) : '缺 [data-power-item="flips"]');
+
+  const CI = P.items.ci || '';
+  rec('I4 翻转率 95% CI 两端与产物一致（上界宽这件事不许被压窄）',
+      CI.includes(f3(PW.up_rate_ci95[0]))
+      && CI.includes(f3(PW.up_rate_ci95[1]))
+      && new RegExp('Clopper').test(CI)
+      && (PW.up_rate_ci95[1] - PW.up_rate_ci95[0]) > 0.1,
+      CI ? CI.slice(0, 170) : '缺 [data-power-item="ci"]');
+
+  // 「不能说的话」四条：非随机样本 / 单轴单档 / 正臂缺失 / L7 未测。
+  rec('I5 「不能说的话」必须含：非随机样本 / 单轴单档 / L7 一次都没测',
+      !!NC
+      && /随机样本/.test(NC)
+      && /筛过|挑出来/.test(NC)
+      && NC.includes(PW.direction)
+      && NC.includes(String(PW.strength))
+      && /confidence_up/.test(NC)
+      && /L7/.test(NC)
+      && /一次都没测/.test(NC),
+      NC ? NC.slice(0, 210) : '缺 [data-power-not-claimed]');
+
+  rec('I6 必须印出选择效应：入选条件之一是「两臂答案不同」，且 23→10 与产物一致',
+      Number(P.batch) === PW.n_problems_in_batch
+      && Number(P.shipped) === PW.n_shipped
+      && P.text.includes(String(PW.n_problems_in_batch))
+      && P.text.includes(String(PW.n_shipped))
+      && /两臂答案不同/.test(P.text),
+      P.text.slice(0, 150));
+
+  const LN = P.items.length || '';
+  rec('I7 长度偏倚必须印出，步数比区间与产物一致',
+      /长度偏倚/.test(LN)
+      && /步数比/.test(LN)
+      && LN.includes(String(PW.steps_ratio_min))
+      && LN.includes(String(PW.steps_ratio_max)),
+      LN ? LN.slice(0, 170) : '缺 [data-power-item="length"]');
+
+  // ⚠ 阴性结论必须交代分母的去向。这 13 题**在产物里没有分开记**，
+  //   所以正确写法是承认「不知道」，不是编一个「答案未变」。
+  const CE = P.items.ceiling || '';
+  rec('I8 剩余题的去向必须承认「没分开记」，不许替它编',
+      /上界/.test(CE)
+      && /没有分开记|没分开记/.test(CE)
+      && /不替它编|不能编/.test(CE)
+      && CE.includes(String(PW.n_problems_in_batch - PW.n_shipped))
+      && CE.includes(`${PW.n_shipped}/${PW.n_problems_in_batch}`),
+      CE ? CE.slice(0, 190) : '缺 [data-power-item="ceiling"]');
+
+  // ⚠ 入选的 10 题里有 2 题的两臂答案都超出 AIME 答案域（0–999，
+  //   表里能看到 3069 → 1007）。它们被归进 wrong->wrong，
+  //   对净变化**贡献 0**，所以 §4.14 的任何结论都不受影响。
+  //   但面板必须说清「这两题的错是域外判定」—— 不说的话，
+  //   读者会以为它们是与一个合法答案比对后判错的。
+  const DM = P.items.domain || '';
+  rec('I9 域外答案的题必须被点名，并说明「域外判定、对净变化无贡献」',
+      Number(P.outDomain) === PW.labels_not_both_in_domain.length
+      && PW.labels_not_both_in_domain.length > 0
+      && DM.includes(String(PW.labels_not_both_in_domain.length))
+      && PW.labels_not_both_in_domain.every(l => DM.includes(l))
+      && /答案域之外/.test(DM)
+      && /没有贡献/.test(DM)
+      && /域外判定/.test(DM),
+      DM ? DM.slice(0, 200) : '缺 [data-power-item="domain"]'
+        + ` | 产物 out-of-domain = ${JSON.stringify(PW.labels_not_both_in_domain)}`);
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {

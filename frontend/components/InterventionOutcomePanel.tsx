@@ -17,6 +17,8 @@
  *   cot_texts.json      92 runs = 46 problems × {up, down} × {0.0, 0.2}
  *                       each with first_diverged_step and token_agreement
  *   answer_readout.json 10 problems, final answer under both arms
+ *   arm_asymmetry.json  ±v paired test: is the axis response asymmetric?
+ *   answer_power.json   what "net change = 0" does and does not license
  *
  * Three things this panel refuses to do:
  *
@@ -43,6 +45,17 @@
  * only non-circular evidence in that file is `heldout_non_circular`, which
  * was not independently reproduced. So this panel deliberately does not
  * render any of it, and says why rather than quietly omitting it.
+ *
+ * A fifth refusal, about the panel's own headline number. "Net change in
+ * correct answers: 0" reads like a null result. It is not one. The 10
+ * problems behind it were selected *because the two arms disagreed* — the
+ * denominator is the set that moved — and only 2 of them flipped
+ * correctness at all, one up and one down. The sign test needs 6
+ * same-direction flips out of 10 to clear p < 0.05, and the exact 95%
+ * interval on the flip rate runs from 0.003 to 0.445. "Zero" here is the
+ * typical result *under* the null, so the panel prints that arithmetic
+ * instead of letting the number stand alone. Same shape as §8's L4: an
+ * unmeasured cell printed as a measured zero.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -103,6 +116,31 @@ type ArmMetric = {
   distinguishable: boolean;
 };
 
+type AnswerPower = {
+  what: string;
+  n_problems_in_batch: number;
+  n_shipped: number;
+  selection_rule: string;
+  direction: string;
+  strength: number;
+  baseline_correct: number;
+  steered_correct: number;
+  net_change: number;
+  verdicts: Record<string, number>;
+  flips: number;
+  flips_up: number;
+  flips_down: number;
+  up_rate_ci95: [number, number];
+  two_sided_sign_p_if_all_same_direction: number;
+  flips_needed_for_p05: number;
+  flip_rate_ceiling_over_batch: number;
+  steps_ratio_min: number;
+  steps_ratio_max: number;
+  labels_not_both_in_domain: string[];
+  verdict: string;
+  not_claimed: string;
+};
+
 type ArmAsymmetry = {
   what: string;
   n_pairs: number;
@@ -129,6 +167,7 @@ export default function InterventionOutcomePanel() {
   const [cot, setCot] = useState<CotTexts | null>(null);
   const [ans, setAns] = useState<AnswerReadout | null>(null);
   const [arm, setArm] = useState<ArmAsymmetry | null>(null);
+  const [pw, setPw] = useState<AnswerPower | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   // Mounted with a cancellation guard, same shape as InterpretationPanel's
@@ -146,9 +185,14 @@ export default function InterventionOutcomePanel() {
       // 让两支脚本互相覆写，谁后跑谁赢，顺序错了没人报错。
       fetch("/latent/data/arm_asymmetry.json").then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
+      // 「净变化 0」的功效分析。同上，单独一份产物：写它的是
+      // .cache/xcheck/answer_power.py，读它的是这块面板，合并会让
+      // 两边的生成顺序变成隐式依赖。
+      fetch("/latent/data/answer_power.json").then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
     ])
-      .then(([c, a, m]: [CotTexts, AnswerReadout, ArmAsymmetry]) => {
-        if (alive) { setCot(c); setAns(a); setArm(m); }
+      .then(([c, a, m, p]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower]) => {
+        if (alive) { setCot(c); setAns(a); setArm(m); setPw(p); }
       })
       .catch((e) => { if (alive) setErr(String(e.message || e)); });
     return () => { alive = false; };
@@ -331,9 +375,93 @@ export default function InterventionOutcomePanel() {
         only those whose two arms produced <i>different</i> parseable
         answers are shown — {ans.selection?.n_eligible} of the batch met
         that bar. So these are the cases where steering moved the answer at
-        all. Net change in correct answers: <b>0</b>. Steering moved
-        things; it did not make them better.
+        all. Net change in correct answers: <b>{pw?.net_change ?? 0}</b>.{" "}
+        {pw
+          ? "这个 0 是欠功效，不是零效应 —— 下面这一块算给你看。"
+          : ""}
       </p>
+
+      {/* --- 「净变化 0」到底是零效应，还是这个设计看不到效应 --- */}
+      {pw && (
+        <div className="mb-2 px-2 py-1.5 rounded"
+             style={{ background: "#141019", borderLeft: "2px solid #8b6fd4" }}
+             data-answer-power
+             data-net-change={pw.net_change}
+             data-flips={pw.flips}
+             data-flips-needed={pw.flips_needed_for_p05}
+             data-n-shipped={pw.n_shipped}
+             data-n-batch={pw.n_problems_in_batch}
+             data-ci-lo={pw.up_rate_ci95[0]}
+             data-ci-hi={pw.up_rate_ci95[1]}
+             data-out-domain={pw.labels_not_both_in_domain.length}>
+          <p className="text-[10px] text-gray-300 leading-relaxed">
+            <b>「净变化 {pw.net_change}」是欠功效，不是零效应。</b>
+            {" "}这 {pw.n_problems_in_batch} 道题里只有 <b>{pw.n_shipped}</b> 题进了
+            上面那张表，而入选条件之一就是<b>两臂答案不同</b> ——
+            算净变化的那个分母，是按「确实变了」挑出来的。
+          </p>
+          <ul className="mt-1 text-[10px] text-gray-400 leading-relaxed">
+            <li data-power-item="flips">
+              入选集里只有 <b className="font-mono text-gray-200">{pw.flips}</b>{" "}
+              个正确性翻转（{pw.flips_up} 正 / {pw.flips_down} 反）。符号检验双侧
+              精确 p = 2×0.5<sup>{pw.flips}</sup> ={" "}
+              <span className="font-mono">{pw.two_sided_sign_p_if_all_same_direction}</span>，
+              要 p &lt; 0.05 需要 <b className="font-mono text-gray-200">{pw.flips_needed_for_p05}</b>{" "}
+              个同向翻转，而本设计上限只有{" "}
+              <b className="font-mono text-gray-200">{pw.n_shipped}</b> 个。
+              实测 1 正 1 反，是零假设下的<b>典型</b>结果，不是「接近显著」。
+            </li>
+            <li data-power-item="ci">
+              单侧翻转率的 Clopper–Pearson 95% CI ={" "}
+              <span className="font-mono text-gray-200">
+                [{pw.up_rate_ci95[0].toFixed(3)}, {pw.up_rate_ci95[1].toFixed(3)}]
+              </span>
+              {" "}—— 上界宽到 <b>{pct(pw.up_rate_ci95[1])}</b>，
+              这批数据完全容得下「其实影响很大」。
+            </li>
+            <li data-power-item="length">
+              还有长度偏倚：入选要求两臂都跑完 {"</think>"}，而两臂步数比在{" "}
+              <span className="font-mono text-gray-200">
+                {pw.steps_ratio_min}×–{pw.steps_ratio_max}×
+              </span>
+              {" "}之间 ⇒ 入选集偏向两臂都跑到底的题，而那正是干预影响最大的题。
+            </li>
+            <li data-power-item="ceiling">
+              上界：答案改变率 ≤ <span className="font-mono text-gray-200">
+                {pw.n_shipped}/{pw.n_problems_in_batch}
+              </span>{" "}
+              = <b>{pct(pw.flip_rate_ceiling_over_batch)}</b>。剩下{" "}
+              <span className="font-mono text-gray-200">
+                {pw.n_problems_in_batch - pw.n_shipped}
+              </span>{" "}
+              题的去向（答案相同 / 未跑完 / 严格口径解析不出）产物里没有分开记，
+              这里不替它编。
+            </li>
+            <li data-power-item="domain">
+              还有 <b className="font-mono text-gray-200">
+                {pw.labels_not_both_in_domain.length}
+              </b>{" "}
+              题的<b>两臂答案都落在 AIME 答案域之外</b>（
+              {pw.labels_not_both_in_domain.join("、")}
+              ）。它们被归进 <code>wrong-&gt;wrong</code>，
+              对净变化<b>没有贡献</b>，所以上面所有结论都不受影响；
+              但它们的「错」是<b>域外判定</b>，不是与一个合法答案比对出来的。
+            </li>
+          </ul>
+          <p className="text-[10px] text-amber-200/90 leading-relaxed mt-1"
+             data-power-not-claimed>
+            <b>所以本批能说的只有</b>「在 {pw.n_shipped} 题的入选子集上，
+            正 {pw.flips_up} 次 / 反 {pw.flips_down} 次」，
+            <b>不能说</b>「干预对答案正确性无影响」。这 {pw.n_shipped} 题也
+            <b>不是</b> {pw.n_problems_in_batch} 题的随机样本 ——{" "}
+            它们按「答案不同」筛过。另外这一格只覆盖{" "}
+            <b>{pw.direction}</b> 一条轴的 −{pw.strength} 单档，另外 3 条命名轴与
+            正的 <code>confidence_up</code> 臂都不在这里；
+            <b>L7（改变的是概念而非位置/格式）一次都没测</b> ——
+            「答案对不对」连位置轴对照都没有。
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1" data-answer-rows>
         {ans.items.slice(0, 4).map((it) => (

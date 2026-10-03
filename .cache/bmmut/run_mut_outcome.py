@@ -54,6 +54,31 @@ MUTS = {
     # O11 把配对差写死成两臂合并的差（= 0），属性照旧。
     #     专打「文案撒谎、属性诚实」。
     "O11": ("hardcodes the paired diff while attributes stay honest", "H2"),
+    # ---- I 组：「净变化 0」的功效块（§4.14）----
+    # 这一组的数字本来就全对，错的是**这个 0 允许被读成什么**。
+    # 所以每条变异都不改 data-* 属性（那样 I0 立刻红，太便宜），
+    # 改的是**可见文案**，专打判据主体。
+    # O12 把「欠功效」的读法换回原来的零效应读法 —— 数字一个没动。
+    "O12": ("restores the zero-effect reading of net change 0", "I2"),
+    # O13 删掉「要 p<0.05 需要 6 个同向翻转」那条。
+    #     这是「0 为什么不是零效应」的核心算术，删了剩下的读起来仍像结论。
+    "O13": ("drops the flips-needed arithmetic", "I3"),
+    # O14 把 95% CI 压窄成 [0.003, 0.120]（属性仍诚实，文字假装功效够）。
+    #     专打「文案撒谎、属性诚实」，与 O11 同一类。
+    "O14": ("narrows the printed CI while attributes stay honest", "I4"),
+    # O15 删掉选择效应（「两臂答案不同」），把分母说成无偏。
+    "O15": ("hides the selection rule that built the denominator", "I6"),
+    # O16 删掉长度偏倚那条。
+    "O16": ("drops the length-bias caveat", "I7"),
+    # O17 把「没有分开记，这里不替它编」编成「其余题目答案未变」。
+    #     这是本组最恶劣的一条：产物里根本没分开记三类的去向。
+    "O17": ("fabricates where the remaining problems went", "I8"),
+    # O18 删掉「L7 一次都没测」。
+    "O18": ("drops the L7-never-tested statement", "I5"),
+    # O19 删掉「域外答案的 2 题」那条点名。
+    #     数字一个都不动 —— 结论也不动（它们贡献 0），所以这一条
+    #     只靠「读者会不会误以为那两题被正常判定过」来发现。
+    "O19": ("drops the out-of-domain answer caveat", "I9"),
 }
 
 
@@ -140,6 +165,18 @@ def verify_source_untouched():
         "circular: the vector is defined as a difference of group means",
         "about <b>0.3%</b>",
         "nCleanControl",              # the control-arm denominator
+        # §4.14 功效块。少了这几条，一条「删掉整个功效块」的变异跑完
+        # 之后，backup() 会把删干净的源码当成 pristine 存下来，
+        # 下一轮 BASE 就在一份缺块的源码上跑 —— 而 BASE 本该全绿。
+        "data-answer-power",
+        "data-power-not-claimed",
+        "data-power-item=\"flips\"",
+        "data-power-item=\"length\"",
+        "data-power-item=\"ceiling\"",
+        "data-power-item=\"domain\"",
+        "flips_needed_for_p05",
+        "欠功效",
+        "labels_not_both_in_domain",
     ]
     missing = [m for m in required if m not in s]
     if missing:
@@ -173,9 +210,14 @@ def apply(which):
              '        {Object.entries(verdict).filter(([k]) => k !== "right->wrong").map(([k, n]) => (',
  "O2")
     elif which == "O3":
+        # 锚点随 §4.14 改过：净变化那一段现在是从 answer_power.json
+        # 读的。留着旧锚点的话这条变异会 ABORT（anchor not found），
+        # 而 ABORT 不算命中 —— 判据会一直绿着没人发现它已失效。
         edit(PANEL,
-             "        all. Net change in correct answers: <b>0</b>. Steering moved\n"
-             "        things; it did not make them better.",
+             '        all. Net change in correct answers: <b>{pw?.net_change ?? 0}</b>.{" "}\n'
+             '        {pw\n'
+             '          ? "这个 0 是欠功效，不是零效应 —— 下面这一块算给你看。"\n'
+             '          : ""}',
              "        all. Accuracy improved under steering.", "O3")
     elif which == "O4":
         edit(PANEL, "          circular: the vector is defined as a difference of group means\n"
@@ -231,6 +273,85 @@ def apply(which):
         edit(PANEL,
              "        <Stat label=\"token agreement\" v={stats.agreeMed != null ? pct(stats.agreeMed) : \"—\"}",
              "        <Stat label=\"token agreement\" v=\"99.9%\"", "O8")
+    elif which == "O12":
+        # 数字一个都不动：净变化仍然从 answer_power.json 读、data-* 属性
+        # 仍然诚实。只把「欠功效」的读法换回零效应。
+        edit(PANEL,
+             '        all. Net change in correct answers: <b>{pw?.net_change ?? 0}</b>.{" "}\n'
+             '        {pw\n'
+             '          ? "这个 0 是欠功效，不是零效应 —— 下面这一块算给你看。"\n'
+             '          : ""}',
+             "        all. Steering moved things; it did not make them better.",
+             "O12a")
+        edit(PANEL,
+             "            <b>「净变化 {pw.net_change}」是欠功效，不是零效应。</b>",
+             "            <b>「净变化 {pw.net_change}」说明干预没有影响答案正确性。</b>",
+             "O12b")
+    elif which == "O13":
+        edit(PANEL,
+             '            <li data-power-item="flips">\n'
+             '              入选集里只有 <b className="font-mono text-gray-200">{pw.flips}</b>{" "}\n'
+             '              个正确性翻转（{pw.flips_up} 正 / {pw.flips_down} 反）。符号检验双侧\n'
+             '              精确 p = 2×0.5<sup>{pw.flips}</sup> ={" "}\n'
+             '              <span className="font-mono">{pw.two_sided_sign_p_if_all_same_direction}</span>，\n'
+             '              要 p &lt; 0.05 需要 <b className="font-mono text-gray-200">{pw.flips_needed_for_p05}</b>{" "}\n'
+             '              个同向翻转，而本设计上限只有{" "}\n'
+             '              <b className="font-mono text-gray-200">{pw.n_shipped}</b> 个。\n'
+             '              实测 1 正 1 反，是零假设下的<b>典型</b>结果，不是「接近显著」。\n'
+             '            </li>\n',
+             "", "O13")
+    elif which == "O14":
+        # 属性照旧（data-ci-hi 仍读产物），只有印出来的区间被压窄。
+        edit(PANEL,
+             "                [{pw.up_rate_ci95[0].toFixed(3)}, "
+             "{pw.up_rate_ci95[1].toFixed(3)}]\n",
+             "                [{pw.up_rate_ci95[0].toFixed(3)}, {0.12.toFixed(3)}]  // MUT_O14\n",
+             "O14a")
+        edit(PANEL,
+             "              {\" \"}—— 上界宽到 <b>{pct(pw.up_rate_ci95[1])}</b>，",
+             "              {\" \"}—— 上界宽到 <b>{pct(0.12)}</b>，",
+             "O14b")
+    elif which == "O15":
+        edit(PANEL,
+             "            上面那张表，而入选条件之一就是<b>两臂答案不同</b> ——\n"
+             "            算净变化的那个分母，是按「确实变了」挑出来的。",
+             "            上面那张表，全部题目的两臂答案都能解析出来 ——\n"
+             "            算净变化的那个分母，与批次其余题目没有差别。",
+             "O15")
+    elif which == "O16":
+        edit(PANEL,
+             '            <li data-power-item="length">\n'
+             '              还有长度偏倚：入选要求两臂都跑完 {"</think>"}，而两臂步数比在{" "}\n'
+             '              <span className="font-mono text-gray-200">\n'
+             '                {pw.steps_ratio_min}×–{pw.steps_ratio_max}×\n'
+             '              </span>\n'
+             '              {" "}之间 ⇒ 入选集偏向两臂都跑到底的题，而那正是干预影响最大的题。\n'
+             '            </li>\n',
+             "", "O16")
+    elif which == "O17":
+        edit(PANEL,
+             "              题的去向（答案相同 / 未跑完 / 严格口径解析不出）产物里没有分开记，\n"
+             "              这里不替它编。",
+             "              题的去向是答案与基线相同，未受干预影响。",
+             "O17")
+    elif which == "O18":
+        edit(PANEL,
+             "            <b>L7（改变的是概念而非位置/格式）一次都没测</b> ——\n"
+             "            「答案对不对」连位置轴对照都没有。\n",
+             "", "O18")
+    elif which == "O19":
+        edit(PANEL,
+             '            <li data-power-item="domain">\n'
+             '              还有 <b className="font-mono text-gray-200">\n'
+             '                {pw.labels_not_both_in_domain.length}\n'
+             '              </b>{" "}\n'
+             '              题的<b>两臂答案都落在 AIME 答案域之外</b>（\n'
+             '              {pw.labels_not_both_in_domain.join("、")}\n'
+             '              ）。它们被归进 <code>wrong-&gt;wrong</code>，\n'
+             '              对净变化<b>没有贡献</b>，所以上面所有结论都不受影响；\n'
+             '              但它们的「错」是<b>域外判定</b>，不是与一个合法答案比对出来的。\n'
+             '            </li>\n',
+             "", "O19")
     else:
         raise SystemExit("unknown mutation " + which)
 
