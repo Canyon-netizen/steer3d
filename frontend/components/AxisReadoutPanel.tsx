@@ -248,11 +248,17 @@ export default function AxisReadoutPanel() {
                       );
                     })}
                   </div>
-                  <p className="text-[8.5px] text-gray-500 mt-0.5 leading-snug">{a.specificity.note}</p>
+                  {/* ⚠ 这段 note 是每条轴的**归属论证本身**（带 6 个关键数字），
+                      以前连 data-* 都没有 ⇒ 没有任何判据读得到它。
+                      与 G6 / L12 同一族：判据读的是哪一层，
+                      必须和它声称要防的东西在同一层。 */}
+                  <p className="text-[8.5px] text-gray-500 mt-0.5 leading-snug"
+                     data-spec-note={ax}>{a.specificity.note}</p>
                 </div>
               ) : a.specificity ? (
                 <p className="text-[8.5px] text-gray-600 mt-1 leading-snug"
-                   data-specificity={ax} data-specific="unknown">
+                   data-specificity={ax} data-specific="unknown"
+                   data-spec-note={ax}>
                   {a.specificity.note}
                 </p>
               ) : null}

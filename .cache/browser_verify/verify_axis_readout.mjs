@@ -211,6 +211,28 @@ try {
         + `报告行所属 ${sp.axis_of_report_row}=${sp.row_axis_cos}`);
     }
 
+    // ---------- D6 归属论证那段话（note）必须逐字印出 ----------
+    // ⚠ 这段 note 是每条轴的**归属论证本身**，带 6 个关键数字：
+    //   caution  「confidence 的余弦 0.3341 高于 caution 的 0.3077；
+    //             cos(confidence, caution) = 0.5537 ⇒ 靠这一个读出量分不开」
+    //   creativity/reasoning 「最佳候选 0.039 未超位置对照 0.057」…
+    //   以前它**连 data-* 都没有** ⇒ 没有任何判据读得到，
+    //   改错任何一个数都不会有人红。已给 <p> 补上 data-spec-note。
+    // ⇒ 判据主体是**读者看到的那段话**本身，要求逐字命中产物。
+    for (const ax of ['confidence', 'caution', 'creativity', 'reasoning']) {
+      const sp = truth.axes[ax].specificity;
+      const printed = await page.eval(
+        `(() => { const e = document.querySelector('[data-spec-note="${ax}"]');
+                  return e ? (e.innerText || '').replace(/\\s+/g, ' ').trim() : null; })()`);
+      check(`D6 ${ax} 归属论证那段话逐字印出（note 是论证本身，不是装饰）`,
+        !!sp && !!printed && printed === String(sp.note).replace(/\s+/g, ' ').trim(),
+        printed === null
+          ? '页面上找不到 [data-spec-note]（note 没有 data-* 标记 ⇒ 没人能查它）'
+          : (printed === String(sp.note).replace(/\s+/g, ' ').trim()
+              ? '逐字一致' : '⚠ 页面上印的与产物**不同**')
+            + `　${String(printed).slice(0, 110)}`);
+    }
+
     // D5 撤回声明必须印在页面上，且必须真的提到被撤回的那个说法。
     check('D5 页面印出了撤回声明',
       P.retraction.includes('已撤回') && P.retraction.includes('0.3341')
