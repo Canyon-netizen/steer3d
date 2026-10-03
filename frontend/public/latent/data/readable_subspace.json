@@ -1,0 +1,194 @@
+{
+ "schema": "steering3d.readable_subspace/1",
+ "question": "4 条命名轴之外，残差流里还剩多少解释得了行为的方向？",
+ "convention": {
+  "layer": 14,
+  "k_pca": 256,
+  "stride": 2,
+  "search_space": "每个观测量在 L14 上用留一轨迹岭回归拟合最优线性读出 w*，再在 2048 维原空间里量它与其它观测量 w* 的余弦",
+  "floor": "把目标在轨迹内随机打乱（保留边缘分布、破坏逐步对应），同一个 w* 还能预测多少 —— 这就是这套判据的噪声水平",
+  "note": "全部数字来自本项目自己的脚本，见 .cache/xcheck/。页面只负责显示。"
+ },
+ "headline": {
+  "readable_directions_lower_bound": 12,
+  "named_axes": 4,
+  "greedy_obs_only": 9,
+  "separation_threshold": 0.5,
+  "caution_absorbed": "axis:caution 没有被贪心选中 —— cos(confidence, caution)=0.5537 已超过 0.5 门槛，在贪心里被 confidence 吃掉。"
+ },
+ "surface_directions": [
+  {
+   "key": "digit_mass",
+   "label": "数字",
+   "meaning": "top-64 候选质量落在该类 token 上的占比",
+   "diagnostic": {
+    "diagonal": 0.8588,
+    "floor": 0.0067,
+    "offdiag_worst": 0.2403,
+    "offdiag_worst_cell": "backtrack_topk",
+    "offdiag_worst_label": "backtrack_topk",
+    "margin_over_offdiag": 3.57,
+    "cos_to_named_axes": {
+     "confidence": 0.2583,
+     "caution": 0.0742,
+     "creativity": 0.004,
+     "reasoning_deep": 0.0518
+    },
+    "max_cos_to_named": 0.2583
+   },
+   "delta": {
+    "0": 0.8588,
+    "1": 0.3927,
+    "20": 0.0725,
+    "100": 0.0287
+   },
+   "delta20_null_p99": 0.0452,
+   "delta20_over_null": 1.61,
+   "decay_x20": 11.8
+  },
+  {
+   "key": "op_mass",
+   "label": "运算符",
+   "meaning": "top-64 候选质量落在该类 token 上的占比",
+   "diagnostic": {
+    "diagonal": 0.5701,
+    "floor": -0.0066,
+    "offdiag_worst": 0.2762,
+    "offdiag_worst_cell": "digit_mass",
+    "offdiag_worst_label": "数字",
+    "margin_over_offdiag": 2.06,
+    "cos_to_named_axes": {
+     "confidence": 0.0134,
+     "caution": 0.0141,
+     "creativity": 0.0324,
+     "reasoning_deep": 0.025
+    },
+    "max_cos_to_named": 0.0324
+   },
+   "delta": {
+    "0": 0.5701,
+    "1": 0.2077,
+    "20": 0.0305,
+    "100": 0.0135
+   },
+   "delta20_null_p99": 0.0438,
+   "delta20_over_null": 0.7,
+   "decay_x20": 18.7
+  },
+  {
+   "key": "newline_mass",
+   "label": "换行",
+   "meaning": "top-64 候选质量落在该类 token 上的占比",
+   "diagnostic": {
+    "diagonal": 0.6128,
+    "floor": 0.0016,
+    "offdiag_worst": 0.1721,
+    "offdiag_worst_cell": "digit_mass",
+    "offdiag_worst_label": "数字",
+    "margin_over_offdiag": 3.56,
+    "cos_to_named_axes": {
+     "confidence": 0.0624,
+     "caution": 0.0338,
+     "creativity": 0.0217,
+     "reasoning_deep": 0.0017
+    },
+    "max_cos_to_named": 0.0624
+   },
+   "delta": {
+    "0": 0.6128,
+    "1": 0.2412,
+    "20": 0.0146,
+    "100": 0.0112
+   },
+   "delta20_null_p99": 0.0462,
+   "delta20_over_null": 0.32,
+   "decay_x20": 42.1
+  },
+  {
+   "key": "latex_mass",
+   "label": "排版结构",
+   "meaning": "top-64 候选质量落在该类 token 上的占比",
+   "diagnostic": {
+    "diagonal": 0.4379,
+    "floor": -0.0126,
+    "offdiag_worst": 0.3002,
+    "offdiag_worst_cell": "op_mass",
+    "offdiag_worst_label": "运算符",
+    "margin_over_offdiag": 1.46,
+    "cos_to_named_axes": {
+     "confidence": 0.0022,
+     "caution": 0.006,
+     "creativity": 0.0386,
+     "reasoning_deep": 0.0514
+    },
+    "max_cos_to_named": 0.0514
+   },
+   "delta": {
+    "0": 0.4379,
+    "1": 0.1997,
+    "20": 0.034,
+    "100": 0.0164
+   },
+   "delta20_null_p99": 0.0564,
+   "delta20_over_null": 0.6,
+   "decay_x20": 12.9
+  }
+ ],
+ "named_axis_readouts": [
+  {
+   "key": "top1_prob_renorm",
+   "axis": "confidence 的读出",
+   "delta": {
+    "0": 0.5203,
+    "1": 0.3427,
+    "20": 0.0816,
+    "100": 0.0092
+   },
+   "decay_x20": 6.4
+  },
+  {
+   "key": "backtrack_topk",
+   "axis": "caution 的读出",
+   "delta": {
+    "0": 0.676,
+    "1": 0.4291,
+    "20": 0.0525,
+    "100": 0.0161
+   },
+   "decay_x20": 12.9
+  }
+ ],
+ "control": {
+  "key": "step_frac",
+  "label": "轨迹位置（装置阳性对照）",
+  "delta": {
+   "0": 0.7387,
+   "1": 0.7379,
+   "20": 0.7257,
+   "100": 0.7087
+  },
+  "decay_x20": 1.0,
+  "note": "它在 Δ=100 仍有 0.7087、几乎不衰减 ⇒ 装置有能力测出持续方向，而它测出的是位置轴。所以下面六条「塌了」不是因为装置测不出。"
+ },
+ "char_pairwise_abs_cos": {
+  "digit_mass|digit_mass": 1.0,
+  "digit_mass|op_mass": 0.2165,
+  "digit_mass|newline_mass": 0.0195,
+  "digit_mass|latex_mass": 0.2128,
+  "op_mass|digit_mass": 0.2165,
+  "op_mass|op_mass": 1.0,
+  "op_mass|newline_mass": 0.1969,
+  "op_mass|latex_mass": 0.4554,
+  "newline_mass|digit_mass": 0.0195,
+  "newline_mass|op_mass": 0.1969,
+  "newline_mass|newline_mass": 1.0,
+  "newline_mass|latex_mass": 0.1826,
+  "latex_mass|digit_mass": 0.2128,
+  "latex_mass|op_mass": 0.4554,
+  "latex_mass|newline_mass": 0.1826,
+  "latex_mass|latex_mass": 1.0
+ },
+ "char_pairwise_note": "两两余弦（逐折配对中位 |cos|）。数字↔换行 0.0195 是「缺口不是一条轴」这个结论的唯一依据。",
+ "verdict": "缺口不是一条「表面形式」轴，是 4 条互相近乎正交的轴（digit_mass ↔ newline_mass 只有 0.0195）。这 4 条全部通过了「非循环（远高于打乱地板）」与「专属（对 4 条命名轴 cos ≤ 0.258）」两条判据，并且全部是 token 局部的（Δ=20 塌 6.4×–42.1×，而位置轴对照不塌）。",
+ "not_claimed": "以上全是**可读性**（哪个方向能线性预测哪个观测量），不是**因果性**（沿它注入会不会改变行为）。后者要占 GPU 做干预实验，本轮未做 —— 所以不能说「所以解释向量理论就是这 12 条」。"
+}

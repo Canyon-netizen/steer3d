@@ -11,6 +11,7 @@ import ControlPanel from "@/components/ControlPanel";
 import InterventionOutcomePanel from "@/components/InterventionOutcomePanel";
 import VectorStructurePanel from "@/components/VectorStructurePanel";
 import AxisReadoutPanel from "@/components/AxisReadoutPanel";
+import SubspacePanel from "@/components/SubspacePanel";
 import StrengthLawPanel from "@/components/StrengthLawPanel";
 import LayerDerivationPanel from "@/components/LayerDerivationPanel";
 import TokenStreamPanel from "@/components/TokenStreamPanel";
@@ -148,6 +149,7 @@ export default function Page() {
           <InterventionOutcomePanel />
           <VectorStructurePanel />
           <AxisReadoutPanel />
+          <SubspacePanel />
           <StrengthLawPanel />
           <ArchivedExperiments />
           <InterpretationPanel />
