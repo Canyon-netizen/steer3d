@@ -76,6 +76,11 @@ from safetensors import safe_open
 HEAD_SHARD = "model-00002-of-00002.safetensors"
 NORM_SHARD = "model-00001-of-00002.safetensors"
 RANK_FRAC = 1e-10
+# Qwen3-1.7B has 28 layers, so hidden_states carries layers 0..27 and the
+# final one is post-norm. It was written down as the literal 27 in read_steps
+# and again in the payload, which is two places to forget to change.
+LAYER = 27
+RMS_EPS = 1e-6
 
 
 # --------------------------------------------------------------------------
@@ -122,14 +127,23 @@ def read_steps(npz_path: Path, steps: List[int]) -> Tuple[np.ndarray, np.ndarray
     closes each before the next is opened, so peak resident is one record plus
     the unembedding, not 48 records.
     """
-    h, t, stored_top1 = [], [], []
+    h, t, stored_top1, postnorm_diff = [], [], [], []
     with np.load(npz_path) as z:
         hs = z["hidden_states"]
+        lh = z["last_hidden"]
         for s in steps:
-            h.append(hs[s, 27, :].astype(np.float64))
+            hs27 = hs[s, LAYER, :].astype(np.float64)
+            h.append(hs27)
             t.append(int(z["token_ids"][s]))
             stored_top1.append(int(z["topk_indices"][s, 0]))
-    return np.array(h), np.array(t), np.array(stored_top1)
+            # Measured, not asserted. The npz carries `last_hidden` next to
+            # `hidden_states`, so "layer 27 is post-norm" is checkable in one
+            # line -- which is why it is checked in one line rather than
+            # written down as "(measured max|diff| = 0)" in a prose string,
+            # where the word "measured" was doing all the work.
+            postnorm_diff.append(float(np.abs(hs27 - lh[s, :].astype(np.float64)).max()))
+    return (np.array(h), np.array(t), np.array(stored_top1),
+            np.array(postnorm_diff))
 
 
 def find_nontrivial(W: np.ndarray, npz_path: Path, want: int = 5,
@@ -143,7 +157,7 @@ def find_nontrivial(W: np.ndarray, npz_path: Path, want: int = 5,
     with np.load(npz_path) as z:
         T = int(z["hidden_states"].shape[0])
         for s in range(T):
-            h = z["hidden_states"][s, 27, :].astype(np.float64)
+            h = z["hidden_states"][s, LAYER, :].astype(np.float64)
             if int(np.argmax(W @ h)) != int(z["token_ids"][s]):
                 out.append(s)
                 if found + len(out) >= want:
@@ -543,6 +557,8 @@ def main() -> int:
     # dataset changes. 784 full-width argmaxes cost about 40 s.
     per_record: List[dict] = []
     chosen: List[Tuple[str, int]] = []
+    h_rows: List[np.ndarray] = []
+    pdiff_rows: List[float] = []
     budget = a.n_steps
     n_scanned = 0
     for f in npz_files:
@@ -554,7 +570,7 @@ def main() -> int:
         if n_scanned == 0:
             picks = picks + find_nontrivial(W, Path(f), want=5, found=n_scanned)
             n_scanned = min(5, n_scanned + 5)
-        h, tok, st = read_steps(Path(f), picks)
+        h, tok, st, pdiff = read_steps(Path(f), picks)
         for i, s in enumerate(picks):
             r = analyse_step(W, h[i], int(tok[i]), int(st[i]), U, sv, vocab,
                              n_dirs=4, seed=a.seed + s)
@@ -562,23 +578,100 @@ def main() -> int:
             r["step"] = s
             per_record.append(r)
             chosen.append((Path(f).stem, s))
+            h_rows.append(h[i])
+            pdiff_rows.append(float(pdiff[i]))
         budget -= len(picks)
+
+    # Two facts the artifact used to *assert* in prose, now measured.
+    #
+    # `post_norm_note` used to read "... identical to last_hidden (measured
+    # max|diff| = 0). Re-normalising it is ... worth 16-19 logits; see
+    # analyse_divergence_logits.py." Nothing in this file measured either
+    # half. The word "measured" and the pointer to another script were doing
+    # the work of a computation that did not exist -- and the pointer was
+    # worse than useless: that script repeats "16-19" three times in its own
+    # prose and never computes it either, so following the citation lands on
+    # a second copy of the number rather than on its origin.
+    #
+    # Both are measurable here from what is already loaded (W, g, the npz),
+    # so both are measured. The magnitude is reported with its definition
+    # attached, because "worth N logits" has no single meaning: the top-1
+    # logit shift and the top1-top2 margin shift differ by more than a factor
+    # of two on the same 17 steps, and quoting one of them bare is how a
+    # number acquires a meaning it never had.
+    H = np.array(h_rows)
+    rms = np.sqrt((H * H).mean(axis=1, keepdims=True) + RMS_EPS)
+    H_renorm = rms * g.astype(np.float64)
+    lg = H @ W.T
+    lg_renorm = H_renorm @ W.T
+    top1 = lg.argmax(axis=1)
+    d_top1 = np.abs(lg_renorm[np.arange(len(H)), top1] - lg[np.arange(len(H)), top1])
+    srt = np.sort(lg, axis=1)
+    srt_r = np.sort(lg_renorm, axis=1)
+    d_margin = np.abs((srt_r[:, -1] - srt_r[:, -2]) - (srt[:, -1] - srt[:, -2]))
+    n_flip = int((lg_renorm.argmax(axis=1) != top1).sum())
+    postnorm_measured = {
+        "max_abs_diff_vs_last_hidden": float(max(pdiff_rows)),
+        "n_steps": len(pdiff_rows),
+        "n_diff_exactly_zero": int(sum(1 for x in pdiff_rows if x == 0.0)),
+        "renorm_delta_top1_logit_median": float(np.median(d_top1)),
+        "renorm_delta_top1_logit_min": float(d_top1.min()),
+        "renorm_delta_top1_logit_max": float(d_top1.max()),
+        "renorm_delta_margin_median": float(np.median(d_margin)),
+        "renorm_delta_margin_min": float(d_margin.min()),
+        "renorm_delta_margin_max": float(d_margin.max()),
+        "renorm_argmax_flips": n_flip,
+        "renorm_argmax_flip_denom": len(pdiff_rows),
+        "definition": ("renorm = x * g / sqrt(mean(x^2) + eps), the second "
+                       "normalisation that would be applied if layer 27 were "
+                       "mistaken for a pre-norm layer. delta_top1_logit is "
+                       "|logit(top1 before) after - before|; delta_margin is "
+                       "|top1-top2 gap after - before|. Both are reported "
+                       "because 'worth N logits' names neither."),
+    }
+    print("post-norm vs last_hidden: max|diff| = %g over %d steps (%d exactly 0)"
+          % (postnorm_measured["max_abs_diff_vs_last_hidden"],
+             postnorm_measured["n_steps"],
+             postnorm_measured["n_diff_exactly_zero"]))
+    print("re-normalising L%d: |d top1 logit| med %.2f (%.2f-%.2f), "
+          "|d margin| med %.3f (%.3f-%.3f), argmax flips %d/%d"
+          % (LAYER, postnorm_measured["renorm_delta_top1_logit_median"],
+             postnorm_measured["renorm_delta_top1_logit_min"],
+             postnorm_measured["renorm_delta_top1_logit_max"],
+             postnorm_measured["renorm_delta_margin_median"],
+             postnorm_measured["renorm_delta_margin_min"],
+             postnorm_measured["renorm_delta_margin_max"], n_flip,
+             postnorm_measured["renorm_argmax_flip_denom"]))
 
     payload = {
         "schema": "token_backmap_v1",
         "generated": "2026-10-02",
         "model": "Qwen3-1.7B",
-        "layer": 27,
+        "layer": LAYER,
         "layer_post_norm": True,
         "post_norm_note": (
-            "hidden_states[:,27] is POST-norm and identical to last_hidden "
-            "(measured max|diff| = 0). Re-normalising it is a second, different "
-            "normalisation worth 16-19 logits; see analyse_divergence_logits.py."),
+            f"hidden_states[:,{LAYER}] is POST-norm: over the "
+            f"{postnorm_measured['n_steps']} steps analysed here its max "
+            f"deviation from last_hidden is "
+            f"{postnorm_measured['max_abs_diff_vs_last_hidden']:g} "
+            f"({postnorm_measured['n_diff_exactly_zero']} of "
+            f"{postnorm_measured['n_steps']} exactly 0). Re-normalising it is "
+            f"a SECOND, different normalisation, and it is not a small "
+            f"correction: over the same steps it moves the top-1 logit by a "
+            f"median of {postnorm_measured['renorm_delta_top1_logit_median']:.2f} "
+            f"(range {postnorm_measured['renorm_delta_top1_logit_min']:.2f}"
+            f"-{postnorm_measured['renorm_delta_top1_logit_max']:.2f}) and the "
+            f"top1-top2 margin by a median of "
+            f"{postnorm_measured['renorm_delta_margin_median']:.3f}, flipping "
+            f"the argmax on {postnorm_measured['renorm_argmax_flips']} of "
+            f"{postnorm_measured['renorm_argmax_flip_denom']} steps. Both "
+            f"statistics are in post_norm_measured; each needs its definition "
+            f"because \"worth N logits\" names neither."),
         "head_key": "lm_head.weight",
         "norm_key": "model.norm.weight",
         "vocab_size": int(W.shape[0]),
         "hidden_size": int(W.shape[1]),
-        "rms_norm_eps": 1e-6,
+        "rms_norm_eps": RMS_EPS,
         "head_absmax": float(np.abs(W).max()),
         "absmax_denom": "max|W_U| over %d rows" % W.shape[0],
         "post_norm_flag": True,
@@ -594,6 +687,7 @@ def main() -> int:
         % (sv[-1], sv[0] / sv[-1]))
     agg = summarise(per_record, sv, W, U)
     payload["aggregate"] = agg
+    payload["postnorm_measured"] = postnorm_measured
     payload["steps"] = per_record
 
     # The read-out is injective: h survives the FULL logit vector, not the token.

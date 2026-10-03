@@ -4,7 +4,7 @@
   "model": "Qwen3-1.7B",
   "layer": 27,
   "layer_post_norm": true,
-  "post_norm_note": "hidden_states[:,27] is POST-norm and identical to last_hidden (measured max|diff| = 0). Re-normalising it is a second, different normalisation worth 16-19 logits; see analyse_divergence_logits.py.",
+  "post_norm_note": "hidden_states[:,27] is POST-norm: over the 17 steps analysed here its max deviation from last_hidden is 0 (17 of 17 exactly 0). Re-normalising it is a SECOND, different normalisation, and it is not a small correction: over the same steps it moves the top-1 logit by a median of 37.94 (range 19.35-62.11) and the top1-top2 margin by a median of 10.237, flipping the argmax on 17 of 17 steps. Both statistics are in post_norm_measured; each needs its definition because \"worth N logits\" names neither.",
   "head_key": "lm_head.weight",
   "norm_key": "model.norm.weight",
   "vocab_size": 151936,
@@ -95,6 +95,20 @@
       "n_random": 68,
       "claim": "random directions travel FURTHER than the softest singular vector, so S_t's width is set by how close the runner-up token is, not by how weakly W_U sees a direction"
     }
+  },
+  "postnorm_measured": {
+    "max_abs_diff_vs_last_hidden": 0.0,
+    "n_steps": 17,
+    "n_diff_exactly_zero": 17,
+    "renorm_delta_top1_logit_median": 37.943665677702924,
+    "renorm_delta_top1_logit_min": 19.352870788147182,
+    "renorm_delta_top1_logit_max": 62.112270369734894,
+    "renorm_delta_margin_median": 10.23658026315178,
+    "renorm_delta_margin_min": 1.04461645882958,
+    "renorm_delta_margin_max": 24.552341536525418,
+    "renorm_argmax_flips": 17,
+    "renorm_argmax_flip_denom": 17,
+    "definition": "renorm = x * g / sqrt(mean(x^2) + eps), the second normalisation that would be applied if layer 27 were mistaken for a pre-norm layer. delta_top1_logit is |logit(top1 before) after - before|; delta_margin is |top1-top2 gap after - before|. Both are reported because 'worth N logits' names neither."
   },
   "steps": [
     {
