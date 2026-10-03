@@ -56,9 +56,20 @@ type Payload = {
   };
   headline: {
     readable_directions_lower_bound: number;
+    readable_directions_lower_bound_old: number;
     named_axes: number;
+    n_candidates: number;
     greedy_obs_only: number;
     separation_threshold: number;
+    order_dependence: {
+      n_perm: number;
+      old_range: [number, number];
+      new_range: [number, number];
+    };
+    threshold_sensitivity: Record<string, { greedy: number; perm_min: number; perm_max: number }>;
+    absorbed: string[];
+    tightest_in_chosen: { key: string; max_abs_cos: number }[];
+    bound_caveat: string;
     caution_absorbed: string;
   };
   surface_directions: Row[];
@@ -114,7 +125,9 @@ export default function SubspacePanel() {
   return (
     <div className={box} data-subspace="ready"
          data-lower-bound={h.readable_directions_lower_bound}
+         data-lower-bound-old={h.readable_directions_lower_bound_old}
          data-named-axes={h.named_axes}
+         data-n-candidates={h.n_candidates}
          data-n-rows={d.surface_directions.length}>
       <h3 className="text-xs text-gray-300 mb-1">
         4 条命名轴之外，残差流里还剩多少方向？
@@ -125,8 +138,50 @@ export default function SubspacePanel() {
         L{d.convention.layer} 上互相近正交（|cos| &lt; {h.separation_threshold}）的可读方向
         <b className="text-amber-300"> 至少 {h.readable_directions_lower_bound} 条 </b>
         ，而命名轴只有 <b>{h.named_axes} 条</b>。
-        下界来自 {h.greedy_obs_only} 个观测量各自的读出方向再加 {h.named_axes} 条命名轴。
+        下界来自 {h.n_candidates} 个候选（16 个观测量各自的读出方向 + {h.named_axes} 条命名轴）。
       </p>
+
+      {/* 下界的前提必须和下界印在同一块地方。
+          只印一个 14，读者会读成「可读方向就是 14 条」——
+          而 0.5 这个分隔门槛是**选定的**，不是推导出来的。 */}
+      <div className="rounded bg-amber-900/10 border border-amber-800/50 p-1.5 mb-1.5"
+           data-bound-caveat="true"
+           data-bound-old={h.readable_directions_lower_bound_old}
+           data-order-perm={h.order_dependence.n_perm}>
+        <p className="text-[9.5px] text-amber-200/90 leading-snug mb-1"
+           data-bound-caveat-text="true">
+          <b>「至少 {h.readable_directions_lower_bound} 条」是下界，而且只在两个前提下成立：</b>
+          ① 候选集合就是这 {h.n_candidates} 个 —— 每加一批观测量，计数就可能涨
+          （上一版候选只有 20 个里的 14 个时，它是 {h.readable_directions_lower_bound_old} 条）；
+          ② 分隔门槛 |cos| &lt; {h.separation_threshold} 是**选定的**。
+        </p>
+        <div className="flex flex-col gap-0.5">
+          {Object.entries(h.threshold_sensitivity).map(([sep, v]) => (
+            <div key={sep} data-threshold-row={sep}
+                 className="flex items-baseline justify-between gap-1 text-[8.5px]">
+              <span className="font-mono text-gray-400">|cos| &lt; {sep}</span>
+              <span className="font-mono text-amber-200"
+                    data-kind="threshold-count" data-value={v.greedy}>
+                {v.greedy} 条
+              </span>
+              <span className="text-gray-600 flex-1">
+                {v.perm_min === v.perm_max ? "（顺序无关）" : `（随机顺序 ${v.perm_min}–${v.perm_max}）`}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[8.5px] text-gray-500 leading-snug mt-1">
+          门槛 0.35→9 条、0.45→12 条、0.60→16 条 ⇒ 这个数随门槛走，
+          <b>不能读成「可读方向就是这么多条」</b>。
+          好消息是它对遍历顺序不敏感：随机打乱 {h.order_dependence.n_perm} 次，
+          新口径恒为 {h.order_dependence.new_range[0]} 条。
+        </p>
+        <p className="text-[8.5px] text-gray-500 leading-snug mt-0.5">
+          被吸收 {h.absorbed.length} 条（含 4 条 §4.9 换函数形式重造的同一条方向）；
+          已选集合内部最接近门槛的是
+          {h.tightest_in_chosen.map((t) => ` ${t.key} ${t.max_abs_cos.toFixed(4)}`).join("、")}。
+        </p>
+      </div>
 
       <p className="text-[9.5px] text-gray-600 leading-relaxed mb-2">
         {h.caution_absorbed}

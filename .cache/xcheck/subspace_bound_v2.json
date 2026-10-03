@@ -1,0 +1,184 @@
+{
+ "what": "把 §4.8.2 的「至少 12 条」用扩大的候选池重数，并量化贪心的顺序依赖",
+ "sep": 0.5,
+ "n_perm": 200,
+ "seed": 20261003,
+ "recipe_check": {
+  "target": "digit_mass",
+  "max_abs_diff_vs_cache": 0.0,
+  "tolerance": 1e-06,
+  "passed": true
+ },
+ "old_recipe": {
+  "n_obs": 10,
+  "greedy": 12,
+  "perm_min": 12,
+  "perm_max": 12,
+  "detail": [
+   "obs:rep_top1",
+   "obs:rep_ngram4",
+   "obs:backtrack_topk",
+   "obs:backtrack_frac",
+   "obs:digit_mass",
+   "obs:op_mass",
+   "obs:newline_mass",
+   "obs:latex_mass",
+   "obs:top1_prob_renorm",
+   "axis:confidence",
+   "axis:creativity",
+   "axis:reasoning_deep"
+  ]
+ },
+ "new_recipe": {
+  "n_obs": 16,
+  "n_candidates": 20,
+  "greedy": 14,
+  "perm_min": 14,
+  "perm_median": 14,
+  "perm_max": 14,
+  "detail": [
+   "obs:rep_top1",
+   "obs:rep_ngram4",
+   "obs:backtrack_topk",
+   "obs:backtrack_frac",
+   "obs:digit_mass",
+   "obs:op_mass",
+   "obs:newline_mass",
+   "obs:latex_mass",
+   "obs:top1_prob_renorm",
+   "obs:emitted_is_upper",
+   "obs:emitted_tok_len",
+   "axis:confidence",
+   "axis:creativity",
+   "axis:reasoning_deep"
+  ],
+  "absorbed": [
+   "obs:rep_frac_topk",
+   "obs:digit_top1",
+   "obs:digit_frac_top64",
+   "obs:digit_top8_presence",
+   "obs:emitted_has_digit",
+   "axis:caution"
+  ]
+ },
+ "heldout_fit": [
+  {
+   "key": "digit_top1",
+   "lambda": 0.01,
+   "rho": 0.8573311910707287,
+   "n_folds": 48,
+   "floor": 0.0002629581076347172,
+   "delta20": null
+  },
+  {
+   "key": "digit_frac_top64",
+   "lambda": 0.01,
+   "rho": 0.8147047352383991,
+   "n_folds": 48,
+   "floor": -0.007423219869733499,
+   "delta20": null
+  },
+  {
+   "key": "digit_top8_presence",
+   "lambda": 0.01,
+   "rho": 0.7636735733756826,
+   "n_folds": 48,
+   "floor": -0.0029870236750180208,
+   "delta20": null
+  },
+  {
+   "key": "emitted_has_digit",
+   "lambda": 0.01,
+   "rho": 0.8455456925826792,
+   "n_folds": 48,
+   "floor": -0.004910828990892283,
+   "delta20": null
+  },
+  {
+   "key": "emitted_is_upper",
+   "lambda": 0.01,
+   "rho": 0.6284607338508789,
+   "n_folds": 48,
+   "floor": -0.012521621390898411,
+   "delta20": null
+  },
+  {
+   "key": "emitted_tok_len",
+   "lambda": 0.01,
+   "rho": 0.6921906983417928,
+   "n_folds": 48,
+   "floor": 0.002339605284036475,
+   "delta20": null
+  }
+ ],
+ "focus_abs_cos": {
+  "emitted_is_upper": {
+   "axis:caution": 0.2978,
+   "obs:rep_frac_topk": 0.2074,
+   "obs:rep_top1": 0.202,
+   "obs:newline_mass": 0.1903,
+   "obs:backtrack_frac": 0.1656,
+   "obs:backtrack_topk": 0.1458
+  },
+  "emitted_tok_len": {
+   "obs:digit_top8_presence": 0.4711,
+   "obs:digit_frac_top64": 0.4394,
+   "obs:emitted_has_digit": 0.3749,
+   "obs:digit_top1": 0.3719,
+   "obs:digit_mass": 0.3718,
+   "obs:rep_top1": 0.3392
+  }
+ },
+ "threshold_sensitivity": {
+  "0.35": {
+   "greedy": 9,
+   "perm_min": 9,
+   "perm_max": 10
+  },
+  "0.40": {
+   "greedy": 11,
+   "perm_min": 10,
+   "perm_max": 11
+  },
+  "0.45": {
+   "greedy": 12,
+   "perm_min": 11,
+   "perm_max": 12
+  },
+  "0.50": {
+   "greedy": 14,
+   "perm_min": 14,
+   "perm_max": 14
+  },
+  "0.55": {
+   "greedy": 15,
+   "perm_min": 15,
+   "perm_max": 15
+  },
+  "0.60": {
+   "greedy": 16,
+   "perm_min": 16,
+   "perm_max": 16
+  }
+ },
+ "tightest_on_threshold": [
+  {
+   "key": "top1_prob_renorm",
+   "max_abs_cos": 0.474772772104749
+  },
+  {
+   "key": "backtrack_topk",
+   "max_abs_cos": 0.474772772104749
+  },
+  {
+   "key": "op_mass",
+   "max_abs_cos": 0.4553645462133854
+  },
+  {
+   "key": "latex_mass",
+   "max_abs_cos": 0.4553645462133854
+  }
+ ],
+ "lower_bound": 14,
+ "caveat": "贪心**依赖遍历顺序**，所以「N 条」本来不是定义良好的数 —— 但实测两个口径下 200 次随机顺序**全都一样**（旧 12–12、新 14–14），所以这一项不是这里的软肋。真正的软肋是 |cos| < 0.5 这个门槛是**我选的**：门槛降到 0.45，emitted_tok_len 就被吸收（它对 digit_top8_presence 的 |cos| = 0.4711）。每个贪心子集都是可行的 ⇒ 「≥ 14」是站得住的下界。这个数还依赖候选观测量集合 —— 每加一批观测量，计数就可能涨。它只能当下界用。"
+}

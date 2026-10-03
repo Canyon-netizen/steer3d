@@ -1,0 +1,48 @@
+{
+ "heldout_same_class_different_form": {
+  "source_w": "digit_mass",
+  "digit_top8_presence": 0.7297582324401654,
+  "digit_frac_top64": 0.78016948686484,
+  "digit_top1": 0.8573963039022013,
+  "floors": {
+   "digit_top8_presence": 0.002986293046583333,
+   "digit_frac_top64": -0.006944670907067334,
+   "digit_top1": -0.006665115228238618
+  }
+ },
+ "heldout_new_family": {
+  "emitted_tok_len": {
+   "rho": 0.6921906983417928,
+   "floor": 0.0009073434586029104,
+   "rho_delta20": 0.09630113716585917,
+   "offdiag_worst": 0.46033525592376134,
+   "max_cos_named_axes": 0.257211462969958,
+   "cos_to_digit_mass_direction": 0.3712714430548111
+  },
+  "emitted_has_digit": {
+   "rho": 0.8455456925826792,
+   "floor": 0.0006660767299056977,
+   "rho_delta20": 0.06828419187109384,
+   "offdiag_worst": 0.8540125686315859,
+   "max_cos_named_axes": 0.2619429186810614,
+   "cos_to_digit_mass_direction": 0.9866603383688488
+  },
+  "emitted_is_upper": {
+   "rho": 0.6284607338508789,
+   "floor": -0.0013562592293829845,
+   "rho_delta20": -0.006829734733112246,
+   "offdiag_worst": 0.06328714648068465,
+   "max_cos_named_axes": 0.30146546217963277,
+   "cos_to_digit_mass_direction": 0.061074750891770654
+  }
+ },
+ "vocab_digit_fraction": 6.581718618365627e-05,
+ "names": [
+  "digit_top8_presence",
+  "digit_frac_top64",
+  "digit_top1",
+  "emitted_tok_len",
+  "emitted_has_digit",
+  "emitted_is_upper"
+ ]
+}

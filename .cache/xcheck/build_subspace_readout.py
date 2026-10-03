@@ -24,6 +24,7 @@ CACHE = X / "dir_cache"
 DST = ROOT / "frontend/public/latent/data/readable_subspace.json"
 
 miss = json.loads((X / "missing_dirs.json").read_text())
+bnd = json.loads((X / "subspace_bound_v2.json").read_text())
 spec = json.loads((X / "specificity_matrix.json").read_text())
 loc = json.loads((X / "token_locality.json").read_text())
 comp = json.loads((ROOT / ".cache/completeness/completeness.json").read_text())
@@ -109,12 +110,32 @@ PAY = {
         "note": "全部数字来自本项目自己的脚本，见 .cache/xcheck/。页面只负责显示。",
     },
     "headline": {
-        "readable_directions_lower_bound": len(miss["greedy_with_named_axes_sep0p5"]),
+        # ⚠ 下界从 12 变成 14：候选池从「10 个非定义式观测量 + 4 条轴」扩到
+        # 「16 + 4」（§4.9 补进来的 6 个留出观测量里有 2 条是新方向）。
+        # 同时把**门槛敏感性**一起放进来 —— 0.5 是我选的，不是推导出来的，
+        # 只印一个 14 会让人以为它是稳健的。
+        "readable_directions_lower_bound": bnd["new_recipe"]["perm_min"],
+        "readable_directions_lower_bound_old": bnd["old_recipe"]["greedy"],
         "named_axes": 4,
+        "n_candidates": bnd["new_recipe"]["n_candidates"],
         "greedy_obs_only": len(miss["greedy_obs_only_sep0p5"]),
         "separation_threshold": 0.5,
+        "order_dependence": {
+            "n_perm": bnd["n_perm"],
+            "old_range": [bnd["old_recipe"]["perm_min"], bnd["old_recipe"]["perm_max"]],
+            "new_range": [bnd["new_recipe"]["perm_min"], bnd["new_recipe"]["perm_max"]],
+        },
+        "threshold_sensitivity": bnd["threshold_sensitivity"],
+        "absorbed": bnd["new_recipe"]["absorbed"],
+        "tightest_in_chosen": bnd["tightest_on_threshold"][:2],
+        "bound_caveat": "「至少 14 条」是**下界**，且只在两个前提下成立："
+                        "(a) 候选集合是这 20 个 —— 每加一批观测量，计数就可能涨；"
+                        "(b) 分隔门槛 |cos|<0.5 是选定的 —— 门槛 0.35→9 条、0.45→12 条、"
+                        "0.55→15 条、0.60→16 条。所以这个数不能读成「可读方向就是 14 条」。",
         "caution_absorbed": "axis:caution 没有被贪心选中 —— cos(confidence, caution)=0.5537 "
-                            "已超过 0.5 门槛，在贪心里被 confidence 吃掉。",
+                            "已超过 0.5 门槛，在贪心里被 confidence 吃掉。"
+                            "被吸收的还有 " + str(len(bnd["new_recipe"]["absorbed"])) + " 条，"
+                            "其中 4 条是 §4.9 换函数形式重造的同一条方向。",
     },
     "surface_directions": rows,
     "named_axis_readouts": named,

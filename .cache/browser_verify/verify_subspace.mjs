@@ -71,6 +71,61 @@ try {
     && Number(P.nRows) === truth.surface_directions.length,
     `下界 ${P.lowerBound} / 命名轴 ${P.namedAxes} / 行数 ${P.nRows}`);
 
+  // ---------- G 组：下界的前提 ----------
+  // 「至少 N 条」单独印出来会被读成「可读方向就是 N 条」。
+  // 0.5 这个分隔门槛是**选定的**，候选集合也是有限的 —— 两者都必须和下界同屏。
+  const g = JSON.parse(await page.eval(`(() => {
+    const el = document.querySelector('[data-bound-caveat]');
+    if (!el) return JSON.stringify({missing: true});
+    const rows = {};
+    el.querySelectorAll('[data-threshold-row]').forEach(e => {
+      const sep = e.getAttribute('data-threshold-row');
+      rows[sep] = { attr: e.querySelector('[data-kind="threshold-count"]')
+                        ?.getAttribute('data-value'),
+                    text: (e.innerText || '').replace(/\\s+/g, ' ').trim() };
+    });
+    return JSON.stringify({
+      text: (el.innerText || '').replace(/\\s+/g, ' ').trim(),
+      old: el.getAttribute('data-bound-old'),
+      perm: el.getAttribute('data-order-perm'),
+      rows,
+    });
+  })()`));
+
+  check('G1 下界的前提块存在，且两个前提都印在可见文字里',
+    !g.missing && g.text.includes('候选集合') && g.text.includes('门槛')
+    && g.text.includes('选定的'),
+    g.missing ? '整块缺失' : g.text.slice(0, 78));
+
+  // ⚠ 块缺失时 `g.rows` 是 undefined。第一版直接 `g.rows[sep]` ⇒ TypeError
+  // 被外层 catch 记成「装置错」，结果 G3/G4/G5 **根本没跑**。
+  // 断言必须在被检验对象缺失时**干净地红**，而不是把后面的检查一起吞掉。
+  const grow = g.rows || {};
+  check('G2 六个阈值的条数与产物一致（属性+文字）',
+    Object.keys(truth.headline.threshold_sensitivity).length > 0
+    && Object.keys(grow).length === Object.keys(truth.headline.threshold_sensitivity).length
+    && Object.entries(truth.headline.threshold_sensitivity).every(([sep, v]) =>
+      grow[sep] && Number(grow[sep].attr) === v.greedy
+      && grow[sep].text.includes(`${v.greedy} 条`)),
+    Object.entries(grow).map(([s, v]) => `${s}→${v.attr}`).join(' ')
+    || `（阈值行全缺，页面有 0 行 / 产物 ${Object.keys(truth.headline.threshold_sensitivity).length} 行）`);
+
+  check('G3 必须印出「不能读成可读方向就是这么多条」这个结论',
+    (g.text || '').includes('不能读成'),
+    (g.text || '').match(/.{0,26}不能读成.{0,26}/)?.[0] || '（没有印出该结论）');
+
+  const od = truth.headline.order_dependence;
+  check('G4 顺序无关的声明与产物的 200 次随机范围一致',
+    Number(g.perm) === od.n_perm
+    && (g.text || '').includes(String(od.n_perm))
+    && (g.text || '').includes(`恒为 ${od.new_range[0]} 条`),
+    `页面 perm=${g.perm} / 产物 ${od.n_perm}，新口径范围 ${od.new_range[0]}–${od.new_range[1]}`);
+
+  check('G5 被吸收的条数与产物一致，且必须印出来',
+    (g.text || '').includes(`被吸收 ${truth.headline.absorbed.length} 条`)
+    && truth.headline.absorbed.length > 0,
+    `页面找「被吸收 N 条」N=${truth.headline.absorbed.length} / 产物 ${truth.headline.absorbed.length}`);
+
   // A3：下界必须**大于**命名轴数，而且这个比较要出现在**可见文字**里。
   // 写成 data-lower-bound=4 页面照样渲染，但结论就反了。
   const dn = String(truth.char_pairwise_abs_cos['digit_mass|newline_mass']);

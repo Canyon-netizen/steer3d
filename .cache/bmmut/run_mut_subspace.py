@@ -68,8 +68,65 @@ M3_NEW = ""
 M4_OLD = "<b className=\"text-amber-300\"> 至少 {h.readable_directions_lower_bound} 条 </b>"
 M4_NEW = "<b className=\"text-amber-300\"> 4 条 </b>"
 
+# M5 整块删掉「下界的前提」。删掉之后页面照样印着「至少 14 条」，
+# 读者会把下界读成「可读方向就是 14 条」—— 而 0.5 门槛是选定的。
+# ⚠ 必须删**整块**（含结尾的 </div>）。第一版只替换到第一个 <p> 为止，
+# 尾部三个闭合标签成了孤儿 ⇒ JSX 编译失败。**编译失败的变异不算命中。**
+M5_OLD = '''      {/* 下界的前提必须和下界印在同一块地方。
+          只印一个 14，读者会读成「可读方向就是 14 条」——
+          而 0.5 这个分隔门槛是**选定的**，不是推导出来的。 */}
+      <div className="rounded bg-amber-900/10 border border-amber-800/50 p-1.5 mb-1.5"
+           data-bound-caveat="true"
+           data-bound-old={h.readable_directions_lower_bound_old}
+           data-order-perm={h.order_dependence.n_perm}>
+        <p className="text-[9.5px] text-amber-200/90 leading-snug mb-1"
+           data-bound-caveat-text="true">
+          <b>「至少 {h.readable_directions_lower_bound} 条」是下界，而且只在两个前提下成立：</b>
+          ① 候选集合就是这 {h.n_candidates} 个 —— 每加一批观测量，计数就可能涨
+          （上一版候选只有 20 个里的 14 个时，它是 {h.readable_directions_lower_bound_old} 条）；
+          ② 分隔门槛 |cos| &lt; {h.separation_threshold} 是**选定的**。
+        </p>
+        <div className="flex flex-col gap-0.5">
+          {Object.entries(h.threshold_sensitivity).map(([sep, v]) => (
+            <div key={sep} data-threshold-row={sep}
+                 className="flex items-baseline justify-between gap-1 text-[8.5px]">
+              <span className="font-mono text-gray-400">|cos| &lt; {sep}</span>
+              <span className="font-mono text-amber-200"
+                    data-kind="threshold-count" data-value={v.greedy}>
+                {v.greedy} 条
+              </span>
+              <span className="text-gray-600 flex-1">
+                {v.perm_min === v.perm_max ? "（顺序无关）" : `（随机顺序 ${v.perm_min}–${v.perm_max}）`}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[8.5px] text-gray-500 leading-snug mt-1">
+          门槛 0.35→9 条、0.45→12 条、0.60→16 条 ⇒ 这个数随门槛走，
+          <b>不能读成「可读方向就是这么多条」</b>。
+          好消息是它对遍历顺序不敏感：随机打乱 {h.order_dependence.n_perm} 次，
+          新口径恒为 {h.order_dependence.new_range[0]} 条。
+        </p>
+        <p className="text-[8.5px] text-gray-500 leading-snug mt-0.5">
+          被吸收 {h.absorbed.length} 条（含 4 条 §4.9 换函数形式重造的同一条方向）；
+          已选集合内部最接近门槛的是
+          {h.tightest_in_chosen.map((t) => ` ${t.key} ${t.max_abs_cos.toFixed(4)}`).join("、")}。
+        </p>
+      </div>
+'''
+M5_NEW = ""
+
+# M6 只留计数表，把「不能读成」那句结论删掉。
+# 这一条用来证明 G3 不是被 G1 顺带覆盖的：前提还印着，结论没了。
+M6_OLD = '''          门槛 0.35→9 条、0.45→12 条、0.60→16 条 ⇒ 这个数随门槛走，
+          <b>不能读成「可读方向就是这么多条」</b>。
+          好消息是它对遍历顺序不敏感：随机打乱 {h.order_dependence.n_perm} 次，'''
+M6_NEW = '''          门槛 0.35→9 条、0.45→12 条、0.60→16 条 ⇒ 这个数随门槛走。
+          好消息是它对遍历顺序不敏感：随机打乱 {h.order_dependence.n_perm} 次，'''
+
 MUTS = {"M1": (M1_OLD, M1_NEW), "M2": (M2_OLD, M2_NEW),
-        "M3": (M3_OLD, M3_NEW), "M4": (M4_OLD, M4_NEW)}
+        "M3": (M3_OLD, M3_NEW), "M4": (M4_OLD, M4_NEW),
+        "M5": (M5_OLD, M5_NEW), "M6": (M6_OLD, M6_NEW)}
 
 
 def restore():
@@ -137,10 +194,12 @@ def main():
             return 2
         what = {"M1": "删掉「地板」栏", "M2": "只把可见的对角文案写死成 0.9999（属性照旧）",
                 "M3": "整块删掉位置轴对照行",
-                "M4": "把下界写死成 4 条"}[which]
+                "M4": "把下界写死成 4 条",
+                "M5": "整块删掉「下界的前提」块（只留「至少 14 条」）",
+                "M6": "只留门槛计数表，删掉「不能读成可读方向就是这么多条」这句结论"}[which]
         print(f"{which} 施加：{what}；回读自证通过")
     else:
-        print("用法：BASE | M1 | M2 | M3 | M4")
+        print("用法：BASE | M1 | M2 | M3 | M4 | M5 | M6")
         return 2
 
     ok, log = build()
@@ -153,6 +212,13 @@ def main():
 
     code, out = judge(port)
     failed = [ln for ln in out.splitlines() if ln.startswith("[FAIL]")]
+    total = [ln for ln in out.splitlines() if ln.startswith("[PASS]") or ln.startswith("[FAIL]")]
+    # 一条都没跑起来（判据脚本模块级语法错误 ⇒ node 直接 SyntaxError，没有输出）
+    # 与「跑起来全红」在现象上很像，但含义完全不同，不能只看 returncode。
+    if not total:
+        print("ABORT 判据一条都没跑起来 —— 装置故障，不是判红")
+        print(out[-2000:])
+        return 3
     print()
     for ln in failed:
         print("   " + ln[:160])
