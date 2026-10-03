@@ -98,13 +98,61 @@ for t, axname in [("top1_prob_renorm", "confidence 的读出"),
     })
 
 ctrl = loc["results"]["step_frac"]
+
+# ---- §8.9 第十五笔：给下面那些散文数字准备**唯一**的来源 ----
+# 门槛：bnd 自己带 `sep`（0.5）。以前「|cos|<0.5」「超过 0.5 门槛」都是字面量。
+SEP = bnd["sep"]
+# 下界与其旧值
+BOUND_NEW = bnd["new_recipe"]["perm_min"]
+BOUND_OLD = bnd["old_recipe"]["greedy"]
+# 候选数
+N_CAND = bnd["new_recipe"]["n_candidates"]
+# 门槛敏感性的每一档：以前只**手挑**了 0.35/0.45/0.55/0.60 四档印进散文，
+#   0.40 与 0.50 两档被跳过 —— 挑哪几档是一个没有任何解释的编辑选择。
+#   ⇒ 现在把**全部**档位按数值顺序插值，读的人能看到完整曲线。
+TSENS = sorted(bnd["threshold_sensitivity"].items(), key=lambda kv: float(kv[0]))
+# 被吸收的名单
+ABSORBED = bnd["new_recipe"]["absorbed"]
+# 「其中 N 条是 §4.9 换函数形式重造」：N = §4.9 那批留出观测量与被吸收名单的**交集**
+# ⚠ 这个 4 以前是手数的。我一开始以为它「没有源」，查完发现**完全可以重算**：
+#   heldout_fit 的 key（6 个 §4.9 观测量）∩ absorbed ⇒ 正好 4 个
+#   （emitted_is_upper / emitted_tok_len 那两个没被吸收，成了新方向）。
+#   ⇒ 「同一个数可不可重算」与「作者有没有接上源」是两件事，别混为一谈。
+_NORM = lambda s: s.replace("obs:", "").replace("axis:", "")
+_HF = { _NORM(r["key"]) for r in bnd["heldout_fit"] }
+N_HELDOUT_ABSORBED = sum(1 for a in ABSORBED if _NORM(a) in _HF)
+# 用来做「操作点」那一句的下界（阈值 = SEP 那一档）
+# ⚠⚠ 这里的坑我**在第八笔已经踩过一次**：阈值表的键是 "0.50"，
+#   而 str(0.5) 是 "0.5" ⇒ 直接 `ts[str(SEP)]` 抛 KeyError。
+#   组件侧当时是 `indexOf(String(...))` 静默返回 -1 ⇒ 页面印出「第 0 档」；
+#   这里则会直接崩。⇒ 一律按**数值**比，不按字符串。
+_SEAT_KEY = next(k for k, _ in TSENS if abs(float(k) - SEP) < 1e-9)
+SEAT = bnd["threshold_sensitivity"][_SEAT_KEY]
+# cos(confidence, caution)：⚠ 这一份手抄在本产物与 axis_readouts.json 里各有一份，
+#   谁先改谁不会红。⇒ 这里改为从 axis_readouts.json 读，单份来源。
+_AX = json.loads((ROOT / "frontend/public/latent/data/axis_readouts.json").read_text())
+try:
+    PAIR_CONF_CAUT = round(
+        _AX["axes"]["caution"]["specificity"]["pair_cos_confidence_caution"], 4)
+except (KeyError, TypeError):
+    raise SystemExit("axis_readouts.json 里读不到 caution 的 pair_cos_confidence_caution —— "
+                     "caution_absorbed 里那个余弦会变成无源字面量，拒绝写。")
+# 「下面六条」= 4 条 surface + 2 条命名轴读出
+N_COLLAPSED = len(CHAR) + len(named)
+# 对照 note 里点名的那个 Δ 步长（原先写死 "Δ=100"）——
+#   名字的是 control.delta 里的**键**，取最大键而不是写死。
+D_MAX = max(int(d_) for d_ in loc["deltas"])
+# 2048 维：不在本生成器原本的输入里，从 dim_names.json 的维数现算
+_DN = json.loads((ROOT / "frontend/public/latent/data/dim_names.json").read_text())
+D_MODEL = len(_DN["dims"])
+# 「4 条命名轴」那一问也一并由 axis_readouts 的键数供给（见 _AX）
 PAY = {
     "schema": "steering3d.readable_subspace/1",
-    "question": "4 条命名轴之外，残差流里还剩多少解释得了行为的方向？",
+    "question": str(len(_AX["axes"])) + " 条命名轴之外，残差流里还剩多少解释得了行为的方向？",
     "convention": {
-        "layer": 14, "k_pca": miss["recipe"]["K"], "stride": miss["recipe"]["stride"],
-        "search_space": "每个观测量在 L14 上用留一轨迹岭回归拟合最优线性读出 w*，"
-                        "再在 2048 维原空间里量它与其它观测量 w* 的余弦",
+        "layer": miss["recipe"]["layer"], "k_pca": miss["recipe"]["K"], "stride": miss["recipe"]["stride"],
+        "search_space": "每个观测量在 L" + str(miss["recipe"]["layer"]) + " 上用留一轨迹岭回归拟合最优线性读出 w*，"
+                        "再在 " + str(D_MODEL) + " 维原空间里量它与其它观测量 w* 的余弦",
         "floor": "把目标在轨迹内随机打乱（保留边缘分布、破坏逐步对应），"
                  "同一个 w* 还能预测多少 —— 这就是这套判据的噪声水平",
         "note": "全部数字来自本项目自己的脚本，见 .cache/xcheck/。页面只负责显示。",
@@ -116,10 +164,10 @@ PAY = {
         # 只印一个 14 会让人以为它是稳健的。
         "readable_directions_lower_bound": bnd["new_recipe"]["perm_min"],
         "readable_directions_lower_bound_old": bnd["old_recipe"]["greedy"],
-        "named_axes": 4,
-        "n_candidates": bnd["new_recipe"]["n_candidates"],
+        "named_axes": len(_AX["axes"]),   # 4 来自 axis_readouts.axes 的键数，不再是字面量
+        "n_candidates": N_CAND,
         "greedy_obs_only": len(miss["greedy_obs_only_sep0p5"]),
-        "separation_threshold": 0.5,
+        "separation_threshold": SEP,
         "order_dependence": {
             "n_perm": bnd["n_perm"],
             "old_range": [bnd["old_recipe"]["perm_min"], bnd["old_recipe"]["perm_max"]],
@@ -128,14 +176,16 @@ PAY = {
         "threshold_sensitivity": bnd["threshold_sensitivity"],
         "absorbed": bnd["new_recipe"]["absorbed"],
         "tightest_in_chosen": bnd["tightest_on_threshold"][:2],
-        "bound_caveat": "「至少 14 条」是**下界**，且只在两个前提下成立："
-                        "(a) 候选集合是这 20 个 —— 每加一批观测量，计数就可能涨；"
-                        "(b) 分隔门槛 |cos|<0.5 是选定的 —— 门槛 0.35→9 条、0.45→12 条、"
-                        "0.55→15 条、0.60→16 条。所以这个数不能读成「可读方向就是 14 条」。",
-        "caution_absorbed": "axis:caution 没有被贪心选中 —— cos(confidence, caution)=0.5537 "
-                            "已超过 0.5 门槛，在贪心里被 confidence 吃掉。"
-                            "被吸收的还有 " + str(len(bnd["new_recipe"]["absorbed"])) + " 条，"
-                            "其中 4 条是 §4.9 换函数形式重造的同一条方向。",
+        "bound_caveat": (
+            "「至少 " + str(SEAT["perm_min"]) + " 条」是**下界**，且只在两个前提下成立："
+            "(a) 候选集合是这 " + str(N_CAND) + " 个 —— 每加一批观测量，计数就可能涨；"
+            "(b) 分隔门槛 |cos|<" + str(SEP) + " 是选定的 —— "
+            + "、".join(k + "→" + str(v["greedy"]) + " 条" for k, v in TSENS)
+            + "。所以这个数不能读成「可读方向就是 " + str(SEAT["perm_min"]) + " 条」。"),
+        "caution_absorbed": "axis:caution 没有被贪心选中 —— cos(confidence, caution)=" + str(PAIR_CONF_CAUT)
+                            + " 已超过 " + str(SEP) + " 门槛，在贪心里被 confidence 吃掉。"
+                            "被吸收的还有 " + str(len(ABSORBED)) + " 条，"
+                            "其中 " + str(N_HELDOUT_ABSORBED) + " 条是 §4.9 换函数形式重造的同一条方向。",
     },
     "surface_directions": rows,
     "named_axis_readouts": named,
@@ -143,8 +193,9 @@ PAY = {
         "key": "step_frac", "label": "轨迹位置（装置阳性对照）",
         "delta": {d_: round(ctrl[f"delta{d_}"]["rho"], 4) for d_ in loc["deltas"]},
         "decay_x20": round(ctrl["delta0"]["rho"] / abs(ctrl["delta20"]["rho"]), 1),
-        "note": "它在 Δ=100 仍有 0.7087、几乎不衰减 ⇒ 装置有能力测出持续方向，"
-                "而它测出的是位置轴。所以下面六条「塌了」不是因为装置测不出。",
+        "note": "它在 Δ=" + str(D_MAX) + " 仍有 " + str(round(ctrl[f"delta{D_MAX}"]["rho"], 4))
+                + "、几乎不衰减 ⇒ 装置有能力测出持续方向，"
+                "而它测出的是位置轴。所以下面" + str(N_COLLAPSED) + "条「塌了」不是因为装置测不出。",
     },
     "char_pairwise_abs_cos": {k: round(v, 4) for k, v in miss["char_pairwise_abs_cos"].items()},
     "char_pairwise_note": "两两余弦（逐折配对中位 |cos|）。数字↔换行 "

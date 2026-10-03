@@ -354,7 +354,209 @@ try {
     }
   }
 
-  // E4 同一个量在页面上出现两次，就必须处处一致。
+  // ---- P 组：产物里**手写散文**的数字必须能现算（§8.9 第十五笔）----
+  // 与 C3b/C3c 同族但覆盖面更大：C3 只核了判决那一句，
+  // 而 `bound_caveat` / `caution_absorbed` / `control.note` 三段里的数
+  // 全是生成器里的**字面量**，且此前**一条判据都没碰**。
+  // ⚠ P10 是这一组的关键：它把判据卡在**生成器那一层**。
+  //   只核产物会漏 —— 那些字面量在生成器里，下次重跑就又出现。
+  {
+    const H = truth.headline;
+    const SEP = H.separation_threshold;
+    const TS = H.threshold_sensitivity;
+    const seatKey = Object.keys(TS).find(k => Math.abs(Number(k) - SEP) < 1e-9);
+    const caveat = H.bound_caveat || '';
+    const absorbedNote = H.caution_absorbed || '';
+
+    // P1 「至少 N 条」== 选定门槛那一档的 perm_min
+    const wantN = TS[seatKey]?.perm_min;
+    const gotN = (caveat.match(/至少\s*(\d+)\s*条/) || [])[1];
+    check('P1 bound_caveat 的「至少 N 条」== 选定门槛那一档的下界',
+      Number(gotN) === wantN,
+      `caveat 写「至少 ${gotN} 条」；${seatKey} 档 perm_min = ${wantN}`
+      + `（separation_threshold=${SEP}）`);
+
+    // P2 「候选集合是这 M 个」== n_candidates
+    const wantM = H.n_candidates;
+    const gotM = (caveat.match(/这\s*(\d+)\s*个/) || [])[1];
+    check('P2 bound_caveat 的「候选集合是这 M 个」== headline.n_candidates',
+      Number(gotM) === wantM,
+      `caveat 写 ${gotM}；n_candidates = ${wantM}`);
+
+    // P3 「|cos|<T」== separation_threshold
+    const gotT = (caveat.match(/\|cos\|\s*<\s*([\d.]+)/) || [])[1];
+    check('P3 bound_caveat 的门槛必须等于 headline.separation_threshold',
+      Math.abs(Number(gotT) - SEP) < 1e-9,
+      `caveat 写 |cos|<${gotT}；separation_threshold = ${SEP}`);
+
+    // P4 门槛敏感性必须**列全每一档**且数一致 —— 不许手挑
+    // ⚠ 旧文案只列了 0.35/0.45/0.55/0.60，**跳过了 0.50**，
+    //   而 0.50 正是产出头条数字的那一档 ⇒ 读者没有可比的那一行。
+    {
+      const allKeys = Object.keys(TS).sort((a, b) => Number(a) - Number(b));
+      const listed = (caveat.match(/(\d\.\d+)→(\d+)\s*条/g) || []);
+      const listedKeys = listed.map(x => x.match(/(\d\.\d+)→/)[1]);
+      const complete = listedKeys.length === allKeys.length
+        && allKeys.every(k => listedKeys.includes(k));
+      const consistent = listed.every(x => {
+        const m = x.match(/(\d\.\d+)→(\d+)/);
+        return Math.abs(Number(m[1]) - SEP) < 1e-9 || TS[m[1]]?.greedy === Number(m[2]);
+      });
+      check('P4 bound_caveat 必须列出**全部**门槛档位（不许手挑），且每档的数与结构化表一致',
+        complete && consistent,
+        `结构化表有 ${allKeys.length} 档（${allKeys.join('/')}）；`
+        + `caveat 列了 ${listedKeys.length} 档（${listedKeys.join('/')}）`
+        + (complete ? '' : ' ⇒ 有档位被跳过，其中可能正是选定那一档')
+        + (consistent ? '' : ' ⇒ 有档位的数与表不一致'));
+    }
+
+    // P5 caution_absorbed 的余弦 —— 跨产物单份来源
+    {
+      let pair = null;
+      try {
+        const ax = JSON.parse(readFileSync(
+          '/Users/zhourui/code/steer3d/frontend/public/latent/data/axis_readouts.json', 'utf8'));
+        pair = ax?.axes?.caution?.specificity?.pair_cos_confidence_caution;
+      } catch (e) { /* 读不到 → 下面报未判 */ }
+      const gotC = (absorbedNote.match(/cos\(confidence,\s*caution\)\s*=\s*([\d.]+)/) || [])[1];
+      if (pair === undefined || pair === null) {
+        check('P5 caution_absorbed 的余弦必须等于 axis_readouts 里那一对的实测值', false,
+          'axis_readouts.json 读不到 pair_cos_confidence_caution ⇒ 未判');
+      } else {
+        const want = Number(pair).toFixed(4);
+        check('P5 caution_absorbed 的余弦必须等于 axis_readouts 里那一对的实测值',
+          gotC === want,
+          `caveat 写 ${gotC}；axis_readouts pair_cos = ${pair}（四位小数 ${want}）`
+          + `；⚠ 这份手抄过去在两个产物里各有一份，谁先改谁不会红`);
+      }
+    }
+
+    // P6 caution_absorbed 的门槛与条数
+    {
+      const gotT2 = (absorbedNote.match(/超过\s*([\d.]+)\s*门槛/) || [])[1];
+      const gotN2 = (absorbedNote.match(/还有\s*(\d+)\s*条/) || [])[1];
+      check('P6 caution_absorbed 的门槛与条数必须现算',
+        Math.abs(Number(gotT2) - SEP) < 1e-9 && Number(gotN2) === H.absorbed.length,
+        `caveat 写「超过 ${gotT2} 门槛，还有 ${gotN2} 条」；`
+        + `separation_threshold = ${SEP}；len(absorbed) = ${H.absorbed.length}`);
+    }
+
+    // P7 control.note 的 Δ=100 数与「N 条」
+    {
+      const note = truth.control.note || '';
+      const got100 = (note.match(/Δ=100\s*仍有\s*([\d.]+)/) || [])[1];
+      const want100 = truth.control.delta['100'];
+      const gotN3 = Number((note.match(/下面\s*(\d+)\s*条/) || [])[1]);
+      const wantN3 = truth.surface_directions.length + (truth.named_axis_readouts || []).length;
+      check('P7 control.note 的 Δ=100 数与「下面 N 条」必须现算',
+        Math.abs(Number(got100) - want100) < 5e-5 && gotN3 === wantN3,
+        `note 写 Δ=100 仍有 ${got100}、下面 ${gotN3} 条；`
+        + `control.delta["100"] = ${want100}；`
+        + `len(surface_directions)+len(named_axis_readouts) = ${wantN3}`);
+    }
+
+    // P8 question / named_axes == axis_readouts 的轴数（跨产物）
+    {
+      let nAx = null;
+      try {
+        const ax = JSON.parse(readFileSync(
+          '/Users/zhourui/code/steer3d/frontend/public/latent/data/axis_readouts.json', 'utf8'));
+        nAx = Object.keys(ax?.axes || {}).length;
+      } catch (e) { /* 未判 */ }
+      const gotQ = Number((String(truth.question).match(/(\d+)\s*条命名轴/) || [])[1]);
+      if (nAx === null) {
+        check('P8 question 与 named_axes 的轴数必须等于 axis_readouts 的轴数', false, '读不到 axis_readouts ⇒ 未判');
+      } else {
+        check('P8 question 与 named_axes 的轴数必须等于 axis_readouts 的轴数',
+          gotQ === nAx && H.named_axes === nAx,
+          `question 写 ${gotQ}；named_axes = ${H.named_axes}；axis_readouts.axes 键数 = ${nAx}`);
+      }
+    }
+
+    // P10 **源级**：生成器里这些散文段不得再有裸数字字面量
+    // ⚠ 这是这一组最关键的一条：上面九条只核**产物**，
+    //   而字面量在**生成器**里 —— 只核产物的话，下次重跑字面量又回来。
+    {
+      const gen = '/Users/zhourui/code/steer3d/.cache/xcheck/build_subspace_readout.py';
+      let src = null;
+      try { src = readFileSync(gen, 'utf8'); } catch (e) { /* 未判 */ }
+      if (src === null) {
+        check('P10 生成器里这些散文段不得有裸数字字面量（判据要卡在生成器那一层）', false,
+          '读不到 %s ⇒ 未判' % gen);
+      } else {
+        // 抽出 bound_caveat / caution_absorbed / control.note 三段
+        // ⚠⚠⚠ 三次踩坑才做对，每次都是同一个毛病：
+        //  ① `lastIndexOf('(')` 当块起点 ⇒ 抓到**上一个 key** 里那个 `(`。
+        //  ② 只按 `indexOf('(')` 往前找 ⇒ 值里没括号时会跨到别的块。
+        //  ③ 「下一个同级 key」的正则**不看缩进** ⇒ 把 8 空格的内部字段
+        //     当成了 4 空格的同级字段，于是 control 块只取到 `key`+`label`
+        //     共 43 字符，**根本没盖到 note**，却照样报「无字面量」。
+        //     ⚠ 而「看起来绿」的判据比「红着」更坏：它宣称核过的那段它没核。
+        // ⇒ 终版：**按锚点所在行的缩进找下一个同级 key**（缩进是结构，不是格式符号）。
+        const grabIndented = (anchor) => {
+          const i = src.indexOf(anchor);
+          if (i < 0) return '';
+          const lineStart = src.lastIndexOf('\n', i) + 1;
+          const indent = src.slice(lineStart, i).match(/^[ \t]*/)[0];
+          // ⚠ `\n` + 缩进 **不要求缩进从行首开始** ⇒ 12 空格的后续行
+          //   前 8 个空格也能匹配上，于是块被截成 26 字符。
+          //   ⇒ 要求 `indent` 之后**紧接**引号（多一个空格就不算同级）。
+          const re = new RegExp('\\n' + indent + '"');
+          const rest = src.slice(i);
+          const m = re.exec(rest);
+          if (m) {
+            return rest.slice(0, m.index + 1 + indent.length);
+          }
+          // 没有下一个同级 key（它是最后一个字段）⇒ 取到本 dict 的收尾
+          const close = rest.search(/\n[ \t]*\}/);
+          return close > 0 ? rest.slice(0, close) : rest;
+        };
+        const blocks = [
+          grabIndented('"bound_caveat"'),
+          grabIndented('"caution_absorbed"'),
+          grabIndented('"control": {'),
+        ];
+        const found = blocks.filter(Boolean).length;
+        // ⚠ 每段都必须**够长**才算数：太短说明锚点没定位到整段，
+        //   那时判红没有意义（那是「没核到」，不是「核过了」）。
+        const tooShort = blocks.map((b, k) => [k, b.length]).filter(([, n]) => n < 120);
+        if (found < 3 || tooShort.length) {
+          check('P10 生成器里这三段散文不得有裸数字字面量（判据要卡在生成器那一层）', false,
+            `定位到 ${found}/3 段，长度 ${blocks.map(b => b.length).join('/')}`
+            + (tooShort.length
+              ? ` ⇒ 第 ${tooShort.map(([k]) => k + 1).join('、')} 段短于 120 字符，`
+                + `说明锚点没定位到整段，未判（不是「没有字面量」）`
+              : ' ⇒ 锚点失效，未判'));
+        } else {
+          const lits = [];
+          // ⚠ **显式豁免**：文档节号（§4.9 / §8.3 / L12）不是观测量，
+          //   重算它没有意义 —— 就像「Δ=0」是设置名而不是读数。
+          //   豁免必须**带理由印出来**，否则「被判据放过」和「没人看见」是同一件事。
+          let exempt = 0;
+          for (const b of blocks) {
+            for (const m of b.matchAll(/"([^"\\]*)"/g)) {
+              const raw = m[1];
+              for (const n of raw.matchAll(/(?<![\w.])\d+\.\d+|(?<![\w.])\d+(?![\w.])/g)) {
+                // 命中的是**紧跟在 § 后面**的节号（如「§4.9」里的 4.9）
+                if (/§\s*$/.test(raw.slice(0, n.index))) { exempt++; continue; }
+                lits.push(n[0]);
+              }
+            }
+          }
+          check('P10 生成器里这三段散文不得有裸数字字面量（必须插值，否则下次重跑字面量又回来）',
+            lits.length === 0,
+            lits.length === 0
+              ? `三段都定位到（长度 ${blocks.map(b => b.length).join('/')}）且没有裸数字字面量；`
+                + `豁免 ${exempt} 处文档节号（节号不是观测量）；`
+                + `插值来源：SEP / N_CAND / TSENS / PAIR_CONF_CAUT / N_COLLAPSED / D_MAX / N_HELDOUT_ABSORBED`
+              : `仍有 ${lits.length} 个裸数字字面量：${JSON.stringify(lits.slice(0, 12))}`
+                + `（另豁免 ${exempt} 处节号）`);
+        }
+      }
+    }
+  }
+
+
   // 这一条是被**截图**逼出来的：顶部已经改成「至少 14 条」，
   // 而底部 not_claimed 还写着「这 12 条」—— 页面自相矛盾，
   // 而上面 31 条判据全绿（它们各自都核对了自己那段，没人会去互相比）。
