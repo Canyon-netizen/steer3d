@@ -150,6 +150,38 @@ type DirCompare = {
   not_claimed: string;
 };
 
+// §4.17「跑飞」到底是怎么坏的。方向对照块只说 +v 撞 token 上限，
+// 没说机制；这份产物给出机制（逐字重复退化），以及它在**长度受控**下
+// 到底能分离出多少。写入它的是 .cache/xcheck/steer_repetition.py。
+type Repetition = {
+  what: string;
+  k_grams: number;
+  window_words: number;
+  strong_repeat_threshold: number;
+  why_window: string;
+  nonoverlap_note: string;
+  dedup_note: string;
+  layer: number;
+  strength: number;
+  cut_sweep: Array<{
+    words: number;
+    zero: { n_strong: number; n_eligible: number };
+    minus_v: { n_strong: number; n_eligible: number };
+    plus_v: { n_strong: number; n_eligible: number };
+    same_problem_set: boolean;
+    verdict: string;
+    fisher_p_plus_vs_zero?: number;
+    fisher_p_plus_vs_minus?: number;
+  }>;
+  summary: Array<{
+    arm: string; n: number;
+    rep_k_median: number; rep_k_max: number; rep_k_mean: number;
+    rep_frac_median: number; rep_frac_max: number;
+    n_with_rep_ge5: number; n_with_rep_ge20: number;
+    n_with_onset: number; onset_median: number | null;
+  }>;
+};
+
 type AnswerPower = {
   what: string;
   direction: string;
@@ -223,6 +255,7 @@ export default function InterventionOutcomePanel() {
   const [arm, setArm] = useState<ArmAsymmetry | null>(null);
   const [pw, setPw] = useState<AnswerPower | null>(null);
   const [sd, setSd] = useState<DirCompare | null>(null);
+  const [rep, setRep] = useState<Repetition | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   // Mounted with a cancellation guard, same shape as InterpretationPanel's
@@ -251,9 +284,14 @@ export default function InterventionOutcomePanel() {
       // 让「谁生成哪个字段」变得看不出来。
       fetch("/latent/data/steer_directions.json").then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
+      // 「跑飞」的机制。与上面四份共享 all_runs.json 的原文，但口径是
+      // 另一套（逐字重复的 12-gram 计数 + 长度受控），并进去会让
+      // 「谁生成哪个字段」看不出来 —— 这一支的窗口/阈值都不是别处能推出来的。
+      fetch("/latent/data/steer_repetition.json").then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
     ])
-      .then(([c, a, m, p, d]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower, DirCompare]) => {
-        if (alive) { setCot(c); setAns(a); setArm(m); setPw(p); setSd(d); }
+      .then(([c, a, m, p, d, rp]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower, DirCompare, Repetition]) => {
+        if (alive) { setCot(c); setAns(a); setArm(m); setPw(p); setSd(d); setRep(rp); }
       })
       .catch((e) => { if (alive) setErr(String(e.message || e)); });
     return () => { alive = false; };
@@ -683,6 +721,117 @@ export default function InterventionOutcomePanel() {
           </p>
         </div>
       )}
+
+      {/* --- §4.17：+v「跑飞」的机制，以及它在长度受控下能分离出多少 --- */}
+      {rep && (() => {
+        const byArm = (n: string) => rep.summary.find((s) => s.arm === n)!;
+        const z = byArm("zero"), mv = byArm("minus_v"), pv = byArm("plus_v");
+        const clean = rep.cut_sweep.filter((c) => c.same_problem_set);
+        const best = clean.reduce(
+          (a, b) => ((a.fisher_p_plus_vs_zero ?? 1) <= (b.fisher_p_plus_vs_zero ?? 1) ? a : b));
+        const dirty = rep.cut_sweep.filter((c) => !c.same_problem_set);
+        return (
+        <div className="rounded bg-bg/60 border border-border px-2 py-1.5"
+             data-repetition
+             data-rep-words={String(best.words)}
+             data-rep-plus={String(best.plus_v.n_strong)}
+             data-rep-zero={String(best.zero.n_strong)}
+             data-rep-minus={String(best.minus_v.n_strong)}
+             data-rep-p={String(best.fisher_p_plus_vs_zero)}
+             data-rep-p-minus={String(best.fisher_p_plus_vs_minus)}
+             data-rep-same-set={best.same_problem_set ? 1 : 0}
+             data-rep-dirty-cuts={dirty.map((c) => c.words).join("/")}
+             data-rep-max-plus={String(pv.rep_k_max)}
+             data-rep-max-zero={String(z.rep_k_max)}
+             data-rep-max-minus={String(mv.rep_k_max)}
+             data-rep-k={String(rep.k_grams)}
+             data-rep-thresh={String(rep.strong_repeat_threshold)}
+             data-rep-n={String(rep.summary[0].n)}>
+          <div className="text-[11px] text-gray-200 font-semibold">
+            「跑飞」不是没答完，是逐字重复退化 —— 但能分离出的量有限
+          </div>
+          <p className="text-[10px] text-gray-400 leading-relaxed mt-1"
+             data-rep-mechanism>
+            上面只说了 +v 撞 token 上限，<b>没说怎么坏的</b>。
+            翻原文可见机制：模型卡在同一句上<b>逐字重复</b>直到撞上限，
+            不是啰嗦、不是犹豫、不是答不出来而已。
+            度量用 <code>{rep.k_grams}</code>-gram 的<b>不重叠</b>重复次数
+            （{rep.nonoverlap_note}），
+            「强重复」= 某个 {rep.k_grams}-gram 不重叠出现{" "}
+            <b className="font-mono text-gray-200">
+              &ge; {rep.strong_repeat_threshold}</b> 次。
+            窗口内最强的一处：+v 重复{" "}
+            <b className="font-mono text-gray-200">{pv.rep_k_max}</b> 次，
+            共享对照和 −v 都只有{" "}
+            <b className="font-mono text-gray-200">
+              {z.rep_k_max} / {mv.rep_k_max}</b> 次。
+          </p>
+          <ul className="mt-1.5 space-y-1 text-[10px] text-gray-300 leading-relaxed">
+            <li data-rep-item="controlled">
+              <b>必须做长度受控，否则是自证的。</b>{" "}
+              {rep.why_window}
+              在三臂入选<b>同一批题</b>的 {best.words} 词窗口里，
+              强重复：+v{" "}
+              <b className="font-mono text-gray-200">
+                {best.plus_v.n_strong}/{best.plus_v.n_eligible}</b>、
+              共享对照{" "}
+              <b className="font-mono text-gray-200">
+                {best.zero.n_strong}/{best.zero.n_eligible}</b>、
+              −v{" "}
+              <b className="font-mono text-gray-200">
+                {best.minus_v.n_strong}/{best.minus_v.n_eligible}</b>，
+              Fisher 精确检验 p ={" "}
+              <span className="font-mono text-gray-200">
+                {best.fisher_p_plus_vs_zero?.toFixed(3)}
+              </span>{" "}
+              {best.fisher_p_plus_vs_zero != null &&
+               best.fisher_p_plus_vs_zero < 0.05 ? (
+                <b className="text-emerald-300">已过 0.05</b>
+              ) : (
+                <b className="text-amber-300">
+                  没到 0.05 —— 方向一致、量级 4 倍，但只是弱证据
+                </b>
+              )}
+              。这条修的是同一片混淆（§8.3 ⑧），方向和量级都对，
+              <b>但不该当成已证实的机制</b>。
+            </li>
+            <li data-rep-item="confounded">
+              <b>看起来更好的那些数字不能引用。</b>把窗口放大到{" "}
+              {dirty.map((c) => c.words).join(" / ")} 词时 p 会小到{" "}
+              {dirty.map((c) => c.fisher_p_plus_vs_zero?.toFixed(3))
+                 .filter((x) => x != null).join(" / ")}，
+              看起来强得多 —— 但那一档<b>三臂入选的题集不同</b>：
+              入选「全文够长」的题，本身就是长的、
+              也就是更容易没跑完的题，而没跑完和 +v 相关。
+              ⇒ 那是<b>按长度筛题</b>挑出来的，不是长度受控的结果。
+            </li>
+            <li data-rep-item="why">
+              <b>所以机制结论分两层，不能混着说。</b>
+              「+v 会把生成推入逐字重复循环」这条，机制上直接可见
+              （重复 {pv.rep_k_max} 次 vs 对照 {z.rep_k_max} 次），
+              <b>不依赖那个 p</b>；
+              但「重复比对照显著更多」在严格长度受控下{" "}
+              <b>只到弱证据</b>。
+              强的那条证据仍然是闭合率（上面 p ={" "}
+              <span className="font-mono text-gray-200">
+                {sd?.blew_up.mcnemar_exact_p.toExponential(2) ?? "—"}
+              </span>
+              ），它按题计数，不受文本长度影响。
+            </li>
+          </ul>
+          <p className="text-[10px] text-amber-200/90 leading-relaxed mt-1.5"
+             data-rep-cannot>
+            <b>不能说的</b>：不能说「重复退化是 confidence 这个概念触发的」——
+            还是<b>缺同范数随机方向臂</b>；也不能说「重复就是跑飞的全部机制」——
+            这里只量了逐字重复，撞上限还可能有别的成因。
+            另外这份比较只看 {rep.strength === 0.2 ? "s = 0.2" : rep.strength} 的{" "}
+            {rep.layer === 20 ? "L20" : `L${rep.layer}`}，
+            <b>一个强度点、一层</b>。
+            {rep.dedup_note}
+          </p>
+        </div>
+        );
+      })()}
 
       <div className="flex flex-col gap-1" data-answer-rows>
         {ans.items.slice(0, 4).map((it) => (

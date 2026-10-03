@@ -1,0 +1,776 @@
+{
+ "schema": "steer_repetition/1",
+ "k_grams": 12,
+ "window_words": 800,
+ "strong_repeat_threshold": 5,
+ "why_window": "未闭合的臂按定义更长，比全长会把「长 ⇒ 重复多」当成发现。只比开头固定词数，长度被控住。",
+ "nonoverlap_note": "rep_k 数的是不重叠出现次数，否则重复 N 遍会报成 N+K-1。",
+ "dedup_note": "零臂两向逐字相同，按题去重成 23 条，否则对照臂分母翻倍。",
+ "layer": 20,
+ "strength": 0.2,
+ "cut_sweep": [
+  {
+   "words": 200,
+   "zero": {
+    "n_strong": 0,
+    "n_eligible": 23
+   },
+   "minus_v": {
+    "n_strong": 0,
+    "n_eligible": 23
+   },
+   "plus_v": {
+    "n_strong": 0,
+    "n_eligible": 23
+   },
+   "same_problem_set": true,
+   "verdict": "clean"
+  },
+  {
+   "words": 400,
+   "zero": {
+    "n_strong": 1,
+    "n_eligible": 23
+   },
+   "minus_v": {
+    "n_strong": 0,
+    "n_eligible": 23
+   },
+   "plus_v": {
+    "n_strong": 1,
+    "n_eligible": 23
+   },
+   "same_problem_set": true,
+   "verdict": "clean",
+   "fisher_p_plus_vs_zero": 1.0,
+   "fisher_p_plus_vs_minus": 1.0
+  },
+  {
+   "words": 800,
+   "zero": {
+    "n_strong": 2,
+    "n_eligible": 23
+   },
+   "minus_v": {
+    "n_strong": 2,
+    "n_eligible": 23
+   },
+   "plus_v": {
+    "n_strong": 8,
+    "n_eligible": 23
+   },
+   "same_problem_set": true,
+   "verdict": "clean",
+   "fisher_p_plus_vs_zero": 0.070646,
+   "fisher_p_plus_vs_minus": 0.070646
+  },
+  {
+   "words": 1600,
+   "zero": {
+    "n_strong": 8,
+    "n_eligible": 19
+   },
+   "minus_v": {
+    "n_strong": 5,
+    "n_eligible": 20
+   },
+   "plus_v": {
+    "n_strong": 14,
+    "n_eligible": 21
+   },
+   "same_problem_set": false,
+   "verdict": "CONFOUNDED - 三臂入选题集不同，这一档的差可能是筛选造成的",
+   "fisher_p_plus_vs_zero": 0.202839,
+   "fisher_p_plus_vs_minus": 0.012173
+  },
+  {
+   "words": 3200,
+   "zero": {
+    "n_strong": 11,
+    "n_eligible": 16
+   },
+   "minus_v": {
+    "n_strong": 11,
+    "n_eligible": 19
+   },
+   "plus_v": {
+    "n_strong": 18,
+    "n_eligible": 18
+   },
+   "same_problem_set": false,
+   "verdict": "CONFOUNDED - 三臂入选题集不同，这一档的差可能是筛选造成的",
+   "fisher_p_plus_vs_zero": 0.015698,
+   "fisher_p_plus_vs_minus": 0.003091
+  }
+ ],
+ "summary": [
+  {
+   "arm": "zero",
+   "n": 23,
+   "rep_k_median": 2,
+   "rep_k_max": 6,
+   "rep_k_mean": 2.43,
+   "rep_frac_median": 0.0887,
+   "rep_frac_max": 0.3412,
+   "n_with_rep_ge5": 2,
+   "n_with_rep_ge20": 0,
+   "n_with_onset": 10,
+   "onset_median": 276.0
+  },
+  {
+   "arm": "minus_v",
+   "n": 23,
+   "rep_k_median": 2,
+   "rep_k_max": 6,
+   "rep_k_mean": 2.48,
+   "rep_frac_median": 0.08,
+   "rep_frac_max": 0.4163,
+   "n_with_rep_ge5": 2,
+   "n_with_rep_ge20": 0,
+   "n_with_onset": 7,
+   "onset_median": 239
+  },
+  {
+   "arm": "plus_v",
+   "n": 23,
+   "rep_k_median": 3,
+   "rep_k_max": 42,
+   "rep_k_mean": 5.52,
+   "rep_frac_median": 0.15,
+   "rep_frac_max": 0.8,
+   "n_with_rep_ge5": 8,
+   "n_with_rep_ge20": 1,
+   "n_with_onset": 13,
+   "onset_median": 285
+  }
+ ],
+ "per_run": {
+  "zero": [
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.0887,
+    "rep_onset": null,
+    "prompt_label": "1987_I_1",
+    "closed_think": null,
+    "full_n_words": 14379
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 5,
+    "rep_frac": 0.1375,
+    "rep_onset": 479,
+    "prompt_label": "1994_I_1",
+    "closed_think": null,
+    "full_n_words": 9800
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.1475,
+    "rep_onset": 179,
+    "prompt_label": "2014_I_1",
+    "closed_think": null,
+    "full_n_words": 10810
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.19,
+    "rep_onset": 411,
+    "prompt_label": "1988_I_1",
+    "closed_think": null,
+    "full_n_words": 7303
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.0612,
+    "rep_onset": 617,
+    "prompt_label": "2000_I_1",
+    "closed_think": null,
+    "full_n_words": 8408
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.0725,
+    "rep_onset": null,
+    "prompt_label": "2016_I_1",
+    "closed_think": null,
+    "full_n_words": 3542
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.0325,
+    "rep_onset": null,
+    "prompt_label": "2025_I_1",
+    "closed_think": null,
+    "full_n_words": 8746
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "1983_I_1",
+    "closed_think": null,
+    "full_n_words": 1760
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "1989_I_1",
+    "closed_think": null,
+    "full_n_words": 1392
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.075,
+    "rep_onset": null,
+    "prompt_label": "2002_I_1",
+    "closed_think": null,
+    "full_n_words": 4867
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "2020_I_1",
+    "closed_think": null,
+    "full_n_words": 1524
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "1984_I_1",
+    "closed_think": null,
+    "full_n_words": 4251
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 6,
+    "rep_frac": 0.3412,
+    "rep_onset": 179,
+    "prompt_label": "1990_I_1",
+    "closed_think": null,
+    "full_n_words": 10064
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 4,
+    "rep_frac": 0.2425,
+    "rep_onset": 212,
+    "prompt_label": "2004_I_1",
+    "closed_think": null,
+    "full_n_words": 5367
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.1412,
+    "rep_onset": 340,
+    "prompt_label": "2021_I_1",
+    "closed_think": null,
+    "full_n_words": 13107
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.18,
+    "rep_onset": null,
+    "prompt_label": "1985_I_1",
+    "closed_think": null,
+    "full_n_words": 18745
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.165,
+    "rep_onset": 174,
+    "prompt_label": "1991_I_1",
+    "closed_think": null,
+    "full_n_words": 13464
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.1025,
+    "rep_onset": 469,
+    "prompt_label": "2010_I_1",
+    "closed_think": null,
+    "full_n_words": 1311
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.2162,
+    "rep_onset": null,
+    "prompt_label": "2022_I_1",
+    "closed_think": null,
+    "full_n_words": 3836
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.07,
+    "rep_onset": null,
+    "prompt_label": "1986_I_1",
+    "closed_think": null,
+    "full_n_words": 2351
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "1992_I_1",
+    "closed_think": null,
+    "full_n_words": 3473
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "2012_I_1",
+    "closed_think": null,
+    "full_n_words": 914
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.3262,
+    "rep_onset": 162,
+    "prompt_label": "2023_I_1",
+    "closed_think": null,
+    "full_n_words": 3141
+   }
+  ],
+  "minus_v": [
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.0625,
+    "rep_onset": null,
+    "prompt_label": "1987_I_1",
+    "closed_think": null,
+    "full_n_words": 18749
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.0938,
+    "rep_onset": null,
+    "prompt_label": "1994_I_1",
+    "closed_think": null,
+    "full_n_words": 15014
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 4,
+    "rep_frac": 0.1013,
+    "rep_onset": 244,
+    "prompt_label": "2014_I_1",
+    "closed_think": null,
+    "full_n_words": 10701
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.0375,
+    "rep_onset": null,
+    "prompt_label": "1988_I_1",
+    "closed_think": null,
+    "full_n_words": 11405
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.08,
+    "rep_onset": null,
+    "prompt_label": "2000_I_1",
+    "closed_think": null,
+    "full_n_words": 8065
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.09,
+    "rep_onset": null,
+    "prompt_label": "2016_I_1",
+    "closed_think": null,
+    "full_n_words": 6970
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.12,
+    "rep_onset": 388,
+    "prompt_label": "2025_I_1",
+    "closed_think": null,
+    "full_n_words": 9711
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.06,
+    "rep_onset": null,
+    "prompt_label": "1983_I_1",
+    "closed_think": null,
+    "full_n_words": 5449
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.035,
+    "rep_onset": null,
+    "prompt_label": "1989_I_1",
+    "closed_think": null,
+    "full_n_words": 1551
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "2002_I_1",
+    "closed_think": null,
+    "full_n_words": 4647
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.03,
+    "rep_onset": null,
+    "prompt_label": "2020_I_1",
+    "closed_think": null,
+    "full_n_words": 2301
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "1984_I_1",
+    "closed_think": null,
+    "full_n_words": 6661
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 4,
+    "rep_frac": 0.4163,
+    "rep_onset": 231,
+    "prompt_label": "1990_I_1",
+    "closed_think": null,
+    "full_n_words": 10822
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 6,
+    "rep_frac": 0.395,
+    "rep_onset": 133,
+    "prompt_label": "2004_I_1",
+    "closed_think": null,
+    "full_n_words": 5332
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.295,
+    "rep_onset": 239,
+    "prompt_label": "2021_I_1",
+    "closed_think": null,
+    "full_n_words": 24272
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.1675,
+    "rep_onset": null,
+    "prompt_label": "1985_I_1",
+    "closed_think": null,
+    "full_n_words": 16739
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.12,
+    "rep_onset": null,
+    "prompt_label": "1991_I_1",
+    "closed_think": null,
+    "full_n_words": 15363
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.03,
+    "rep_onset": null,
+    "prompt_label": "2010_I_1",
+    "closed_think": null,
+    "full_n_words": 1125
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.2288,
+    "rep_onset": 420,
+    "prompt_label": "2022_I_1",
+    "closed_think": null,
+    "full_n_words": 3714
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.06,
+    "rep_onset": null,
+    "prompt_label": "1986_I_1",
+    "closed_think": null,
+    "full_n_words": 3430
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.03,
+    "rep_onset": null,
+    "prompt_label": "1992_I_1",
+    "closed_think": null,
+    "full_n_words": 12644
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "2012_I_1",
+    "closed_think": null,
+    "full_n_words": 1246
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 5,
+    "rep_frac": 0.3538,
+    "rep_onset": 186,
+    "prompt_label": "2023_I_1",
+    "closed_think": null,
+    "full_n_words": 11469
+   }
+  ],
+  "plus_v": [
+   {
+    "n_words_window": 800,
+    "rep_k": 5,
+    "rep_frac": 0.2362,
+    "rep_onset": 558,
+    "prompt_label": "1987_I_1",
+    "closed_think": null,
+    "full_n_words": 14205
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 4,
+    "rep_frac": 0.1437,
+    "rep_onset": 398,
+    "prompt_label": "1994_I_1",
+    "closed_think": null,
+    "full_n_words": 23745
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 5,
+    "rep_frac": 0.255,
+    "rep_onset": 150,
+    "prompt_label": "2014_I_1",
+    "closed_think": null,
+    "full_n_words": 20590
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 4,
+    "rep_frac": 0.1475,
+    "rep_onset": 511,
+    "prompt_label": "1988_I_1",
+    "closed_think": null,
+    "full_n_words": 16380
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.0575,
+    "rep_onset": 262,
+    "prompt_label": "2000_I_1",
+    "closed_think": null,
+    "full_n_words": 25540
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.1375,
+    "rep_onset": null,
+    "prompt_label": "2016_I_1",
+    "closed_think": null,
+    "full_n_words": 23762
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 7,
+    "rep_frac": 0.2687,
+    "rep_onset": 229,
+    "prompt_label": "2025_I_1",
+    "closed_think": null,
+    "full_n_words": 23764
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.0625,
+    "rep_onset": 289,
+    "prompt_label": "1983_I_1",
+    "closed_think": null,
+    "full_n_words": 2245
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "1989_I_1",
+    "closed_think": null,
+    "full_n_words": 1054
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.03,
+    "rep_onset": null,
+    "prompt_label": "2002_I_1",
+    "closed_think": null,
+    "full_n_words": 25857
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.165,
+    "rep_onset": null,
+    "prompt_label": "2020_I_1",
+    "closed_think": null,
+    "full_n_words": 1823
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.035,
+    "rep_onset": null,
+    "prompt_label": "1984_I_1",
+    "closed_think": null,
+    "full_n_words": 24874
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.105,
+    "rep_onset": null,
+    "prompt_label": "1990_I_1",
+    "closed_think": null,
+    "full_n_words": 24749
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 5,
+    "rep_frac": 0.4575,
+    "rep_onset": 294,
+    "prompt_label": "2004_I_1",
+    "closed_think": null,
+    "full_n_words": 22000
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 15,
+    "rep_frac": 0.4612,
+    "rep_onset": 285,
+    "prompt_label": "2021_I_1",
+    "closed_think": null,
+    "full_n_words": 12195
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.15,
+    "rep_onset": null,
+    "prompt_label": "1985_I_1",
+    "closed_think": null,
+    "full_n_words": 23762
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 8,
+    "rep_frac": 0.7825,
+    "rep_onset": 16,
+    "prompt_label": "1991_I_1",
+    "closed_think": null,
+    "full_n_words": 23691
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.0825,
+    "rep_onset": null,
+    "prompt_label": "2010_I_1",
+    "closed_think": null,
+    "full_n_words": 876
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 3,
+    "rep_frac": 0.2825,
+    "rep_onset": 287,
+    "prompt_label": "2022_I_1",
+    "closed_think": null,
+    "full_n_words": 2750
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 1,
+    "rep_frac": 0.0,
+    "rep_onset": null,
+    "prompt_label": "1986_I_1",
+    "closed_think": null,
+    "full_n_words": 18247
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 2,
+    "rep_frac": 0.2037,
+    "rep_onset": null,
+    "prompt_label": "1992_I_1",
+    "closed_think": null,
+    "full_n_words": 11667
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 42,
+    "rep_frac": 0.8,
+    "rep_onset": 159,
+    "prompt_label": "2012_I_1",
+    "closed_think": null,
+    "full_n_words": 14068
+   },
+   {
+    "n_words_window": 800,
+    "rep_k": 5,
+    "rep_frac": 0.4113,
+    "rep_onset": 92,
+    "prompt_label": "2023_I_1",
+    "closed_think": null,
+    "full_n_words": 17965
+   }
+  ]
+ }
+}

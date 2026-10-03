@@ -75,7 +75,8 @@ print("跑了 %d / 计划 %d" % (len(rows), len(rows)))
 for k in (CATCH, WRONG, MISSED, NOOUT):
     print("  %-9s %d" % (k, tally[k]))
 print()
-print("RESULT %s" % ("OK - 31/31 每条都打中了自己登记的那条判据，且没有一条多打"
+print("RESULT %s" % ("OK - %d/%d 每条都打中了自己登记的那条判据"
+                    % (tally[CATCH], len(rows))
                     if tally[MISSED] == tally[WRONG] == tally[NOOUT] == 0
                     else "BAD - 见上表"))
 sys.exit(0 if tally[MISSED] == tally[WRONG] == tally[NOOUT] == 0 else 1)

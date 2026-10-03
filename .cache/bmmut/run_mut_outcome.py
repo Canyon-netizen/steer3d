@@ -105,6 +105,18 @@ MUTS = {
     "J7": ("drops the single-strength and missing-random-arm limits", "J7"),
     # J8 唯一一条改 data-* 的：把 upOnly 写死成 1（与 −v 一样）。
     "J8": ("hardcodes the up-only blow-up count in the data attribute", "J0"),
+    # --- K 组：§4.17「跑飞」的机制 ---
+    # K1 的变异走「把可见文案换成别的退化说法」这条路：
+    # 只改 data-* 的话，K1 会全绿。
+    "K1": ("calls the +v blow-up verbosity instead of verbatim repetition", "K1"),
+    # K2 的变异是**把没到 0.05 说成已过** —— 这一条最危险，
+    # 因为数据没问题，只是读法被改成了「已证实」。
+    "K2": ("claims the controlled p passed 0.05", "K2"),
+    # K3 的变异把「不能引用」的警告整段删掉。
+    "K3": ("drops the cannot-quote warning for the selection-confounded cuts", "K3"),
+    "K4": ("collapses the two-layer mechanism conclusion into one claim", "K4"),
+    "K5": ("drops the random-arm / one-strength-point restrictions", "K5"),
+    "K6": ("hardcodes the +v strong-repetition count in the data attribute", "K0"),
 }
 
 
@@ -215,6 +227,21 @@ def verify_source_untouched():
         "data-dir-trap",
         "零强度臂逐字相同",
         "没到 0.05",
+        # §4.17 重复退化块。少了这几条，一条「删掉整块」的变异跑完之后，
+        # backup() 会把删干净的源码当成 pristine 存下来。
+        "data-repetition",
+        "data-rep-mechanism",
+        "data-rep-cannot",
+        "data-rep-item=\"controlled\"",
+        "data-rep-item=\"confounded\"",
+        "data-rep-item=\"why\"",
+        "逐字重复",
+        "不能引用",
+        "题集不同",
+        "不依赖那个 p",
+        "缺同范数",
+        "一个强度点",
+        "重复就是跑飞的全部机制",
     ]
     missing = [m for m in required if m not in s]
     if missing:
@@ -373,6 +400,73 @@ def apply(which):
              "             data-up-only={sd.blew_up.table_on_shared_zero_control.up_only_blew_up}\n",
              "             data-up-only={1}  // MUT_J8\n",
              "J8")
+    elif which == "K1":
+        # 只改可见文案，data-* 仍诚实 ⇒ 只查属性的判据会全绿。
+        edit(PANEL,
+             "            翻原文可见机制：模型卡在同一句上<b>逐字重复</b>直到撞上限，\n"
+             "            不是啰嗦、不是犹豫、不是答不出来而已。\n",
+             "            翻原文可见机制：模型变得<b>啰嗦啰嗦</b>，一直写不完。\n",
+             "K1a")
+        edit(PANEL,
+             "            <b>不依赖那个 p</b>；\n",
+             "            <b>依赖那个 p</b>；\n",
+             "K1b")
+    elif which == "K2":
+        # 数据一个都不动 —— 只把「没到 0.05」改成「已过 0.05」。
+        # 这是本组最危险的一类：产物完全正确，只有**读法**被改成了已证实。
+        edit(PANEL,
+             "                <b className=\"text-amber-300\">\n"
+             "                  没到 0.05 —— 方向一致、量级 4 倍，但只是弱证据\n"
+             "                </b>\n",
+             "                <b className=\"text-emerald-300\">\n"
+             "                  已过 0.05 —— 机制已被证实\n"
+             "                </b>\n",
+             "K2")
+    elif which == "K3":
+        # 删掉「更小的 p 不能引用」整条警告：数字都还在页面上，
+        # 但读者会被引导去引用被选择效应污染的那一档。
+        edit(PANEL,
+             '            <li data-rep-item="confounded">\n'
+             "              <b>看起来更好的那些数字不能引用。</b>把窗口放大到{\" \"}\n"
+             "              {dirty.map((c) => c.words).join(\" / \")} 词时 p 会小到{\" \"}\n"
+             "              {dirty.map((c) => c.fisher_p_plus_vs_zero?.toFixed(3))\n"
+             "                 .filter((x) => x != null).join(\" / \")}，\n"
+             "              看起来强得多 —— 但那一档<b>三臂入选的题集不同</b>：\n"
+             "              入选「全文够长」的题，本身就是长的、\n"
+             "              也就是更容易没跑完的题，而没跑完和 +v 相关。\n"
+             "              ⇒ 那是<b>按长度筛题</b>挑出来的，不是长度受控的结果。\n"
+             "            </li>\n",
+             '            <li data-rep-item="confounded">\n'
+             "              把窗口放大到更长时 p 会更小，效应看起来更强。\n"
+             "            </li>\n",
+             "K3")
+    elif which == "K4":
+        # 把「两层」压成一层：只留「已证实」那半句。
+        edit(PANEL,
+             "              「+v 会把生成推入逐字重复循环」这条，机制上直接可见\n"
+             "              （重复 {pv.rep_k_max} 次 vs 对照 {z.rep_k_max} 次），\n"
+             "              <b>不依赖那个 p</b>；\n"
+             "              但「重复比对照显著更多」在严格长度受控下{\" \"}\n"
+             "              <b>只到弱证据</b>。\n",
+             "              「+v 会把生成推入逐字重复循环，且重复比对照显著更多」"
+             "这一条<b>已经被证实</b>。\n",
+             "K4")
+    elif which == "K5":
+        edit(PANEL,
+             "            <b>不能说的</b>：不能说「重复退化是 confidence 这个概念触发的」——\n"
+             "            还是<b>缺同范数随机方向臂</b>；也不能说「重复就是跑飞的全部机制」——\n"
+             "            这里只量了逐字重复，撞上限还可能有别的成因。\n"
+             "            另外这份比较只看 {rep.strength === 0.2 ? \"s = 0.2\" : rep.strength} 的{\" \"}\n"
+             "            {rep.layer === 20 ? \"L20\" : `L${rep.layer}`}，\n"
+             "            <b>一个强度点、一层</b>。\n",
+             "            <b>可以说的</b>：重复退化是 confidence 概念触发的，\n"
+             "            也是跑飞的全部机制，且在任何强度、任何层都成立。\n",
+             "K5")
+    elif which == "K6":
+        edit(PANEL,
+             "             data-rep-plus={String(best.plus_v.n_strong)}\n",
+             "             data-rep-plus={1}  // MUT_K6\n",
+             "K6")
     elif which == "O12":
         # 数字一个都不动：净变化仍从 answer_power.json 读、data-* 仍诚实。
         edit(PANEL,

@@ -34,6 +34,7 @@ const ANS = JSON.parse(readFileSync(DATA + '/answer_readout.json', 'utf8'));
 const ARM = JSON.parse(readFileSync(DATA + '/arm_asymmetry.json', 'utf8'));
 const PW  = JSON.parse(readFileSync(DATA + '/answer_power.json', 'utf8'));
 const SD  = JSON.parse(readFileSync(DATA + '/steer_directions.json', 'utf8'));
+const RP  = JSON.parse(readFileSync(DATA + '/steer_repetition.json', 'utf8'));
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = [];
@@ -157,6 +158,34 @@ try {
             downOnly: g('data-down-only'), mcnemarP: g('data-mcnemar-p'),
             upRw: g('data-up-rw'), upNet: g('data-up-net'),
             opposite: g('data-opposite'), lenP: g('data-len-p'),
+          };
+        })(),
+        rep: (() => {
+          const d = el.querySelector('[data-repetition]');
+          if (!d) return { missing: true, text: '', items: {}, cannot: null,
+                           mechanism: null };
+          const g = a => d.getAttribute(a);
+          const items = {};
+          d.querySelectorAll('[data-rep-item]').forEach(li => {
+            items[li.getAttribute('data-rep-item')] =
+              (li.innerText || '').replace(/\\s+/g, ' ').trim();
+          });
+          const cn = d.querySelector('[data-rep-cannot]');
+          const mc = d.querySelector('[data-rep-mechanism]');
+          return {
+            missing: false,
+            text: (d.innerText || '').replace(/\\s+/g, ' ').trim(),
+            items,
+            cannot: cn ? (cn.innerText || '').replace(/\\s+/g, ' ').trim() : null,
+            mechanism: mc ? (mc.innerText || '').replace(/\\s+/g, ' ').trim() : null,
+            words: g('data-rep-words'), plus: g('data-rep-plus'),
+            zero: g('data-rep-zero'), minus: g('data-rep-minus'),
+            p: g('data-rep-p'), pMinus: g('data-rep-p-minus'),
+            sameSet: g('data-rep-same-set'), dirtyCuts: g('data-rep-dirty-cuts'),
+            maxPlus: g('data-rep-max-plus'), maxZero: g('data-rep-max-zero'),
+            maxMinus: g('data-rep-max-minus'),
+            k: g('data-rep-k'), thresh: g('data-rep-thresh'),
+            n: g('data-rep-n'),
           };
         })(),
         rows: el.querySelectorAll('[data-answer-rows] > div').length,
@@ -638,6 +667,109 @@ try {
       && /随机方向臂/.test(TR)
       && /吸引域/.test(TR),
       TR ? TR.slice(-230) : '缺 [data-dir-trap]');
+
+  // ==================== K 组：「跑飞」的机制 ====================
+  // 方向块只说了 +v 撞上限，**没说怎么坏的**。K 组钉住机制，
+  // 并且钉住一个更要紧的东西：**长度受控之后这个效应还剩多少**。
+  const R2 = state.rep || {};
+  const cleanCuts = RP.cut_sweep.filter(c => c.same_problem_set);
+  const dirtyCuts = RP.cut_sweep.filter(c => !c.same_problem_set);
+  const bestCut = cleanCuts.reduce(
+    (a, b) => ((a.fisher_p_plus_vs_zero ?? 1) <= (b.fisher_p_plus_vs_zero ?? 1) ? a : b));
+  const armOf = n => RP.summary.find(s => s.arm === n);
+
+  rec('K0 重复退化块存在，且受控切点上的 5 个数字与产物逐值相同（可见文案 + 属性两处）',
+      !R2.missing
+      && Number(R2.words) === bestCut.words
+      && Number(R2.plus) === bestCut.plus_v.n_strong
+      && Number(R2.zero) === bestCut.zero.n_strong
+      && Number(R2.minus) === bestCut.minus_v.n_strong
+      && Math.abs(Number(R2.p) - bestCut.fisher_p_plus_vs_zero) < 1e-9
+      && Number(R2.maxPlus) === armOf('plus_v').rep_k_max
+      && Number(R2.maxZero) === armOf('zero').rep_k_max
+      && Number(R2.maxMinus) === armOf('minus_v').rep_k_max
+      && Number(R2.k) === RP.k_grams
+      && Number(R2.thresh) === RP.strong_repeat_threshold,
+      R2.missing ? '缺 [data-repetition]'
+        : `words=${R2.words} ${R2.zero}/${R2.minus}/${R2.plus} `
+          + `p=${R2.p} max=${R2.maxZero}/${R2.maxMinus}/${R2.maxPlus} `
+          + `k=${R2.k} thresh=${R2.thresh} | 产物 words=${bestCut.words} `
+          + `${bestCut.zero.n_strong}/${bestCut.minus_v.n_strong}/`
+          + `${bestCut.plus_v.n_strong} `
+          + `p=${bestCut.fisher_p_plus_vs_zero} max=`
+          + `${armOf('zero').rep_k_max}/${armOf('minus_v').rep_k_max}/`
+          + `${armOf('plus_v').rep_k_max}`);
+
+  // 机制必须说清楚是「逐字重复」，且把三臂的最强重复次数都印出来。
+  rec('K1 机制必须印出「逐字重复」并给出三臂的最强重复次数',
+      !!R2.mechanism
+      && /逐字重复/.test(R2.mechanism)
+      && R2.mechanism.includes(String(armOf('plus_v').rep_k_max))
+      && R2.mechanism.includes(String(armOf('zero').rep_k_max))
+      && R2.mechanism.includes(String(armOf('minus_v').rep_k_max))
+      && R2.mechanism.includes(String(RP.k_grams))
+      && R2.mechanism.includes(String(RP.strong_repeat_threshold))
+      // 机制层面的硬事实：+v 的最强重复必须明显超过两个对照臂。
+      // 这是**不依赖 p** 的那一半结论，必须由判据守住。
+      && armOf('plus_v').rep_k_max > 3 * armOf('zero').rep_k_max,
+      R2.mechanism ? R2.mechanism.slice(0, 230) : '缺 [data-rep-mechanism]');
+
+  const CTRL = R2.items.controlled || '';
+  rec('K2 长度受控那一格必须印出，且 p 未到 0.05 时必须标「弱证据」（不许多余地写成已证实）',
+      bestCut.fisher_p_plus_vs_zero > 0.05
+      && CTRL.includes(String(bestCut.plus_v.n_strong))
+      && CTRL.includes(String(bestCut.zero.n_strong))
+      && CTRL.includes(String(bestCut.minus_v.n_strong))
+      && CTRL.includes(bestCut.fisher_p_plus_vs_zero.toFixed(3))
+      && /没到\s*0\.05/.test(CTRL)
+      && /弱证据/.test(CTRL)
+      && !/已过\s*0\.05/.test(CTRL)
+      // ⚠ 这里原本写的是 Number(R2.sameSet) === true，而面板给的是
+      //   String(true) = "true"，Number("true") 是 **NaN**，NaN === true 恒假
+      //   ⇒ 判据在干净源码上就是红的。布尔量不能靠 String()/Number() 过属性。
+      && Number(R2.sameSet) === 1
+      && bestCut.plus_v.n_eligible === bestCut.zero.n_eligible
+      && bestCut.plus_v.n_eligible === bestCut.minus_v.n_eligible,
+      CTRL ? CTRL.slice(0, 240) : '缺 [data-rep-item="controlled"]');
+
+  // ⚠ 本组最容易犯的错：把 3200 词那档的 p=0.016 印成结论。
+  //   那一档三臂入选的题集不同（按长度筛题），是**选择效应**。
+  const CF = R2.items.confounded || '';
+  rec('K3 必须点名「窗口放大后的更小 p 不能引用」，并印出被污染的切点',
+      !!CF
+      && dirtyCuts.length > 0
+      && dirtyCuts.every(c => R2.dirtyCuts.includes(String(c.words)))
+      && /不能引用/.test(CF)
+      && /题集不同/.test(CF)
+      && /筛/.test(CF)
+      && dirtyCuts.every(c => CF.includes(c.fisher_p_plus_vs_zero.toFixed(3)))
+      // 反向断言：任何一档被标为 CONFIRMED 的，都必须真的是同题入选
+      && dirtyCuts.every(c => c.same_problem_set === false),
+      CF ? CF.slice(0, 240) : '缺 [data-rep-item="confounded"]');
+
+  // 机制结论必须**分两层**：可见的重复（不依赖 p）与统计分离（只有弱证据）。
+  const WY = R2.items.why || '';
+  rec('K4 机制结论必须分两层：重复可见 ≠ 重复显著，强的证据仍是闭合率',
+      !!WY
+      && /不依赖那个\s*p|不依赖.{0,6}p/.test(WY)
+      && /弱证据/.test(WY)
+      && WY.includes(SD.blew_up.mcnemar_exact_p.toExponential(2))
+      && /闭合率/.test(WY)
+      && /不受文本长度影响/.test(WY),
+      WY ? WY.slice(0, 240) : '缺 [data-rep-item="why"]');
+
+  const CN = R2.cannot || '';
+  rec('K5 不能说的必须印出：缺同范数随机方向臂 / 只是一个强度点一层 / 重复不是全部机制',
+      !!CN
+      && /随机方向臂/.test(CN)
+      && /缺同范数/.test(CN)
+      && /一个强度点/.test(CN)
+      && /一层|一\s*层/.test(CN)
+      // 面板上写的是「不能说『重复就是跑飞的全部机制』」——
+      // 判据必须读**页面上真有的那串字**，不是我脑子里转述过的那句。
+      && /重复就是跑飞的全部机制/.test(CN)
+      && /不能说/.test(CN),
+      CN ? CN.slice(0, 240) : '缺 [data-rep-cannot]');
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {
