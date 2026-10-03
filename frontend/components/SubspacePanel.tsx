@@ -129,10 +129,14 @@ export default function SubspacePanel() {
   const opIdx = Object.keys(h.threshold_sensitivity)
     .findIndex(k => Number(k) === Number(h.separation_threshold));
 
+  // data-lower-bound-old 已删：G6 逐字核了那句话里的「上一版…它是 12 条」，
+  // 留着就是同一个数的第二个来源。
+  // ⚠ 这条注释第一次被我放进 JSX 属性列表里、再挪到 return ( 里面，
+  //   两次都直接 Syntax Error —— 属性列表与「根元素并列」都不是合法的
+  //   注释位置。{/* */} 只能出现在 **JSX children** 里。
   return (
     <div className={box} data-subspace="ready"
          data-lower-bound={h.readable_directions_lower_bound}
-         data-lower-bound-old={h.readable_directions_lower_bound_old}
          data-named-axes={h.named_axes}
          data-n-candidates={h.n_candidates}
          data-n-rows={d.surface_directions.length}>
@@ -155,8 +159,9 @@ export default function SubspacePanel() {
            data-bound-caveat="true"
            data-bound-old={h.readable_directions_lower_bound_old}
            data-order-perm={h.order_dependence.n_perm}>
-        <p className="text-[9.5px] text-amber-200/90 leading-snug mb-1"
-           data-bound-caveat-text="true">
+        {/* data-bound-caveat-text 已删：G6 读的是这一整块的 innerText，
+            这个标记只是把它自己标出来，没有承载任何额外信息。 */}
+        <p className="text-[9.5px] text-amber-200/90 leading-snug mb-1">
           <b>「至少 {h.readable_directions_lower_bound} 条」是下界，而且只在两个前提下成立：</b>
           ① 候选集合就是这 {h.n_candidates} 个 —— 每加一批观测量，计数就可能涨
           （上一版候选只有 20 个里的 14 个时，它是 {h.readable_directions_lower_bound_old} 条）；
@@ -225,19 +230,25 @@ export default function SubspacePanel() {
         </p>
       </div>
 
+      {/* 行上原来还发过 data-diagonal / data-floor / data-decay ——
+          同一行单元格里以 data-kind + data-value 渲染，而 B1/B3 已核
+          那里的**属性与可见文字**。留着等于同一个事实有两个来源：
+          那边改了这边不会改，且没有任何判据会红（§8.9 第八笔那个形状）。
+          ⇒ 删掉行级重复，保留 data-decay-value 那一处为唯一来源。
+
+          ⚠ 这条注释第一次被我放进 .map((r) => ( 之后的括号里。
+            那里是**表达式位置**、不是 JSX children 位置 ⇒ Syntax Error。
+            三个合法位置只有：JSX children（元素内部）、
+            括号表达式**之外**的 // 行注释、以及 return ( 之外。 */}
       <div className="flex flex-col gap-1.5">
         {d.surface_directions.map((r) => (
           <div key={r.key} data-subspace-row={r.key}
-               data-diagonal={r.diagnostic.diagonal}
-               data-floor={r.diagnostic.floor}
-               data-decay={r.decay_x20}
                className="rounded border border-border/60 p-1.5">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-[10.5px] text-gray-300">
                 <span className="font-mono">{r.key}</span> · {r.label}
               </span>
-              <span className="text-[9px] font-mono text-gray-500"
-                    data-decay-label="true">
+              <span className="text-[9px] font-mono text-gray-500">
                 Δ=20 塌 <span data-decay-value={r.decay_x20}>{r.decay_x20}×</span>
               </span>
             </div>
@@ -299,9 +310,10 @@ export default function SubspacePanel() {
       </div>
 
       {/* 位置轴对照：没有它，「六条都塌」和「装置测不出持续」分不开 */}
+      {/* data-control-delta100 已删：G7 逐字核了 control.note 全文（那句里就有
+          Δ=100 那个数），属性是它的第二个来源。 */}
       <div className="rounded border border-emerald-800/60 bg-emerald-900/10 p-1.5 mt-1.5"
-           data-control-row="true"
-           data-control-delta100={d.control.delta["100"]}>
+           data-control-row="true">
         <p className="text-[9.5px] text-emerald-300/90 leading-snug">
           <b>装置阳性对照：{d.control.label}</b>
           {" "}Δ=0 <span className="font-mono">{d.control.delta["0"].toFixed(4)}</span> →{" "}

@@ -217,11 +217,14 @@ export default function AxisReadoutPanel() {
               </div>
 
               {/* 归属检验：同一个 w* 对四条轴各算一次。缺了它，"测到"分不清是谁的。 */}
+              {/* data-strongest 已删：D4 从产物独立重算 strongest 并核页面上的
+                  角色标记，这个属性是同一个结论的第二个来源。
+                  ⚠ 注释要放在**三元表达式之前**（children 位置），
+                  放进 `? (` 括号里同样 Syntax Error。 */}
               {a.specificity?.cos_per_axis ? (
                 <div className="mt-1 rounded bg-bg/30 px-1 py-1"
                      data-specificity={ax}
-                     data-specific={String(a.specificity.specific)}
-                     data-strongest={a.specificity.strongest_axis}>
+                     data-specific={String(a.specificity.specific)}>
                   <div className="text-[8.5px] text-gray-600">
                     同一格 <span className="font-mono text-gray-500">{a.specificity.cell}</span>{" "}
                     的 w* 对四条轴：
