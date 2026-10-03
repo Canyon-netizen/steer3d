@@ -100,17 +100,17 @@ try {
         })(),
         power: (() => {
           const p = el.querySelector('[data-answer-power]');
-          // ⚠ 同上面 arm 分支的老教训：缺失时返回**完整**的键（值置
-          //   null），不能让下游 P.items.flips 抛 TypeError 被外层
-          //   catch 吞掉 —— 那会把 I 组后面几条一起记成「装置错」，
-          //   看着像「只有 I0 红」。
+          // ⚠ 缺失时返回**完整**的键（值置 null），不能让下游
+          //   P.items.invariant 抛 TypeError 被外层 catch 吞掉 ——
+          //   那会把 I 组后面几条一起记成「装置错」，看着像「只有 I0 红」。
           // ⚠ 这整段在一个**模板字面量**里：反斜杠要写两遍（\\s），
           //   且注释里绝不能出现反引号 —— 两者都会以很难看懂的方式
           //   把整个 eval 打挂，报错还指在第 64 行的开头。
           if (!p) return { missing: true, text: '', items: {}, notClaimed: null,
-                           net: null, flips: null, needed: null,
-                           shipped: null, batch: null, ciLo: null, ciHi: null,
-                           outDomain: null };
+                           net: null, nComplete: null, nIncomplete: null,
+                           nShipped: null, changed: null, w2w: null,
+                           flips: null, needed: null, maxFlips: null,
+                           baseRight: null, steerRight: null };
           const g = a => p.getAttribute(a);
           const items = {};
           p.querySelectorAll('[data-power-item]').forEach(li => {
@@ -123,10 +123,12 @@ try {
             text: (p.innerText || '').replace(/\\s+/g, ' ').trim(),
             items,
             notClaimed: nc ? (nc.innerText || '').replace(/\\s+/g, ' ').trim() : null,
-            net: g('data-net-change'), flips: g('data-flips'),
-            needed: g('data-flips-needed'), shipped: g('data-n-shipped'),
-            batch: g('data-n-batch'), ciLo: g('data-ci-lo'), ciHi: g('data-ci-hi'),
-            outDomain: g('data-out-domain'),
+            net: g('data-net-change'), nComplete: g('data-n-complete'),
+            nIncomplete: g('data-n-incomplete'), nShipped: g('data-n-shipped'),
+            changed: g('data-changed'), w2w: g('data-wrong2wrong'),
+            flips: g('data-flips'), needed: g('data-flips-needed'),
+            maxFlips: g('data-max-flips'),
+            baseRight: g('data-base-right'), steerRight: g('data-steer-right'),
           };
         })(),
         rows: el.querySelectorAll('[data-answer-rows] > div').length,
@@ -274,37 +276,59 @@ try {
       && H.limitation.includes(String(A.n_pairs)),
       H.limitation ? H.limitation.slice(0, 200) : '缺 [data-arm-limitation]');
 
-  /* ==================== I 组：「净变化 0」是欠功效不是零效应 ==================== */
-  // 这一块补的是面板**自己**的头条数字。原来印的是
-  //   「Net change in correct answers: 0. Steering moved things; it did
-  //    not make them better.」
-  // 后半句把「没算出来」读成了「没有」—— 而这 10 题的分母是按
-  // 「两臂答案不同」筛出来的，符号检验要 10 里 6 个同向翻转才够 p<0.05，
-  // 实测 2 个一正一反。判据盯的不是数字对不对（数字本来就对），
-  // 盯的是**这个 0 被允许读成什么**。
+  // ==================== I 组：「净变化 0」是什么 ====================
+  // 这一块盯的不是数字对不对（数字本来就对），盯的是
+  // **这个 0 被允许读成什么**。
+  //
+  // v2（§4.15）把 §4.14 的三条结论推翻了，所以 I 组也重写了：
+  //  v1 只看了 10 个入表题，于是把「上界 43.5%」「上限只有 10 个翻转」
+  //     当成事实印在页面上。查了 20 个完整配对之后：
+  //     43.5% 是错的（改变率是 10/20 = 50% 的点估计），
+  //     「上限 10 个」也是错的（20 个配对够得着 6 个）。
+  //  更重要的是 v1 最大的担心（分母被筛过）**可以证伪**：
+  //     被剔除的题两臂答案相同 ⇒ verdict 恒为 X->X ⇒ 贡献恒为 0。
   const P = state.power || {};
   const NC = P.notClaimed || '';
   const f3 = n => Number(n).toFixed(3);
   const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const V = PW.full_verdicts || {};
+  const pctTxt = x => `${(x * 100).toFixed(1)}%`;  // ⚠ 必须与页面 pct() 同为 1 位
 
-  rec('I0 功效块存在，且六个关键数字与 answer_power.json 逐值相同',
+  rec('I0 功效块存在，且 11 个关键数字与 answer_power.json 逐值相同',
       !P.missing
       && Number(P.net) === PW.net_change
+      && Number(P.nComplete) === PW.n_complete_pairs
+      && Number(P.nIncomplete) === PW.n_incomplete_pairs
+      && Number(P.nShipped) === PW.n_shipped
+      && Number(P.changed) === PW.changed_n
+      && Number(P.w2w) === PW.changed_but_still_wrong
       && Number(P.flips) === PW.flips
       && Number(P.needed) === PW.flips_needed_for_p05
-      && Number(P.shipped) === PW.n_shipped
-      && Number(P.batch) === PW.n_problems_in_batch
-      && Math.abs(Number(P.ciLo) - PW.up_rate_ci95[0]) < 1e-12
-      && Math.abs(Number(P.ciHi) - PW.up_rate_ci95[1]) < 1e-12,
+      && Number(P.maxFlips) === PW.max_possible_flips
+      && Number(P.baseRight) === PW.baseline_correct
+      && Number(P.steerRight) === PW.steered_correct,
       P.missing ? '缺 [data-answer-power]'
-        : `net=${P.net} flips=${P.flips} needed=${P.needed} `
-          + `n=${P.shipped}/${P.batch} ci=[${P.ciLo}, ${P.ciHi}] | 产物 `
-          + `net=${PW.net_change} flips=${PW.flips} needed=${PW.flips_needed_for_p05} `
-          + `n=${PW.n_shipped}/${PW.n_problems_in_batch} `
-          + `ci=[${PW.up_rate_ci95[0]}, ${PW.up_rate_ci95[1]}]`);
+        : `net=${P.net} 完整=${P.nComplete} 未闭合=${P.nIncomplete} 入表=${P.nShipped} `
+          + `changed=${P.changed} w2w=${P.w2w} flips=${P.flips} need=${P.needed} `
+          + `max=${P.maxFlips} 对=${P.baseRight}->${P.steerRight} | 产物 `
+          + `net=${PW.net_change} 完整=${PW.n_complete_pairs} `
+          + `未闭合=${PW.n_incomplete_pairs} 入表=${PW.n_shipped} `
+          + `changed=${PW.changed_n} w2w=${PW.changed_but_still_wrong} `
+          + `flips=${PW.flips} need=${PW.flips_needed_for_p05} `
+          + `max=${PW.max_possible_flips} 对=${PW.baseline_correct}->${PW.steered_correct}`);
 
-  // 屏幕上三个地方说同一件事：verdict 标签、功效块的 data-net-change、
-  // 另一份产物。任一处漂移都会让读者看到两个互相打架的净变化。
+  // ⚠ 渲染完整性：这块是**纯 JSX**，不是 markdown 渲染器。
+  //   我把产物 verdict 字符串里的 `**强调**` 直接抄进了 JSX，
+  //   于是页面原样印出 `**不是数据碰巧**` —— 判据全绿，因为
+  //   「文字在」这一条它查得出；判据查不出的是「渲染对了没有」。
+  //   是截图看出来的。⇒ 这类缺陷必须有一条专门的守卫。
+  rec('I0b 功效块内不得出现未渲染的 markdown 强调记号 **',
+      !P.missing && !P.text.includes('**'),
+      P.missing ? '缺块' : (P.text.includes('**')
+        ? `块内出现 **：${P.text.slice(0, 120)}`
+        : '块内无 ** （纯 JSX 渲染，markdown 记号会原样印出）'));
+
+  // 任何一处漂移，读者就会看到两个互相打架的净变化。
   const chipNum = k => {
     const v = state.verdicts.find(x => x.k === k);
     const m = v && v.t.match(/\d+/);
@@ -313,18 +337,32 @@ try {
   const netFromChips = chipNum('wrong->right') - chipNum('right->wrong');
   const netFromAns = (ANS.selection.by_verdict['wrong->right'] || 0)
                    - (ANS.selection.by_verdict['right->wrong'] || 0);
-  rec('I1 屏幕上的「净变化」必须等于同屏 verdict 标签推出的净变化（三处一致）',
+  // 20 对全表自洽：四类之和 = 完整配对数；答对数两种算法相等；净变化 = 差
+  const fullSum = Object.values(V).reduce((a, b) => a + b, 0);
+  const baseV = (V['right->right'] || 0) + (V['right->wrong'] || 0);
+  const steerV = (V['right->right'] || 0) + (V['wrong->right'] || 0);
+  rec('I1 净变化在四处一致（verdict 标签 / data-* / 完整 20 对全表 / 另一份产物）',
       Number.isFinite(netFromChips)
       && netFromChips === netFromAns
       && netFromChips === Number(P.net)
-      && netFromChips === PW.net_change,
-      `verdict 标签 ${chipNum('wrong->right')}−${chipNum('right->wrong')}`
-      + `=${netFromChips} | data-net-change=${P.net} | answer_power=${PW.net_change}`
-      + ` | answer_readout 推出=${netFromAns}`);
+      && netFromChips === PW.net_change
+      && fullSum === PW.n_complete_pairs
+      && baseV === PW.baseline_correct
+      && steerV === PW.steered_correct
+      && baseV - steerV === -PW.net_change
+      // ⚠ 这一条是 O21 逼出来的：O21 把**印出来的**基线答对数写死成 10，
+      //   而 data-* 属性仍诚实 ⇒ 前面的算术全部照样通过。
+      //   ⇒ 凡是「属性诚实 / 文案撒谎」那一类变异，判据**必须**同时
+      //     读可见文案，不能只读属性。同族的教训见 O14 与 §4.15.6。
+      && new RegExp('基线答对\\s*' + esc(PW.baseline_correct)).test(P.text)
+      && new RegExp('注入后答对\\s*' + esc(PW.steered_correct)).test(P.text),
+      `标签 ${netFromChips} | data-net-change=${P.net} | 产物=${PW.net_change} `
+      + `| 完整 20 对全表 四类和=${fullSum}(应=${PW.n_complete_pairs}) `
+      + `答对 ${baseV}/${steerV}(应=${PW.baseline_correct}/${PW.steered_correct})`
+      + ` | 可见「基线答对 ${PW.baseline_correct}」=`
+      + `${new RegExp('基线答对\\s*' + esc(PW.baseline_correct)).test(P.text)}`);
 
   // ⚠ 反向断言：零效应读法**只能**以否定句形式出现。
-  //   「干预对答案正确性无影响」这句话在正确版本里出现且仅出现一次，
-  //   并且被「不能说」领着；一旦被改成正面陈述，这条立刻红。
   const zeroClaimCount = (NC.match(/干预对答案正确性无影响/g) || []).length;
   rec('I2 「净变化 0」必须标为欠功效，且「无影响」只允许出现在否定句里',
       !/did not make them better/i.test(state.text)
@@ -333,84 +371,124 @@ try {
       && zeroClaimCount === 1
       && new RegExp('不能说[^。]*干预对答案正确性无影响').test(NC),
       `欠功效=${/欠功效/.test(P.text)} 不是零效应=${/不是零效应/.test(P.text)} `
-      + `「无影响」出现 ${zeroClaimCount} 次（在 not_claimed 内，`
-      + `被「不能说」领着=${new RegExp('不能说[^。]*干预对答案正确性无影响').test(NC)}）`
+      + `「无影响」出现 ${zeroClaimCount} 次且被「不能说」领着=`
+      + `${new RegExp('不能说[^。]*干预对答案正确性无影响').test(NC)}`
       + ` | 旧零效应句仍在=${/did not make them better/i.test(state.text)}`);
 
-  // 为什么 0 不是零效应：**核心算术必须印在屏幕上**。
-  const FI = P.items.flips || '';
-  rec('I3 必须印出「要 p<0.05 需要 N 个同向翻转」与本设计上限',
-      new RegExp('需要\\s*' + esc(PW.flips_needed_for_p05) + '\\s*个同向翻转').test(FI)
-      && new RegExp('上限只有\\s*' + esc(PW.n_shipped) + '\\s*个').test(FI)
-      && new RegExp('符号检验').test(FI)
-      && new RegExp('p\\s*<\\s*0\\.05').test(FI)
-      && FI.includes(String(PW.flips))
-      && FI.includes(String(PW.two_sided_sign_p_if_all_same_direction)),
-      FI ? FI.slice(0, 170) : '缺 [data-power-item="flips"]');
+  // 为什么 0 不是零效应：核心算术必须印在屏幕上。
+  // ⚠「上限够得着」这一条是 v2 撤回 v1 错误的地方，判据要盯住。
+  const PWITEM = P.items.power || '';
+  rec('I3 必须印出「需 N 个同向翻转」，且 20 对**够得着**（v1 说上限只有 10，已撤回）',
+      new RegExp('需要\\s*' + esc(PW.flips_needed_for_p05) + '\\s*个同向翻转').test(PWITEM)
+      && new RegExp('够得着').test(PWITEM)
+      && new RegExp('最多\\s*' + esc(PW.max_possible_flips) + '\\s*个').test(PWITEM)
+      && new RegExp('符号检验').test(PWITEM)
+      && new RegExp('p\\s*<\\s*0\\.05').test(PWITEM)
+      && PWITEM.includes(String(PW.two_sided_sign_p_if_all_same_direction)),
+      PWITEM ? PWITEM.slice(0, 190) : '缺 [data-power-item="power"]');
 
-  const CI = P.items.ci || '';
-  rec('I4 翻转率 95% CI 两端与产物一致（上界宽这件事不许被压窄）',
-      CI.includes(f3(PW.up_rate_ci95[0]))
-      && CI.includes(f3(PW.up_rate_ci95[1]))
-      && new RegExp('Clopper').test(CI)
-      && (PW.up_rate_ci95[1] - PW.up_rate_ci95[0]) > 0.1,
-      CI ? CI.slice(0, 170) : '缺 [data-power-item="ci"]');
+  // 破坏率/修复率的 95% 区间。v1 用的是 1/10 的单侧区间，v2 换成
+  // 诚实分母下的 1/7 与 1/13 —— 两个都要与产物逐位相同。
+  rec('I4 破坏率 1/基线答对数 与 修复率 1/（完整数−基线答对数）两对 CI 与产物一致',
+      new RegExp('破坏率是\\s*1\\/' + esc(PW.break_denominator)).test(PWITEM)
+      && new RegExp('修复率是\\s*1\\/' + esc(PW.fix_denominator)).test(PWITEM)
+      && PWITEM.includes(f3(PW.break_rate_ci95[0]))
+      && PWITEM.includes(f3(PW.break_rate_ci95[1]))
+      && PWITEM.includes(f3(PW.fix_rate_ci95[0]))
+      && PWITEM.includes(f3(PW.fix_rate_ci95[1]))
+      && PW.break_denominator + PW.fix_denominator === PW.n_complete_pairs
+      && (PW.break_rate_ci95[1] - PW.break_rate_ci95[0]) > 0.1,
+      PWITEM.slice(-190));
 
-  // 「不能说的话」四条：非随机样本 / 单轴单档 / 正臂缺失 / L7 未测。
-  rec('I5 「不能说的话」必须含：非随机样本 / 单轴单档 / L7 一次都没测',
+  // 「不能说的话」：非随机轴 / 单档 / 正臂缺失 / L7 未测 /
+  // 不能说准确率没下降 / 那 3 题完全未知。
+  rec('I5 「不能说的话」必须含：不能说准确率没下降 / 非随机样本 / L7 未测 / 3 题未知',
       !!NC
-      && /随机样本/.test(NC)
-      && /筛过|挑出来/.test(NC)
+      && /不能说[^。]*准确率没有下降/.test(NC)
+      && /1 修 1 破/.test(NC)
+      && /随机样本|筛过|挑出来/.test(NC)
       && NC.includes(PW.direction)
       && NC.includes(String(PW.strength))
       && /confidence_up/.test(NC)
       && /L7/.test(NC)
-      && /一次都没测/.test(NC),
-      NC ? NC.slice(0, 210) : '缺 [data-power-not-claimed]');
+      && /一次都没测/.test(NC)
+      // 两条必须与实际文案逐字对齐：配对数后面跟「不是…随机样本」，
+      // 被剔掉的题数后面跟「不是随机抽掉的」。
+      && new RegExp(esc(PW.n_complete_pairs) + '\\s*个配对也?不是').test(NC)
+      && new RegExp(esc(PW.n_incomplete_pairs)
+                    + '\\s*题\\s*不是随机抽掉的').test(NC),
+      NC ? NC.slice(0, 280) : '缺 [data-power-not-claimed]');
 
-  rec('I6 必须印出选择效应：入选条件之一是「两臂答案不同」，且 23→10 与产物一致',
-      Number(P.batch) === PW.n_problems_in_batch
-      && Number(P.shipped) === PW.n_shipped
-      && P.text.includes(String(PW.n_problems_in_batch))
-      && P.text.includes(String(PW.n_shipped))
-      && /两臂答案不同/.test(P.text),
-      P.text.slice(0, 150));
+  // 去向分解必须逐项印出，且 0 那一类也要印 —— 「解析不出 0 题」
+  // 是一条被 v1 猜错、v2 查实的事实。
+  const UK = P.items.unknown || '';
+  rec('I6 完整/未闭合的划分与去向分解（只跑完一臂 / 都没跑完 / 解析不出）逐项与产物一致',
+      Number(P.nComplete) + Number(P.nIncomplete) === PW.n_problems_in_batch
+      && UK.includes(String(PW.incomplete_breakdown.one_arm_closed))
+      && UK.includes(String(PW.incomplete_breakdown.neither_closed))
+      && new RegExp('解析不出的是\\s*' + esc(PW.incomplete_breakdown.unparseable) + '\\s*题').test(UK)
+      && new RegExp('真正未知的只有\\s*' + esc(PW.n_incomplete_pairs) + '\\s*题').test(UK)
+      // ⚠ 这一条是 O15 逼出来的：O15 把**正文里**的「20 题」改成「10 题」
+      //   （即 v1 那个被 §4.15 查实为错的分母），而 data-n-complete 仍诚实
+      //   ⇒ 只读属性的判据全绿。⇒ 分母这类数必须两处都查。
+      && new RegExp('整批\\s*' + esc(PW.n_problems_in_batch)
+                    + '\\s*题里，\\s*' + esc(PW.n_complete_pairs)
+                    + '\\s*题两臂都跑完').test(P.text),
+      UK ? UK.slice(0, 130) + ' …｜ 可见「整批 23 题里，20 题两臂都跑完」='
+           + new RegExp('整批\\s*' + esc(PW.n_problems_in_batch)
+                         + '\\s*题里，\\s*' + esc(PW.n_complete_pairs)
+                         + '\\s*题两臂都跑完').test(P.text)
+        : '缺 [data-power-item="unknown"]');
 
-  const LN = P.items.length || '';
-  rec('I7 长度偏倚必须印出，步数比区间与产物一致',
-      /长度偏倚/.test(LN)
-      && /步数比/.test(LN)
-      && LN.includes(String(PW.steps_ratio_min))
-      && LN.includes(String(PW.steps_ratio_max)),
-      LN ? LN.slice(0, 170) : '缺 [data-power-item="length"]');
+  // ⚠ v2 最重要的新增：不变性定理。这是读者最该怀疑的那一条
+  //   （「这个 0 会不会是筛出来的」），必须把定理和实测并排印出。
+  const IV = P.items.invariance || '';
+  rec('I7 不变性定理必须印出：被剔除的题贡献恒为 0，且入表/完整两个净变化逐位相同',
+      /不是数据碰巧|定理/.test(IV)
+      && /答案都相同/.test(IV)
+      && /贡献恒为\s*0/.test(IV)
+      && Number(P.nComplete) - Number(P.nShipped) === PW.n_complete_pairs - PW.n_shipped
+      && PW.net_change_invariance.holds === true
+      && PW.net_change_invariance.net_over_shipped_10 === PW.net_change
+      && PW.net_change_invariance.net_over_complete_20 === PW.net_change
+      && PW.net_change_invariance.unchanged_pairs_contribution === 0
+      && IV.includes(String(PW.net_change_invariance.net_over_shipped_10))
+      && IV.includes(String(PW.net_change_invariance.net_over_complete_20)),
+      IV ? IV.slice(0, 210) : '缺 [data-power-item="invariance"]');
 
-  // ⚠ 阴性结论必须交代分母的去向。这 13 题**在产物里没有分开记**，
-  //   所以正确写法是承认「不知道」，不是编一个「答案未变」。
-  const CE = P.items.ceiling || '';
-  rec('I8 剩余题的去向必须承认「没分开记」，不许替它编',
-      /上界/.test(CE)
-      && /没有分开记|没分开记/.test(CE)
-      && /不替它编|不能编/.test(CE)
-      && CE.includes(String(PW.n_problems_in_batch - PW.n_shipped))
-      && CE.includes(`${PW.n_shipped}/${PW.n_problems_in_batch}`),
-      CE ? CE.slice(0, 190) : '缺 [data-power-item="ceiling"]');
+  // ⚠ 「答案变了 ≠ 概念变了」：这是 50% 改变率最容易被读错的地方。
+  const SM = P.items.semantic || '';
+  const MG = PW.changed_but_still_wrong_magnitude;
+  rec('I8 「答案变了 ≠ 概念变了」必须印出，并给出 wrong→wrong 次数与 |Δ| 中位数',
+      /不等于「概念变了」/.test(SM)
+      && SM.includes(`${PW.changed_n}/${PW.n_complete_pairs}`)
+      && SM.includes(pctTxt(PW.answer_change_rate_complete))
+      && SM.includes(String(PW.changed_but_still_wrong))
+      && SM.includes(String(MG.median))
+      && SM.includes(String(MG.min))
+      && SM.includes(String(MG.max))
+      && SM.includes(String(MG.n_below_100))
+      && PW.changed_n - PW.changed_but_still_wrong === 2,
+      SM ? SM.slice(0, 220) : '缺 [data-power-item="semantic"]');
 
-  // ⚠ 入选的 10 题里有 2 题的两臂答案都超出 AIME 答案域（0–999，
-  //   表里能看到 3069 → 1007）。它们被归进 wrong->wrong，
-  //   对净变化**贡献 0**，所以 §4.14 的任何结论都不受影响。
-  //   但面板必须说清「这两题的错是域外判定」—— 不说的话，
-  //   读者会以为它们是与一个合法答案比对后判错的。
+  // ⚠ 真正存在的那次选择效应：未知的 3 题是撞 token 上限（跑飞）那批。
+  rec('I9 未知那几题与撞 token 上限的关联必须印出（含分母 4/6）',
+      new RegExp('撞了\\s*' + esc(PW.token_cap) + '\\s*token').test(UK)
+      && UK.includes(String(PW.incomplete_arms_at_token_cap))
+      && UK.includes(String(PW.incomplete_arms_total))
+      && /跑飞/.test(UK)
+      && PW.incomplete_arms_at_token_cap > 0
+      && PW.incomplete_arms_at_token_cap < PW.incomplete_arms_total,
+      UK ? UK.slice(-200) : '缺 [data-power-item="unknown"]');
+
   const DM = P.items.domain || '';
-  rec('I9 域外答案的题必须被点名，并说明「域外判定、对净变化无贡献」',
-      Number(P.outDomain) === PW.labels_not_both_in_domain.length
-      && PW.labels_not_both_in_domain.length > 0
-      && DM.includes(String(PW.labels_not_both_in_domain.length))
-      && PW.labels_not_both_in_domain.every(l => DM.includes(l))
+  rec('I10 域外答案的题必须被点名，并说明「域外判定、对净变化没有贡献」',
+      DM.includes(String(MG.out_of_domain_labels.length))
+      && MG.out_of_domain_labels.every(l => DM.includes(l))
       && /答案域之外/.test(DM)
       && /没有贡献/.test(DM)
       && /域外判定/.test(DM),
-      DM ? DM.slice(0, 200) : '缺 [data-power-item="domain"]'
-        + ` | 产物 out-of-domain = ${JSON.stringify(PW.labels_not_both_in_domain)}`);
+      DM ? DM.slice(0, 200) : '缺 [data-power-item="domain"]');
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {

@@ -118,25 +118,45 @@ type ArmMetric = {
 
 type AnswerPower = {
   what: string;
-  n_problems_in_batch: number;
-  n_shipped: number;
-  selection_rule: string;
   direction: string;
   strength: number;
+  n_problems_in_batch: number;
+  n_complete_pairs: number;
+  n_incomplete_pairs: number;
+  incomplete_breakdown: { one_arm_closed: number; neither_closed: number; unparseable: number };
+  incomplete_arms_at_token_cap: number;
+  incomplete_arms_total: number;
+  token_cap: number;
+  full_verdicts: Record<string, number>;
   baseline_correct: number;
   steered_correct: number;
   net_change: number;
-  verdicts: Record<string, number>;
+  n_shipped: number;
+  shipped_verdicts: Record<string, number>;
+  net_change_invariance: {
+    claim: string;
+    net_over_shipped_10: number;
+    net_over_complete_20: number;
+    unchanged_pairs_contribution: number;
+    holds: boolean;
+  };
+  answer_change_rate_complete: number;
+  changed_n: number;
+  changed_but_still_wrong: number;
+  changed_but_still_wrong_magnitude: {
+    n: number; median: number; min: number; max: number;
+    n_below_100: number; out_of_domain_labels: string[];
+  };
   flips: number;
   flips_up: number;
   flips_down: number;
-  up_rate_ci95: [number, number];
+  break_denominator: number;
+  fix_denominator: number;
+  break_rate_ci95: [number, number];
+  fix_rate_ci95: [number, number];
   two_sided_sign_p_if_all_same_direction: number;
   flips_needed_for_p05: number;
-  flip_rate_ceiling_over_batch: number;
-  steps_ratio_min: number;
-  steps_ratio_max: number;
-  labels_not_both_in_domain: string[];
+  max_possible_flips: number;
   verdict: string;
   not_claimed: string;
 };
@@ -381,82 +401,130 @@ export default function InterventionOutcomePanel() {
           : ""}
       </p>
 
-      {/* --- 「净变化 0」到底是零效应，还是这个设计看不到效应 --- */}
+      {/* --- 「净变化 0」到底是什么：20 个完整配对的全表 + 不变性定理 --- */}
       {pw && (
         <div className="mb-2 px-2 py-1.5 rounded"
              style={{ background: "#141019", borderLeft: "2px solid #8b6fd4" }}
              data-answer-power
              data-net-change={pw.net_change}
+             data-n-complete={pw.n_complete_pairs}
+             data-n-incomplete={pw.n_incomplete_pairs}
+             data-n-shipped={pw.n_shipped}
+             data-changed={pw.changed_n}
+             data-wrong2wrong={pw.changed_but_still_wrong}
              data-flips={pw.flips}
              data-flips-needed={pw.flips_needed_for_p05}
-             data-n-shipped={pw.n_shipped}
-             data-n-batch={pw.n_problems_in_batch}
-             data-ci-lo={pw.up_rate_ci95[0]}
-             data-ci-hi={pw.up_rate_ci95[1]}
-             data-out-domain={pw.labels_not_both_in_domain.length}>
+             data-max-flips={pw.max_possible_flips}
+             data-base-right={pw.baseline_correct}
+             data-steer-right={pw.steered_correct}>
           <p className="text-[10px] text-gray-300 leading-relaxed">
             <b>「净变化 {pw.net_change}」是欠功效，不是零效应。</b>
-            {" "}这 {pw.n_problems_in_batch} 道题里只有 <b>{pw.n_shipped}</b> 题进了
-            上面那张表，而入选条件之一就是<b>两臂答案不同</b> ——
-            算净变化的那个分母，是按「确实变了」挑出来的。
+            {" "}上一句问的是「干预把答案搞坏了没有」。这一块是把它算干净：
+            整批 {pw.n_problems_in_batch} 题里，
+            <b>{pw.n_complete_pairs} 题</b>两臂都跑完、构成可比的配对，
+            这 {pw.n_complete_pairs} 题的 verdict 全表是 ——
+            right-&gt;right <b className="font-mono text-gray-200">
+              {pw.full_verdicts["right->right"] ?? 0}</b>、
+            right-&gt;wrong <b className="font-mono text-red-300">
+              {pw.full_verdicts["right->wrong"] ?? 0}</b>、
+            wrong-&gt;right <b className="font-mono text-emerald-300">
+              {pw.full_verdicts["wrong->right"] ?? 0}</b>、
+            wrong-&gt;wrong <b className="font-mono text-gray-200">
+              {pw.full_verdicts["wrong->wrong"] ?? 0}</b>。
+            基线答对 <b className="font-mono text-gray-200">{pw.baseline_correct}</b>
+            /{pw.n_complete_pairs}，注入后答对{" "}
+            <b className="font-mono text-gray-200">{pw.steered_correct}</b>
+            /{pw.n_complete_pairs} ⇒ <b>净变化 {pw.net_change}</b>。
           </p>
           <ul className="mt-1 text-[10px] text-gray-400 leading-relaxed">
-            <li data-power-item="flips">
-              入选集里只有 <b className="font-mono text-gray-200">{pw.flips}</b>{" "}
-              个正确性翻转（{pw.flips_up} 正 / {pw.flips_down} 反）。符号检验双侧
-              精确 p = 2×0.5<sup>{pw.flips}</sup> ={" "}
-              <span className="font-mono">{pw.two_sided_sign_p_if_all_same_direction}</span>，
-              要 p &lt; 0.05 需要 <b className="font-mono text-gray-200">{pw.flips_needed_for_p05}</b>{" "}
-              个同向翻转，而本设计上限只有{" "}
-              <b className="font-mono text-gray-200">{pw.n_shipped}</b> 个。
-              实测 1 正 1 反，是零假设下的<b>典型</b>结果，不是「接近显著」。
-            </li>
-            <li data-power-item="ci">
-              单侧翻转率的 Clopper–Pearson 95% CI ={" "}
+            <li data-power-item="invariance">
+              <b>先回答最容易被怀疑的那一条：这个 0 会不会是筛出来的？</b>
+              {" "}不会，而且这<b>不是数据碰巧</b>，是定理 ——
+              上面那张表只入表了 {pw.n_shipped} 题（规则含「两臂答案不同」），
+              被剔除的 {pw.n_complete_pairs - pw.n_shipped} 题<b>答案都相同</b>，
+              答案相同 ⇒ 两臂对错必然一致 ⇒ verdict 恒为 X-&gt;X ⇒{" "}
+              <b>对净变化的贡献恒为 0</b>。
+              实测印证：入表 {pw.n_shipped} 题净{" "}
               <span className="font-mono text-gray-200">
-                [{pw.up_rate_ci95[0].toFixed(3)}, {pw.up_rate_ci95[1].toFixed(3)}]
-              </span>
-              {" "}—— 上界宽到 <b>{pct(pw.up_rate_ci95[1])}</b>，
-              这批数据完全容得下「其实影响很大」。
-            </li>
-            <li data-power-item="length">
-              还有长度偏倚：入选要求两臂都跑完 {"</think>"}，而两臂步数比在{" "}
-              <span className="font-mono text-gray-200">
-                {pw.steps_ratio_min}×–{pw.steps_ratio_max}×
-              </span>
-              {" "}之间 ⇒ 入选集偏向两臂都跑到底的题，而那正是干预影响最大的题。
-            </li>
-            <li data-power-item="ceiling">
-              上界：答案改变率 ≤ <span className="font-mono text-gray-200">
-                {pw.n_shipped}/{pw.n_problems_in_batch}
+                {pw.net_change_invariance.net_over_shipped_10}
               </span>{" "}
-              = <b>{pct(pw.flip_rate_ceiling_over_batch)}</b>。剩下{" "}
+              = 完整 {pw.n_complete_pairs} 题净{" "}
               <span className="font-mono text-gray-200">
-                {pw.n_problems_in_batch - pw.n_shipped}
+                {pw.net_change_invariance.net_over_complete_20}
+              </span>。
+            </li>
+            <li data-power-item="semantic">
+              <b>但「答案变了」不等于「概念变了」。</b>
+              答案改变率是 <b className="font-mono text-gray-200">
+                {pw.changed_n}/{pw.n_complete_pairs} ={" "}
+                {pct(pw.answer_change_rate_complete)}</b>
+              ，可这 {pw.changed_n} 次里有{" "}
+              <b className="font-mono text-amber-300">
+                {pw.changed_but_still_wrong}</b>{" "}
+              次<b>前后都是错的</b>（wrong-&gt;wrong），数值中位只动了{" "}
+              <span className="font-mono text-gray-200">
+                {pw.changed_but_still_wrong_magnitude.median}
               </span>{" "}
-              题的去向（答案相同 / 未跑完 / 严格口径解析不出）产物里没有分开记，
-              这里不替它编。
+              （最小 {pw.changed_but_still_wrong_magnitude.min}、
+              最大 {pw.changed_but_still_wrong_magnitude.max}，
+              {pw.changed_but_still_wrong_magnitude.n_below_100} 次不到 100）。
+              所以「一半的题答案变了」<b>不能</b>读成「一半的题概念变了」。
             </li>
             <li data-power-item="domain">
-              还有 <b className="font-mono text-gray-200">
-                {pw.labels_not_both_in_domain.length}
-              </b>{" "}
-              题的<b>两臂答案都落在 AIME 答案域之外</b>（
-              {pw.labels_not_both_in_domain.join("、")}
-              ）。它们被归进 <code>wrong-&gt;wrong</code>，
-              对净变化<b>没有贡献</b>，所以上面所有结论都不受影响；
-              但它们的「错」是<b>域外判定</b>，不是与一个合法答案比对出来的。
+              上面那 {pw.changed_but_still_wrong_magnitude.n} 次里还有{" "}
+              <b>{pw.changed_but_still_wrong_magnitude.out_of_domain_labels.length}</b>{" "}
+              次两臂答案都落在 AIME 答案域之外（
+              {pw.changed_but_still_wrong_magnitude.out_of_domain_labels.join("、")}
+              ），它们的「错」是<b>域外判定</b>，对净变化没有贡献。
+            </li>
+            <li data-power-item="unknown">
+              <b>真正未知的只有 {pw.n_incomplete_pairs} 题</b>（
+              {pw.incomplete_breakdown.one_arm_closed} 题只跑完一臂、
+              {pw.incomplete_breakdown.neither_closed} 题都没跑完、
+              严格口径解析不出的是 <b>{pw.incomplete_breakdown.unparseable}</b> 题）。
+              而它们的 {pw.incomplete_arms_total} 条 arm 里有{" "}
+              <b className="font-mono text-amber-300">
+                {pw.incomplete_arms_at_token_cap}</b>{" "}
+              条撞了 <b>{pw.token_cap}</b> token 上限
+              ⇒ 未知的那几题恰恰是<b>跑飞了</b>的题，
+              也就是干预影响最大的那批。这才是这批数据真正的选择效应。
+            </li>
+            <li data-power-item="power">
+              <b>功效仍然不够。</b>正确性翻转{" "}
+              <b className="font-mono text-gray-200">{pw.flips}</b> 次
+              （{pw.flips_up} 正 / {pw.flips_down} 反），
+              符号检验双侧精确 p ={" "}
+              <span className="font-mono text-gray-200">
+                {pw.two_sided_sign_p_if_all_same_direction}
+              </span>
+              ，要 p &lt; 0.05 需要 <b className="font-mono text-gray-200">
+                {pw.flips_needed_for_p05}</b>{" "}
+              个同向翻转 —— 而 {pw.n_complete_pairs} 个完整配对<b>够得着</b>{" "}
+              {pw.flips_needed_for_p05} 个（最多 {pw.max_possible_flips} 个）。
+              破坏率是 1/{pw.break_denominator}、修复率是 1/{pw.fix_denominator}，
+              两个 95% 区间分别是{" "}
+              <span className="font-mono text-gray-200">
+                [{pw.break_rate_ci95[0].toFixed(3)}, {pw.break_rate_ci95[1].toFixed(3)}]
+              </span>{" "}
+              与{" "}
+              <span className="font-mono text-gray-200">
+                [{pw.fix_rate_ci95[0].toFixed(3)}, {pw.fix_rate_ci95[1].toFixed(3)}]
+              </span>
+              ，都宽到没法据此说任何一边。
             </li>
           </ul>
           <p className="text-[10px] text-amber-200/90 leading-relaxed mt-1"
              data-power-not-claimed>
-            <b>所以本批能说的只有</b>「在 {pw.n_shipped} 题的入选子集上，
-            正 {pw.flips_up} 次 / 反 {pw.flips_down} 次」，
-            <b>不能说</b>「干预对答案正确性无影响」。这 {pw.n_shipped} 题也
-            <b>不是</b> {pw.n_problems_in_batch} 题的随机样本 ——{" "}
-            它们按「答案不同」筛过。另外这一格只覆盖{" "}
-            <b>{pw.direction}</b> 一条轴的 −{pw.strength} 单档，另外 3 条命名轴与
-            正的 <code>confidence_up</code> 臂都不在这里；
+            <b>所以本批能说的只有</b>「{pw.n_complete_pairs} 个可比配对上，
+            破坏 1 次、修复 1 次，净变化 0；答案变了 {pw.changed_n} 次，
+            其中 {pw.changed_but_still_wrong} 次前后都是错的」。
+            <b>不能说</b>「干预对答案正确性无影响」，也<b>不能说</b>「准确率没有下降」——
+            净变化 0 只是「1 修 1 破」相抵，两边区间都极宽。
+            另外这 {pw.n_complete_pairs} 个配对也<b>不是</b>{" "}
+            {pw.n_problems_in_batch} 题的随机样本：被剔掉的 {pw.n_incomplete_pairs} 题
+            不是随机抽掉的，是<b>撞 token 上限才没跑完</b>的。
+            这一格只覆盖 <b>{pw.direction}</b> 一条轴的 −{pw.strength} 单档，
+            另外 3 条命名轴与正的 <code>confidence_up</code> 臂都不在这里；
             <b>L7（改变的是概念而非位置/格式）一次都没测</b> ——
             「答案对不对」连位置轴对照都没有。
           </p>

@@ -1,39 +1,79 @@
 {
- "schema": "answer_power/1",
- "what": "「本批答对数净变化为 0」这句话的欠功效分析与选择效应",
- "n_problems_in_batch": 23,
- "n_shipped": 10,
- "selection_rule": "两臂都跑完 </think>、严格口径下能解析出答案、且两臂答案不同",
+ "schema": "answer_power/2",
+ "what": "23 题逐题去向 + 20 个完整配对的全部 verdict；「净变化 0」对筛选规则不变，但对「答案变了 ≠ 概念变了」不成立",
  "direction": "confidence_down",
  "strength": 0.2,
- "baseline_correct": 1,
- "steered_correct": 1,
+ "n_problems_in_batch": 23,
+ "n_complete_pairs": 20,
+ "n_incomplete_pairs": 3,
+ "incomplete_breakdown": {
+  "one_arm_closed": 2,
+  "neither_closed": 1,
+  "unparseable": 0
+ },
+ "incomplete_labels": [
+  "1985_I_1",
+  "1988_I_1",
+  "2021_I_1"
+ ],
+ "incomplete_arms_at_token_cap": 4,
+ "incomplete_arms_total": 6,
+ "token_cap": 32000,
+ "full_verdicts": {
+  "right->right": 6,
+  "wrong->right": 1,
+  "wrong->wrong": 12,
+  "right->wrong": 1
+ },
+ "baseline_correct": 7,
+ "steered_correct": 7,
  "net_change": 0,
- "verdicts": {
+ "n_shipped": 10,
+ "shipped_verdicts": {
   "right->wrong": 1,
   "wrong->right": 1,
   "wrong->wrong": 8
  },
+ "net_change_invariance": {
+  "claim": "「两臂答案相同就剔除」这条筛选规则不改变净变化，因为这类配对的 verdict 恒为 X->X，贡献恒为 0",
+  "net_over_shipped_10": 0,
+  "net_over_complete_20": 0,
+  "unchanged_pairs_contribution": 0,
+  "holds": true
+ },
+ "answer_change_rate_complete": 0.5,
+ "changed_n": 10,
+ "changed_but_still_wrong": 8,
+ "changed_but_still_wrong_magnitude": {
+  "n": 8,
+  "median": 43.5,
+  "min": 2.0,
+  "max": 2062.0,
+  "n_below_100": 5,
+  "out_of_domain_labels": [
+   "1987_I_1",
+   "2025_I_1"
+  ]
+ },
  "flips": 2,
  "flips_up": 1,
  "flips_down": 1,
- "up_rate_ci95": [
-  0.0025285785444617848,
-  0.4450161170281954
+ "break_denominator": 7,
+ "fix_denominator": 13,
+ "break_rate_ci95": [
+  0.0036102968619005837,
+  0.5787231970431952
  ],
- "down_rate_ci95": [
-  0.0025285785444617848,
-  0.4450161170281954
+ "fix_rate_ci95": [
+  0.0019456284973467467,
+  0.3602974352678775
  ],
  "two_sided_sign_p_if_all_same_direction": 0.5,
  "flips_needed_for_p05": 6,
- "flip_rate_ceiling_over_batch": 0.43478260869565216,
- "steps_ratio_min": 0.933,
- "steps_ratio_max": 1.528,
- "labels_not_both_in_domain": [
-  "1987_I_1",
-  "2025_I_1"
- ],
- "verdict": "「净变化 0」在这批数据上是**零假设下的典型结果**，不是「接近显著」。\n① 分母是被筛出来的：23 题里只有 10 题进了这张表，而且入选条件之一是**两臂答案不同** —— 算净变化的样本天然偏向「确实变了」的题。\n② 只有 2 个翻转（1 正 1 反）。符号检验双侧精确 p = 2×0.5^k，要 p < 0.05 需要 **6 个同向翻转**；本设计（23 题）最多也只能给到 10 个。\n⇒ 本批能说的是「在 10 题的入选子集上，正负翻转各 1 次」，**不能**说「干预不影响答案正确性」。\n③ 还有长度偏倚：入选要求两臂都跑完 </think>，而两臂步数比在 0.93×–1.53× 之间 ⇒ 入选集偏向两臂都跑到底的题，那正是干预影响最大的题。\n④ 上界：答案改变率 ≤ 10/23 = 43%（剩下 13 题的去向（答案相同 / 未跑完 / 解析不出）产物里没分开记，不能编）。",
- "not_claimed": "① 不能说「干预对答案正确性无影响」—— 这是**欠功效**，不是零效应。\n② 不能拿这 10 题当 23 题的随机样本：它们按「答案不同」筛过。\n③ 这 10 题是 confidence_down 一条轴的 −0.2 单档；另外 3 条命名轴、以及正的 confidence_up 臂都不在这里。\n④ L7（改变的是概念而非位置/格式）**一次都没测** —— 「答案对不对」这个指标连位置轴对照都没有。"
+ "max_possible_flips": 20,
+ "steps_ratio_min": 0.8788745827372437,
+ "steps_ratio_max": 3.558795411089866,
+ "steps_ratio_median": 1.245085276601269,
+ "verdict": "「净变化 0」在**完整配对**上依然成立，而且**不受筛选规则影响**。\n① 23 题里 20 题两臂都跑完 </think>，这 20 题的 verdict 全表：right->right 6、right->wrong 1、wrong->right 1、wrong->wrong 12。基线答对 7、注入后答对 7 ⇒ **净变化 +0**。\n② 「净变化」这个量对「答案相同就剔除」这条规则**不变**：被剔除的 10 题 verdict 恒为 X->X，对净变化的贡献恒为 0。这是定理不是巧合 ——（入表 10 题净 +0 / 完整 20 题净 +0，逐位相同。）\n③ 但**别的量全被这条规则扭曲**：答案改变率 = **10/20 = 50%**，是点估计不是上界；而这 10 次改变里 **8 次是 wrong->wrong**。⇒ 「答案变了」不等于「概念变了」。\n④ wrong->wrong 那 8 次的中位 |Δ| = 43.5，5 次只动了不到 100，其中 2 次两臂答案都落在 AIME 答案域外。\n⑤ 真正未知的只有 **3** 题（2 题只跑完一臂、1 题都没跑完），而它们的 6 条 arm 里有 **4 条撞了 32000 token 上限** ⇒ 未知的那几题恰恰是**跑飞了**的题，也就是干预影响最大的那批。\n⑥ 功效仍然不够：2 次正确性翻转（1 正 1 反），若全同向双侧 p = 0.500；要 p<0.05 需要 **6** 个同向翻转，而 20 个完整配对**够得着** 6 个（第一版说「上限只有 10 个」是筛选造成的假象，已撤回）。",
+ "not_claimed": "① 不能说「干预对答案正确性无影响」—— 净变化 0 仍然是**欠功效**（2 次翻转，双侧精确 p = 0.500）。\n② 不能把「50% 的答案变了」说成「50% 的语义变了」—— 10 次改变里 8 次前后都是错的，中位只动了 43.5。\n③ 不能用这 20 个完整配对说「准确率没有下降」：净变化 0 只是「1 修 1 破」相抵，破坏率 1/7、修复率 1/13，两者的 95% CI 都极宽。\n④ **不能忽略那 3 题**：它们两臂没跑完、答案正确性完全未知，而 4/6 条 arm 撞了 32000 token 上限（跑飞）。\n⑤ 这一格只覆盖 confidence_down 一条轴的 −0.2 单档；另外 3 条命名轴与正的 confidence_up 臂都不在这里。\n⑥ **L7（改变的是概念而非位置/格式）一次都没测** —— 「答案对不对」连位置轴对照都没有。③ 说明「数字变了」，说明不了「变的是概念」。"
 }
