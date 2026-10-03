@@ -233,7 +233,8 @@ export default function StrengthLawPanel() {
 
       <p className="text-[10px] text-gray-500 leading-relaxed mt-0.5">
         <span className="text-gray-400 font-mono">— —</span> ½a² 解析值　
-        <span className="text-[#60a5fa]">●</span> 四个命名方向的实测　
+        <span className="text-[#60a5fa]">●</span> {law.design.real_directions.length} 个命名
+        方向的实测　
         <span className="text-[#f59e0b]">▮</span> {law.design.n_random} 个随机
         方向的实测区间
       </p>

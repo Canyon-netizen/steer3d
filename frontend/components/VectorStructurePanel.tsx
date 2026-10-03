@@ -236,6 +236,7 @@ export default function VectorStructurePanel() {
             <div key={n} style={{ display: "contents" }}>
               <span className="text-[9.5px] text-gray-500 truncate">{LABEL[n] || n}</span>
               <span className="text-[9px] font-mono text-gray-500"
+                    data-peak-dir={n}
                     data-peak={peakL} data-peak-frac={vals[vals.indexOf(Math.max(...vals))]}>
                 L{peakL} · {vals[vals.indexOf(Math.max(...vals))].toFixed(3)}
                 {isDef ? " ← extracted here" : ""}

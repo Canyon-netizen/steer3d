@@ -546,6 +546,24 @@ try {
     .filter(t => !/favicon|Failed to load resource/i.test(t));
   rec('F10 页面无 console error', errs.length === 0,
       errs.length ? errs.slice(0, 2).join(' | ') : 'none');
+
+  // F8 源级：「layers 0–27」里的上界必须由 N_LAYERS 推出来，不许手写。
+  //   这一段随播放进度变化（Step N is outside the readout window…），
+  //   所以它在 C5 的「有实质文字但没被登记」名单里；而 N_LAYERS=28 时
+  //   写死 27 与真值相同 ⇒ 任何渲染层判据都抓不到「值恰好正确却写死」那一类。
+  rec('F8 源级：读出窗口说明里的层跨度必须取自 N_LAYERS，不许写死 0–27',
+    (() => {
+      const raw = readFileSync('/Users/zhourui/code/steer3d/frontend/components/'
+                               + 'LayerDerivationPanel.tsx', 'utf8');
+      const code = raw.replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+                       .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+      const i = code.indexOf('steps were probed');
+      if (i < 0) return false;
+      const seg = code.slice(Math.max(0, i - 200), i + 220);
+      // ⚠ 防真空通过：修复后的写法必须在场
+      return /N_LAYERS\s*-\s*1/.test(seg) && !/0[–-]27\b/.test(seg);
+    })(),
+    '层跨度上界写成 0–27 时与 N_LAYERS=28 的真值相同，渲染层在构造上无解');
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {

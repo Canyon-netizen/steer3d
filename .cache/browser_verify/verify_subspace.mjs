@@ -124,6 +124,27 @@ try {
          : `全部对上（14 / 20 / 12 / 0.5），旧值带「上一版」框定=${oldFramed}`)
         + `　段文：${g.text.slice(0, 120)}`);
 
+  // ---------- G9 操作点所在档位必须印对（渲染层） ----------
+  // 这一句是我自己在修第八笔时新加的（「而且第 N 档 |cos| < 0.5 就是那个 14 条的操作点」），
+  // 第一版用 indexOf(String(h.separation_threshold)) 找档位 ——
+  // 键是 "0.50" 而 String(0.5) 是 "0.5" ⇒ -1 ⇒ 页面印出**「第 0 档」**。
+  // 编译通过、探针在渲染文本里看到才发现。
+  // ⇒ 这一类（键是字符串、数是数字）是**渲染层**缺陷，就该在渲染层判：
+  //   判据独立地从产物按数值重算一次档位，再和页面上印出来的那个数比。
+  {
+    const keys = Object.keys(H.threshold_sensitivity);
+    const wantIdx = keys.findIndex(k => Number(k) === Number(H.separation_threshold));
+    const gotIdx = g.missing ? null
+      : Number((g.text.match(/第\s*(\d+)\s*档/) || [])[1]);
+    check('G9 「操作点在第几档」必须与产物按数值重算的结果一致',
+      !g.missing && wantIdx >= 0 && gotIdx === wantIdx + 1
+      && g.text.includes(`|cos| < ${H.separation_threshold}`),
+      g.missing ? '整块缺失'
+        : `产物 keys=${JSON.stringify(keys)}，separation_threshold=${H.separation_threshold}`
+          + ` ⇒ 应为第 ${wantIdx + 1} 档；页面读到第 ${gotIdx} 档`
+          + (gotIdx !== wantIdx + 1 ? '（字符串比数字 ⇒ 第 0 档就是这么来的）' : ''));
+  }
+
   // ---------- G7 两段「承载判决的话」必须逐字印出 ----------
   // ⚠ 它们以前连 data-* 都没有 ⇒ 没有任何判据读得到，而两段都带关键数字：
   //   caution_absorbed  cos(confidence,caution)=0.5537 已超 0.5 门槛 / 被吸收 6 条 / 其中 4 条同源
@@ -276,6 +297,55 @@ try {
     P.notClaimed.includes(`这 ${LB} 条`)
     && (LB === LB_OLD || !P.notClaimed.includes(`这 ${LB_OLD} 条`)),
     `headline=${LB} / 旧值=${LB_OLD} / 边界里出现的「这 N 条」：${badHit || '（一处都没有）'}`);
+
+  // ---------- G8 源级：caveat 块里不许再出现手写的门槛计数 ----------
+  // 背景（第八笔洞，变异实测）：把散文里的「0.35→9 条、0.45→12 条、0.60→16 条」
+  // 改成「0.35→7 条、0.45→20 条、0.60→2 条」，页面在**同一块内**与正上方那张
+  // 数据驱动的门槛表直接打架（表印 0.35→9，散文印 0.35→7），而
+  //   verify_subspace 37/37、verify_outcome 53/53、全量 248 条判据 **0 条红**。
+  // G6 抓的是「caveat 段里印的每个数字」—— 而这些数字压根不在带 data-* 的
+  // caveat-text 段里，它们在一段**没标记**的兄弟段落中，G6 的作用域够不着。
+  // ⇒ 与 L12/L13 同一结论：这一类**只能问源码**，渲染层在构造上无解
+  //   （值写错时同屏自相矛盾，但没有任何判据同时读这两处）。
+  // ⚠ 必须先剥注释：源码里我自己写的说明注释就含「表说 0.35→9，散文说 0.35→7」，
+  //   而注释里提旧字面量是合法的 —— 那段注释同时就是这条判据的**负控**。
+  // ⚠ 作用域必须与被核量一致：只查 caveat 块，不查整个文件（§L12 教训）。
+  // ⚠ 防真空通过：切片必须非空、且必须含「修复后应当出现的取数写法」，
+  //   否则一次改名就能让本条变成 0===0 的空转（peakBad `&& false` 那种）。
+  {
+    const raw = readFileSync(
+      '/Users/zhourui/code/steer3d/frontend/components/SubspacePanel.tsx', 'utf8');
+    const strip = s => s
+      .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')   // JSX 注释（可跨行）
+      .replace(/\/\*[\s\S]*?\*\//g, '')        // 普通块注释
+      .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+    const code = strip(raw);
+    const i = code.indexOf('data-bound-caveat="true"');
+    const j = code.indexOf('data-absorbed-note', i + 1);
+    const slice = i >= 0 && j > i ? code.slice(i, j) : '';
+    const handSweep = slice.match(/门槛\s*0\.\d+\s*→\s*\d+\s*条/g) || [];
+    const handAbsorb = slice.match(/含\s*\d+\s*条/g) || [];
+    // 作用域分两层，各按被核量取：
+    //   块内（caveat 那段）—— 手写数字有没有混进来；
+    //   全文件 —— 档位是不是按**数值**找的。opIdx 定义在组件顶部、不在块内，
+    //   拿块内去核它等于核错层（又一次「作用域必须与被核量一致」）。
+    const liveOk = /h\.absorbed\.join\(/.test(slice)
+                && /h\.threshold_sensitivity/.test(slice)
+                && /h\.readable_directions_lower_bound/.test(slice);
+    const numCmp = /findIndex\(k\s*=>\s*Number\(k\)\s*===\s*Number\(h\.separation_threshold\)\)/.test(code);
+    const strCmp = /indexOf\(String\(h\.separation_threshold\)\)/.test(code);
+    check('G8 源级：caveat 块里的门槛计数与「含 N 条」必须取自产物，不许手写',
+      slice.length > 0 && liveOk && numCmp && !strCmp
+      && handSweep.length === 0 && handAbsorb.length === 0,
+      slice.length === 0
+        ? '取不到 caveat 块（data-bound-caveat / data-absorbed-note 定位失败）'
+        : (liveOk ? '' : '修复后的取数写法不在块内 —— 本条可能已空转，请复查')
+          + (numCmp ? '' : ' 未找到按数值比较的档位查找（findIndex(Number(k) === Number(...))）')
+          + (strCmp ? ' 档位用 indexOf(String(...)) 比 —— 键是 "0.50" 时会印成「第 0 档」' : '')
+          + ` 手写门槛扫描 ${handSweep.length} 处、手写「含 N 条」${handAbsorb.length} 处`
+          + (handSweep.length ? `：${handSweep.join(' / ')}` : '')
+          + (handAbsorb.length ? `：${handAbsorb.join(' / ')}` : ''));
+  }
 
   check('E5 边界必须说清「可读维度数 ≠ 需要干预验证的轴数」',
     P.notClaimed.includes('可读维度数') && P.notClaimed.includes('干预'),

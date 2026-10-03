@@ -91,6 +91,7 @@ try {
         lnBox: ln ? (() => { const b = ln.getBoundingClientRect();
           return { w: b.width, h: b.height, left: b.left, right: b.right }; })() : null,
         peaks: [...el.querySelectorAll('[data-peak]')].map(s => ({
+          dir: s.getAttribute('data-peak-dir'),
           l: s.getAttribute('data-peak'),
           f: parseFloat(s.getAttribute('data-peak-frac')),
           t: (s.textContent || '').trim() })),
@@ -229,12 +230,27 @@ print(json.dumps(out))
     const vals = LAYERS.map(L => RC.per_layer[L].real[n]);
     peakWant[n] = LAYERS[vals.indexOf(Math.max(...vals))];
   }
-  const peakBad = st.peaks.filter(p => p.l !== peakWant[p.dir] && false);
+  // ⚠ 这里原来写着 `st.peaks.filter(p => p.l !== peakWant[p.dir] && false)`
+  //   —— `X && false` 恒为 false，于是 peakBad **永远是空数组**，可判据名却写着
+  //   「且与产物一致」。我以为它只是死代码、去掉不影响结论 —— **错了**：
+  //   去掉之后 S9 立刻转红，原因是探针与组件**都没有这个方向的身份**
+  //   （组件只发 data-peak / data-peak-frac，探针也只取 l/f/t），
+  //   于是 `peakWant[p.dir]` 恒为 undefined，六行全被判成「不一致」。
+  //   ⇒ 那行 `&& false` 掩盖的是一条**结构上就跑不了的检查**，
+  //   而「判据恒绿」与「判据根本没法跑」在自报里长得一模一样。
+  //   两处都补：组件发 data-peak-dir，探针取 dir，并显式要求 dir 齐全 ——
+  //   缺 dir 时必须判红，不能让它退化成「空集即通过」。
+  const noDir = st.peaks.filter(p => !p.dir);
+  const peakBad = noDir.length ? [] : st.peaks.filter(p => p.l !== peakWant[p.dir]);
   const allPeak14 = Object.values(peakWant).every(v => v === '14')
                    && st.peaks.length === 6
                    && st.peaks.every(p => p.l === '14');
-  rec('S9 六个方向的峰值层都是 L14，且与产物一致', allPeak14 && peakBad.length === 0,
-      `产物算出 ${JSON.stringify(peakWant)}；页面 ${st.peaks.map(p => p.l).join(',')}`);
+  rec('S9 六个方向的峰值层都是 L14，且与产物一致',
+      allPeak14 && peakBad.length === 0 && noDir.length === 0,
+      noDir.length
+        ? `❌ ${noDir.length} 个 [data-peak] 没有 data-peak-dir ⇒ 逐方向核对结构上跑不了`
+          + `（空集会被当成「无不一致」）`
+        : `产物算出 ${JSON.stringify(peakWant)}；页面 ${st.peaks.map(p => p.l).join(',')}`);
 
   /* ---------------------------------------------------------------- */
   // 页面上两个数据驱动的数字：top-3 方差占比、比值。

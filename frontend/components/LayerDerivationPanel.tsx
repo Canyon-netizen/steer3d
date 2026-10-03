@@ -296,8 +296,9 @@ export default function LayerDerivationPanel() {
                 </span>
               ) : null}
               . Only the last {traj.steps.length} steps were probed — layers
-              0–27 were read for those steps only. Playback starts at step 0,
-              so this panel fills in as the trace reaches the window.
+              0–{N_LAYERS - 1} were read for those steps only. Playback
+              starts at step 0, so this panel fills in as the trace reaches
+              the window.
             </>
           )}
         </p>

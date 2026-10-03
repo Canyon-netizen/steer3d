@@ -256,6 +256,22 @@ rec('L13 源级：失效区那句话的批次强度不许是字面量（L12 在�
   '源码里 sits at strength 后面必须写 {batch.strength}；'
   + '写成字面量时页面与真值相同，L12 那一层在构造上无解');
 
+rec('L14 源级：图例里的命名方向条数必须取自 design.real_directions，不许写死「四个」',
+  (() => {
+    const raw = readFileSync('/Users/zhourui/code/steer3d/frontend/components/'
+                             + 'StrengthLawPanel.tsx', 'utf8');
+    const code = raw.split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+    const i = code.indexOf('data-rnd-span');
+    if (i < 0) return false;
+    // 图例 <p>：从「●」到「随机」那一小段，作用域与被核量一致
+    const seg = code.slice(i, code.indexOf('</p>', i));
+    // ⚠ 防真空通过：修复后的取数写法必须在场，否则一次改名就让本条空转
+    return /law\.design\.real_directions\.length/.test(seg)
+        && !/[一二三四五六七八九十]个命名/.test(seg);
+  })(),
+  '图例里「N 个命名方向」的 N 必须来自 linearity_law.design.real_directions.length；'
+  + '写死时页面与真值相同（design 里正好是 4），渲染层在构造上无解');
+
 rec('L11 页面无 console error', errs.length === 0,
       errs.length ? errs.slice(0, 2).join(' | ') : 'none');
 } catch (e) {

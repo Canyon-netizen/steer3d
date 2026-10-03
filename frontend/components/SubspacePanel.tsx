@@ -121,6 +121,13 @@ export default function SubspacePanel() {
 
   const h = d.headline;
   const dn = d.char_pairwise_abs_cos["digit_mass|newline_mass"];
+  // 操作点在扫描表里排第几档。
+  // ⚠ 必须按**数值**比，不能 indexOf(String(...))：
+  //   键是 "0.35"/"0.40"/"0.45"/"0.50"/…，而 String(0.5) === "0.5"，
+  //   匹配不到 "0.50" ⇒ indexOf 返回 -1 ⇒ 页面印出「第 0 档」。
+  //   我第一版就是这么写的，编译通过、探针立刻在渲染文本里看到「第 0 档」。
+  const opIdx = Object.keys(h.threshold_sensitivity)
+    .findIndex(k => Number(k) === Number(h.separation_threshold));
 
   return (
     <div className={box} data-subspace="ready"
@@ -170,14 +177,26 @@ export default function SubspacePanel() {
             </div>
           ))}
         </div>
+        {/* ⚠ 这两段以前各带一组**手写数字**，而正上方那张门槛表已经把同一份扫描
+            数据驱动地全渲染出来了 —— 两处一对比就会在同屏内打架：
+            表说 0.35→9，散文说 0.35→7，而**没有任何判据会红**（变异实测
+            verify_subspace 仍 37/37，verify_outcome 53/53，全量 248 条 0 红）。
+            处置不是加一条更严的判据，是**把字面量从产品里拿掉**：
+            判决句留下，数字全部交给上面那张表和产物。
+            「含 4 条 §4.9 重建」同病：readable_subspace.json 的 absorbed 只是
+            6 个字符串，**没有记录哪几条是 §4.9 的重新构造** —— 页面上那个 4
+            无法就地核对（§4.9.2 的文档里仍然记着那 4 条），所以这里不再声称，
+            改成把 6 条列出来，让读者自己核。 */}
         <p className="text-[8.5px] text-gray-500 leading-snug mt-1">
-          门槛 0.35→9 条、0.45→12 条、0.60→16 条 ⇒ 这个数随门槛走，
-          <b>不能读成「可读方向就是这么多条」</b>。
+          上面 {Object.keys(h.threshold_sensitivity).length} 档门槛 ⇒ 这个数随门槛走，
+          <b>不能读成「可读方向就是这么多条」</b>；而且第 {opIdx >= 0 ? opIdx + 1 : "?"}{" "}
+          档 |cos| &lt; {h.separation_threshold} 就是上面那个{" "}
+          {h.readable_directions_lower_bound} 条的操作点。
           好消息是它对遍历顺序不敏感：随机打乱 {h.order_dependence.n_perm} 次，
           新口径恒为 {h.order_dependence.new_range[0]} 条。
         </p>
         <p className="text-[8.5px] text-gray-500 leading-snug mt-0.5">
-          被吸收 {h.absorbed.length} 条（含 4 条 §4.9 换函数形式重造的同一条方向）；
+          被吸收 {h.absorbed.length} 条（{h.absorbed.join("、")}）；
           已选集合内部最接近门槛的是
           {h.tightest_in_chosen.map((t) => ` ${t.key} ${t.max_abs_cos.toFixed(4)}`).join("、")}。
         </p>
