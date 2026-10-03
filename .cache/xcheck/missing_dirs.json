@@ -1,0 +1,103 @@
+{
+ "recipe": {
+  "source": "/Users/zhourui/code/steer3d/.cache/xcheck/dir_cache",
+  "K": 256,
+  "stride": 2,
+  "layer": 14,
+  "lambda": {
+   "rep_top1": 0.01,
+   "rep_ngram4": 0.01,
+   "rep_frac_topk": 0.01,
+   "backtrack_topk": 0.01,
+   "backtrack_frac": 0.01,
+   "digit_mass": 0.01,
+   "op_mass": 0.01,
+   "newline_mass": 0.01,
+   "latex_mass": 0.01,
+   "top1_prob_renorm": 0.01,
+   "entropy": 0.01,
+   "in_think": 0.01,
+   "self_check_regex": 0.01,
+   "step_frac": 0.01
+  }
+ },
+ "char_pairwise_abs_cos": {
+  "digit_mass|digit_mass": 1.0,
+  "digit_mass|op_mass": 0.21653922945908144,
+  "digit_mass|newline_mass": 0.01947026734287584,
+  "digit_mass|latex_mass": 0.21282272350968579,
+  "op_mass|digit_mass": 0.21653922945908144,
+  "op_mass|op_mass": 1.0,
+  "op_mass|newline_mass": 0.19694654160719566,
+  "op_mass|latex_mass": 0.4553703410928688,
+  "newline_mass|digit_mass": 0.01947026734287584,
+  "newline_mass|op_mass": 0.19694654160719566,
+  "newline_mass|newline_mass": 1.0,
+  "newline_mass|latex_mass": 0.18263902039812202,
+  "latex_mass|digit_mass": 0.21282272350968579,
+  "latex_mass|op_mass": 0.4553703410928688,
+  "latex_mass|newline_mass": 0.18263902039812202,
+  "latex_mass|latex_mass": 1.0
+ },
+ "obs_pairs_ge_0p5": [
+  {
+   "a": "rep_top1",
+   "b": "rep_frac_topk",
+   "cos": 0.5242468491671046
+  }
+ ],
+ "greedy_obs_only_sep0p5": [
+  "obs:rep_top1",
+  "obs:rep_ngram4",
+  "obs:backtrack_topk",
+  "obs:backtrack_frac",
+  "obs:digit_mass",
+  "obs:op_mass",
+  "obs:newline_mass",
+  "obs:latex_mass",
+  "obs:top1_prob_renorm"
+ ],
+ "greedy_with_named_axes_sep0p5": [
+  "axis:confidence",
+  "axis:creativity",
+  "axis:reasoning_deep",
+  "obs:rep_top1",
+  "obs:rep_ngram4",
+  "obs:backtrack_topk",
+  "obs:backtrack_frac",
+  "obs:digit_mass",
+  "obs:op_mass",
+  "obs:newline_mass",
+  "obs:latex_mass",
+  "obs:top1_prob_renorm"
+ ],
+ "m_surf": {
+  "cos_to_char": {
+   "digit_mass": 0.30522373781363143,
+   "op_mass": 0.5776534528161285,
+   "newline_mass": 0.3329634563903765,
+   "latex_mass": 0.5871766718945391
+  },
+  "cos_to_other_obs": {
+   "rep_top1": 0.15460170070799728,
+   "rep_ngram4": 0.01875703905471504,
+   "rep_frac_topk": 0.07195802640301299,
+   "backtrack_topk": 0.2652537916556196,
+   "backtrack_frac": 0.17445972206087684,
+   "top1_prob_renorm": 0.25472957875766633
+  },
+  "cos_to_named_axes": {
+   "confidence": 0.1148320434906687,
+   "caution": 0.03314905138831879,
+   "creativity": 0.05382845815574645,
+   "reasoning_deep": 0.07079420931397104
+  },
+  "cos_to_definition_targets": {
+   "self_check_regex": 0.08953622277808954,
+   "in_think": 0.0829197785953528,
+   "entropy": 0.2589943807237512,
+   "step_frac": 0.06912101911057883
+  },
+  "fraction_outside_named_span": 0.9915648919134181
+ }
+}
