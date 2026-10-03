@@ -19,6 +19,7 @@ OUT = ROOT / "frontend/public/latent/data/heldout_readability.json"
 fam = json.loads((XC / "heldout_family.json").read_text())
 spec = json.loads((XC / "heldout_specificity.json").read_text())
 dup = json.loads((XC / "heldout_selfdup.json").read_text())
+rec = json.loads((XC / "recipe_vs_readout.json").read_text())
 
 TR = fam["heldout_same_class_different_form"]
 NF = fam["heldout_new_family"]
@@ -111,6 +112,30 @@ payload = {
     "transfer": transfer,
     "rows": rows,
     "selfdup": dup,
+    "recipe": {
+        "target": "emitted_is_upper",
+        "how": "diff_of_means(首字母大写组, 非大写组)，与现有 4 条命名轴同一套配方",
+        "selfcheck_cos": rec["recipe_selfcheck"]["cos"],
+        "loo_rho": rec["loo_rho"]["emitted_is_upper"]["mean"],
+        "loo_floor": rec["loo_rho"]["emitted_is_upper"]["floor_mean"],
+        "loo_folds": rec["loo_rho"]["emitted_is_upper"]["n_folds"],
+        "loo_range": [rec["loo_rho"]["emitted_is_upper"]["min"],
+                      rec["loo_rho"]["emitted_is_upper"]["max"]],
+        "control_confidence_same_code": rec["loo_rho"]["confidence_same_code"]["mean"],
+        "cos_recipe_vs_ridge": rec["cos_recipe_vs_ridge_wstar"],
+        "cos_recipe_vs_caution_axis": rec["where_does_the_recipe_point"]["cos_recipe_vs_caution_axis"],
+        "cos_recipe_vs_caution_readout": rec["where_does_the_recipe_point"]["cos_recipe_vs_caution_readout"],
+        "recipe_loo_on_entropy": rec["where_does_the_recipe_point"]["recipe_loo_on_entropy"],
+        "recipe_loo_on_selfcheck": rec["where_does_the_recipe_point"]["recipe_loo_on_self_check"],
+        "specificity_margin": (rec["loo_rho"]["emitted_is_upper"]["mean"]
+                               / rec["where_does_the_recipe_point"]["recipe_loo_on_entropy"]),
+        "relative_amplitude": rec["scale"]["relative"],
+        "verdict": ("可读 ✓ / 有配方 ✓ / 可注入 ✗ —— 配方专一性余量只有 %.2f×"
+                    "（读出方向是 %.2f×），预测熵几乎和预测自己目标一样强。"
+                    % (rec["loo_rho"]["emitted_is_upper"]["mean"]
+                       / rec["where_does_the_recipe_point"]["recipe_loo_on_entropy"],
+                       [r for r in rows if r["key"] == "emitted_is_upper"][0]["margin"])),
+    },
     "verdict": (
         "两件事必须分开说：① w*(digit_mass) 换到二值、不加权、只看前 8 都还成立，"
         "说明它是「数字内容」这个方向，不是「top-64 加权方式」的产物；"

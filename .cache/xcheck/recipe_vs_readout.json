@@ -1,0 +1,45 @@
+{
+ "what": "可读方向 vs 可写下来的干预配方：emitted_is_upper 能不能用同一套 diff_of_means 造出来",
+ "recipe_selfcheck": {
+  "target": "confidence_up",
+  "cos": 0.9999999723119487,
+  "tolerance": 1e-06,
+  "passed": true
+ },
+ "loo_rho": {
+  "emitted_is_upper": {
+   "mean": 0.36879925114326645,
+   "min": 0.021128508271233675,
+   "max": 0.5158346270648224,
+   "n_folds": 48,
+   "floor_mean": 0.004482502302740715
+  },
+  "confidence_same_code": {
+   "mean": 0.48676463692895716,
+   "n_folds": 48
+  },
+  "self_check_same_code": {
+   "mean": 0.23228682752251986,
+   "n_folds": 26
+  }
+ },
+ "cos_recipe_vs_ridge_wstar": 0.5475580309754606,
+ "cos_recipe_vs_named_axes": {
+  "confidence_up": 0.445452639103052,
+  "caution": 0.7265912312543095,
+  "creativity": 0.08735009135347428,
+  "reasoning_deep": 0.014422859349491977
+ },
+ "where_does_the_recipe_point": {
+  "cos_recipe_vs_caution_axis": 0.7265912312543095,
+  "cos_recipe_vs_caution_readout": 0.27157205594058764,
+  "recipe_loo_on_self_check": 0.21371939540359305,
+  "recipe_loo_on_entropy": 0.3218678172565456
+ },
+ "scale": {
+  "mean_norm_h": 164.64854431152344,
+  "norm_diff_means": 47.123966217041016,
+  "relative": 0.2862094312105187
+ },
+ "note": "留一轨迹是这一支唯一有意义的数字：组谓词与被预测量同源，在同轨迹上测必然是构造恒等式。跨轨迹还成立才说明这份配方不只是把本轨迹的均值分开。"
+}

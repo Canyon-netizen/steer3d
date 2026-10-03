@@ -88,6 +88,24 @@ type Payload = {
   transfer: Transfer[];
   rows: Row[];
   selfdup: SelfDup;
+  recipe: {
+    target: string;
+    how: string;
+    selfcheck_cos: number;
+    loo_rho: number;
+    loo_floor: number;
+    loo_folds: number;
+    loo_range: [number, number];
+    control_confidence_same_code: number;
+    cos_recipe_vs_ridge: number;
+    cos_recipe_vs_caution_axis: number;
+    cos_recipe_vs_caution_readout: number;
+    recipe_loo_on_entropy: number;
+    recipe_loo_on_selfcheck: number;
+    specificity_margin: number;
+    relative_amplitude: number;
+    verdict: string;
+  };
   verdict: string;
   not_claimed: string;
 };
@@ -135,6 +153,7 @@ export default function HeldoutPanel() {
 
   const h = d.headline;
   const sd = d.selfdup;
+  const rc = d.recipe;
 
   return (
     <div className={box} data-heldout="ready"
@@ -264,6 +283,61 @@ export default function HeldoutPanel() {
           （{sd.per_traj_mean.n_used}/{sd.n_traj} 条轨迹有效）
           —— 与整段拼接差 {Math.abs(sd.pooled.same_step - sd.per_traj_mean.same_step).toFixed(4)}
           ，所以它不是跨轨迹拼接造出来的伪影。
+        </p>
+      </div>
+
+      {/* ④ 「可读」≠「有配方」≠「可注入」。这一块存在是因为：
+          上面把 emitted_is_upper 标成「新方向（干净）」，读者很容易理解成
+          「那是一条可以拿去注入的轴」—— 而第三关没过。 */}
+      <div className="rounded border border-red-900/60 bg-red-900/10 p-1.5 mb-1.5"
+           data-block="recipe"
+           data-recipe-loo={rc.loo_rho}
+           data-recipe-floor={rc.loo_floor}
+           data-recipe-margin={rc.specificity_margin}
+           data-recipe-selfcheck-cos={rc.selfcheck_cos}>
+        <p className="text-[9.5px] text-red-300/90 leading-snug">
+          <b>④ 但「新方向」不等于「可以拿去注入的轴」。</b>
+          把它做成与现有 4 条命名轴<b>同一套配方</b>
+          （首字母大写组 vs 非大写组取差均值），配方自证
+          cos = {rc.selfcheck_cos.toFixed(9)}。
+        </p>
+        <p className="text-[8.5px] text-gray-400 leading-snug mt-1">
+          留一轨迹 rho <span className="font-mono text-gray-200"
+            data-recipe-cell="loo">{rc.loo_rho.toFixed(4)}</span>
+          （{rc.loo_folds} 折，打乱地板 {rc.loo_floor.toFixed(4)}，
+          {Math.round(rc.loo_rho / rc.loo_floor)}×；同一份代码量 confidence 是{" "}
+          <span className="font-mono" data-recipe-cell="control">
+            {rc.control_confidence_same_code.toFixed(4)}
+          </span>）
+          ⇒ <b className="text-emerald-300">配方写得出来，而且跨轨迹站得住</b>。
+        </p>
+        <p className="text-[8.5px] text-gray-400 leading-snug mt-0.5">
+          瓶颈在<b>专一性</b>：同一份配方预测 <code>entropy</code> 有{" "}
+          <span className="font-mono text-amber-300" data-recipe-cell="entropy">
+            {rc.recipe_loo_on_entropy.toFixed(4)}
+          </span>
+          ，与预测它自己目标（{rc.loo_rho.toFixed(4)}）只差{" "}
+          <span className="font-mono text-red-300" data-recipe-cell="margin">
+            {rc.specificity_margin.toFixed(2)}×
+          </span>
+          —— 而上面那条读出方向的余量是 2.05×。
+        </p>
+        <p className="text-[8.5px] text-gray-500 leading-snug mt-0.5">
+          顺带查清一个容易误读的数：配方与 caution <b>注入轴</b>的 cos 是{" "}
+          <span className="font-mono" data-recipe-cell="caution-axis">
+            {rc.cos_recipe_vs_caution_axis.toFixed(4)}
+          </span>
+          （高），但与 caution 的<b>读出方向</b>只有{" "}
+          <span className="font-mono" data-recipe-cell="caution-readout">
+            {rc.cos_recipe_vs_caution_readout.toFixed(4)}
+          </span>
+          （低）⇒ <b>轴 ≠ 读出</b>，不能读成「is_upper 就是 caution」。
+          幅度 ‖差均值‖/mean‖h‖ = {rc.relative_amplitude.toFixed(4)}，
+          与现有 4 条轴同量级。
+        </p>
+        <p className="text-[9px] text-red-300/90 leading-snug mt-1 pt-1 border-t border-red-900/40"
+           data-recipe-verdict="true">
+          {rc.verdict}
         </p>
       </div>
 

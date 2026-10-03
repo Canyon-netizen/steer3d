@@ -289,6 +289,69 @@ try {
     bad.length
       ? bad.map(o => `${o.key} 行溢${o.rowOver}/格裁${o.cellClip}/越界${o.spill}`).join('；')
       : `${(P.over || []).length} 行全部无溢出`);
+
+  // ---------- I 组：④「可读 ≠ 有配方 ≠ 可注入」 ----------
+  // 这一块存在是因为上面把 emitted_is_upper 标成「新方向（干净）」，
+  // 读者很容易理解成「那是一条可以拿去注入的轴」—— 而第三关没过。
+  const R = truth.recipe;
+  const rc = JSON.parse(await page.eval(`(() => {
+    const el = document.querySelector('[data-block="recipe"]');
+    // ⚠ 缺失分支也必须给 cells / verdict 一个空对象：
+    //   否则下面的 rc.cells['caution-axis'] 抛 TypeError，被外层 catch 记成
+    //   「装置错」，I3/I4/I5 一条都跑不到 —— 看着像「只有 3 条红」。
+    if (!el) return JSON.stringify({missing: true, cells: {}, verdict: '', text: ''});
+    const box = el.getBoundingClientRect();
+    const cells = [...el.querySelectorAll('[data-recipe-cell]')];
+    return JSON.stringify({
+      text: (el.innerText || '').replace(/\\s+/g, ' ').trim(),
+      loo: el.getAttribute('data-recipe-loo'),
+      floor: el.getAttribute('data-recipe-floor'),
+      margin: el.getAttribute('data-recipe-margin'),
+      cos: el.getAttribute('data-recipe-selfcheck-cos'),
+      cells: Object.fromEntries(cells.map(c => [c.getAttribute('data-recipe-cell'),
+        // ⚠ ?? 和 || 混用**必须**加括号，否则整个 eval 抛 SyntaxError，
+        //   外层 catch 把它记成「装置错」，I 组后面几条一条都跑不到。
+        { attr: (c.getAttribute('data-value') ?? (c.innerText || '')).trim(),
+          text: (c.innerText || '').trim() }])),
+      verdict: (el.querySelector('[data-recipe-verdict]')?.innerText || '').trim(),
+      rowOver: Math.round(el.scrollWidth - el.clientWidth),
+      cellClip: Math.round(Math.max(0, ...cells.map(c => c.scrollWidth - c.clientWidth))),
+      spill: Math.round(Math.max(0, ...cells.map(c => c.getBoundingClientRect().right))
+                        - box.right),
+    });
+  })()`));
+
+  check('I1 配方块存在，留一 rho / 地板 / 专一余量 属性+文字 都与产物一致',
+    !rc.missing
+    && near(Number(rc.loo), R.loo_rho, 1e-9) && near(Number(rc.floor), R.loo_floor, 1e-9)
+    && near(Number(rc.margin), R.specificity_margin, 1e-9)
+    && rc.cells.loo?.text.includes(R.loo_rho.toFixed(4))
+    && (rc.text || '').includes(R.loo_floor.toFixed(4))
+    && rc.cells.entropy?.text.includes(R.recipe_loo_on_entropy.toFixed(4))
+    && rc.cells.margin?.text.includes(R.specificity_margin.toFixed(2)),
+    rc.missing ? '整块缺失'
+      : `loo ${rc.loo} / 地板 ${rc.floor} / 余量 ${rc.margin} / 格 ${Object.keys(rc.cells).join(',')}`);
+
+  check('I2 配方自证 cos 必须印出且等于产物（复制来的配方要先复现已存在的向量）',
+    near(Number(rc.cos), R.selfcheck_cos, 1e-9)
+    && (rc.text || '').includes(R.selfcheck_cos.toFixed(9)),
+    `页面 cos ${rc.cos} / 产物 ${R.selfcheck_cos}`);
+
+  check('I3 「轴 ≠ 读出」必须印出，且两个 cos 都要在（0.73 那个数极易被误读）',
+    (rc.text || '').includes('轴 ≠ 读出')
+    && rc.cells['caution-axis']?.text.includes(R.cos_recipe_vs_caution_axis.toFixed(4))
+    && rc.cells['caution-readout']?.text.includes(R.cos_recipe_vs_caution_readout.toFixed(4)),
+    `轴 ${rc.cells['caution-axis']?.text} / 读出 ${rc.cells['caution-readout']?.text}`);
+
+  check('I4 判决必须显式写「可注入 ✗」，不能只印正面的数',
+    (rc.verdict || '').includes('可读') && (rc.verdict || '').includes('有配方')
+    && (rc.verdict || '').includes('可注入')
+    && /可注入\s*[✗✘×x]/.test(rc.verdict || ''),
+    `判决「${rc.verdict || '（没有印出来）'}」`);
+
+  check('I5 配方块不横向溢出、单元格不被内部截断',
+    rc.rowOver <= 1 && rc.cellClip <= 1 && rc.spill <= 1,
+    `行溢${rc.rowOver}/格裁${rc.cellClip}/越界${rc.spill}`);
 } catch (e) {
   check('装置', false, String(e && e.message ? e.message : e));
 } finally {
