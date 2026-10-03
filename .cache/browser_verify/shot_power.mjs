@@ -7,6 +7,8 @@ import { launch, Page, CDP } from './cdp_client.mjs';
 const URL = process.env.BV_URL || 'http://127.0.0.1:10470/';
 const OUT = process.env.BV_OUT || '/Users/zhourui/code/steer3d/.cache/browser_verify/power';
 const PROFILE = '/Users/zhourui/code/steer3d/.cache/browser_verify/profile_shotpow_' + process.pid;
+// 选择器在 Node 侧取：eval 体跑在浏览器里，process 不存在。
+const SEL = process.env.BV_SEL || '[data-answer-power]';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const { proc, version } = await launch({
@@ -29,7 +31,7 @@ try {
   }
 
   const box = JSON.parse(await page.eval(`(() => {
-    const el = document.querySelector('[data-answer-power]');
+    const el = document.querySelector('${SEL}');
     if (!el) return JSON.stringify({missing: true});
     el.scrollIntoView({block: 'center'});
     const r = el.getBoundingClientRect();

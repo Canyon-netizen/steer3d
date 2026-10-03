@@ -33,6 +33,7 @@ const COT = JSON.parse(readFileSync(DATA + '/cot_texts.json', 'utf8'));
 const ANS = JSON.parse(readFileSync(DATA + '/answer_readout.json', 'utf8'));
 const ARM = JSON.parse(readFileSync(DATA + '/arm_asymmetry.json', 'utf8'));
 const PW  = JSON.parse(readFileSync(DATA + '/answer_power.json', 'utf8'));
+const SD  = JSON.parse(readFileSync(DATA + '/steer_directions.json', 'utf8'));
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = [];
@@ -129,6 +130,33 @@ try {
             flips: g('data-flips'), needed: g('data-flips-needed'),
             maxFlips: g('data-max-flips'),
             baseRight: g('data-base-right'), steerRight: g('data-steer-right'),
+          };
+        })(),
+        dir: (() => {
+          const d = el.querySelector('[data-direction-compare]');
+          if (!d) return { missing: true, text: '', items: {}, trap: null,
+                           n: null, zeroIdentical: null, zeroClosed: null,
+                           downClosed: null, upClosed: null, upOnly: null,
+                           downOnly: null, mcnemarP: null, upRw: null,
+                           upNet: null, opposite: null, lenP: null };
+          const g = a => d.getAttribute(a);
+          const items = {};
+          d.querySelectorAll('[data-dir-item]').forEach(li => {
+            items[li.getAttribute('data-dir-item')] =
+              (li.innerText || '').replace(/\\s+/g, ' ').trim();
+          });
+          const tr = d.querySelector('[data-dir-trap]');
+          return {
+            missing: false,
+            text: (d.innerText || '').replace(/\\s+/g, ' ').trim(),
+            items, table: {},
+            trap: tr ? (tr.innerText || '').replace(/\\s+/g, ' ').trim() : null,
+            n: g('data-n'), zeroIdentical: g('data-zero-identical'),
+            zeroClosed: g('data-zero-closed'), downClosed: g('data-down-closed'),
+            upClosed: g('data-up-closed'), upOnly: g('data-up-only'),
+            downOnly: g('data-down-only'), mcnemarP: g('data-mcnemar-p'),
+            upRw: g('data-up-rw'), upNet: g('data-up-net'),
+            opposite: g('data-opposite'), lenP: g('data-len-p'),
           };
         })(),
         rows: el.querySelectorAll('[data-answer-rows] > div').length,
@@ -322,11 +350,15 @@ try {
   //   于是页面原样印出 `**不是数据碰巧**` —— 判据全绿，因为
   //   「文字在」这一条它查得出；判据查不出的是「渲染对了没有」。
   //   是截图看出来的。⇒ 这类缺陷必须有一条专门的守卫。
-  rec('I0b 功效块内不得出现未渲染的 markdown 强调记号 **',
-      !P.missing && !P.text.includes('**'),
-      P.missing ? '缺块' : (P.text.includes('**')
-        ? `块内出现 **：${P.text.slice(0, 120)}`
-        : '块内无 ** （纯 JSX 渲染，markdown 记号会原样印出）'));
+  // ⚠ 守卫范围从「功效块」扩到**整块面板**。
+  //   原版只查 P.text，而 markdown 泄漏完全可能发生在方向对照块、
+  //   离线横幅、折叠说明里的任何一处。
+  rec('I0b 整块面板不得出现未渲染的 markdown 强调记号 **',
+      !P.missing && !state.text.includes('**') && !state.omitted.includes('**')
+      && !state.banner.includes('**') && !state.note.includes('**'),
+      state.text.includes('**') || (state.omitted || '').includes('**')
+        ? `面板内出现 **：${(state.text.match(/.{0,40}\*\*.{0,40}/) || [''])[0]}`
+        : '整块面板无 ** （纯 JSX 渲染，markdown 记号会原样印出）');
 
   // 任何一处漂移，读者就会看到两个互相打架的净变化。
   const chipNum = k => {
@@ -489,6 +521,123 @@ try {
       && /没有贡献/.test(DM)
       && /域外判定/.test(DM),
       DM ? DM.slice(0, 200) : '缺 [data-power-item="domain"]');
+
+  // ==================== J 组：同一根轴换符号 ====================
+  // 上面整块只看了 −v。disk 上还有同 23 题的 +v 臂，而两个方向的
+  // **零强度臂逐字相同**（23/23）⇒ 共享同一份对照，配对里没有
+  // 「两次运行」的噪声源，只差注入向量这一个变量。
+  // 结论对预期是反的：+v 把分布推得**更近**却让 **18/23** 的题跑不完，
+  // −v 把分布推得**更远**却只让 1 题跑不完。
+  const D = state.dir || {};
+  const T = (D.table || {});
+
+  rec('J0 方向对照块存在，且 9 个关键数字与 steer_directions.json 逐值相同',
+      !D.missing
+      && Number(D.n) === SD.n_problems
+      && Number(D.zeroIdentical) === SD.shared_control.n_identical_zero_arms
+      && Number(D.zeroClosed) === SD.closed_counts.zero_shared
+      && Number(D.downClosed) === SD.closed_counts.down_minus_v
+      && Number(D.upClosed) === SD.closed_counts.up_plus_v
+      && Number(D.upOnly) === SD.blew_up.table_on_shared_zero_control.up_only_blew_up
+      && Number(D.downOnly) === SD.blew_up.table_on_shared_zero_control.down_only_blew_up
+      && Math.abs(Number(D.mcnemarP) - SD.blew_up.mcnemar_exact_p) < 1e-12
+      && D.opposite === String(SD.kl_contrast.opposite),
+      D.missing ? '缺 [data-direction-compare]'
+        : `n=${D.n} 零臂相同=${D.zeroIdentical} 闭合 零/−v/+v=`
+          + `${D.zeroClosed}/${D.downClosed}/${D.upClosed} upOnly=${D.upOnly} `
+          + `downOnly=${D.downOnly} p=${D.mcnemarP} opposite=${D.opposite} | 产物 `
+          + `n=${SD.n_problems} 相同=${SD.shared_control.n_identical_zero_arms} `
+          + `${SD.closed_counts.zero_shared}/${SD.closed_counts.down_minus_v}/`
+          + `${SD.closed_counts.up_plus_v} upOnly=`
+          + `${SD.blew_up.table_on_shared_zero_control.up_only_blew_up} downOnly=`
+          + `${SD.blew_up.table_on_shared_zero_control.down_only_blew_up} `
+          + `p=${SD.blew_up.mcnemar_exact_p} opposite=${SD.kl_contrast.opposite}`);
+
+  rec('J1 共享对照必须被印出（零臂逐字相同 n/23），否则不是配对设计',
+      !!D.text
+      && /零强度臂逐字相同/.test(D.text)
+      && D.text.includes(String(SD.shared_control.n_identical_zero_arms))
+      && D.text.includes(String(SD.n_problems))
+      && SD.shared_control.holds === true
+      && SD.shared_control.n_identical_zero_arms === SD.n_problems,
+      D.text ? D.text.slice(0, 170) : '缺块');
+
+  // 三个闭合率必须都印出，且 +v 那个不能被弱化成「掉了一点」
+  rec('J2 三个闭合率（零臂 / −v / +v）必须并排印出，且 +v 那格不许淡化',
+      D.text
+      && D.text.includes(`${SD.closed_counts.zero_shared}/${SD.n_problems}`)
+      && D.text.includes(`${SD.closed_counts.down_minus_v}/${SD.n_problems}`)
+      && D.text.includes(`${SD.closed_counts.up_plus_v}/${SD.n_problems}`)
+      && /大面积跑飞/.test(D.text)
+      && SD.closed_counts.up_plus_v < SD.closed_counts.zero_shared / 2,
+      D.text ? D.text.slice(0, 200) : '缺块');
+
+  const MC = D.items.mcnemar || '';
+  rec('J3 四格表的关键三格与 McNemar 精确 p 必须与产物一致（可见文案 + 属性两处）',
+      MC.includes(String(SD.blew_up.table_on_shared_zero_control.n_zero_closed))
+      && MC.includes(String(SD.blew_up.table_on_shared_zero_control.up_only_blew_up))
+      && MC.includes(String(SD.blew_up.table_on_shared_zero_control.down_only_blew_up))
+      && MC.includes(String(SD.blew_up.table_on_shared_zero_control.both_blew_up))
+      && MC.includes(String(SD.blew_up.n_up_vs_shared_control))
+      && MC.includes(String(SD.blew_up.n_down_vs_shared_control))
+      // ⚠ J3 把**印出来的** p 换成 0.42，而 data-mcnemar-p 仍诚实
+      //   ⇒ 只查属性的判据全绿。这是 O15 / O21 / J3 第三次同一条教训：
+      //   **判据必须同时读可见文案和 data-*。**
+      && MC.includes(SD.blew_up.mcnemar_exact_p.toExponential(2))
+      && Number(D.mcnemarP) === SD.blew_up.mcnemar_exact_p
+      && SD.blew_up.mcnemar_exact_p < 0.001,
+      MC ? MC.slice(0, 210) : '缺 [data-dir-item="mcnemar"]');
+
+  const KL = D.items.kl || '';
+  rec('J4 「注入幅度与跑飞方向相反」必须印出，两个 KL 与产物一致',
+      /与注入幅度相反/.test(KL)
+      && KL.includes(SD.kl_contrast.mean_logit_kl_down.toFixed(4))
+      && KL.includes(SD.kl_contrast.mean_logit_kl_up.toFixed(4))
+      && /更远/.test(KL) && /更少跑飞/.test(KL)
+      && /相反/.test(KL)
+      && SD.kl_contrast.larger_kl_direction === 'confidence_down'
+      && SD.kl_contrast.more_blew_up_direction === 'confidence_up'
+      && SD.kl_contrast.opposite === true,
+      KL ? KL.slice(0, 200) : '缺 [data-dir-item="kl"]');
+
+  // ⚠ 反向断言：配对符号检验 p = 0.093 **没到 0.05**。
+  //   这一条是本组最容易犯的错 —— 中位数 2.21× 对 1.20× 看着很清楚，
+  //   很容易被印成一个结论。它只能印成「弱证据」。
+  const LN = D.items.length || '';
+  rec('J5 长度差必须标为弱证据：p 未到 0.05 时必须原样印出 p 并说「没到 0.05」',
+      SD.length.sign_test_p > 0.05
+      && LN.includes(SD.length.ratio_median_up.toFixed(2))
+      && LN.includes(SD.length.ratio_median_down.toFixed(2))
+      && LN.includes(String(SD.length.n_up_ratio_gt_down))
+      && LN.includes(SD.length.sign_test_p.toFixed(3))
+      && /没到\s*0\.05/.test(LN)
+      && /弱证据/.test(LN),
+      LN ? LN.slice(0, 220) : '缺 [data-dir-item="length"]');
+
+  // ⚠ 本支最重要的一条：+v 的 verdict 表「right->wrong 0、净变化 0」
+  //   是 18/23 未闭合制造出来的假象。不许让读者把它读成「+v 最安全」。
+  const TR = D.trap || '';
+  rec('J6 必须点破陷阱：+v 的 right->wrong=0 / 净变化=0 是未闭合造成的假象',
+      !!TR
+      && TR.includes(String(SD.per_direction.up.verdicts['right->wrong'] || 0))
+      && TR.includes(String(SD.per_direction.up.net_change))
+      && TR.includes(String(SD.per_direction.up.n_incomplete))
+      && /破坏没有消失/.test(TR)
+      && /看不见/.test(TR)
+      && /根本没有产出答案/.test(TR)
+      && Number(D.upRw) === (SD.per_direction.up.verdicts['right->wrong'] || 0)
+      && Number(D.upNet) === SD.per_direction.up.net_change
+      && SD.per_direction.up.n_complete < SD.n_problems / 2,
+      TR ? TR.slice(0, 230) : '缺 [data-dir-trap]');
+
+  rec('J7 不能说的两条必须印出：只有一个强度点 / 缺同范数随机方向臂',
+      !!TR
+      && new RegExp('只有\\s*s\\s*=\\s*' + esc(SD.strength)).test(TR)
+      && /一个强度点/.test(TR)
+      && /假设/.test(TR)
+      && /随机方向臂/.test(TR)
+      && /吸引域/.test(TR),
+      TR ? TR.slice(-230) : '缺 [data-dir-trap]');
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {

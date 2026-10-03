@@ -116,6 +116,40 @@ type ArmMetric = {
   distinguishable: boolean;
 };
 
+type DirCompare = {
+  what: string;
+  layer: number;
+  strength: number;
+  n_problems: number;
+  shared_control: { claim: string; n_identical_zero_arms: number; n_problems: number; holds: boolean };
+  closed_counts: { zero_shared: number; down_minus_v: number; up_plus_v: number; n_problems: number };
+  blew_up: {
+    table_on_shared_zero_control: {
+      n_zero_closed: number; both_closed: number;
+      up_only_blew_up: number; down_only_blew_up: number; both_blew_up: number;
+    };
+    n_up_vs_shared_control: number;
+    n_down_vs_shared_control: number;
+    mcnemar_exact_p: number;
+    zero_arm_at_cap: number;
+  };
+  length: {
+    ratio_median_down: number; ratio_median_up: number;
+    n_up_ratio_gt_down: number; n_problems: number; sign_test_p: number;
+  };
+  kl_contrast: {
+    mean_logit_kl_up: number; mean_logit_kl_down: number;
+    larger_kl_direction: string; more_blew_up_direction: string; opposite: boolean;
+  };
+  per_direction: Record<string, {
+    n_complete: number; n_incomplete: number; verdicts: Record<string, number>;
+    baseline_correct: number; steered_correct: number; net_change: number;
+    changed: number; changed_rate: number | null; arms_at_token_cap: number;
+  }>;
+  verdict: string;
+  not_claimed: string;
+};
+
 type AnswerPower = {
   what: string;
   direction: string;
@@ -188,6 +222,7 @@ export default function InterventionOutcomePanel() {
   const [ans, setAns] = useState<AnswerReadout | null>(null);
   const [arm, setArm] = useState<ArmAsymmetry | null>(null);
   const [pw, setPw] = useState<AnswerPower | null>(null);
+  const [sd, setSd] = useState<DirCompare | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   // Mounted with a cancellation guard, same shape as InterpretationPanel's
@@ -210,9 +245,15 @@ export default function InterventionOutcomePanel() {
       // 两边的生成顺序变成隐式依赖。
       fetch("/latent/data/answer_power.json").then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
+      // 方向对照。单独一份产物：写它的是 .cache/xcheck/steer_directions.py，
+      // 它与 answer_power.json 共享 cot_divergence_32k.json 但口径不同
+      // （那支只算 −v，这一支算两个方向 + 闭合率），并进任一份都会
+      // 让「谁生成哪个字段」变得看不出来。
+      fetch("/latent/data/steer_directions.json").then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
     ])
-      .then(([c, a, m, p]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower]) => {
-        if (alive) { setCot(c); setAns(a); setArm(m); setPw(p); }
+      .then(([c, a, m, p, d]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower, DirCompare]) => {
+        if (alive) { setCot(c); setAns(a); setArm(m); setPw(p); setSd(d); }
       })
       .catch((e) => { if (alive) setErr(String(e.message || e)); });
     return () => { alive = false; };
@@ -527,6 +568,118 @@ export default function InterventionOutcomePanel() {
             另外 3 条命名轴与正的 <code>confidence_up</code> 臂都不在这里；
             <b>L7（改变的是概念而非位置/格式）一次都没测</b> ——
             「答案对不对」连位置轴对照都没有。
+          </p>
+        </div>
+      )}
+
+      {/* --- 同一根轴的另一个符号：+v 几乎让整个批次跑飞（§4.16）---
+          上面整块只看了 −v 一侧。disk 上还有同 23 题的 +v 臂，
+          而两个方向的零强度臂逐字相同（23/23）⇒ 共享同一份对照，
+          配对里没有「两次运行」的噪声源，只差注入符号一个变量。 */}
+      {sd && (
+        <div className="mb-2 px-2 py-1.5 rounded"
+             style={{ background: "#101a14", borderLeft: "2px solid #3f9e6a" }}
+             data-direction-compare
+             data-n={sd.n_problems}
+             data-zero-identical={sd.shared_control.n_identical_zero_arms}
+             data-zero-closed={sd.closed_counts.zero_shared}
+             data-down-closed={sd.closed_counts.down_minus_v}
+             data-up-closed={sd.closed_counts.up_plus_v}
+             data-up-only={sd.blew_up.table_on_shared_zero_control.up_only_blew_up}
+             data-down-only={sd.blew_up.table_on_shared_zero_control.down_only_blew_up}
+             data-mcnemar-p={sd.blew_up.mcnemar_exact_p}
+             data-up-rw={sd.per_direction.up.verdicts["right->wrong"] ?? 0}
+             data-up-net={sd.per_direction.up.net_change}
+             data-opposite={String(sd.kl_contrast.opposite)}
+             data-len-p={sd.length.sign_test_p}>
+          <p className="text-[10px] text-gray-300 leading-relaxed">
+            <b>同一根轴，把符号换过来，行为完全相反。</b>
+            {" "}上面整块只看了 <code>−v</code>。disk 上还有同 {sd.n_problems} 道题的{" "}
+            <code>+v</code> 臂，而两个方向的<b>零强度臂逐字相同</b>（
+            {sd.shared_control.n_identical_zero_arms}/{sd.n_problems}）⇒
+            它们共享同一份对照，配对里没有「两次运行」的噪声源，
+            只差注入向量这一个变量。
+          </p>
+          <div className="grid grid-cols-3 gap-1.5 my-1">
+            <Stat label="零臂（共享对照）" v={`${sd.closed_counts.zero_shared}/${sd.n_problems}`}
+                  sub="跑完 </think>" />
+            <Stat label="注入 −v 后" v={`${sd.closed_counts.down_minus_v}/${sd.n_problems}`}
+                  sub="几乎没变差" />
+            <Stat label="注入 +v 后" v={`${sd.closed_counts.up_plus_v}/${sd.n_problems}`}
+                  sub="大面积跑飞" />
+          </div>
+          <ul className="mt-0.5 text-[10px] text-gray-400 leading-relaxed">
+            <li data-dir-item="mcnemar">
+              在零臂闭合的 {sd.blew_up.table_on_shared_zero_control.n_zero_closed} 题里：
+              <b className="font-mono text-amber-300">
+                {sd.blew_up.table_on_shared_zero_control.up_only_blew_up}</b>{" "}
+              题<b>只有 +v 跑不完</b>，
+              <b className="font-mono text-gray-200">
+                {sd.blew_up.table_on_shared_zero_control.down_only_blew_up}</b>{" "}
+              题只有 −v 跑不完，McNemar 双侧精确 p ={" "}
+              <span className="font-mono text-gray-200">
+                {sd.blew_up.mcnemar_exact_p.toExponential(2)}
+              </span>
+              。加上两臂都没跑完的{" "}
+              {sd.blew_up.table_on_shared_zero_control.both_blew_up} 题，
+              +v 相对共享对照一共让{" "}
+              <b className="font-mono text-gray-200">
+                {sd.blew_up.n_up_vs_shared_control}</b>{" "}
+              题从「跑得完」变成「跑不完」，−v 只有{" "}
+              <b className="font-mono text-gray-200">
+                {sd.blew_up.n_down_vs_shared_control}</b>{" "}
+              题。
+            </li>
+            <li data-dir-item="kl">
+              <b>而且这与注入幅度相反。</b>同一层同一强度下，
+              <code>−v</code> 把分布推得<b>更远</b>（KL{" "}
+              <span className="font-mono text-gray-200">
+                {sd.kl_contrast.mean_logit_kl_down.toFixed(4)}
+              </span>{" "}
+              对 +v 的{" "}
+              <span className="font-mono text-gray-200">
+                {sd.kl_contrast.mean_logit_kl_up.toFixed(4)}
+              </span>
+              ），却<b>更少跑飞</b>。
+              ⇒ 「把分布推得远」和「把生成推入不收敛」是两件事，
+              本项目这条轴上两者的方向<b>相反</b>。
+            </li>
+            <li data-dir-item="length">
+              生成长度配对中位数：+v{" "}
+              <span className="font-mono text-gray-200">
+                {sd.length.ratio_median_up.toFixed(2)}×
+              </span>{" "}
+              对 −v{" "}
+              <span className="font-mono text-gray-200">
+                {sd.length.ratio_median_down.toFixed(2)}×
+              </span>
+              ，同题比较 {sd.length.n_up_ratio_gt_down}/{sd.length.n_problems} 题
+              +v 更长 —— 但符号检验 p ={" "}
+              <span className="font-mono text-gray-200">
+                {sd.length.sign_test_p.toFixed(3)}
+              </span>{" "}
+              <b className="text-amber-300">没到 0.05</b>。
+              ⇒ <b>长度是弱证据</b>，能站住的是上面的闭合率。
+            </li>
+          </ul>
+          <p className="text-[10px] text-amber-200/90 leading-relaxed mt-1"
+             data-dir-trap>
+            ⚠ <b>这里有个很容易踩的坑：只看闭合的那几题，+v 臂的 verdict 是{" "}
+            right-&gt;wrong <b>{sd.per_direction.up.verdicts["right->wrong"] ?? 0}</b>、
+            净变化 <b>{sd.per_direction.up.net_change}</b> —— 读起来像
+            「+v 是最安全的方向」。</b>
+            那是 <b>{sd.per_direction.up.n_incomplete}/{sd.n_problems}</b>{" "}
+            未闭合制造出来的假象：<b>破坏没有消失</b>，
+            它从「答错」变成了「答不出来」，而按 verdict 计数<b>看不见</b>。
+            ⇒ 对 +v 唯一诚实的读法是：<b>
+              它在 {sd.per_direction.up.n_incomplete}/{sd.n_problems} 的题上
+              根本没有产出答案</b>。
+            <br />
+            <b>不能说的</b>：本项目只有 s = {sd.strength} <b>一个强度点</b>，
+            所以「某个阈值之上 +v 会跑飞」是<b>假设</b>，既不能证实也不能证伪；
+            也不能把这个符号不对称说成 confidence 这个<b>概念</b>的性质 ——
+            <b>缺同范数随机方向臂</b>，排除不了「±v 各自靠近某个不稳定吸引域」
+            这种更平凡的解释。
           </p>
         </div>
       )}

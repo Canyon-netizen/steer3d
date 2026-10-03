@@ -1,0 +1,102 @@
+{
+ "schema": "steer_directions/1",
+ "what": "同一条轴的两个符号为什么行为相反：+v 让模型跑飞，−v 只让它偏移",
+ "layer": 20,
+ "strength": 0.2,
+ "n_problems": 23,
+ "shared_control": {
+  "claim": "两个方向的零强度臂逐字相同 ⇒ 共享同一份对照",
+  "n_identical_zero_arms": 23,
+  "n_problems": 23,
+  "holds": true
+ },
+ "closed_counts": {
+  "zero_shared": 21,
+  "down_minus_v": 20,
+  "up_plus_v": 5,
+  "n_problems": 23
+ },
+ "blew_up": {
+  "table_on_shared_zero_control": {
+   "n_zero_closed": 21,
+   "both_closed": 5,
+   "up_only_blew_up": 15,
+   "down_only_blew_up": 0,
+   "both_blew_up": 1
+  },
+  "up_labels": [
+   "1984_I_1",
+   "1986_I_1",
+   "1987_I_1",
+   "1988_I_1",
+   "1990_I_1",
+   "1991_I_1",
+   "1992_I_1",
+   "1994_I_1",
+   "2000_I_1",
+   "2002_I_1",
+   "2004_I_1",
+   "2012_I_1",
+   "2014_I_1",
+   "2016_I_1",
+   "2023_I_1",
+   "2025_I_1"
+  ],
+  "down_labels": [
+   "1988_I_1"
+  ],
+  "n_up_vs_shared_control": 16,
+  "n_down_vs_shared_control": 1,
+  "mcnemar_exact_p": 6.103515625e-05,
+  "zero_arm_at_cap": 2
+ },
+ "token_cap": 32000,
+ "per_direction": {
+  "up": {
+   "n_complete": 5,
+   "n_incomplete": 18,
+   "verdicts": {
+    "right->right": 4,
+    "wrong->wrong": 1
+   },
+   "baseline_correct": 4,
+   "steered_correct": 4,
+   "net_change": 0,
+   "changed": 0,
+   "changed_rate": 0.0,
+   "arms_at_token_cap": 18
+  },
+  "down": {
+   "n_complete": 20,
+   "n_incomplete": 3,
+   "verdicts": {
+    "right->right": 6,
+    "right->wrong": 1,
+    "wrong->right": 1,
+    "wrong->wrong": 12
+   },
+   "baseline_correct": 7,
+   "steered_correct": 7,
+   "net_change": 0,
+   "changed": 10,
+   "changed_rate": 0.5,
+   "arms_at_token_cap": 2
+  }
+ },
+ "length": {
+  "ratio_median_down": 1.1987533875338754,
+  "ratio_median_up": 2.2130013831258646,
+  "n_up_ratio_gt_down": 16,
+  "n_problems": 23,
+  "sign_test_p": 0.0931396484375
+ },
+ "kl_contrast": {
+  "mean_logit_kl_up": 0.034271792369616895,
+  "mean_logit_kl_down": 0.06863306272701339,
+  "larger_kl_direction": "confidence_down",
+  "more_blew_up_direction": "confidence_up",
+  "opposite": true
+ },
+ "verdict": "**同一条轴，符号一换，行为完全不同。**\n① 零臂 21/23 闭合（两臂共享同一份对照，见 shared_control）。注入 −v 后 20/23 闭合，注入 **+v** 后只剩 **5/23**。\n⇒ 四格表（只在零臂闭合的 21 题里）：三臂都跑完 5、**只有 +v 跑不完 15**、只有 −v 跑不完 0、两臂都没跑完 1。McNemar 双侧精确 p = **6.1e-05**。\n② **这与注入幅度相反。** §4.13 的 KL：+v 0.0343 / −v 0.0686 —— **−v 把分布推得更远，却更少跑飞**。\n⇒ 「把分布推得远」和「把生成推入不收敛」是两件事，本项目这条轴上两者的方向**相反**。\n③ 生成长度配对中位数：+v 2.21× / −v 1.20×，同题比较 16/23 题 +v 更长，符号检验 p = 0.0931。\n④ ⚠ **最大的一个陷阱**：只看闭合的那几题，+v 臂的 verdict 是 right->wrong **0**、净变化 **0** —— 读起来像「+v 最安全」。\n那是 **18/23 未闭合**制造出来的假象：破坏没有消失，它从「答错」变成了「答不出来」，而按 verdict 计数**看不见**。",
+ "not_claimed": "① **不能说「+v 更差」是普遍规律** —— 本项目只有 s = 0.2 **一个强度点**。「某个阈值之上 +v 会跑飞」是**假设**，本批数据既不能证实也不能证伪。\n② 不能说「+v 让模型更自信」或「−v 让模型更怀疑」—— 能测的只是闭合率与生成长度，**不是**主观状态。\n③ 不能把这个符号不对称说成 confidence 这个**概念**的性质：它只说明「在这条由 confidence_up/down 定义的轴上，符号不对称」。**缺同范数随机方向臂**（§4.13.3），所以不能排除「±v 各自接近某个不稳定的吸引域」这种更平凡的解释。\n④ 不能用 +v 臂的 verdict 表评价 +v：它只有 5 题，且这 5 题是**条件化**出来的（恰好是 +v 没跑飞的那几题）。\n⇒ 对 +v 唯一诚实的读法是：**它在 18/23 的题上根本没有产出答案**。\n⑤ 也不能反过来用 −v 臂说「−v 是安全的」：−v 的 20 题里答案改变率 50%，其中多数是 wrong->wrong（见 §4.15.3）。"
+}
