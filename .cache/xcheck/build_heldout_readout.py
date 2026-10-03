@@ -20,6 +20,7 @@ fam = json.loads((XC / "heldout_family.json").read_text())
 spec = json.loads((XC / "heldout_specificity.json").read_text())
 dup = json.loads((XC / "heldout_selfdup.json").read_text())
 rec = json.loads((XC / "recipe_vs_readout.json").read_text())
+var = json.loads((XC / "recipe_variants.json").read_text())
 
 TR = fam["heldout_same_class_different_form"]
 NF = fam["heldout_new_family"]
@@ -86,6 +87,55 @@ n_same = sum(1 for r in rows if r["verdict"] == "same_direction")
 n_clean = sum(1 for r in rows if r["verdict"] == "new_clean")
 n_weak = sum(1 for r in rows if r["verdict"] == "new_weak")
 
+
+def _variant_row(vname, m):
+    """一个变体格子：余量 + **谁在约束** + 这个归属分不分得开。
+
+    `tie` 的判据用 gap/sem < 2：两个竞争者差距不到 2 个标准误，
+    `max` 选中谁是任意的，此时 margin 只应读成「并列里的下界」。
+    """
+    gap_sem = m.get("top2_gap_over_sem")
+    return {
+        "name": vname,
+        "short": vname.replace("V1_", "").replace("V2_", "")
+                     .replace("V3_", ""),
+        "rho_own": m["rho_own"],
+        "rho_own_sem": m.get("rho_own_sem"),
+        "worst_name": m.get("worst_other_name"),
+        "worst_rho": m.get("worst_other"),
+        "runner_up_name": m.get("runner_up_name"),
+        "runner_up_rho": (m["rho_others"].get(m["runner_up_name"])
+                          if m.get("runner_up_name") else None),
+        "gap_over_sem": gap_sem,
+        # 归属不可判 ⇒ 这个 margin 不能当结论印
+        "tie": (gap_sem is not None and gap_sem < 2.0),
+        "margin": m["margin"],
+        "n_positive": m.get("n_positive_total"),
+    }
+
+
+def _attribution(v1, v2):
+    """余量涨了多少，其中自身涨 / 竞争者掉各占多少（对数分解，可加）。
+
+    1.146× → 1.675× 看着像「配方变干净了」，但拆开常常是竞争者掉得多。
+    不给这个分解，读者会把功劳记在配方结构上。
+    """
+    import math
+    own1, own2 = v1["rho_own"], v2["rho_own"]
+    w1, w2 = v1["worst_other"], v2["worst_other"]
+    tot = math.log(v2["margin"] / v1["margin"])
+    return {
+        "from": "V1_naive", "to": "V2_banded",
+        "margin_from": v1["margin"], "margin_to": v2["margin"],
+        "own_from": own1, "own_to": own2,
+        "own_change_pct": (own2 / own1 - 1.0) * 100.0,
+        "worst_from": w1, "worst_to": w2,
+        "worst_change_pct": (w2 / w1 - 1.0) * 100.0,
+        "worst_name_from": v1["worst_other_name"],
+        "worst_name_to": v2["worst_other_name"],
+        "share_from_competitor": (-math.log(w2 / w1) / tot * 100.0) if tot else None,
+    }
+
 payload = {
     "schema": "heldout_readability/v1",
     "question": "换一批从头到尾没参与过调参的观测量，这套判据还找不找得到东西？",
@@ -130,6 +180,31 @@ payload = {
         "specificity_margin": (rec["loo_rho"]["emitted_is_upper"]["mean"]
                                / rec["where_does_the_recipe_point"]["recipe_loo_on_entropy"]),
         "relative_amplitude": rec["scale"]["relative"],
+        # §4.11：换配方结构（熵带内差）能把余量抬到多少。
+        #
+        # ⚠ 余量 = 自身 / max(竞争者)，而 **max 选中了谁必须一起报出来**：
+        #   去混杂把熵压下去之后，最紧的约束方会换人。V2 上 entropy 0.2236 与
+        #   self_check 0.2241 只差 0.03 sem —— `max` 选中谁是任意的，
+        #   报出来的 1.675× 只是一个并列里的下界。
+        # ⇒ 每条都带 worst/runner_up 身份 + gap_over_sem + tie 标记。
+        #   不印这些，页面上的「1.68×」会被读成干净的结论。
+        "variants": [_variant_row(v, m) for v, m in var["targets"]["emitted_is_upper"].items()],
+        "control_self_check": [
+            _variant_row(v, m) for v, m in var["targets"]["self_check"].items()],
+        "closure_v1_selfcheck_vs_caution_axis": var["closure_v1_selfcheck_vs_caution_axis"],
+        "best_margin": max(m["margin"] for m in
+                           var["targets"]["emitted_is_upper"].values()
+                           if m["margin"]),
+        "clean_threshold": 2.0,
+        # 涨幅归因：自身涨了多少 vs 竞争者掉了多少。1.15× → 1.68× 看着是「变干净了」，
+        # 拆开看几乎全是竞争者下降 —— 这个数不给，读者会归因到配方本身。
+        "margin_gain_attribution": _attribution(
+            var["targets"]["emitted_is_upper"]["V1_naive"],
+            var["targets"]["emitted_is_upper"]["V2_banded"]),
+        # 约束方是否换过人。换了人就不能说「这条配方方向本来就是 X」。
+        "control_binding_swapped": (
+            var["targets"]["self_check"]["V1_naive"]["worst_other_name"]
+            != var["targets"]["self_check"]["V2_banded"]["worst_other_name"]),
         "verdict": ("可读 ✓ / 有配方 ✓ / 可注入 ✗ —— 配方专一性余量只有 %.2f×"
                     "（读出方向是 %.2f×），预测熵几乎和预测自己目标一样强。"
                     % (rec["loo_rho"]["emitted_is_upper"]["mean"]

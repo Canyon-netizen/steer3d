@@ -299,7 +299,7 @@ try {
     // ⚠ 缺失分支也必须给 cells / verdict 一个空对象：
     //   否则下面的 rc.cells['caution-axis'] 抛 TypeError，被外层 catch 记成
     //   「装置错」，I3/I4/I5 一条都跑不到 —— 看着像「只有 3 条红」。
-    if (!el) return JSON.stringify({missing: true, cells: {}, verdict: '', text: ''});
+    if (!el) return JSON.stringify({missing: true, cells: {}, verdict: '', text: '', variants: {missing: true, text: ''}});
     const box = el.getBoundingClientRect();
     const cells = [...el.querySelectorAll('[data-recipe-cell]')];
     return JSON.stringify({
@@ -314,6 +314,23 @@ try {
         { attr: (c.getAttribute('data-value') ?? (c.innerText || '')).trim(),
           text: (c.innerText || '').trim() }])),
       verdict: (el.querySelector('[data-recipe-verdict]')?.innerText || '').trim(),
+      variants: (() => {
+        const v = el.querySelector('[data-recipe-variants]');
+        if (!v) return { missing: true, text: '', rows: [] };
+        return {
+          best: v.getAttribute('data-best-margin'),
+          threshold: v.getAttribute('data-clean-threshold'),
+          swapped: v.getAttribute('data-binding-swapped'),
+          text: (v.innerText || '').replace(/\\s+/g, ' ').trim(),
+          rows: [...v.querySelectorAll('[data-variant-row]')].map(li => ({
+            name: li.getAttribute('data-variant-row'),
+            margin: li.getAttribute('data-variant-margin'),
+            tie: li.getAttribute('data-variant-tie'),
+            worst: li.getAttribute('data-variant-worst'),
+            text: (li.innerText || '').replace(/\\s+/g, ' ').trim(),
+          })),
+        };
+      })(),
       rowOver: Math.round(el.scrollWidth - el.clientWidth),
       cellClip: Math.round(Math.max(0, ...cells.map(c => c.scrollWidth - c.clientWidth))),
       spill: Math.round(Math.max(0, ...cells.map(c => c.getBoundingClientRect().right))
@@ -352,6 +369,56 @@ try {
   check('I5 配方块不横向溢出、单元格不被内部截断',
     rc.rowOver <= 1 && rc.cellClip <= 1 && rc.spill <= 1,
     `行溢${rc.rowOver}/格裁${rc.cellClip}/越界${rc.spill}`);
+
+  // I6 每个变体必须印出三样：余量、**谁在约束**、这个归属分不分得开。
+  //    只查余量不够 —— 两个竞争者并列时 max 选中谁是任意的，
+  //    只印余量会把「并列」印成「结论」。
+  const V = rc.variants || {};
+  const vRows = V.rows || [];
+  check('I6 三个变体的余量 / 约束方 / tie 标记与产物逐项一致',
+    near(Number(V.best), R.best_margin, 1e-9)
+    && near(Number(V.threshold), R.clean_threshold, 1e-9)
+    && R.variants.every(v => {
+      const r = vRows.find(x => x.name === v.name);
+      return r && near(Number(r.margin), v.margin, 1e-9)
+        && r.worst === v.worst_name
+        && r.tie === String(v.tie)
+        && r.text.includes(v.worst_rho.toFixed(3))
+        && r.text.includes(v.margin.toFixed(2))
+        // tie 的行必须说清「并列 + 差多少 sem」，非 tie 的必须说清「领先多少 sem」
+        && (v.tie
+          ? r.text.includes('并列') && r.text.includes(v.gap_over_sem.toFixed(2))
+          : r.text.includes(v.gap_over_sem.toFixed(1)));
+    }),
+    V.missing ? '变体块缺失'
+      : vRows.map(r => `${r.name}:${r.margin}/${r.worst}/tie=${r.tie}`).join(' ')
+        + ` | 产物 ${R.variants.map(v => `${v.name}:${v.margin.toFixed(4)}/${v.worst_name}/tie=${v.tie}`).join(' ')}`);
+
+  // I7 对照组：余量全 < 1 是事实，但**约束方换过人**这件事必须一起印出来。
+  //    少了后半句，读者会得出「caution 的配方方向本来就是熵的」——
+  //    而这正是这一轮推翻的东西：朴素时熵只领先 1.7 sem（不显著），
+  //    去混杂后约束方确定地变成 emitted_is_upper。
+  check('I7 对照组三个余量全 < 1，且「约束方从熵换成 is_upper」必须印在页面上',
+    R.control_self_check.every(v => v.margin < 1)
+    && String(R.control_binding_swapped) === V.swapped
+    && (V.text || '').includes('emitted_is_upper')
+    && (V.text || '').includes('1.7')
+    && (V.text || '').includes('不能说'),
+    `产物 swapped=${R.control_binding_swapped} / 页 data-binding-swapped=${V.swapped} / `
+    + R.control_self_check.map(v => `${v.name}=${v.margin.toFixed(3)} worst=${v.worst_name}(${v.gap_over_sem.toFixed(2)}sem)`).join(' '));
+
+  // I8 涨幅归因：页面印的「N% 来自竞争者」必须等于产物，且自身涨幅也要印。
+  //    不印这个分解，读者会把 1.15×→1.68× 的功劳记在配方结构上，
+  //    而它几乎全是竞争者被压下去造成的。
+  const A = R.margin_gain_attribution;
+  const ownTxt = (V.text || '').match(/只涨\s*([\d.]+)%/)?.[1];
+  const shareTxt = (V.text || '').match(/的\s*(\d+)%\s*来自竞争者/)?.[1];
+  check('I8 余量涨幅归因：自身 +N% 与「M% 来自竞争者」都与产物一致',
+    ownTxt != null && shareTxt != null
+    && near(A.own_change_pct, Number(ownTxt), 0.05)
+    && near(A.share_from_competitor, Number(shareTxt), 0.5),
+    `产物 own+${A.own_change_pct.toFixed(1)}% competitor${A.worst_change_pct.toFixed(1)}% `
+    + `share=${A.share_from_competitor.toFixed(1)}% / 页面读到 own=${ownTxt} share=${shareTxt}`);
 } catch (e) {
   check('装置', false, String(e && e.message ? e.message : e));
 } finally {

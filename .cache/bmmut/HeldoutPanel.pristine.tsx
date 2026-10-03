@@ -104,6 +104,43 @@ type Payload = {
     recipe_loo_on_selfcheck: number;
     specificity_margin: number;
     relative_amplitude: number;
+    variants: {
+      name: string;
+      short: string;
+      rho_own: number | null;
+      rho_own_sem: number | null;
+      worst_name: string | null;
+      worst_rho: number | null;
+      runner_up_name: string | null;
+      runner_up_rho: number | null;
+      gap_over_sem: number | null;
+      /** 两个竞争者差距不到 2 sem ⇒ max 选中谁不可判，margin 只能读成下界 */
+      tie: boolean;
+      margin: number | null;
+      n_positive: number | null;
+    }[];
+    control_self_check: {
+      name: string;
+      short: string;
+      worst_name: string | null;
+      worst_rho: number | null;
+      runner_up_name: string | null;
+      runner_up_rho: number | null;
+      gap_over_sem: number | null;
+      tie: boolean;
+      margin: number | null;
+    }[];
+    closure_v1_selfcheck_vs_caution_axis: number;
+    best_margin: number;
+    clean_threshold: number;
+    margin_gain_attribution: {
+      margin_from: number; margin_to: number;
+      own_from: number; own_to: number; own_change_pct: number;
+      worst_from: number; worst_to: number; worst_change_pct: number;
+      worst_name_from: string; worst_name_to: string;
+      share_from_competitor: number | null;
+    };
+    control_binding_swapped: boolean;
     verdict: string;
   };
   verdict: string;
@@ -120,6 +157,13 @@ const VERDICT_CLS: Record<Row["verdict"], string> = {
   same_direction: "text-gray-400",
   new_clean: "text-emerald-300",
   new_weak: "text-amber-300",
+};
+
+// 变体名在页面上要写成人话，不能直接印 V2_banded
+const VLABEL: Record<string, string> = {
+  V1_naive: "V1 朴素差均值",
+  V2_banded: "V2 熵带内差",
+  V3_residualized: "V3 熵残差化",
 };
 
 export default function HeldoutPanel() {
@@ -339,6 +383,60 @@ export default function HeldoutPanel() {
            data-recipe-verdict="true">
           {rc.verdict}
         </p>
+        {/* 换配方结构能不能救？—— 三个变体 + 对照组。
+            不印这一块，读者会以为「1.15×」就是这条方向唯一可得的配方。
+            ⚠ 每行必须带上**谁在约束**（worst）与这个归属分不分得开（tie）：
+              余量 = 自身 / max(竞争者)，两个竞争者并列时 max 选中谁是任意的，
+              只印余量会把「并列」印成「结论」。 */}
+        <div className="mt-1 pt-1 border-t border-red-900/40"
+             data-recipe-variants="true"
+             data-best-margin={rc.best_margin}
+             data-clean-threshold={rc.clean_threshold}
+             data-binding-swapped={String(rc.control_binding_swapped)}>
+          <p className="text-[8.5px] text-gray-500 leading-snug mb-0.5">
+            换配方结构（去熵混杂）能救吗？余量 = 自身 ÷ 最紧的那个竞争者，
+            所以<b>「谁在约束」和余量一样重要</b>：
+          </p>
+          <ul className="text-[8.5px] text-gray-500 leading-snug mb-0.5">
+            {rc.variants.map((v) => (
+              <li key={v.name} data-variant-row={v.name}
+                  data-variant-margin={v.margin}
+                  data-variant-tie={String(v.tie)}
+                  data-variant-worst={v.worst_name}>
+                <b className="text-gray-300">{VLABEL[v.name] ?? v.short}</b>{" "}
+                <span className="font-mono">{v.margin?.toFixed(2) ?? "n/a"}×</span>
+                <span className="text-gray-600"> ← </span>
+                压住它的是 <code>{v.worst_name}</code>
+                <span className="font-mono"> {v.worst_rho?.toFixed(3)}</span>
+                {v.tie
+                  ? <b className="text-amber-400">（与 {v.runner_up_name}{" "}
+                      {v.runner_up_rho?.toFixed(3)} 并列，差 {v.gap_over_sem?.toFixed(2)} sem
+                      ⇒ 这个 max 选中谁是任意的）</b>
+                  : <span className="text-gray-600">（领先 {v.gap_over_sem?.toFixed(1)} sem，归属可信）</span>}
+              </li>
+            ))}
+          </ul>
+          <p className="text-[8.5px] text-gray-500 leading-snug mb-0.5">
+            最好 <b className="font-mono">{rc.best_margin.toFixed(2)}×</b>
+            （{VLABEL.V2_banded}），仍不到干净门槛 {rc.clean_threshold.toFixed(1)}×。
+            但涨幅不是配方变干净了：自身只涨{" "}
+            <span className="font-mono">{rc.margin_gain_attribution.own_change_pct.toFixed(1)}%</span>，
+            竞争者掉了{" "}
+            <span className="font-mono">{Math.abs(rc.margin_gain_attribution.worst_change_pct).toFixed(1)}%</span>
+            ⇒ 余量上涨的{" "}
+            <b>{rc.margin_gain_attribution.share_from_competitor?.toFixed(0) ?? "n/a"}%</b>{" "}
+            来自竞争者被压下去，不是来自配方本身。
+          </p>
+          <p className="text-[8.5px] text-gray-500 leading-snug">
+            对照组 <code>self_check</code>（与磁盘 <code>caution.npy</code> 同族，
+            cos {rc.closure_v1_selfcheck_vs_caution_axis.toFixed(4)}，非逐位相同）
+            三个余量同样全 &lt; 1，但<b>压住它的那个也换了人</b>：
+            朴素时是 <code>entropy</code>（只领先 1.7 sem，<b className="text-amber-400">并不显著</b>），
+            去混杂后确定地变成 <code>emitted_is_upper</code>（5.1 / 3.3 sem）。
+            ⇒ <b className="text-red-300">不能说「caution 的配方方向本来就是熵的」</b>：
+            去掉熵的混杂之后，它是被「已发出 token 首字母大写」压住的。
+          </p>
+        </div>
       </div>
 
       <p className="text-[9.5px] text-gray-400 leading-relaxed pt-2 border-t border-border/60"

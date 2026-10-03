@@ -18,6 +18,12 @@ M5 把自我纠正的**结论反转**成「是两条不同的观测量」，所�
 M6 整块删掉自我纠正
    —— 读者就不知道自己错过过一个「新家族」。
 
+M10–M13 是 §4.11 那轮加的，四条都专打**新判据**：
+M10 去掉「并列」判断 ⇒ 0.03 sem 的并列被印成「领先 0.0 sem，归属可信」
+M11 并列时另选一个竞争者（self_check → entropy），数字照抄
+M12 归因「95% 来自竞争者」改成 96%（其余全对）
+M13 对照组结论反转回「caution 的配方方向本来就是熵的」（三个余量照旧全 < 1）
+
 每条变异：先回读自证产物真的变了 → rebuild → 跑判据。
 **编译不过的变异不算命中。**
 
@@ -200,6 +206,34 @@ M9_OLD = """        <p className="text-[9px] text-red-300/90 leading-snug mt-1 p
 """
 M9_NEW = ""
 
+# --- M10 把「并列」判据去掉：三个变体一律按「领先 X sem」渲染 ---
+# 这一轮才发现的真风险：V2 的熵 0.2236 与 self_check 0.2241 只差 0.03 sem，
+# `max` 选中谁是任意的。页面一旦不印「并列」，读者会把并列读成结论。
+M10_OLD = """                {v.tie
+                  ? <b className="text-amber-400">（与 {v.runner_up_name}{" "}
+                      {v.runner_up_rho?.toFixed(3)} 并列，差 {v.gap_over_sem?.toFixed(2)} sem
+                      ⇒ 这个 max 选中谁是任意的）</b>
+                  : <span className="text-gray-600">（领先 {v.gap_over_sem?.toFixed(1)} sem，归属可信）</span>}"""
+M10_NEW = """                <span className="text-gray-600">（领先 {v.gap_over_sem?.toFixed(1)} sem，归属可信）</span>"""
+
+# --- M11 并列时另选一个竞争者：V2 印 entropy 而不是 self_check ---
+# 数字照抄产物，页面看不出破绽 —— 这正是 `max` 的真实歧义。
+# 期望：I6 的「约束方身份」那半红（余量那半仍绿）。
+M11_OLD = """                压住它的是 <code>{v.worst_name}</code>
+                <span className="font-mono"> {v.worst_rho?.toFixed(3)}</span>"""
+M11_NEW = """                压住它的是 <code>{v.runner_up_name}</code>
+                <span className="font-mono"> {v.runner_up_rho?.toFixed(3)}</span>"""
+
+# --- M12 归因数字改错一位（95% → 96%），其余全对 ---
+M12_OLD = """{rc.margin_gain_attribution.share_from_competitor?.toFixed(0) ?? "n/a"}%"""
+M12_NEW = """{(96).toFixed(0)}%"""
+
+# --- M13 对照组的结论反转回「本来就是熵的」（三个余量照旧全 < 1）---
+# 最危险的一类：数值全对、结论错。期望 I7 红。
+M13_OLD = """            ⇒ <b className="text-red-300">不能说「caution 的配方方向本来就是熵的」</b>：
+            去掉熵的混杂之后，它是被「已发出 token 首字母大写」压住的。"""
+M13_NEW = """            ⇒ <b className="text-red-300">所以 caution 的配方方向本来就是熵的</b>。"""
+
 MUTS = {
     "M1": (M1_OLD, M1_NEW),
     "M2": (M2_OLD, M2_NEW),
@@ -210,6 +244,10 @@ MUTS = {
     "M7": (M7_OLD, M7_NEW),
     "M8": (M8_OLD, M8_NEW),
     "M9": (M9_OLD, M9_NEW),
+    "M10": (M10_OLD, M10_NEW),
+    "M11": (M11_OLD, M11_NEW),
+    "M12": (M12_OLD, M12_NEW),
+    "M13": (M13_OLD, M13_NEW),
 }
 WHAT = {
     "M1": "倍数**文案**写死成 110.0×（data-value 属性照旧）",
@@ -221,6 +259,10 @@ WHAT = {
     "M7": "「最强对手」标签写长且不换行 ⇒ 内容溢出被裁（数值断言仍全绿）",
     "M8": "整块删掉「可读 ≠ 有配方 ≠ 可注入」",
     "M9": "只删「可注入 ✗」那句判决，块与数字全留",
+    "M10": "去掉「并列」判断 ⇒ 0.03 sem 的并列被印成「领先 0.0 sem，归属可信」",
+    "M11": "并列时另选一个竞争者（self_check → entropy），数字照抄",
+    "M12": "归因「95% 来自竞争者」改成 96%（其余全对）",
+    "M13": "对照组结论反转回「caution 的配方方向本来就是熵的」（余量全对）",
 }
 
 
@@ -296,7 +338,7 @@ def main():
             return 2
         print(f"{which} 施加：{WHAT[which]}；回读自证通过（源文件确实变了）")
     else:
-        print("用法：BASE | M1 | M2 | M3 | M4 | M5 | M6 | M7 | M8 | M9")
+        print("用法：BASE | M1 | M2 | M3 | M4 | M5 | M6 | M7 | M8 | M9 | M10 | M11 | M12 | M13")
         return 2
 
     ok, log = build()
