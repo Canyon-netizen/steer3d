@@ -64,28 +64,44 @@ try {
     });
   })()`));
 
-  // ---- E0 存活前置：页面必须真的加载出来了 ----
-  // ⚠ 这条是补一个**已经犯过**的错误：2026-10-04 我用 T3D_URL 调它，
-  //   而这个脚本读的是 BV_URL ⇒ 它默默用了默认死端口 10370，
-  //   拿到一个 chrome-error://chromewebdata/ 页面，然后照样报
-  //     [PASS] E4 页面确实走了 2D fallback
-  //     RESULT SKIP 4/5 源码级检查通过
-  //   原因：`branch` 的判定是「两个 testid 都不存在 ⇒ fallback」，
-  //   **在错误页上这个默认分支正好给出 PASS**。
-  //   ⇒ 死 URL 与活页面在自报里完全一样，而失败方向是**虚假信心**。
-  // ⇒ 所以任何按分支走的判据，第一条都必须是「我确实在那个页面上」。
-  const live = JSON.parse(await page.eval(`(() => JSON.stringify({
-    href: location.href, bodyLen: (document.body.innerText || '').length,
-    outcome: (document.querySelector('[data-outcome]') || {getAttribute: () => ''})
-               .getAttribute('data-outcome') || '',
-    canvases: document.querySelectorAll('canvas').length,
-  }))()`));
-  check('E0 页面必须真的加载出来（死 URL 不得让本脚本报 PASS/SKIP）',
-    /^https?:\/\/127\.0\.0\.1:\d+\//.test(live.href)
-    && live.bodyLen > 2000 && live.outcome.length > 0,
-    `href=${live.href} bodyLen=${live.bodyLen} data-outcome="${live.outcome}" `
-    + `canvas=${live.canvases}`
-    + (live.href.startsWith('chrome-error') ? '  ← chrome-error 页：下面所有判据都会空过' : ''));
+  // ---- X0 存活前置 + 早退出（§8.9 第十笔）----
+  //   死 URL 上「先崩再判红」会污染判红计数，所以这里判红就立刻退出，
+  //   让「一条都没跑」与「跑红了几条」在自报里彻底分开。
+  //   ⚠ 这一段在九个脚本里各有一份**逐字相同**的副本，而不是抽共享模块 ——
+  //     共享模块放在 .cache/ 下会被 .gitignore 排除，而这九个脚本是**已跟踪**的，
+  //     让它们 import 一个进不了仓库的文件 ⇒ 新克隆直接跑不起来；
+  //     而按规矩不 force-add，所以只能就地内联。
+  //     代价是九份副本会漂移 —— 已用 scan_live_blocks.py 把「九份必须逐字相同」
+  //     做成会变红的判据（与第八笔「表格 0.35→9 vs 散文 0.35→7」同一族的处置：
+  //     重复必须可核，而不是靠自觉）。
+  //   ⚠ 阈值只到「页面在」这一步，**不含「数据取回来了」** ——
+  //     Next 取数完成前的外壳只有 bodyLen≈1190，而本条在导航后立刻跑；
+  //     越权到数据就绪的结果不是更严，是误报（我第一版在活页面上判过红）。
+  {
+    const L = JSON.parse(await page.eval(`(() => JSON.stringify({
+      href: location.href,
+      bodyLen: (document.body.innerText || '').length,
+      outcome: (document.querySelector('[data-outcome]') || {getAttribute: () => ''})
+                 .getAttribute('data-outcome') || '',
+      canvases: document.querySelectorAll('canvas').length,
+      scripts: document.querySelectorAll('script[src]').length,
+    }))()`));
+    const isErr = /^chrome-(error|extension)/.test(String(L.href));
+    const isLoopback = /^https?:\/\/127\.0\.0\.1:\d+\//.test(String(L.href));
+    const liveOk = isLoopback && L.bodyLen > 0 && L.scripts >= 1;
+    check('X0 页面必须真的加载出来（死 URL 不得让本脚本报 PASS/SKIP）', liveOk,
+      `href=${L.href} bodyLen=${L.bodyLen} `
+      + `data-outcome="${L.outcome}" canvas=${L.canvases} script[src]=${L.scripts}`
+      + (isErr ? '  ← chrome-error 页：继续跑下去只会崩，红的计数会被污染'
+               : (!isLoopback ? '  ← 不是 127.0.0.1 的页面（环境变量传错了？）' : '')));
+    if (!liveOk) {
+      try { cdp.close(); } catch {}
+      try { proc.kill('SIGKILL'); } catch {}
+      console.log(`\n=== 0/${results.length} passed ===`);
+      console.log('页面没加载 ⇒ 后面的判据**一条都没跑**（这不是「通过」，也不是「装置崩」）');
+      process.exit(1);
+    }
+  }
 
   // 不依赖 WebGL 的一条：源码接线自证
   const src0 = readFileSync(

@@ -3361,3 +3361,99 @@ J11 是这样读那 6 个画布属性的：
   `T3D_URL`，它默默用了默认的 10370，在错误页上报绿。
   ⇒ 调任何判据脚本前，先 `grep 'process\.env' <脚本>` 当场确认，
   **不要相信这张表，也不要相信记忆**。
+
+#### 把 X0 从「一条判据」升级成「九个脚本的共同前置」，并解决判红计数被污染
+
+上一节末尾记了一条待办：八个脚本在死 URL 上是「先崩再判红」，
+`[FAIL] X 脚本崩了` 混进判红计数，让「判红 = 4」这种数字不再说明任何事。
+本节把它做掉。
+
+**做法**：九个脚本在导航后**第一条**就判存活，判红即退出。
+
+⚠ **这一段是被迫重复的，不是图省事。** 我第一版抽了共享模块
+  `.cache/browser_verify/live.mjs`，九个脚本 `import` 它 ——
+  但 `.cache/` 在 `.gitignore` 里，而**这九个脚本是已跟踪的**：
+  让已跟踪文件 import 一个进不了仓库的文件 ⇒ **新克隆直接跑不起来**。
+  按规矩不 force-add，于是只能**就地内联**，代价是同一判据有九份副本。
+  （`cdp_client.mjs` 确实是已跟踪的，说明它当初是被 force-add 进去的 ——
+    但那不构成「这次也 force-add」的依据。）
+⇒ 副本会漂移，所以**重复必须可核**：`scan_live_blocks.py` 断言
+  「九份除记录函数名与结果数组名外逐字相同」，5 条，见下。
+
+**早退出的收益有两处，都可量化：**
+
+    死 URL 上的判红计数     改前（判红 / 其中装置崩）
+      verify_outcome         4 / 1        verify_subspace      4 / 1
+      verify_law             3 / 1        verify_heldout       3 / 1
+      verify_ladder          2 / 1        verify_structure     3 / 1
+      verify_axis_readout    1 / 0        verify_derivation    2 / 1
+    改后：九个一律 1 / 0（`=== 0/1 passed ===`）
+
+    扫描耗时                 约 7 分钟 → **秒级**
+      （早退出省掉了每个脚本 12–14 秒的面板就绪轮询）
+
+⇒ 「判红 / 装置崩 / 一条都没跑是三件事」至此在**工具层**分开：
+  死 URL 上现在只有一种状态 ——「一条都没跑」，它自己明说。
+
+##### 阈值我写错了，而且错在「更严」那一侧
+
+第一版 `liveCheck` 写的是：
+
+    const ok = isLoopback && L.bodyLen > 2000 && L.scripts >= 1;
+
+在**活页面**上直接判红：
+
+    [FAIL] X0 页面必须真的加载出来: href=http://127.0.0.1:21820/
+           bodyLen=1190  data-outcome="loading"  canvas=0  script[src]=6
+
+先怀疑判据、再怀疑产品：服务是好的（首页 200，8 个 chunk 全 200）。
+真实原因是 **X0 在导航后立刻跑，而 Next 取数完成之前的外壳只有 1190 字**。
+
+⇒ **「页面加载了」与「产物取回来了」是两件事。**
+  前者是 X0 的事，后者是各脚本自己的 ready 轮询的事
+  （outcome 轮 `data-outcome === 'ready'`、derivation 轮 `data-derivation`、…）。
+⇒ 越权到「数据就绪」的结果不是更严，是**误报**。
+  判据越权比判据缺失更坏：缺失会被人发现，误报会被人忽略。
+  最终阈值：`href` 是 127.0.0.1 的某个端口 + `bodyLen > 0` + `script[src] >= 1`。
+  （这三个量分别排除「错误页」「空文档」「chunk 压根没加载」，
+    而 `chrome-error` 页三项全不满足。）
+
+##### 九份副本的漂移，判据自己漏了一处
+
+`scan_live_blocks.py` 第一版把 `rec` / `check` 与 `R` / `results` **归一化**掉
+再比哈希，于是「必须逐字相同」这条会通过。结果我「逐字复用」时，
+把 `verify_outcome` 的那份整个搬进了 `verify_scene_link` ——
+而后者用的是 `check` 与 `results`：
+
+    [FAIL] 装置: rec is not defined
+    RESULT FAIL  0/1
+
+⇒ **判据 4/4 全绿，而脚本根本跑不起来。**
+  归一化抹掉的那两个差异里，**正好有一个是会让代码真的崩掉的那个**。
+⇒ 于是补第五条：块里引用的「记录函数」与「结果数组」，
+  必须在**该脚本自己的源码**里真实存在。
+  它立刻又抓出 `verify_scene_link` 的数组名仍是 `R`（`results` 那个脚本里没有 `R`）。
+⇒ 一般形态：**为了让「必须一致」的判据通过而做的归一化，
+  要逐项问「这个差异重要吗」。** 为了消掉噪声而归一化，
+  常常正好消掉信号。
+  （同族：第八笔「子串匹配的作用域必须与被核量一致」——
+    作用域放得比被核量大一号，就一定存在能喂饱它的东西。）
+
+⚠ 另一个更小的错：插入早退出时我把汇总行写成 `` `=== 0/{arr}.length passed ===` ``，
+  漏了 `$` ⇒ 打印出字面量 `0/R.length`。
+  ⇒ **改判据脚本时，凡是要新打印计数的，都要用真实运行验一次打印结果**，
+    不能只看语法检查通过（九个脚本 `node --check` 全过）。
+
+##### 本轮的门禁现状（端口 21820）
+
+    verify_outcome 54/54   verify_law 16/16     verify_ladder 15/15
+    verify_structure 16/16 verify_derivation 19/19  verify_subspace 40/40
+    verify_axis_readout 47/47  verify_heldout 61/61
+    verify_scene_link SKIP 6/6（含 E0/J11，且 E0 现在也走共享实现）
+    assertion_guard GREEN 13/13   panel_coverage GREEN 7/7
+    死 URL 扫描：九个一律 判红=1 / 装置崩=0，判据器 GREEN 5/5
+    X0 副本漂移扫描：GREEN 5/5（九份在、逐字同、阈值对、都有早退出、引用的符号都在）
+
+九个脚本各 +1 条 X0（outcome 53→54、law 14→16、ladder 14→15、structure 15→16、
+derivation 17→19、subspace 39→40、axis 46→47、heldout 60→61、scene_link 仍 6 条，
+因为它的 E0 换成了共享实现、不新增条数）。
