@@ -10,11 +10,75 @@
   "note": "全部数字来自本项目自己的脚本，见 .cache/xcheck/。页面只负责显示。"
  },
  "headline": {
-  "readable_directions_lower_bound": 12,
+  "readable_directions_lower_bound": 14,
+  "readable_directions_lower_bound_old": 12,
   "named_axes": 4,
+  "n_candidates": 20,
   "greedy_obs_only": 9,
   "separation_threshold": 0.5,
-  "caution_absorbed": "axis:caution 没有被贪心选中 —— cos(confidence, caution)=0.5537 已超过 0.5 门槛，在贪心里被 confidence 吃掉。"
+  "order_dependence": {
+   "n_perm": 200,
+   "old_range": [
+    12,
+    12
+   ],
+   "new_range": [
+    14,
+    14
+   ]
+  },
+  "threshold_sensitivity": {
+   "0.35": {
+    "greedy": 9,
+    "perm_min": 9,
+    "perm_max": 10
+   },
+   "0.40": {
+    "greedy": 11,
+    "perm_min": 10,
+    "perm_max": 11
+   },
+   "0.45": {
+    "greedy": 12,
+    "perm_min": 11,
+    "perm_max": 12
+   },
+   "0.50": {
+    "greedy": 14,
+    "perm_min": 14,
+    "perm_max": 14
+   },
+   "0.55": {
+    "greedy": 15,
+    "perm_min": 15,
+    "perm_max": 15
+   },
+   "0.60": {
+    "greedy": 16,
+    "perm_min": 16,
+    "perm_max": 16
+   }
+  },
+  "absorbed": [
+   "obs:rep_frac_topk",
+   "obs:digit_top1",
+   "obs:digit_frac_top64",
+   "obs:digit_top8_presence",
+   "obs:emitted_has_digit",
+   "axis:caution"
+  ],
+  "tightest_in_chosen": [
+   {
+    "key": "top1_prob_renorm",
+    "max_abs_cos": 0.474772772104749
+   },
+   {
+    "key": "backtrack_topk",
+    "max_abs_cos": 0.474772772104749
+   }
+  ],
+  "bound_caveat": "「至少 14 条」是**下界**，且只在两个前提下成立：(a) 候选集合是这 20 个 —— 每加一批观测量，计数就可能涨；(b) 分隔门槛 |cos|<0.5 是选定的 —— 门槛 0.35→9 条、0.45→12 条、0.55→15 条、0.60→16 条。所以这个数不能读成「可读方向就是 14 条」。",
+  "caution_absorbed": "axis:caution 没有被贪心选中 —— cos(confidence, caution)=0.5537 已超过 0.5 门槛，在贪心里被 confidence 吃掉。被吸收的还有 6 条，其中 4 条是 §4.9 换函数形式重造的同一条方向。"
  },
  "surface_directions": [
   {
