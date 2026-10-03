@@ -75,11 +75,29 @@ from pathlib import Path
 ROOT = Path("/Users/zhourui/code/steer3d")
 DATA = ROOT / "frontend/public/latent/data"
 DIVERGENCE = ROOT / ".cache/32k_journal/cot_divergence_32k.json"
+AXES = DATA / "axis_readouts.json"
 OUT = DATA / "answer_power.json"
 
 DIRECTION = "confidence_down"
-STRENGTHS = (0.0, 0.2)
+STRENGTH = 0.2
+STRENGTHS = (0.0, STRENGTH)
 TOKEN_CAP = 32000
+
+
+def _other_named_axes():
+    """命名轴里除 confidence 以外的那些 —— 面板那句覆盖面声明要用的 N。
+
+    源是 axis_readouts.axes（被测物自己声明的名单），不是手抄。
+    读不到或没有 confidence 轴 ⇒ SystemExit：宁可**不写产物**，
+    也不要让面板上的一个手写整数无人核。
+    """
+    if not AXES.exists():
+        raise SystemExit("ABORT 读不到 %s —— 「另外 N 条命名轴」的 N 没有源" % AXES)
+    named = sorted(json.loads(AXES.read_text(encoding="utf-8"))["axes"])
+    if not any(a.startswith("confid") for a in named):
+        raise SystemExit("ABORT axis_readouts.axes 里没有 confidence 轴（%s）—— "
+                         "「只覆盖 confidence 一条轴」这句话不成立" % named)
+    return [a for a in named if not a.startswith("confid")]
 
 
 def _binom_tail_ge(k, n, x):
@@ -193,6 +211,7 @@ def main():
             by[r["label"]][float(r["strength"])] = r
 
     labels = sorted(by)
+    other_named_axes = _other_named_axes()
     shipped = [i["label"] for i in ans["items"]]
     fail = []
 
@@ -393,7 +412,14 @@ def main():
         "what": "23 题逐题去向 + 20 个完整配对的全部 verdict；"
                 "「净变化 0」对筛选规则不变，但对「答案变了 ≠ 概念变了」不成立",
         "direction": DIRECTION,
-        "strength": 0.2,
+        "strength": STRENGTH,
+        # 面板上「这一格只覆盖 confidence 一条轴的 −0.2 单档，另外 N 条命名轴
+        # 与正的 confidence_up 臂都不在这里」这句**覆盖面声明**，需要 N。
+        # 它的源是 axis_readouts.axes —— 面板原来在 JSX 里手抄了一个 3，
+        # 那份手抄与 arm_asymmetry.json 里的同一句话是同一个数，两处都会漂。
+        # 读不到 / 没有 confidence 轴 ⇒ 拒绝写产物（宁可不出，也不出错的）。
+        "n_other_named_axes": len(other_named_axes),
+        "other_named_axes": other_named_axes,
 
         "n_problems_in_batch": len(labels),
         "n_complete_pairs": n_complete,

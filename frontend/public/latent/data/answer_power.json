@@ -3,6 +3,12 @@
  "what": "23 题逐题去向 + 20 个完整配对的全部 verdict；「净变化 0」对筛选规则不变，但对「答案变了 ≠ 概念变了」不成立",
  "direction": "confidence_down",
  "strength": 0.2,
+ "n_other_named_axes": 3,
+ "other_named_axes": [
+  "caution",
+  "creativity",
+  "reasoning"
+ ],
  "n_problems_in_batch": 23,
  "n_complete_pairs": 20,
  "n_incomplete_pairs": 3,

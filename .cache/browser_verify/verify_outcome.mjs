@@ -374,7 +374,163 @@ try {
   rec('G10 页面无 console error', errs.length === 0,
       errs.length ? errs.slice(0, 2).join(' | ') : 'none');
 
+  /* ==================== A 组：arm_asymmetry 的覆盖面声明与散文 ==================== */
+  // ⚠ **这一组读的是产物层，不是渲染层** —— 与下面的 H 组正好相反，说清楚：
+  //
+  //   H 组问「面板上印的那个数对不对」（读 DOM）
+  //   A 组问「产物自己那两个没人看的散文段有没有说谎」（读 JSON 文件）
+  //
+  // 为什么值得单列一组：`arm_asymmetry.json` 的 `verdict` / `not_claimed`
+  // 在 `InterventionOutcomePanel.tsx` 里**只声明了类型、一行都没渲染**
+  // （面板那块是从 layer / strength / n_pairs / metrics 现写的）。
+  // 所以全仓没有任何渲染层判据能碰到这两段散文 —— 第十六笔之前，
+  // 那五个数（-0.0344 / 0.0060 / +0.0392 / 0.0046 / 0.74）**无人核**。
+  // ⇒ 本组能证明「产物散文与 cot_texts 现算一致」，
+  //   **不能**证明「读者在页面上看到的就是这些数」—— 后者是 H 组的活。
+  const axAXES = JSON.parse(readFileSync(DATA + '/axis_readouts.json', 'utf8'));
+  const axAX = Object.keys(axAXES.axes || {}).sort();
+  const axOTHER = axAX.filter(x => !x.startsWith('confid'));
+
+  // 从 cot_texts 现算，不读 arm_asymmetry 的任何字段。
+  // 强度档 / 层 / 符号数都**由数据唯一确定**，取不到唯一值就不判（报未判）。
+  const axNzS = [...new Set(COT.runs.map(r => Number(r['strength'])).filter(s => s !== 0))];
+  const axStr = axNzS.length === 1 ? axNzS[0] : null;
+  const axLy = [...new Set(COT.runs.map(r => r['layer']))];
+  const axDir = [...new Set(COT.runs.map(r => r['direction']))].sort();
+  const axByL = {};
+  for (const r of COT.runs) (axByL[r.label] = axByL[r.label] || {})[r.direction + '|' + Number(r['strength'])] = r;
+  const axPairs = axStr === null ? [] : Object.values(axByL)
+    .filter(v => v['confidence_up|' + axStr] && v['confidence_down|' + axStr]);
+  // ⚠ first_diverged_step 的空值代换必须与生成器**逐字同语义**：
+  //   Python 写的是 `r["first_diverged_step"] or 10**9`，
+  //   JS 侧对应 `|| 1e9` —— 连「0 也会被代换」这个副作用一起复刻。
+  const axMF = {
+    mean_logit_kl: r => r.mean_logit_kl,
+    token_agreement: r => r.token_agreement,
+    first_diverged_step: r => r.first_diverged_step || 1e9,
+  };
+  const axRC = {};
+  for (const am of ARM.metrics) {
+    const f = axMF[am.metric];
+    if (!f) continue;
+    const ds = axPairs.map(v => f(v['confidence_up|' + axStr]) - f(v['confidence_down|' + axStr]));
+    const n = ds.length;
+    if (n < 2) continue;
+    const m = ds.reduce((a, b) => a + b, 0) / n;
+    const sem = Math.sqrt(ds.reduce((a, b) => a + (b - m) * (b - m), 0) / (n - 1)) / Math.sqrt(n);
+    axRC[am.metric] = { n, mean: m, sem, t: sem ? m / sem : null };
+  }
+  // 数值比对按**打印精度**给容差（半个末位），不是字符串相等 ——
+  // 散文改对了精度、判据不该跟着红；散文算错了，差一个末位也必红。
+  const axNear = (a, b, dp) => Number.isFinite(a) && Number.isFinite(b)
+    && Math.abs(a - b) <= 0.5 * Math.pow(10, -dp);
+
+  rec('A0 前置：层唯一 / 非零强度唯一 / 恰好 ±v 两臂 / 23 个完整配对（取不到就不判）',
+      axLy.length === 1 && axStr !== null && axDir.length === 2
+      && axDir.join() === 'confidence_down,confidence_up' && axPairs.length === ARM.n_pairs,
+      `层=${JSON.stringify(axLy)} 非零强度=${JSON.stringify(axNzS)} 方向=${JSON.stringify(axDir)} `
+      + `现算配对=${axPairs.length} 产物 n_pairs=${ARM.n_pairs}`);
+
+  rec('A1 metrics 的配对差 / 标准误 / t 与 cot_texts 现算逐个吻合（±半个末位）',
+      Object.keys(axRC).length === ARM.metrics.length
+      && ARM.metrics.every(am => {
+          const r = axRC[am.metric];
+          return r && axNear(am.paired_diff, r.mean, 10) && axNear(am.paired_sem, r.sem, 10)
+            && axNear(am.t, r.t, 10);
+        }),
+      Object.keys(axRC).map(k => `${k} diff ${ARM.metrics.find(a => a.metric === k).paired_diff}`
+        + ` vs ${axRC[k].mean} / sem ${ARM.metrics.find(a => a.metric === k).paired_sem}`
+        + ` vs ${axRC[k].sem} / t ${ARM.metrics.find(a => a.metric === k).t} vs ${axRC[k].t}`).join('\n       '));
+
+  // ---- A2：那五个**散文里**的数 ----
+  // 判据读的是产物层，所以要**按字段切作用域**：先用锚点短语定位到
+  // 具体那一句，再解析数字。朴素 haystack 在这里会造假绿
+  // （`0.0344` 在别处也出现过，改对一处仍全绿）。
+  const axVD = ARM.verdict || '';
+  const axGrab = (s, re) => { const m = s.match(re); return m ? m.slice(1).map(Number) : null; };
+  const axKl = axGrab(axVD, /KL 配对差\s*([+-][\d.]+)\s*±\s*([\d.]+)\)/);
+  const axAg = axGrab(axVD, /一致率也更低\s*\(([+-][\d.]+)\s*±\s*([\d.]+)\)/);
+  // ⚠ t 这里**不能**照抄上面两处的 `[+-]`：判决里 KL 差与一致率差是
+  //   `%+.4f`（强制带号），而 t 是 `%.2f` —— 正的 t 印成 `0.74`，没有 +。
+  //   第一版写死 `[+-][\d.]+` ⇒ 这条判据在**干净数据上就抓不到 t**，
+  //   而报出来的形态是「散文 t=未抓到」，看着像产物坏了，其实是判据坏了。
+  const axTv = axGrab(axVD, /\(t=([+-]?\d+(?:\.\d+)?),\s*CI 跨 0\)/);
+  rec('A2 散文 verdict ① 的四个数（KL 差±误、一致率差±误）与现算吻合',
+      !!axKl && !!axAg && !!axRC.mean_logit_kl && !!axRC.token_agreement
+      && axNear(axKl[0], axRC.mean_logit_kl.mean, 4) && axNear(axKl[1], axRC.mean_logit_kl.sem, 4)
+      && axNear(axAg[0], axRC.token_agreement.mean, 4) && axNear(axAg[1], axRC.token_agreement.sem, 4),
+      axKl && axAg ? `散文 KL ${axKl[0]}±${axKl[1]} / 一致率 ${axAg[0]}±${axAg[1]} | 现算 `
+        + `${axRC.mean_logit_kl.mean.toFixed(4)}±${axRC.mean_logit_kl.sem.toFixed(4)} / `
+        + `${axRC.token_agreement.mean.toFixed(4)}±${axRC.token_agreement.sem.toFixed(4)}`
+        : `锚点没抓到（KL=${!!axKl} 一致率=${!!axAg}）`);
+
+  // ---- A3：「分不开」这句话必须挂在数据说分不开的那个量上 ----
+  //   这是把散文的**语义归属**也钉住：光对上 t=0.74 没用 ——
+  //   如果哪天换成另一个量分不开而散文还写 0.74，A2 仍会绿。
+  const axInd = ARM.metrics.filter(x => !x.distinguishable);
+  const axFd = axRC.first_diverged_step;
+  rec('A3 散文 ② 的「分不开 + t=… + CI 跨 0」必须挂在数据里不可分的那一个量上',
+      axInd.length === 1 && axInd[0].metric === 'first_diverged_step' && !!axTv && !!axFd
+      && axNear(axTv[0], axInd[0].t, 2) && axNear(axTv[0], axFd.t, 2)
+      && /首次分岔步数/.test(axVD) && /分不开/.test(axVD),
+      `不可分的量=${axInd.map(x => x.metric).join() || '（无）'} 散文 t=${axTv ? axTv[0] : '未抓到'} `
+      + `产物 t=${axInd[0] ? axInd[0].t : 'NA'} 现算 t=${axFd ? axFd.t.toFixed(4) : 'NA'}`);
+
+  // ---- A4：可分性标记与 CI 的关系必须自洽 ----
+  //   这是**关系**而不是数值：CI 跨 0 ⇔ distinguishable=false，
+  //   换 bootstrap 种子也不该变 ⇒ 判据不依赖某一次抽样的具体端点。
+  rec('A4 每个量的 distinguishable 必须等于「CI 不跨 0」，不许只靠抽样端点',
+      ARM.metrics.length > 0 && ARM.metrics.every(x =>
+        x.distinguishable === !(x.ci95_lo < 0 && 0 < x.ci95_hi)),
+      ARM.metrics.map(x => `${x.metric}: lo=${x.ci95_lo.toFixed(3)} hi=${x.ci95_hi.toFixed(3)}`
+        + ` dist=${x.distinguishable}`).join(' '));
+
+  // ---- A5：覆盖面声明里的层 / 强度 / 轴数，源必须是被测物自己 ----
+  //   「同层 20 / ±0.2 / 另外 3 条」这三个数以前是手抄字面量，
+  //   现在由 arm_asymmetry.py 与 answer_power.py 各自从输入现算。
+  //   本条独立现算第三遍，三方必须一致 ——
+  //   **判据不许复用产物里那个数**，否则改了产物判据会跟着改。
+  const axNPW = PW.n_other_named_axes, axNARM = ARM.n_other_named_axes;
+  rec('A5 覆盖面声明的层/强度/「另外 N 条命名轴」三方一致（判据独立现算第三遍）',
+      axLy.length === 1 && axStr !== null
+      && ARM.layer === axLy[0] && ARM.strength === axStr && PW.strength === axStr
+      && ARM.named_axes_total === axAX.length
+      && ARM.n_dirs === axDir.length
+      && axNARM === axOTHER.length && axNPW === axOTHER.length
+      && axOTHER.length === axAX.length - 1
+      && JSON.stringify(ARM.other_named_axes) === JSON.stringify(axOTHER)
+      && JSON.stringify(PW.other_named_axes) === JSON.stringify(axOTHER),
+      `层 产物=${ARM.layer}/现算=${JSON.stringify(axLy)} | 强度 产物=${ARM.strength}/${PW.strength}`
+      + ` vs 现算=${axStr} | 符号数 产物=${ARM.n_dirs}/现算=${axDir.length} | 命名轴 ${axAX.length} 条 → 另外应 ${axOTHER.length} 条，`
+      + `arm=${axNARM} power=${axNPW}`);
+
+  // ---- A6：页面上印的那个 N 也必须等于现算值 ----
+  //   A5 只核产物；这一条核**读者看到的那句**。用带锚点的正则取数，
+  //   不用 includes —— 「3」在页面上出现过几十次。
+  //   ⚠ 不能用下面 I 组的 `NC`：它在本文档后半才声明（const 有 TDZ），
+  //     在这里引用会把整条判据打成 ReferenceError。
+  const axNCtxt = (state.power && state.power.notClaimed) || '';
+  const axShown = axNCtxt.match(/另外\s*(\d+)\s*条命名轴/);
+  rec('A6 页面上「另外 N 条命名轴」的 N 必须等于现算值（带锚点取数，非 includes）',
+      !!axShown && Number(axShown[1]) === axOTHER.length,
+      axShown ? `页面印「另外 ${axShown[1]} 条命名轴」 | 现算 = ${axOTHER.length}`
+            : `没在 [data-power-not-claimed] 里抓到锚点；原文片段：${axNCtxt.slice(-140)}`);
+
+  // ---- A7：产物散文**未渲染**这件事必须被说出来 ----
+  //   防的是下一位读者把 A2/A3 当成「页面已核」。反向断言：
+  //   页面上不许出现这两段散文的原文（否则就变成另一套文案，得单独核）。
+  //   ⚠ 锚点取**短而独有**的片段，不是整句 —— 整句匹配一旦将来
+  //     标点微调就会假绿，而 A7 的作用恰恰是「证明没渲染」。
+  const axVFrag = '不再是两个并排的中位数';
+  const axNFrag = '不能把配对差的 t 值读成';
+  rec('A7 产物那两段散文确实未渲染到页面（本组只核产物层，必须说清）',
+      !(state.text || '').includes(axVFrag) && !(state.text || '').includes(axNFrag),
+      `页面含 verdict 独有片段「${axVFrag}」=${(state.text || '').includes(axVFrag)}；`
+      + `含 not_claimed 独有片段「${axNFrag}」=${(state.text || '').includes(axNFrag)}`);
+
+
   /* ==================== H 组：±v 配对检验 ==================== */
+
   // 这一块是补 §G3 的：面板原来把 up/down **合并**取中位数，
   // 两臂之间显著的差异被盖住，而且没有分母、没有不确定性。
   const A = ARM, H = state.arm || {};

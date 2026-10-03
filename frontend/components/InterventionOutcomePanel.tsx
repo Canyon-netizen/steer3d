@@ -251,6 +251,11 @@ type AnswerPower = {
   what: string;
   direction: string;
   strength: number;
+  // 覆盖面声明里的「另外 N 条命名轴」。N 由 answer_power.py 从
+  // axis_readouts.axes 现算进产物 —— 原来这里是 JSX 里手抄的 3，
+  // 与 arm_asymmetry.json 的同一句话是同一个数，两处都会漂。
+  n_other_named_axes: number;
+  other_named_axes: string[];
   n_problems_in_batch: number;
   n_complete_pairs: number;
   n_incomplete_pairs: number;
@@ -301,6 +306,12 @@ type ArmAsymmetry = {
   cos_up_down: number;
   layer: number;
   strength: number;
+  // 覆盖面声明用的派生值（层/强度/轴数全部由 arm_asymmetry.py 从输入现算）。
+  // 这几个字段进产物是为了让「这句话覆盖多少」也能被数据核，而不是印在散文里。
+  n_dirs: number;
+  named_axes_total: number;
+  n_other_named_axes: number;
+  other_named_axes: string[];
   metrics: ArmMetric[];
   verdict: string;
   not_claimed: string;
@@ -678,7 +689,8 @@ export default function InterventionOutcomePanel() {
             {pw.n_problems_in_batch} 题的随机样本：被剔掉的 {pw.n_incomplete_pairs} 题
             不是随机抽掉的，是<b>撞 token 上限才没跑完</b>的。
             这一格只覆盖 <b>{pw.direction}</b> 一条轴的 −{pw.strength} 单档，
-            另外 3 条命名轴与正的 <code>confidence_up</code> 臂都不在这里；
+            另外 {pw.n_other_named_axes} 条命名轴与正的{" "}
+            <code>confidence_up</code> 臂都不在这里；
             <b>L7（改变的是概念而非位置/格式）一次都没测</b> ——
             「答案对不对」连位置轴对照都没有。
           </p>
