@@ -870,7 +870,10 @@ mmap 载入 + 单层 float64）并**完整复现**：
 前面 4.6–4.8 全部发生在我自己构造的 14 个观测量上。要说「理论」，
 就得问一句：**换一批从头到尾没进过流程的观测量，这套判据还找不找得到东西？**
 
-`.cache/xcheck/heldout_family.py` / `heldout_specificity.py`。
+`.cache/xcheck/heldout_family.py` / `heldout_specificity.py` / `heldout_selfdup.py`。
+（页面上就是 `HeldoutPanel`，数据 `latent/data/heldout_readability.json`，
+判据 `.cache/browser_verify/verify_heldout.mjs`。）
+
 三个「留出」量与原 `digit_mass` **共用同一个底层分类**（`obs_extract.py:189`
 的 `all(c in "0123456789")`），但**函数形式完全不同**：
 
@@ -980,7 +983,7 @@ mmap 载入 + 单层 float64）并**完整复现**：
 
 ---
 
-## 6. 落点：一张四步检查表
+## 6. 落点：一张七步检查表
 
 拿到一个 steering vector，按这四步走：
 
@@ -1014,6 +1017,21 @@ mmap 载入 + 单层 float64）并**完整复现**：
    0.3077，而 `confidence` 轴在**同一格**是 0.3341 —— 更高的那个是别人。
    少了第 1 条则会把构造恒等式当成发现（`confidence` 那一格）。
    **这两条是独立断言，只查一条必然过一半。**
+
+7. **（2026-10-03 新增）读者真的看得见吗？判据全绿 ≠ 文案被读到。**
+   这一条是被**截图**逼出来的，不是被断言逼出来的：`HeldoutPanel` 的 50 条
+   判据全绿，可 328px 的侧栏里每行 5 列横向溢出，`emitted_tok_len` 的
+   「最强对手 `digit_frac_top64`」和几行的 Δ=20 数字**在页面上被裁掉了** ——
+   数值在 DOM 里，一条断言也没红。
+
+   ⇒ **数值断言只证明「它被算对了」，不证明「它被看见了」。**
+   展示型证据必须再量一次可见性，三样都量：
+   * 整行横向溢出（`scrollWidth − clientWidth`）
+   * 单元格内容超出自己的盒子（`truncate` / `nowrap` 裁切）
+   * 单元格右缘越过所在容器右缘
+
+   对应的变异也要有：**M7 把标签写长且不换行** —— 数值断言仍全绿，
+   只有可见性那一组会红。没有这条变异，上面三条判据随时可以一起失效而无人察觉。
 
 前 3 步是**否证式**的：它们的作用不是支持方向，是告诉你手上的证据不够。
 本项目在第 4 步停住了，所以这份文档的净结论是：
@@ -1093,7 +1111,21 @@ python3 .cache/rolesverify/probe_axes.py             # 主张四：9 候选 × 4
 python3 .cache/rolesverify/failed_obs_forensics.py   # §4.4 更正：假观测量对照实验
 python3 .cache/rolesverify/layer_side_forensics.py  # §2.1：层语义与注入侧的口径核对
 python3 .cache/rolesverify/verify_layer_convention.py  # 层口径守卫（不变量 4 条 + 状态行）
+python3 .cache/xcheck/extract_dirs.py            # §4.7/4.8：14 个目标的读出方向缓存（92MB，不入库）
+python3 .cache/xcheck/specificity_matrix.py       # §4.6/4.8：M[A][B] + 打乱地板
+python3 .cache/xcheck/token_locality.py           # §4.8.6：Δ=0/1/20/100 重新拟合
+python3 .cache/xcheck/heldout_family.py           # §4.9.1：留出家族的非循环迁移
+python3 .cache/xcheck/heldout_specificity.py      # §4.9.2/4.9.3：17 观测量专属性矩阵
+python3 .cache/xcheck/heldout_selfdup.py          # §4.9.2：emitted_has_digit 与 digit_top1 的重复性
+python3 .cache/xcheck/build_heldout_readout.py    # §4.9 → 页面产物 heldout_readability.json
 ```
+
+`build_heldout_readout.py` 压出来的 `ratio`（倍数）是**算出来的**，不是手写的：
+上一轮 §4.9.1 的倍数列写成 128/113/110× 就是手算时把三条地板混着当分母，
+正确值 128.6/112.3/244.4×。页面判据 `verify_heldout.mjs` 的 **B3 组独立复算**
+`|ρ|÷|地板|` —— 只比对产物字段不够，那正是手算错时一起错的东西。
+变异 **M2** 就是把这个 bug 原样注回去（改成共用分母 0.0067），
+实测 `digit_top8_presence` 立刻变成 108.9×，与当初手写的 110× 吻合。
 
 `linearity_law.py` 与 `verify_linearity.py` 是**两份独立实现**，
 故意不共享代码：前者出产物，后者用玩具输入先自检再重算。

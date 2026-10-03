@@ -1,0 +1,165 @@
+{
+ "schema": "heldout_readability/v1",
+ "question": "换一批从头到尾没参与过调参的观测量，这套判据还找不找得到东西？",
+ "convention": {
+  "source_direction": "w*(digit_mass)，L14，K=256 PCA，stride=2",
+  "floor": "把目标在轨迹内打乱后同一个方向还能预测多少（逐行独立估计）",
+  "margin_rule": "余量 = 自己对角 ÷ 同表最高别人（绝对值）",
+  "new_clean_threshold": 2.0,
+  "note": "两份产物的打乱地板来自两次独立运行，**不要跨表比小数位**。"
+ },
+ "headline": {
+  "heldout_total": 6,
+  "transfer_targets": 3,
+  "ratio_min": 112.3407426075281,
+  "ratio_max": 244.3692635172204,
+  "same_direction": 4,
+  "new_clean": 1,
+  "new_weak": 1,
+  "verdict_line": "非循环证据 112–244 倍地板；但 6 个留出量里只有 2 个是新方向（干净 1、弱 1）。"
+ },
+ "transfer": [
+  {
+   "target": "digit_top1",
+   "form": "top-1 是不是数字（二值，只看第 1 名）",
+   "rho": 0.8573963039022013,
+   "floor": -0.006665115228238618,
+   "ratio": 128.6393819974189,
+   "floor_from": "heldout_family.json / heldout_same_class_different_form"
+  },
+  {
+   "target": "digit_frac_top64",
+   "form": "top-64 里数字的个数占比（不加权）",
+   "rho": 0.78016948686484,
+   "floor": -0.006944670907067334,
+   "ratio": 112.3407426075281,
+   "floor_from": "heldout_family.json / heldout_same_class_different_form"
+  },
+  {
+   "target": "digit_top8_presence",
+   "form": "top-8 里有没有数字（只看前 8）",
+   "rho": 0.7297582324401654,
+   "floor": 0.002986293046583333,
+   "ratio": 244.3692635172204,
+   "floor_from": "heldout_family.json / heldout_same_class_different_form"
+  }
+ ],
+ "rows": [
+  {
+   "key": "digit_top1",
+   "label": "digit_top1",
+   "form": "top-1 是不是数字（二值，只看第 1 名）",
+   "origin": "同底层分类，换函数形式",
+   "verdict": "same_direction",
+   "rho_self": 0.8573311910707287,
+   "floor": -0.006652033333672196,
+   "worst_other": "digit_mass",
+   "worst_other_value": 0.858771729532649,
+   "margin": 0.998322559520323,
+   "max_cos_named_axes": 0.2583346896002419,
+   "rho_delta20": null,
+   "decay_x20": null
+  },
+  {
+   "key": "digit_frac_top64",
+   "label": "digit_frac_top64",
+   "form": "top-64 里数字的个数占比（不加权）",
+   "origin": "同底层分类，换函数形式",
+   "verdict": "same_direction",
+   "rho_self": 0.8147047352383991,
+   "floor": -0.007423219869733499,
+   "worst_other": "digit_mass",
+   "worst_other_value": 0.8096934027531973,
+   "margin": 1.0061891729241732,
+   "max_cos_named_axes": 0.29024667628921014,
+   "rho_delta20": null,
+   "decay_x20": null
+  },
+  {
+   "key": "digit_top8_presence",
+   "label": "digit_top8_presence",
+   "form": "top-8 里有没有数字（只看前 8）",
+   "origin": "同底层分类，换函数形式",
+   "verdict": "same_direction",
+   "rho_self": 0.7636735733756826,
+   "floor": 0.004019543662635095,
+   "worst_other": "digit_mass",
+   "worst_other_value": 0.8032543190763487,
+   "margin": 0.9507245155604275,
+   "max_cos_named_axes": 0.31842512593381667,
+   "rho_delta20": null,
+   "decay_x20": null
+  },
+  {
+   "key": "emitted_has_digit",
+   "label": "emitted_has_digit",
+   "form": "已发出 token 是否含数字",
+   "origin": "新家族（已发出 token 的文本）",
+   "verdict": "same_direction",
+   "rho_self": 0.8455456925826792,
+   "floor": 0.0006660767299056977,
+   "worst_other": "digit_mass",
+   "worst_other_value": 0.8554405310551362,
+   "margin": 0.9884330492731596,
+   "max_cos_named_axes": 0.2619429186810614,
+   "rho_delta20": 0.06828419187109384,
+   "decay_x20": 12.382744371916873
+  },
+  {
+   "key": "emitted_is_upper",
+   "label": "emitted_is_upper",
+   "form": "已发出 token 的首字母是否大写",
+   "origin": "新家族（已发出 token 的文本）",
+   "verdict": "new_clean",
+   "rho_self": 0.6284607338508789,
+   "floor": -0.0013562592293829845,
+   "worst_other": "backtrack_frac",
+   "worst_other_value": 0.3071618158699021,
+   "margin": 2.0460249333760365,
+   "max_cos_named_axes": 0.30146546217963277,
+   "rho_delta20": -0.006829734733112246,
+   "decay_x20": 92.01832258637302
+  },
+  {
+   "key": "emitted_tok_len",
+   "label": "emitted_tok_len",
+   "form": "已发出 token 的字符长度",
+   "origin": "新家族（已发出 token 的文本）",
+   "verdict": "new_weak",
+   "rho_self": 0.6921906983417928,
+   "floor": 0.0009073434586029104,
+   "worst_other": "digit_frac_top64",
+   "worst_other_value": -0.46033525592376134,
+   "margin": 1.5036664896603755,
+   "max_cos_named_axes": 0.257211462969958,
+   "rho_delta20": 0.09630113716585917,
+   "decay_x20": 7.187772841660579
+  }
+ ],
+ "selfdup": {
+  "what": "emitted_has_digit 与 digit_top1 是不是同一个观测量",
+  "n_traj": 48,
+  "n_step": 34583,
+  "pooled": {
+   "same_step": 0.9838898408457425,
+   "lag1": 0.09249530091857412,
+   "drop": 0.8913945399271683
+  },
+  "per_traj_mean": {
+   "same_step": 0.9836623303752073,
+   "lag1": 0.008549708964339282,
+   "drop": 0.9751126214108681,
+   "n_used": 48,
+   "n_used_lag1": 47
+  },
+  "verdict": "same_observable",
+  "note": "本步发出的 token 含数字 与 本步记录的 top-1 是数字 是同一个量；与错开一步的只有 0.0925。两个口径（拼接/逐轨迹平均）差 0.0002 / 0.0839，所以这个数不是跨轨迹拼接造出来的。"
+ },
+ "verdict": "两件事必须分开说：① w*(digit_mass) 换到二值、不加权、只看前 8 都还成立，说明它是「数字内容」这个方向，不是「top-64 加权方式」的产物；② 但专属性把其中三个判成同一条方向的重新构造（余量 ≈ 1.0×），另两个才是新方向 —— 其中 emitted_is_upper 干净通过（余量 2.05×，对 4 条命名轴只有 0.301），emitted_tok_len 余量 1.50× 只能算弱通过。",
+ "not_claimed": "这里测的仍然只是**可读性**。「沿这条方向注入会不会改变输出」一次都没测过，所以不能说任何一条是可干预的。另外不能说「可读方向只有这几条」—— 这一轮又加了 2 条候选，§4.8.2 的 12 维下界因此又偏低，那个数字只能当下界用，且依赖观测量集合。",
+ "sources": {
+  "non_circular": "xcheck/heldout_family.json",
+  "specificity": "xcheck/heldout_specificity.json",
+  "selfdup": "xcheck/heldout_selfdup.json"
+ }
+}
