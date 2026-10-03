@@ -198,6 +198,11 @@ export default function HeldoutPanel() {
   const h = d.headline;
   const sd = d.selfdup;
   const rc = d.recipe;
+  // 这三个 sem 以前是**写死在 JSX 里的字面量**（1.7 / 5.1 / 3.3）。
+  // 它们当时恰好等于产物，所以页面渲染逐字正确、全部判据全绿 ——
+  // 那正是 §8.3 ⑨ 说的「值被写死但恰好等于真值」。
+  // ⇒ 从 control_self_check 按 V1/V2/V3 顺序取，不再手写。
+  const CSC = rc.control_self_check;
 
   return (
     <div className={box} data-heldout="ready"
@@ -416,7 +421,14 @@ export default function HeldoutPanel() {
               </li>
             ))}
           </ul>
-          <p className="text-[8.5px] text-gray-500 leading-snug mb-0.5">
+          {/* ⚠ 这两段以前连 data-* 都没有 ⇒ 整段被删掉不会有人察觉。
+              而第二段里「1.7 sem」「5.1 / 3.3 sem」还是**写死的字面量** ——
+              那是 §8.3 ⑨ 那一类（值被写死但恰好等于真值）。
+              产物里的真值在 control_self_check[i].gap_over_sem，
+              而**上面那个列表已经把同一批数印出来了** ⇒ 这里从产物读，不重复手写。
+              data-marg-para / data-swap-para 让判据能直接读这两段的渲染文本。 */}
+          <p className="text-[8.5px] text-gray-500 leading-snug mb-0.5"
+             data-marg-para="true">
             最好 <b className="font-mono">{rc.best_margin.toFixed(2)}×</b>
             （{VLABEL.V2_banded}），仍不到干净门槛 {rc.clean_threshold.toFixed(1)}×。
             但涨幅不是配方变干净了：自身只涨{" "}
@@ -427,12 +439,14 @@ export default function HeldoutPanel() {
             <b>{rc.margin_gain_attribution.share_from_competitor?.toFixed(0) ?? "n/a"}%</b>{" "}
             来自竞争者被压下去，不是来自配方本身。
           </p>
-          <p className="text-[8.5px] text-gray-500 leading-snug">
+          <p className="text-[8.5px] text-gray-500 leading-snug" data-swap-para="true">
             对照组 <code>self_check</code>（与磁盘 <code>caution.npy</code> 同族，
             cos {rc.closure_v1_selfcheck_vs_caution_axis.toFixed(4)}，非逐位相同）
             三个余量同样全 &lt; 1，但<b>压住它的那个也换了人</b>：
-            朴素时是 <code>entropy</code>（只领先 1.7 sem，<b className="text-amber-400">并不显著</b>），
-            去混杂后确定地变成 <code>emitted_is_upper</code>（5.1 / 3.3 sem）。
+            朴素时是 <code>{CSC[0]?.worst_name ?? "n/a"}</code>
+            （只领先 {CSC[0]?.gap_over_sem?.toFixed(1)} sem，<b className="text-amber-400">并不显著</b>），
+            去混杂后确定地变成 <code>{CSC[1]?.worst_name ?? CSC[2]?.worst_name ?? "n/a"}</code>
+            （{CSC[1]?.gap_over_sem?.toFixed(1)} / {CSC[2]?.gap_over_sem?.toFixed(1)} sem）。
             ⇒ <b className="text-red-300">不能说「caution 的配方方向本来就是熵的」</b>：
             去掉熵的混杂之后，它是被「已发出 token 首字母大写」压住的。
           </p>

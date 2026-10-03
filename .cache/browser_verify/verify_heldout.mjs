@@ -299,7 +299,7 @@ try {
     // ⚠ 缺失分支也必须给 cells / verdict 一个空对象：
     //   否则下面的 rc.cells['caution-axis'] 抛 TypeError，被外层 catch 记成
     //   「装置错」，I3/I4/I5 一条都跑不到 —— 看着像「只有 3 条红」。
-    if (!el) return JSON.stringify({missing: true, cells: {}, verdict: '', text: '', variants: {missing: true, text: ''}});
+    if (!el) return JSON.stringify({missing: true, cells: {}, verdict: '', text: '', margPara: '', swapPara: '', variants: {missing: true, text: ''}});
     const box = el.getBoundingClientRect();
     const cells = [...el.querySelectorAll('[data-recipe-cell]')];
     return JSON.stringify({
@@ -314,6 +314,11 @@ try {
         { attr: (c.getAttribute('data-value') ?? (c.innerText || '')).trim(),
           text: (c.innerText || '').trim() }])),
       verdict: (el.querySelector('[data-recipe-verdict]')?.innerText || '').trim(),
+      // ⚠ 那两段以前没人读。单独再 eval 一次取它们，第一版返回全 null
+      //   （而探针已证明两个 data-* 都在页面上）⇒ 装置自己的问题。
+      //   正确做法是把选择器并进**这一次** eval。
+      margPara: (el.querySelector('[data-marg-para]')?.innerText || '').trim(),
+      swapPara: (el.querySelector('[data-swap-para]')?.innerText || '').trim(),
       variants: (() => {
         const v = el.querySelector('[data-recipe-variants]');
         if (!v) return { missing: true, text: '', rows: [] };
@@ -404,8 +409,38 @@ try {
     && (V.text || '').includes('emitted_is_upper')
     && (V.text || '').includes('1.7')
     && (V.text || '').includes('不能说'),
-    `产物 swapped=${R.control_binding_swapped} / 页 data-binding-swapped=${V.swapped} / `
-    + R.control_self_check.map(v => `${v.name}=${v.margin.toFixed(3)} worst=${v.worst_name}(${v.gap_over_sem.toFixed(2)}sem)`).join(' '));
+    `产物 swapped=${R.control_binding_swapped} / 页 data-binding-swapped=${V.swapped} / `    + R.control_self_check.map(v => `${v.name}=${v.margin.toFixed(3)} worst=${v.worst_name}(${v.gap_over_sem.toFixed(2)}sem)`).join(' '));
+
+  // I9 那三个 sem 必须逐个来自产物，**不许判据自己写死**。
+  //    I7 里那个 `.includes('1.7')` 就是反例：产品侧那几个数是写死的字面量，
+  //    判据侧也写死，两边**互相背书** —— 产物一变，两边一起变成错的且没人红。
+  //    那是 §8.3 ⑨ 的同一种病，只是长在判据上。
+  const SW = { swap: rc.swapPara, marg: rc.margPara };
+  const csc = R.control_self_check;
+  const need = [
+    ['朴素约束方名字', csc[0].worst_name],
+    ['朴素 sem', csc[0].gap_over_sem.toFixed(1)],
+    ['去混杂后约束方名字', csc[1].worst_name],
+    ['去混杂后 sem1', csc[1].gap_over_sem.toFixed(1)],
+    ['去混杂后 sem2', csc[2].gap_over_sem.toFixed(1)],
+  ].filter(([, v]) => v != null);
+  const miss = need.filter(([, v]) => !(SW.swap || '').includes(String(v)))
+                 .map(([w]) => w);
+  const margNeed = [
+    ['best_margin', R.best_margin.toFixed(2)],
+    ['clean_threshold', R.clean_threshold.toFixed(1)],
+    ['own_change_pct', R.margin_gain_attribution.own_change_pct.toFixed(1)],
+    ['worst_change_pct', Math.abs(R.margin_gain_attribution.worst_change_pct).toFixed(1)],
+  ];
+  const margMiss = margNeed.filter(([, v]) => !(SW.marg || '').includes(String(v)))
+                     .map(([w]) => w);
+  check('I9 「约束方换人」段的三个 sem 与约束方名字必须逐个来自产物（不许任何一边写死）',
+    SW.swap != null && SW.marg != null && miss.length === 0 && margMiss.length === 0,
+    (miss.length || margMiss.length)
+      ? `swap 段缺：${miss.join('、') || '无'}；margin 段缺：${margMiss.join('、') || '无'}`
+      : `逐个命中：${need.map(([, v]) => v).join(' / ')}`
+        + `　margin 段：${margNeed.map(([, v]) => v).join(' / ')}`
+        + `　⚠ I7 里的 includes('1.7') 是判据侧写死，将来应一并换成产物值`);
 
   // I8 涨幅归因：页面印的「N% 来自竞争者」必须等于产物，且自身涨幅也要印。
   //    不印这个分解，读者会把 1.15×→1.68× 的功劳记在配方结构上，
