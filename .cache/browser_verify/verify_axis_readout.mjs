@@ -72,6 +72,8 @@ try {
           beating: el.getAttribute('data-beating'),
           layers: el.getAttribute('data-layers'),
           statusLabel: el.querySelector('[data-status-label]')?.textContent?.trim(),
+          candidate: el.querySelector('[data-candidate]')?.getAttribute('data-candidate') || '',
+          rowText: (el.innerText||'').replace(/\\s+/g,' ').trim(),
           verdictText: v ? (v.innerText||'').replace(/\\s+/g,' ').trim() : '',
         });
       })()`);
@@ -79,6 +81,23 @@ try {
       const want = truth.axes[ax].status;
       check(`A2 ${ax} 状态与产物一致`, g.status === want,
         `页面 ${g.status} / 产物 ${want}；标签「${g.statusLabel}」`);
+
+      // A5「Δ=0 读出方向」的名字 —— 这块面板的全部命题就是「轴 → 观测量」，
+      // 而这个名字是**可见文字**、有 data-candidate，却一直没人读（C4 报的第 10 个）。
+      // 它旁边那两串 cos 由 B 组核，但「指向哪个观测量」这个归属判断没人核。
+      // ⚠ **不要在判据里复制组件的 CAND_TEXT 映射表**：那是产品侧常量，
+      //   复制一份就变成「两边各自维护同一张表」，产物或文案一变两边一起错
+      //   —— 与 I9（判据侧也写死 1.7，两边互相背书）同一族。
+      // ⇒ 判据只核**无歧义的那一半**：data-candidate 逐字等于产物的 modal_candidate。
+      //   文本侧只要求「读者看得到一个非空的名字」，
+      //   至于它显示成 key 还是中文说明，是显示选择，不是判决。
+      const a0 = truth.axes[ax].at_delta0 || {};
+      const candKey = a0.modal_candidate || '';
+      const cellText = g.rowText.match(/Δ=0 读出方向：\s*([^（(]{1,60})/);
+      const shown = cellText ? cellText[1].trim() : '';
+      check(`A5 ${ax}「Δ=0 读出方向」必须取自产物（属性逐字相等 + 印出非空名字）`,
+        !!candKey && g.candidate === candKey && shown.length > 0,
+        `属性「${g.candidate}」/ 产物 key「${candKey}」；读者看到的名字「${shown}」`);
 
       // A4 徽章文案本身也必须与产物一致。
       // 这一条是被变异 M2 逼出来的：M2 把徽章硬编码成「已测到读出方向」，

@@ -2130,7 +2130,7 @@ python3 .cache/xcheck/lit_audit.py                      # §8.7：arXiv 真实�
 python3 .cache/xcheck/assertion_guard.py                 # §8.8：§8.3 十条断言的引用守卫（13 条；期望值全部从产物现算）
 python3 .cache/xcheck/mutate_assertion_guard.py          # §8.8：证明上面那 13 条真的会红（11 条变异，0 成本，不碰真文档）
 node     .cache/browser_verify/probe_panels.mjs          # §8.9：先跑这个，产出 panel_blocks.json（面板覆盖矩阵的页面侧输入）
-python3 .cache/xcheck/scan_panel_coverage.py             # §8.9：面板覆盖对账（页面 235 标记 / 被读过 214 = 91%；C0–C6 七条）
+python3 .cache/xcheck/scan_panel_coverage.py             # §8.9：面板覆盖对账（页面 235 标记 / 被读过 219 = 93%；C0–C6 七条）
 python3 .cache/bmmut/preflight.py                        # 提交前置：表结构 + 源码标记 + 40 个锚点各命中 1 次（零成本，不 build）
 python3 .cache/bmmut/summarise_outcome.py                # 复核 31 条变异打中的**是不是它该打的那条**（不信 harness 自报的 RESULT）
 ```
@@ -2652,10 +2652,10 @@ Next 对「不在当前 build manifest 里的 chunk」回 **400**，不是 404�
 `.cache/xcheck/scan_panel_coverage.py`（C0–C6）把两边摆在一起对账：
 
     页面 data-* 标记      235 个
-    被判据读过的           214 个（91%）
+    被判据读过的           219 个（93%）
     判据提到、页面没有       0 个（真死引用）
     WebGL 条件块           14 个 —— 本环境**验不了**
-    页面有、判据没读        21 个
+    页面有、判据没读        16 个
 
 #### 那 14 个不是死引用，但也不能算「验过了」
 
@@ -3144,9 +3144,9 @@ C4 报「21 个标记页面上有、但没有任何判据读过」。这 21 个�
 | `data-bound-caveat-text` | caveat 段的标记 | 重复 —— **G6** 读整块 innerText |
 | `data-control-delta100` | 阳性对照 Δ=100 的 cos | 重复 —— **G7** 逐字核了 control.note 全文（含该数） |
 | `data-rung-here` | 当前断言所在级 | 需 `verify_ladder` 单独确认（`data-rung` 已读） |
-| `data-candidate` | Δ=0 读出方向的名字（**可见文字**） | **未闭合缺口** —— 名字没人核，见下 |
+| `data-candidate` | Δ=0 读出方向的名字（**可见文字**） | **真洞（第十笔）**，已补 A5 |
 | `data-beats` | 每层是否超过位置对照 | 冗余中间量 —— 汇总值 `data-beating` 被读，且 `n_layers_beating_control` / `min_ratio_over_control` 都渲染成可见文字 |
-| `data-extent-fraction` / `-maxabs` / `data-has-entropy` / `data-on-screen-points` / `data-painted` / `data-rendered-points` | 2D 降级画布的运行时诊断（画了几个点、视野范围、有无熵） | **未闭合缺口** —— 这 6 个是**本环境唯一能验**的那条路径（C3 列的 14 个 WebGL 条件块验不了），却没人读 |
+| `data-extent-fraction` / `-maxabs` / `data-has-entropy` / `data-on-screen-points` / `data-painted` / `data-rendered-points` | 2D 降级画布的运行时诊断（画了几个点、视野范围、有无熵） | **真洞（第十笔）**，已补 J11 —— 这是**本环境唯一能验**的那条路径（C3 列的 14 个 WebGL 条件块验不了） |
 
 ⚠ 定性过程中**两次怀疑被自己推翻**，都记在这里以免下一个人重走：
 
@@ -3155,3 +3155,118 @@ C4 报「21 个标记页面上有、但没有任何判据读过」。这 21 个�
 
 ⇒ **判红之前先读源码**。一个洞的成本是一轮 build + 全量守卫，
   而一个误报的成本是同样的，还会让真正的洞被淹掉。
+
+#### 第十笔：一个判据脚本在**死页面**上报 PASS，而原因是一个 `||` 的默认分支
+
+补完 C4 的 21 个之后（第九笔那张表里两个「未闭合缺口」），我去补
+`data-candidate`（`Δ=0 读出方向`）那条。写完判据跑第一次，**判红了**：
+
+    [FAIL] J11 画布上没有任何 data-painted / data-rendered-points ⇒ 绘制循环没跑过
+
+「判红先怀疑判据」。于是写探针量同一件事，结果：
+
+    [2.1s] canvas=1  data-painted=1  data-rendered-points=31
+    [6.1s] canvas=1  data-rendered-points=104
+   [14.1s] canvas=1  data-rendered-points=225
+   [25.1s] canvas=1  data-rendered-points=369
+   [35.1s] canvas=1  data-rendered-points=521      ← 轨迹一直在动，画布从没消失
+
+⇒ 判据红、页面好。**是判据错了。** 差别在两个脚本的启动参数里：
+
+    verify_scene_link.mjs   port 9485  windowSize 1700,1100  等 14s
+    我的探针                 port 9597  windowSize 1900,1400  等  2s
+
+于是给 J11 加临时诊断，直接把 `location.href` 打出来 ——
+
+    [DBG] href=chrome-error://chromewebdata/  bodyLen=0  data-outcome=""  canvas=0
+
+⇒ **页面压根没加载出来。** 根因是一个我踩过的老坑：这个脚本读 **`BV_URL`**，
+  我传的是 **`T3D_URL`**，于是它默默用了默认端口 `10370`（早就死了）。
+
+**而它在错误页上照样报绿：**
+
+    [PASS] E4 页面确实走了 2D fallback（说明不是页面坏了）: WebGL=false 分支=fallback
+    RESULT SKIP  4/5 源码级检查通过
+
+原因在 E4 的判据本身 —— 「两个 testid 都不存在 ⇒ `fallback`」，
+**在 `chrome-error://` 页上这个默认分支正好给出 PASS**。
+⇒ 死 URL 与活页面在自报里完全一样，而失败方向是**虚假信心**：
+  它不只是没提供信息，它还让人以为「3D 验不了」这件事已经被妥善处理过了。
+
+**两处修法：**
+
+1. **E0 存活前置**，任何按分支走的判据之前必须先过：
+
+       check('E0 页面必须真的加载出来（死 URL 不得让本脚本报 PASS/SKIP）',
+         /^https?:\/\/127\.0\.0\.1:\d+\//.test(live.href)
+         && live.bodyLen > 2000 && live.outcome.length > 0, …)
+
+2. **汇总行自己也不许撒谎**：那一支原来无论有没有红都印
+   `RESULT SKIP n/m 源码级检查通过` —— 于是「E0 判红」与「全部通过」在
+   **最后一行**长得一样。改成有红就印 `RESULT FAIL`，SKIP 只用来表达
+   「因环境不可验而跳过」。
+
+    死端口：RESULT FAIL  4/6　有 2 条判红，不能用 SKIP 解释
+    活端口：RESULT SKIP  6/6 源码级检查通过
+
+⇒ 一般形态：**任何带默认分支的判据，在「输入不存在」时都会给出一个看似合理的值。**
+  `?? '—'`、`|| fallback`、`if (!el) return 0`、正则 `includes` 全属此类。
+  ⇒ 凡是**输入缺失时会落到默认值**的判据，都必须另配一条「输入确实存在」的判据。
+  （与「判据要有分母」同源：分母为 0 时比值仍是个数，而它不代表任何事实。）
+
+##### J11：把本环境唯一能自动取证的画布证据接上
+
+C3 把 14 个 WebGL 条件块标成「既不算死引用，也不许算通过」。
+但**降级路径恰恰是本环境唯一真正跑起来的那条** ——
+而 `Scene3DFallback` 早就写了 6 个 proof-of-paint 属性
+（`data-painted` / `data-rendered-points` / `data-on-screen-points` /
+`data-extent-maxabs` / `data-extent-fraction` / `data-has-entropy`），
+**一个都没人读**。⇒ 一个空白画布不会有任何判据红。
+
+补 **J11**，并要求 `painted === "1"` 且 `rendered-points > 0`：
+
+    painted=1  rendered=230  onScreen=230  extentMaxabs=79.0
+    extentFraction=0.0658  hasEntropy=true  layer=14
+
+⚠ 这 6 个属性在 rAF 循环里**逐帧**写，所以判据必须**轮询等它出现**，不能只查一次。
+⚠ 它属于「本环境可验」，所以**不能 SKIP** —— SKIP 的含义是「红的对象不是被测对象」，
+  而这里的被测对象（降级画布）真的存在、真的能验。
+
+##### A5：「轴 → 观测量」这个归属判断之前没人核
+
+`data-candidate` 承载「这条轴在 Δ=0 上的读出方向是哪个观测量」——
+**这块面板的全部命题就是它**，而它是可见文字、有属性、却一直没人读。
+
+判据只核**无歧义的那一半**：`data-candidate` 逐字等于产物的 `modal_candidate`。
+⚠ **不要在判据里复制组件的 `CAND_TEXT` 映射表** ——
+  那是产品侧常量，复制一份就变成「两边各自维护同一张表」，
+  产物或文案一变两边一起错，与第六笔的 I9（判据侧也写死 `1.7`）同一族。
+  文本侧只要求「读者看得到一个非空的名字」。
+
+**变异验证**（当场做当场还原，端口 21810）：把四条轴的读出方向写死成
+`digit_mass`（产物对四条轴各不同）⇒
+
+    RESULT FAIL 42/46，四条 A5 同时红，逐条点名
+      属性「digit_mass」/ 产物 key「top1_prob_renorm」；读者看到的名字「digit_mass」
+    ⇒ 只有 A5 失败，归因干净；还原 + rebuild → 46/46 全绿
+
+##### 覆盖扫描自己的一个盲点：动态读的属性会被**少记**
+
+J11 是这样读那 6 个画布属性的：
+
+    c.getAttribute('data-' + n)      n ∈ {painted, rendered-points, on-screen-points,
+                                        extent-maxabs, extent-fraction, has-entropy}
+
+覆盖扫描是拿**字面量属性名**去 grep 判据源码的，于是
+`data-painted` 与 `data-rendered-points` 恰好被认领了（它们在别处也出现过字面量），
+而 `data-extent-maxabs` / `data-extent-fraction` / `data-has-entropy` /
+`data-on-screen-points` **仍然报「未被任何判据提及」** ——
+尽管 J11 每次运行都读了它们。
+
+⇒ 「覆盖 93%」这个数字**只统计字面量读法**；
+  动态读法（`getAttribute('data-' + n)`、按 `data-*` 前缀遍历、
+  从一张名字表里拼出来）会**系统性少记**，方向是**高报缺口**。
+⇒ 少记的失败方向与「探针少记」同源：它让矩阵一直喊缺口，
+  而真缺口会被淹掉。判读这一栏时必须记得：**这一栏是下界，不是真值。**
+⇒ 真要闭合这一类，判据侧应当**把属性名写成字面量**（像 J11 里 detail 那样
+  逐个列出），而不是靠拼接 —— 拼接省了六行字，换来的是一个会骗人的覆盖率。

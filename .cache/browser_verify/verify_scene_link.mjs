@@ -64,6 +64,29 @@ try {
     });
   })()`));
 
+  // ---- E0 存活前置：页面必须真的加载出来了 ----
+  // ⚠ 这条是补一个**已经犯过**的错误：2026-10-04 我用 T3D_URL 调它，
+  //   而这个脚本读的是 BV_URL ⇒ 它默默用了默认死端口 10370，
+  //   拿到一个 chrome-error://chromewebdata/ 页面，然后照样报
+  //     [PASS] E4 页面确实走了 2D fallback
+  //     RESULT SKIP 4/5 源码级检查通过
+  //   原因：`branch` 的判定是「两个 testid 都不存在 ⇒ fallback」，
+  //   **在错误页上这个默认分支正好给出 PASS**。
+  //   ⇒ 死 URL 与活页面在自报里完全一样，而失败方向是**虚假信心**。
+  // ⇒ 所以任何按分支走的判据，第一条都必须是「我确实在那个页面上」。
+  const live = JSON.parse(await page.eval(`(() => JSON.stringify({
+    href: location.href, bodyLen: (document.body.innerText || '').length,
+    outcome: (document.querySelector('[data-outcome]') || {getAttribute: () => ''})
+               .getAttribute('data-outcome') || '',
+    canvases: document.querySelectorAll('canvas').length,
+  }))()`));
+  check('E0 页面必须真的加载出来（死 URL 不得让本脚本报 PASS/SKIP）',
+    /^https?:\/\/127\.0\.0\.1:\d+\//.test(live.href)
+    && live.bodyLen > 2000 && live.outcome.length > 0,
+    `href=${live.href} bodyLen=${live.bodyLen} data-outcome="${live.outcome}" `
+    + `canvas=${live.canvases}`
+    + (live.href.startsWith('chrome-error') ? '  ← chrome-error 页：下面所有判据都会空过' : ''));
+
   // 不依赖 WebGL 的一条：源码接线自证
   const src0 = readFileSync(
     '/Users/zhourui/code/steer3d/frontend/components/Scene3D.tsx', 'utf8');
@@ -78,11 +101,62 @@ try {
     check('E4 页面确实走了 2D fallback（说明不是页面坏了）',
       wgl.branch === 'fallback' || wgl.branch === 'probing',
       `WebGL=${wgl.hasWebgl} 分支=${wgl.branch}`);
+
+    // J11 降级画布的 proof-of-paint —— C4 报的 6 个未读标记就是它们
+    //   （data-painted / -rendered-points / -on-screen-points / -extent-maxabs /
+    //     -extent-fraction / -has-entropy），它们由 Scene3DFallback 的 rAF 绘制循环写入。
+    //   为什么这条必须在这里、而且**不能 SKIP**：
+    //     3D 像素在本环境验不了（C3 把那 14 个 WebGL 条件块标为「既不算死引用，
+    //     也不许算通过」），但**降级路径恰恰是本环境唯一真正跑起来的那条**。
+    //     ⇒ 「画布上真的有珠子」是这里唯一能自动取证的画布证据，
+    //       而它此前无人读 ⇒ 一个空白画布不会有任何判据红。
+    //   ⚠ 这 6 个属性在 draw() 里逐帧写，所以必须**等**它跑起来，不能只查一次。
+    {
+      let paint = null;
+      for (let i = 0; i < 12; i++) {
+        paint = JSON.parse(await page.eval(`(() => {
+          const cs = [...document.querySelectorAll('canvas')]
+            .filter(c => c.getAttribute('data-painted') !== null
+                      || c.getAttribute('data-rendered-points') !== null);
+          const c = cs[0];
+          if (!c) return JSON.stringify({ found: false });
+          const g = n => c.getAttribute('data-' + n);
+          return JSON.stringify({
+            found: true, painted: g('painted'),
+            rendered: g('rendered-points'), onScreen: g('on-screen-points'),
+            extentMaxabs: g('extent-maxabs'), extentFraction: g('extent-fraction'),
+            hasEntropy: g('has-entropy'), layer: g('layer'),
+          });
+        })()`));
+        if (paint.found && paint.rendered !== null) break;
+        await new Promise(r => setTimeout(r, 900));
+      }
+      const nRendered = Number(paint && paint.rendered);
+      check('J11 2D 降级画布必须自证「真的画过」（proof-of-paint 属性可读且点数 > 0）',
+        !!(paint && paint.found) && paint.painted === '1'
+        && Number.isFinite(nRendered) && nRendered > 0,
+        paint && paint.found
+          ? `painted=${paint.painted} rendered=${paint.rendered} onScreen=${paint.onScreen}`
+            + ` extentMaxabs=${paint.extentMaxabs} extentFraction=${paint.extentFraction}`
+            + ` hasEntropy=${paint.hasEntropy} layer=${paint.layer}`
+          : '画布上没有任何 data-painted / data-rendered-points ⇒ 绘制循环没跑过，'
+            + '或属性已被删（本环境 3D 验不了，这是唯一能自动取证的画布证据）');
+    }
+
     const pass0 = results.filter(r => r.ok).length;
-    console.log(`\nRESULT SKIP  ${pass0}/${results.length} 源码级检查通过`);
+    const fail0 = results.length - pass0;
+    // ⚠ 汇总行自己也不能撒谎。修之前这一支无论有没有红都印
+    //   「RESULT SKIP n/m **源码级检查通过**」——
+    //   于是「E0 判红（死页面）」与「全部通过」在最后一行长得一样。
+    //   SKIP 只能用来表达「因环境不可验而跳过」，不能用来掩盖真红。
+    console.log(fail0
+      ? `\nRESULT FAIL  ${pass0}/${results.length}　有 ${fail0} 条判红，不能用 SKIP 解释`
+      : `\nRESULT SKIP  ${pass0}/${results.length} 源码级检查通过`);
+    if (!fail0) {
     console.log('原因：本浏览器**没有 WebGL**（hasWebgl2/1 均为 false），页面渲染的是');
     console.log('Scene3DFallback，Scene3D 的代码不会挂载 ⇒ 3D 联动在此环境**无法验证**。');
     console.log('这不是 FAIL：红的对象不是被测对象。请用有 WebGL 的普通 Chrome 复跑：');
+    }
     console.log(`  BV_URL=${URL} node .cache/browser_verify/verify_scene_link.mjs`);
     cdp.close();
     proc.kill('SIGKILL');
