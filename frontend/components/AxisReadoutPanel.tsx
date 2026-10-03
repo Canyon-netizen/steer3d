@@ -28,10 +28,23 @@ type Cell = {
   p: number | null;
 };
 
+type Specificity = {
+  cell: string | null;
+  axis_of_report_row: string;
+  cos_per_axis: Record<string, number> | null;
+  row_axis_cos: number;
+  row_axis_is_strongest: boolean;
+  strongest_axis: string;
+  specific: boolean | null;
+  verdict: "tautological" | "shared" | "no_readout" | "position_only";
+  pair_cos_confidence_caution?: number;
+  note: string;
+};
+
 type AxisRow = {
   label: string;
   grouping: string;
-  status: "measured" | "position_axis" | "not_measured";
+  status: "measured" | "tautological" | "shared_readout" | "position_axis" | "not_measured";
   at_delta0: {
     modal_candidate: string | null;
     per_layer: Record<string, Cell>;
@@ -45,6 +58,7 @@ type AxisRow = {
   n_cells_beating_control: number;
   n_cells_total: number;
   criterion: string;
+  specificity?: Specificity;
 };
 
 type Payload = {
@@ -59,16 +73,31 @@ type Payload = {
   axes: Record<string, AxisRow>;
   headline: {
     measured: string[];
+    tautological?: string[];
+    shared_readout?: string[];
     position_axis: string[];
     not_measured: string[];
     vocabulary_caveat: string;
+    retraction_note?: string;
   };
 };
 
 const AXES = ["confidence", "caution", "creativity", "reasoning"] as const;
 const LAYERS = ["12", "14", "20"] as const;
-const STATUS_TEXT: Record<AxisRow["status"], { label: string; cls: string }> = {
+const AXIS_KEYS = ["confidence", "caution", "creativity", "reasoning_deep"] as const;
+const AXIS_LABEL: Record<string, string> = {
+  confidence: "confidence",
+  caution: "caution",
+  creativity: "creativity",
+  reasoning_deep: "reasoning_deep",
+};
+const STATUS_TEXT: Record<
+  AxisRow["status"],
+  { label: string; cls: string }
+> = {
   measured: { label: "已测到读出方向", cls: "text-emerald-400 border-emerald-700" },
+  tautological: { label: "已测，但目标是定义式", cls: "text-sky-400 border-sky-800" },
+  shared_readout: { label: "非循环，但不专属", cls: "text-orange-400 border-orange-800" },
   not_measured: { label: "测不出", cls: "text-gray-500 border-border" },
   position_axis: { label: "判定为轨迹位置轴", cls: "text-amber-500 border-amber-800" },
 };
@@ -116,6 +145,8 @@ export default function AxisReadoutPanel() {
   return (
     <div className={box} data-axis="ready"
          data-measured={d.headline.measured.join(",")}
+         data-tautological={(d.headline.tautological ?? []).join(",")}
+         data-shared-readout={(d.headline.shared_readout ?? []).join(",")}
          data-position-axis={d.headline.position_axis.join(",")}
          data-not-measured={d.headline.not_measured.join(",")}>
       <h3 className="text-xs text-gray-300 mb-1">
@@ -185,9 +216,81 @@ export default function AxisReadoutPanel() {
                 })}
               </div>
 
+              {/* 归属检验：同一个 w* 对四条轴各算一次。缺了它，"测到"分不清是谁的。 */}
+              {a.specificity?.cos_per_axis ? (
+                <div className="mt-1 rounded bg-bg/30 px-1 py-1"
+                     data-specificity={ax}
+                     data-specific={String(a.specificity.specific)}
+                     data-strongest={a.specificity.strongest_axis}>
+                  <div className="text-[8.5px] text-gray-600">
+                    同一格 <span className="font-mono text-gray-500">{a.specificity.cell}</span>{" "}
+                    的 w* 对四条轴：
+                  </div>
+                  <div className="grid grid-cols-4 gap-1 mt-0.5">
+                    {AXIS_KEYS.map((k) => {
+                      const v = a.specificity!.cos_per_axis![k];
+                      const isRow = k === a.specificity!.axis_of_report_row;
+                      const isMax = k === a.specificity!.strongest_axis;
+                      return (
+                        <div key={k}
+                             data-spec-cell={`${ax}-${k}`}
+                             data-spec-cos={v}
+                             data-spec-role={isMax ? "strongest" : isRow ? "row_axis" : "other"}
+                             className={`rounded px-1 py-0.5 ${
+                               isMax ? "bg-orange-500/15" : "bg-transparent"
+                             }`}>
+                          <div className="text-[8px] text-gray-600 truncate">{AXIS_LABEL[k]}</div>
+                          <div className={`text-[10px] font-mono ${
+                            isMax ? "text-orange-300" : "text-gray-400"}`}>
+                            {v.toFixed(3)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[8.5px] text-gray-500 mt-0.5 leading-snug">{a.specificity.note}</p>
+                </div>
+              ) : a.specificity ? (
+                <p className="text-[8.5px] text-gray-600 mt-1 leading-snug"
+                   data-specificity={ax} data-specific="unknown">
+                  {a.specificity.note}
+                </p>
+              ) : null}
+
               <p className="text-[9px] mt-1 leading-snug"
                  data-verdict={a.status}>
-                {a.status === "measured" ? (
+                {a.status === "tautological" ? (
+                  <>
+                    三层同一个候选，{d0.n_layers_beating_control}/{d0.n_layers} 层超过位置对照，
+                    最小倍数 <span className="font-mono">{d0.min_ratio_over_control}×</span>，
+                    且 20 步后（L14）塌到{" "}
+                    <span className="font-mono">
+                      {a.at_delta20_L14 ? a.at_delta20_L14.cos.toFixed(3) : "—"}
+                    </span>{" "}
+                    ⇒ <b>token 局部</b>。归属检验它<b>是专属的</b>
+                    （{(a.specificity?.cos_per_axis?.confidence ?? 0).toFixed(3)}{" "}
+                    vs 次高{" "}
+                    <span className="font-mono">
+                      {(a.specificity?.cos_per_axis?.caution ?? 0).toFixed(3)}
+                    </span>
+                    ），但<b>目标是构造恒等式</b> ⇒ 只能算装置阳性对照。
+                  </>
+                ) : a.status === "shared_readout" ? (
+                  <>
+                    三层同一个候选，{d0.n_layers_beating_control}/{d0.n_layers} 层超过位置对照，
+                    最小倍数 <span className="font-mono">{d0.min_ratio_over_control}×</span>。
+                    归属检验<b>没过</b>：同格上 <span className="font-mono">confidence</span>{" "}
+                    对齐 <span className="font-mono">
+                      {(a.specificity?.cos_per_axis?.confidence ?? 0).toFixed(3)}
+                    </span>{" "}
+                    高于 <span className="font-mono">caution</span> 的{" "}
+                    <span className="font-mono">{(a.specificity?.row_axis_cos ?? 0).toFixed(3)}</span>
+                    ，而两轴本身 <span className="font-mono">
+                      cos = {(a.specificity?.pair_cos_confidence_caution ?? 0).toFixed(3)}
+                    </span>{" "}
+                    ⇒ 这是<b>两条轴共用</b>的可读方向，<b>分不开归属</b>。
+                  </>
+                ) : a.status === "measured" ? (
                   <>
                     三层同一个候选，{d0.n_layers_beating_control}/{d0.n_layers} 层超过位置对照，
                     最小倍数 <span className="font-mono">{d0.min_ratio_over_control}×</span>。
@@ -229,6 +332,12 @@ export default function AxisReadoutPanel() {
         })}
       </div>
 
+      {d.headline.retraction_note && (
+        <p className="text-[10px] text-orange-300/80 leading-relaxed mt-2 pt-2 border-t border-border/60"
+           data-retraction="true">
+          <b>⚠ 已撤回的结论：</b>{d.headline.retraction_note}
+        </p>
+      )}
       <p className="text-[10px] text-gray-600 leading-relaxed mt-2 pt-2 border-t border-border/60">
         <b className="text-gray-500">对照是什么，为什么必须显示它：</b>{" "}
         {d.convention.control}

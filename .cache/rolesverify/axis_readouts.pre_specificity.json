@@ -25,7 +25,7 @@
   "confidence": {
    "label": "高置信 / 低熵",
    "grouping": "低熵 p30 vs 高熵 p75",
-   "status": "tautological",
+   "status": "measured",
    "at_delta0": {
     "modal_candidate": "top1_prob_renorm",
     "per_layer": {
@@ -73,28 +73,12 @@
    "best_control_any_cell": 0.0121,
    "n_cells_beating_control": 15,
    "n_cells_total": 15,
-   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。",
-   "specificity": {
-    "cell": "top1_prob_renorm",
-    "axis_of_report_row": "confidence",
-    "cos_per_axis": {
-     "confidence": 0.4125,
-     "caution": 0.2649,
-     "creativity": 0.0205,
-     "reasoning_deep": 0.0203
-    },
-    "strongest_axis": "confidence",
-    "row_axis_cos": 0.4125,
-    "row_axis_is_strongest": true,
-    "specific": true,
-    "verdict": "tautological",
-    "note": "目标是 top1_prob_renorm，与 entropy 的 Pearson 0.96；而 confidence 的定义分组就是熵 p30 vs p75 的差 ⇒ 这一格是构造恒等式，只能算装置阳性对照，不是独立于定义式的证据。"
-   }
+   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。"
   },
   "caution": {
    "label": "谨慎",
    "grouping": "自我检查 token vs 普通 token",
-   "status": "shared_readout",
+   "status": "measured",
    "at_delta0": {
     "modal_candidate": "backtrack_topk",
     "per_layer": {
@@ -142,24 +126,7 @@
    "best_control_any_cell": 0.0182,
    "n_cells_beating_control": 15,
    "n_cells_total": 15,
-   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。",
-   "specificity": {
-    "cell": "backtrack_topk",
-    "axis_of_report_row": "caution",
-    "cos_per_axis": {
-     "confidence": 0.3341,
-     "caution": 0.3077,
-     "creativity": 0.0395,
-     "reasoning_deep": 0.0443
-    },
-    "strongest_axis": "confidence",
-    "row_axis_cos": 0.3077,
-    "row_axis_is_strongest": false,
-    "specific": false,
-    "verdict": "shared",
-    "pair_cos_confidence_caution": 0.5536802056252549,
-    "note": "同一格上 confidence 轴的余弦 0.3341 高于 caution 轴的 0.3077；而 cos(confidence, caution) = 0.5537，两条轴本身就高度重叠，靠这一个读出量分不开它们。"
-   }
+   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。"
   },
   "creativity": {
    "label": "思维块状态",
@@ -212,14 +179,7 @@
    "best_control_any_cell": 0.0806,
    "n_cells_beating_control": 8,
    "n_cells_total": 15,
-   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。",
-   "specificity": {
-    "cell": null,
-    "cos_per_axis": null,
-    "specific": null,
-    "verdict": "no_readout",
-    "note": "Δ=0 最佳候选 0.039 未超位置对照 0.057，没有可归属的读出方向。"
-   }
+   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。"
   },
   "reasoning": {
    "label": "深推理 / 后期位置",
@@ -272,14 +232,7 @@
    "best_control_any_cell": 0.6507,
    "n_cells_beating_control": 0,
    "n_cells_total": 15,
-   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。",
-   "specificity": {
-    "cell": null,
-    "cos_per_axis": null,
-    "specific": null,
-    "verdict": "position_only",
-    "note": "Δ=0 最佳候选 0.339 未超位置对照 0.628，读出方向本身就是轨迹位置。"
-   }
+   "criterion": "measured ⟺ Δ=0 上同一个候选在全部 3 层都超过位置对照，且每层都 ≥ 对照的 3 倍，中位数仍成立。上面每个数都是实测，读者可以自己核。"
   }
  },
  "per_layer": {
@@ -972,20 +925,16 @@
   }
  },
  "headline": {
-  "measured": [],
+  "measured": [
+   "confidence",
+   "caution"
+  ],
   "position_axis": [
    "reasoning"
   ],
   "not_measured": [
    "creativity"
   ],
-  "vocabulary_caveat": "6 个方向标签 = 4 条独立轴；confidence_down≡−confidence_up、reasoning_shallow≡−reasoning_deep（cos 恰为 −1.0000）。",
-  "tautological": [
-   "confidence"
-  ],
-  "shared_readout": [
-   "caution"
-  ],
-  "retraction_note": "2026-10-03：原表把 confidence 与 caution 都标为「已测」。补做专属性检验后——confidence 那一格虽然专属，但目标与定义式 Pearson 0.96，是构造恒等式；caution 那一格虽然非循环，但同格上 confidence 轴对齐更高（0.3341 vs 0.3077）。⇒ 「两条轴都测到了读出方向」已撤回，当前是 0 条既非循环、又专属。"
+  "vocabulary_caveat": "6 个方向标签 = 4 条独立轴；confidence_down≡−confidence_up、reasoning_shallow≡−reasoning_deep（cos 恰为 −1.0000）。"
  }
 }

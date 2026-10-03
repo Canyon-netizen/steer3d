@@ -28,15 +28,41 @@ FRONT = ROOT / "frontend"
 BACKUP = ROOT / ".cache/bmmut/_mut_backup.tsx"
 
 M2_OLD = "const st = STATUS_TEXT[a.status];"
-M2_NEW = "const st = STATUS_TEXT[\"measured\"]; // MUT_M2"
+# 2026-10-03 重新瞄准：页面上已没有 measured 状态了（confidence 降为
+# tautological、caution 降为 shared_readout）。所以「四行都印已测」这个
+# 变异已经造不出来 —— 改成**四行都印最强的那句**（tautological），
+# 这与原来那句一样是「页面在替产物撒谎，且外观完全正常」。
+M2_NEW = 'const st = STATUS_TEXT["tautological"]; // MUT_M2'
 # 加强版：徽章、data-status、判定句三处一起撒谎。
 # 第一版 M2 只改徽章，结果判据全绿 —— 因为 A2 读 data-status、A3 读判定句，
 # 两者都不受徽章影响。**「页面给四行都印『已测』而判据通过」**，
 # 所以现在三处一起改，这才是读者真正会看到的样子。
-M2_STRONG_OLD = 'className={`text-[9px] px-1.5 py-0.5 rounded border ${st.cls}`}\n                      data-status-label={st.label}>'
-M2_STRONG_NEW = 'className={`text-[9px] px-1.5 py-0.5 rounded border ${st.cls}`}\n                      data-status-label={st.label} data-lie={a.status}>'
-M2_VERDICT_OLD = '<p className="text-[9px] mt-1 leading-snug"\n                 data-verdict={a.status}>'
-M2_VERDICT_NEW = '<p className="text-[9px] mt-1 leading-snug"\n                 data-verdict={"measured"}>'
+M2_STRONG_OLD = ('className={`text-[9px] px-1.5 py-0.5 rounded border ${st.cls}`}\n'
+                  '                      data-status-label={st.label}>')
+M2_STRONG_NEW = ('className={`text-[9px] px-1.5 py-0.5 rounded border ${st.cls}`}\n'
+                  '                      data-status-label={st.label} data-lie={a.status}>')
+M2_VERDICT_OLD = ('<p className="text-[9px] mt-1 leading-snug"\n'
+                  '                 data-verdict={a.status}>\n'
+                  '                {a.status === "tautological" ? (')
+M2_VERDICT_NEW = ('<p className="text-[9px] mt-1 leading-snug"\n'
+                  '                 data-verdict={"tautological"}>\n'
+                  '                {"tautological" === "tautological" ? (')
+# M2_VERDICT_OLD 里第一处已随上面 2026-10-03 的改动单独处理：
+# 原来的锚点是 `a.status === "measured"`，现在分支顺序变了，重建如下。
+
+# M3 只把**印出来的那个数**写死，data-spec-cos 属性照旧。
+# 这是 M2 那次教训的翻版：判据 D4 原本只读 data-spec-cos，
+# 所以「文案撒谎、属性诚实」是能骗过它的。所以 M3 专打这一条。
+# （第一版 M3 写成 `{false ? (`，TS 直接编译失败 —— 编译不过的变异
+#   根本没进页面，不算命中，已废弃。）
+M3_OLD = '                            {v.toFixed(3)}'
+M3_NEW = '                            {(0.3077).toFixed(3)} // MUT_M3'
+# M4 把撤回声明换成**那句具体的谎**：「四条轴的读出方向均已独立验证」。
+# 第一版写成 `{false && (`，TS 报 `'d' is possibly 'null'` 编译失败 ——
+# 编译不过的变异根本没进页面，不算命中，已废弃。保留结构、只换文案，
+# 既类型安全，又正好是读者会看到的那种撒谎。
+M4_OLD = '<b>⚠ 已撤回的结论：</b>{d.headline.retraction_note}'
+M4_NEW = '<b>归属检验：</b>四条轴的读出方向均已独立验证。'
 
 
 def restore():
@@ -144,8 +170,25 @@ def main():
         if strong and (M2_VERDICT_NEW not in back or M2_STRONG_NEW not in back):
             print("ABORT 施加后回读，加强版没全上")
             return 2
-        what = "徽章+data-status+判定句三处一起硬编码为 measured" if strong \
-            else "只硬编码徽章"
+        what = ("徽章+data-status+判定句三处一起硬编码为 tautological" if strong
+                else "只硬编码徽章")
+        print(f"{which} 施加：{what}；回读自证通过")
+    elif which in ("M3", "M4"):
+        s = SRC.read_text()
+        old = M3_OLD if which == "M3" else M4_OLD
+        rep = M3_NEW if which == "M3" else M4_NEW
+        if old not in s:
+            print(f"ABORT {which} 锚点没找到，变异未施加")
+            return 2
+        s2 = s.replace(old, rep, 1)
+        SRC.write_text(s2)
+        shutil.copy2(SRC, BACKUP)
+        back = SRC.read_text()
+        if rep not in back or old in back:
+            print(f"ABORT {which} 施加后回读，变异没生效")
+            return 2
+        what = ("把归属检验的可见文案全部写死成 0.308（data 属性照旧）" if which == "M3"
+                else "把撤回声明替换成「四条轴的读出方向均已独立验证」")
         print(f"{which} 施加：{what}；回读自证通过")
     else:
         print(f"未知变异 {which}")

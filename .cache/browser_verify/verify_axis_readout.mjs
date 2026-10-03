@@ -46,8 +46,12 @@ try {
       w: Math.round(r.width), h: Math.round(r.height),
       text: (el.innerText||'').replace(/\\s+/g,' ').trim(),
       measured: el.getAttribute('data-measured'),
+      taut: el.getAttribute('data-tautological'),
+      shared: el.getAttribute('data-shared-readout'),
       posAxis: el.getAttribute('data-position-axis'),
       notMeasured: el.getAttribute('data-not-measured'),
+      retraction: (el.querySelector('[data-retraction]')?.innerText || '')
+        .replace(/\s+/g, ' ').trim(),
     });
   })()`);
   const P = JSON.parse(root);
@@ -81,13 +85,19 @@ try {
       // 而 A2 读的是 data-status 属性、A3 读的是判定句 —— **两者都不受徽章影响**，
       // 于是判据全绿。也就是「页面可以给四行都印『已测』而判据通过」。
       const LABEL_OF = { measured: '已测到读出方向', not_measured: '测不出',
-                         position_axis: '判定为轨迹位置轴' };
+                         position_axis: '判定为轨迹位置轴',
+                         tautological: '已测，但目标是定义式',
+                         shared_readout: '非循环，但不专属' };
       check(`A4 ${ax} 徽章文案与产物状态一致`,
         g.statusLabel === LABEL_OF[want],
         `页面「${g.statusLabel}」/ 期望「${LABEL_OF[want]}」`);
 
-      // A3 印出来的判定句必须真的包含对应的词（已测/测不出/位置轴）
-      const need = want === 'measured' ? ['token 局部']
+      // A3 印出来的判定句必须真的包含对应的词。
+      // 2026-10-03：confidence/caution 降级后，判定句各要印自己的新结论 ——
+      // 「都印 token 局部」不再够用，因为那正是被撤回的那句话。
+      const need = want === 'tautological' ? ['token 局部', '构造恒等式']
+        : want === 'shared_readout' ? ['分不开归属', '共用']
+        : want === 'measured' ? ['token 局部']
         : want === 'position_axis' ? ['轨迹位置轴']
         : ['测不出'];
       check(`A3 ${ax} 判定句包含关键结论`,
@@ -132,11 +142,13 @@ try {
       saysVocab ? '已提醒' : '未提醒');
 
     // D 组：顶层汇总与产物一致
-    check('D1 data-measured / position / not-measured 三组与产物一致',
+    check('D1 五组状态与产物一致（measured / tautological / shared / position / not-measured）',
       P.measured === truth.headline.measured.join(',')
+      && P.taut === (truth.headline.tautological || []).join(',')
+      && P.shared === (truth.headline.shared_readout || []).join(',')
       && P.posAxis === truth.headline.position_axis.join(',')
       && P.notMeasured === truth.headline.not_measured.join(','),
-      `页面 [${P.measured}] [${P.posAxis}] [${P.notMeasured}]`);
+      `页面 [${P.measured}] [${P.taut}] [${P.shared}] [${P.posAxis}] [${P.notMeasured}]`);
 
     // D2 反向守卫：位置轴那一行必须**不**出现「token 局部」
     const posText = await page.eval(`(() => {
@@ -148,16 +160,62 @@ try {
       !posText.includes('token 局部'),
       posText.includes('token 局部') ? '错误地出现了「token 局部」' : '正确');
 
-    // D3 已测的两行**必须**出现 token 局部
+    // D3 只剩 confidence 一条成立，所以只有它必须出现 token 局部。
+    // 2026-10-03：原来 D3 对 confidence/caution 都要求「token 局部」，
+    // 那是把「caution 已测」当成了前提。现在前提没了，判据跟着改。
+    const confText = await page.eval(`(() => {
+      const el = document.querySelector('[data-axis-row="confidence"]');
+      const v = el && el.querySelector('[data-verdict]');
+      return v ? (v.innerText||'') : '';
+    })()`);
+    check('D3 confidence 那行必须出现「token 局部」', confText.includes('token 局部'),
+      confText.slice(0, 60));
+
+    // D4 **替换**掉原来那条对 caution 的要求，而且更强：
+    // 归属检验的四个余弦必须真的印出来、且逐个与产物一致，
+    // 并且「最高的那一列」必须真的高于报告行所属的那一列 ——
+    // 也就是把「caution 降级」这个结论本身变成可执行的判据。
     for (const ax of ['confidence', 'caution']) {
-      const t = await page.eval(`(() => {
-        const el = document.querySelector('[data-axis-row="${ax}"]');
-        const v = el && el.querySelector('[data-verdict]');
-        return v ? (v.innerText||'') : '';
-      })()`);
-      check(`D3 ${ax} 那行必须出现「token 局部」`, t.includes('token 局部'),
-        t.slice(0, 60));
+      const sp = truth.axes[ax].specificity;
+      const got = JSON.parse(await page.eval(`(() => {
+        const cells = {};
+        document.querySelectorAll('[data-specificity="${ax}"] [data-spec-cell]')
+          .forEach(e => {
+            const k = e.getAttribute('data-spec-cell').split('-').pop();
+            cells[k] = { cos: e.getAttribute('data-spec-cos'),
+                         role: e.getAttribute('data-spec-role'),
+                         text: (e.innerText||'').replace(/\\s+/g,' ').trim() };
+          });
+        return JSON.stringify(cells);
+      })()`));
+      const keys = Object.keys(sp.cos_per_axis);
+      const allMatch = keys.every(k =>
+        got[k] && Math.abs(Number(got[k].cos) - sp.cos_per_axis[k]) < 1e-6);
+      check(`D4 ${ax} 归属检验的 ${keys.length} 个余弦都印出且与产物一致`, allMatch,
+        keys.map(k => `${k}=${got[k] ? got[k].cos : '缺'}`).join(' '));
+      // D4 的第二条路径：**属性对了不等于读者看到的对了。**
+      // M2 那次教训（徽章/属性/判定句三条独立渲染路径）的同族 ——
+      // 这里 data-spec-cos 是属性，格子里的数字是文案，必须分别查。
+      const textOk = keys.every(k => {
+        if (!got[k]) return false;
+        const want = Number(sp.cos_per_axis[k]).toFixed(3);
+        return got[k].text.includes(want);
+      });
+      check(`D4 ${ax} 归属检验的可见文案与产物一致（不只看 data 属性）`, textOk,
+        keys.map(k => `${k}印「${got[k] ? got[k].text : '缺'}」`).join(' '));
+      const strongest = keys.reduce((a, b) =>
+        sp.cos_per_axis[b] > sp.cos_per_axis[a] ? b : a);
+      const marked = got[strongest] && got[strongest].role === 'strongest';
+      check(`D4 ${ax} 最高的一列（${strongest} ${sp.cos_per_axis[strongest]}）被标成 strongest`,
+        marked, `页面角色 ${got[strongest] ? got[strongest].role : '缺'}；`
+        + `报告行所属 ${sp.axis_of_report_row}=${sp.row_axis_cos}`);
     }
+
+    // D5 撤回声明必须印在页面上，且必须真的提到被撤回的那个说法。
+    check('D5 页面印出了撤回声明',
+      P.retraction.includes('已撤回') && P.retraction.includes('0.3341')
+      && P.retraction.includes('0.3077'),
+      P.retraction.slice(0, 90) || '（页面没有 data-retraction 区块）');
   }
 } catch (e) {
   check('装置', false, String(e && e.message ? e.message : e));
