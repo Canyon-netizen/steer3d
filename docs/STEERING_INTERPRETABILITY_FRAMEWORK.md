@@ -3893,3 +3893,157 @@ A2 **正确报红了**，但后面没有 `continue`，直接掉进 `g.rowText.ma
      `tsc` 与 `next build` 里都是合法的。
   3. **散文的源头是生成脚本，不是 JSON。**
      只改产物会在下一次重跑时被覆盖回去。
+
+#### 第十四笔：把一个产物做透 —— 七个字面量、一个层归属、以及一个**已被本项目推翻**的数
+
+第十三笔末尾留了一张 9 份产物的清单。本轮**只把 `axis_readouts` 一个产物做透**，
+因为它的散文数字最多、且全部可从自身或已声明的来源重算。
+
+##### ① 生成器里 7 个字面量，全部改成现算
+
+| 生成器（**均被 git 跟踪**） | 字段 | 原来的字面量 | 改成 |
+|---|---|---|---|
+| `build_axis_readouts.py` | `question` | `4 条独立轴` | `len(AXES)` |
+| `build_axis_readouts.py` | `convention.p_note` | `9 候选 × 4 轴`、`400 个随机方向` | `len(cfg["candidates_searched"])`、`len(AXES)`、`cfg["n_random"]` |
+| `add_specificity.py` | `axes.confidence.specificity.note` | `Pearson 0.96` | `completeness.json` 的 `redundancy_audit.pairs_pearson_exceeding` **按观测对**定位 |
+| `add_specificity.py` | `axes.caution.specificity.note` | `0.3341` / `0.3077` / `0.5537` | `cos_per_axis_median.{confidence,caution}`、`PAIR_CONF_CAUT` |
+| `add_specificity.py` | `axes.{creativity,reasoning}.specificity.note` | `0.039/0.057`、`0.339/0.628` | `at_delta0.per_layer["14"].{cos,control_cos}`，**并把层号写进句子** |
+| `add_specificity.py` | `headline.retraction_note` | `0.96` / `0.3341` / `0.3077` | 同上三处来源 |
+
+重跑两个生成器后**逐字段 diff：只有 3 个字段变化**，其余逐字未变
+（`p_note` / `question` / `caution` note / `retraction_note` 全部原样），
+⇒ **证明那 7 个字面量里 6 个本来就对**，只有层归属那一条需要改。
+（`confidence` note 另**加**了 Spearman 0.992，因为 `pairs_pearson_exceeding`
+ 的第四个数就是它，而原句只给了 Pearson。）
+
+⚠ 顺带发现：`Pearson 0.96` 原本在产物里出现**两次**（note 与 `retraction_note`）——
+  同一个事实两个来源。现在两处由同一个 `PAIR[0]` 插值，**结构上无法分叉**。
+
+##### ② ⚠ 修法本身就是最容易犯这个错的地方
+
+改 `p_note` 时我第一版把「× N 轴」填成 `cfg["effective_dof"]["declared"]`（= **10**），
+因为「同一个 dict 里就有这个数」。而 `declared` 是**候选维数**不是**轴数**
+⇒ 那样会把一个错的数写进产物。
+
+⇒ 规则：**凭「同一个结构体里有这个数」去填是不够的**，
+  必须确认那个数与这个位置**语义相同**。这次是写注释时发现的；
+  否则就把一个错数写进了「修 bug 的提交」里。
+
+##### ③ creativity 那句把**层特定的事实**说成了普遍事实
+
+    原句：Δ=0 最佳候选 0.039 未超位置对照 0.057，没有可归属的读出方向。
+    那两个数取的是 **L14**（0.0395 / 0.0573），句中却只说「Δ=0」。
+    而产物**同时**发布 at_delta0.median_cos = 0.0907 / median_control_cos = 0.0554
+      ⇒ 按中位数，它是**超过**位置对照的，与「未超」**直接相反**。
+
+⇒ 这不是数错，是**归属没交代**：读者拿 `median_cos` 一对就会以为写错了，
+  而写的人知道 0.039 来自哪一层、为什么选那一层。
+⇒ 处置：数字从 `per_layer["14"]` 现算，**并把层号写进句子**
+  （`Δ=0 最佳候选（L14）0.0395 未超位置对照（L14）0.0573`），
+  句子与它引用的字段一一对应，判据也能按「句中声明的层」去核。
+⇒ **E7b** 专门把「中位数与该层方向相反」**报出来**（不判红 —— 它不是错，
+  是两个不同的量；压缩掉的那一态就是没人能看见的差异）。
+  ⚠ `reasoning` 的中位数与 L14 相同（0.3387 / 0.6279），所以只有 creativity 触发。
+
+##### ④ 一个**已被本项目推翻**的数，还挂在产物里
+
+    axis_readouts.convention.effective_dof = {declared: 10, after_dropping_redundant: 9}
+    axis_readouts.convention.redundant_dropped = ["backtrack_frac"]
+
+`completeness.json` 的 `effective_dof` 块做过**独立审计**，原文：
+
+> probe_axes.py 以 |ρ|(backtrack_topk,backtrack_frac)=0.965 为由把 backtrack_frac
+> 剔出搜索、把有效自由度记成 9。**实测该 0.965 是 Spearman；Pearson 只有 0.27。
+> 对线性探针而言二者不是重复，故本轮 10 个全留，有效自由度按 10 记。**
+
+⇒ 两处问题：那个 `ρ` **没有标明是 Spearman**，而探针是**线性**的；
+  而那个 `9` 看起来像当前结论。
+⇒ 处置：**搜索确实只跑了 9 个候选，这是历史事实，不改数字**；
+  但新增 `effective_dof_retraction`，把审计结论**逐字**从 `completeness.json`
+  读进来（**不手抄** —— 手抄一句「已推翻」只是把无源散文换成另一段无源散文），
+  并且**读不到就 `SystemExit` 拒绝写**。
+⚠ 页面目前**不印** `effective_dof`（组件里没有任何引用），所以它到不了读者眼前；
+  危害是「产物里躺着一个看起来像结论的撤回数」，与同文件里另一个已撤回的结论
+  （有 `retraction_note` 标记）不一致。
+
+##### ⑤ 判据 E 组：与 D6 分工，两条一起看才闭环
+
+    D6 核「**页面印的 == 产物里的**」  —— 页面没偷改这句话
+    E  核「**产物里的 == 现算出来的**」 —— 产物里这句话本身对不对
+
+⚠ 只做 D6 的话，**改产物里的数它照样绿**（2026-10-04 实测确认）。
+
+| 判据 | 内容 |
+|---|---|
+| E1 | `p_note` 的「N 候选 × M 轴」与「K 个随机方向」== `n_candidates_searched` / `convention.axes` / `n_random_directions` |
+| E2 | `question` 的轴数 == `convention.axes` |
+| E3 | 各轴 `criterion` 的「全部 N 层」== `per_layer` 层数 == `at_delta0.n_layers` |
+| E4 | caution 归属论证的三个数 == `cos_per_axis` / `pair_cos_confidence_caution` |
+| E5 | confidence 的 Pearson == `completeness.json` 里**那一对观测**的实测值（按观测对定位，不按数值找） |
+| E6 | creativity / reasoning 的两个数 == **句中自己声明的那一层** |
+| E7 | 「未超位置对照」这个判决必须与那一层的数据一致 |
+| E7b | 中位数与该层可能相反 —— **报出来，不判红** |
+| E8 | `effective_dof` 有分叉时必须带撤回声明，且声明**逐字包含**审计原文 |
+
+⚠ E5 必须**按 (观测对) 定位**，不能「找一个等于 0.96 的数」——
+  `completeness.json` 里 0.96 前后的浮点数多得很，随便一个都能凑上
+  （子智能体在普查时就实测过这类容差 haystack 假绿）。
+
+##### ⑥ 判据自己又错了两次（第三次、第四次）
+
+- **E5 / E8 恒红**：`comp` 读不到。真因是 `completeness.json` 里有
+  **67 处裸 `NaN`**（全是 `per_traj_rho_of_max_dir_median`）⇒ 它**不是合法 JSON**。
+  Python 的 `json` 接受 `NaN`（扩展），**JS 的 `JSON.parse` 不接受**
+  ⇒ 同一个文件 Python 读得好好的，JS 侧直接抛 `Unexpected token 'N'`。
+  ⚠ 我第一反应是「产物坏了」，实际是「产物不是 JSON」。
+  ⇒ 处置：判据侧容忍读取（先把裸 `NaN` 换成 `null` 再 parse），
+  **并声明这是有损的**（`NaN ≠ null`）。
+- **E6 红成 `L0.0395: cos=14`**：正则捕获组**下标错位** ——
+  整句=0、层=1、cos=2、第二个层=3、对照=4，而我写成了 2..5。
+
+##### ⑦ 新判据 `scan_json_strict.py`：已发布产物必须严格合法
+
+    J1 已发布产物里不得有裸 NaN / Infinity
+    J2 每一份都能被严格 JSON 解析器读完（连 NaN/Infinity 常量也拒）
+    J3 中间产物的状况**报告**（不判红）
+
+⚠ **J3 刻意不判红**：`completeness.json` 有 67 处裸 NaN 是**事实**，
+  它不是发布物。若因此让门禁永远红，**这个判据会被直接关掉** ——
+  那就是「判红绿两态」最常见的死法。
+  与 E7b 同理：压缩掉的那一态就是没人能看见的差异。
+⚠ 判据还必须做 **J0「目录存在且非空」**：
+  目录空了的话 J1/J2 会因为「0 个文件」而**通过**。
+
+**变异验证**（当场做、逐字还原）：
+
+    往 steer_repetition.json 注入一个裸 NaN
+      → [FAIL] J1: 不合法的：steer_repetition.json（1 处）
+      → [FAIL] J2: 读不了：steer_repetition.json → NaN
+      → RESULT RED 2/4
+      → cp 还原 → GREEN 4/4
+
+##### ⑧ 本笔的变异（当场做、逐字还原）
+
+    产物侧：p_note 400→500 / confidence note 0.96→0.97 /
+            creativity 的 0.0395→0.0907 / 删掉 effective_dof_retraction
+      → 恰好 E1 / E5 / E6 / E8 四条红，62/66，无附带红
+      → cp 还原 → 66/66
+
+⚠ 施加这组变异时脚本**自己拦住了我**：第二个变异断言
+  「`Pearson 0.96` 应出现 1 次」而实际是 **2** 次 ⇒ 一个字节都没写。
+  读回确认产物未被污染。**断言在批量改写前救了一次** ——
+  这正是「施加后回读自证」与「断言而不是计数」的价值。
+
+##### 这一笔的结果
+
+    verify_axis_readout  54 → 66/66   （E1–E8 + E7b ×2）
+    串联器 14 → 15 条（新增 json_strict）
+    门禁（端口 22080）：判红 0 ／ 环境不可验而跳过 1 ／ 一条都没跑 0 ／ 装置崩 0
+
+⇒ 一般形态三条：
+  1. **「同一个结构体里有这个数」不足以证明它该填在这里** ——
+     语义必须对齐；`declared=10`（候选维数）填进「× N 轴」就是我犯的。
+  2. **句子里引用的量，必须是产物用同名字段发布的那一个**；
+     否则读者拿那个字段一对就会以为写错了，而差异其实是**归属**问题。
+  3. **产物里可能躺着已被本项目推翻的数，而它旁边的另一个撤回结论是有标记的。**
+     处置不是改数字（历史事实不能改），是**补上撤回声明并让声明逐字来自审计**。

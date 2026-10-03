@@ -18,6 +18,9 @@ from pathlib import Path
 
 ROOT = Path("/Users/zhourui/code/steer3d")
 SRC = ROOT / ".cache/rolesverify/probe_axes.json"
+# 撤回声明的**唯一**来源：completeness.json 的 effective_dof 块（§8.9 第十四笔）。
+# 手抄一句「已推翻」进本脚本，就是把一个无源的散文换成一个无源的散文。
+COMPLETENESS = ROOT / ".cache/completeness/completeness.json"
 OUT = ROOT / "frontend/public/latent/data/axis_readouts.json"
 LAM = 0.01
 AXES = ["confidence", "caution", "creativity", "reasoning"]
@@ -47,9 +50,24 @@ CAND_MEANING = {
 def main():
     d = json.loads(SRC.read_text())
     cfg = d["config"]
+    # 把「9 已被推翻」的审计结论从 completeness.json **逐字**读进来。
+    # ⚠ 找不到就拒绝写 —— 那样这个字段会变成又一句无源的散文。
+    _eff = json.loads(COMPLETENESS.read_text()).get("effective_dof", {})
+    _dev = _eff.get("deviation_from_probe_axes")
+    if not _dev or not _eff.get("all_usable_kept"):
+        raise SystemExit(
+            "completeness.json 里找不到 effective_dof.deviation_from_probe_axes，"
+            "或 all_usable_kept 不为真 —— 撤回声明会变成无源的散文，拒绝写。")
+    _EFFDOF_RETRACTION = (
+        "⚠ `effective_dof.after_dropping_redundant = 9` 与 "
+        "`redundant_dropped = [backtrack_frac]` 是**已被本项目推翻的数**，"
+        "只是历史记录（搜索当时确实只跑了 9 个候选）。审计结论："
+        + _dev
+        + " ⇒ 面板若要展示「有效自由度」，必须写 10 并说明搜索实际覆盖 "
+        + str(_eff.get("n_searched_observables")) + " 个观测量中只用了 9 个。")
     out = {
         "schema": "steer3d.axis_readouts/1",
-        "question": "4 条独立轴各自指向哪个逐 token 行为观测量？",
+        "question": str(len(AXES)) + " 条独立轴各自指向哪个逐 token 行为观测量？",
         "convention": {
             "target_transform": "轨迹内去均值（每条轨迹减去自己的均值）",
             "fold": "留一轨迹，每折重解 w",
@@ -59,9 +77,32 @@ def main():
             "n_candidate_cells": cfg["n_candidate_cells"],
             "effective_dof": cfg["effective_dof"],
             "redundant_dropped": cfg["candidates_dropped"],
+            # ⚠ §8.9 第十四笔：`cfg["effective_dof"]` 里的 9 是**已被本项目推翻的数**。
+            #   completeness.json 的 effective_dof 块做过独立审计，原文：
+            #     「probe_axes.py 以 |ρ|(backtrack_topk,backtrack_frac)=0.965 为由把
+            #       backtrack_frac 剔出搜索、把有效自由度记成 9。实测该 0.965 是 Spearman；
+            #       Pearson 只有 0.27。对线性探针而言二者不是重复，故本轮 10 个全留，
+            #       有效自由度按 10 记。」
+            #   ⇒ 搜索确实只跑了 9 个（历史事实，不该改数字），
+            #     但**不能**让这个 9 看起来像当前结论。
+            #   ⇒ 这里把审计结论**逐字**从 completeness.json 读进来（不手抄），
+            #     并显式声明「这 9 不是结论」。页面目前不印这一块，
+            #     但它一旦被印出来、或被别的判据读到，必须带着这句撤回声明。
+            "effective_dof_retraction": _EFFDOF_RETRACTION,
             "n_random_directions": cfg["n_random"],
-            "p_note": "p 已为「9 候选 × 4 轴」的搜索付过钱（零假设取 "
-                      "max_j max_a 的最大值，400 个随机方向）",
+            # ⚠ §8.9 第十四笔：这段原来每个数都是**字面量**
+            #   （"9 候选 × 4 轴" / "400 个随机方向"），
+            #   而上面三行 `n_candidates_searched` / `n_random_directions` /
+            #   `convention.axes` 就在同一个 dict 里躺着 —— 三个数都能现算。
+            #   ⇒ 散文里的数与结构化字段可以各改各的，且没有任何判据会红。
+            # ⚠⚠ **修法本身就是最容易犯这个错的地方**：
+            #   我第一版把「× N 轴」填成了 `cfg["effective_dof"]["declared"]`（=10），
+            #   那是**候选维数**不是**轴数** ⇒ 会把一个错的数写进产物。
+            #   凭「同一个 dict 里有这个数」去填是**不够**的 ——
+            #   必须确认那���个数与这个位置**语义相同**。
+            "p_note": "p 已为「" + str(len(cfg["candidates_searched"])) + " 候选 × "
+                      + str(len(AXES)) + " 轴」的搜索付过钱（零假设取 "
+                      "max_j max_a 的最大值，" + str(cfg["n_random"]) + " 个随机方向）",
             "control": "CONTROL_step_frac = t/(T-1)，正是 reasoning_deep 的定义分组。"
                        "它不是候选，是尺子。",
         },

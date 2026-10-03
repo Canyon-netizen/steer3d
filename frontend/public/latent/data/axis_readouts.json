@@ -16,6 +16,7 @@
   "redundant_dropped": [
    "backtrack_frac"
   ],
+  "effective_dof_retraction": "⚠ `effective_dof.after_dropping_redundant = 9` 与 `redundant_dropped = [backtrack_frac]` 是**已被本项目推翻的数**，只是历史记录（搜索当时确实只跑了 9 个候选）。审计结论：probe_axes.py 以 |ρ|(backtrack_topk,backtrack_frac)=0.965 为由把 backtrack_frac 剔出搜索、把有效自由度记成 9。实测该 0.965 是 Spearman；Pearson 只有 0.27。对线性探针而言二者不是重复，故本轮 10 个全留，有效自由度按 10 记。 ⇒ 面板若要展示「有效自由度」，必须写 10 并说明搜索实际覆盖 10 个观测量中只用了 9 个。",
   "n_random_directions": 400,
   "p_note": "p 已为「9 候选 × 4 轴」的搜索付过钱（零假设取 max_j max_a 的最大值，400 个随机方向）",
   "control": "CONTROL_step_frac = t/(T-1)，正是 reasoning_deep 的定义分组。它不是候选，是尺子。"
@@ -88,7 +89,7 @@
     "row_axis_is_strongest": true,
     "specific": true,
     "verdict": "tautological",
-    "note": "目标是 top1_prob_renorm，与 entropy 的 Pearson 0.96；而 confidence 的定义分组就是熵 p30 vs p75 的差 ⇒ 这一格是构造恒等式，只能算装置阳性对照，不是独立于定义式的证据。"
+    "note": "目标是 top1_prob_renorm，与 entropy 的 Pearson 0.96（Spearman 0.992）；而 confidence 的定义分组就是熵 p30 vs p75 的差 ⇒ 这一格是构造恒等式，只能算装置阳性对照，不是独立于定义式的证据。"
    }
   },
   "caution": {
@@ -218,7 +219,7 @@
     "cos_per_axis": null,
     "specific": null,
     "verdict": "no_readout",
-    "note": "Δ=0 最佳候选 0.039 未超位置对照 0.057，没有可归属的读出方向。"
+    "note": "Δ=0 最佳候选（L14）0.0395 未超位置对照（L14）0.0573，没有可归属的读出方向。"
    }
   },
   "reasoning": {
@@ -278,7 +279,7 @@
     "cos_per_axis": null,
     "specific": null,
     "verdict": "position_only",
-    "note": "Δ=0 最佳候选 0.339 未超位置对照 0.628，读出方向本身就是轨迹位置。"
+    "note": "Δ=0 最佳候选（L14）0.3387 未超位置对照（L14）0.6279，读出方向本身就是轨迹位置。"
    }
   }
  },

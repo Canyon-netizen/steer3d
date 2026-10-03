@@ -352,7 +352,165 @@ try {
       }
     }
 
-    // ---- A10：各轴的 criterion 必须逐字相同（页面只印一条）----
+    // ---- E 组：产物里**手写散文**的数字必须能现算（§8.9 第十四笔）----
+    // 与 D6 的分工，两条要一起看才闭环：
+    //   D6 核「**页面印的 == 产物里的**」  —— 页面没偷改这句话
+    //   E  组核「**产物里的 == 现算出来的**」—— 产物里这句话本身对不对
+    // 只做 D6 的话，改产物里的数它照样绿（2026-10-04 实测过）。
+    {
+      const CV = truth.convention;
+      const NL = Object.keys(truth.per_layer).length;
+      // completeness.json 读一次，E5 与 E8 都要用。
+      // ⚠ 我第一版把它 `let` 在 E5 的块里，E8 却在另一个块里读它 ——
+      //   作用域不对 ⇒ E8 拿到 undefined ⇒ 它的判断恒为「读不到」⇒ 恒红。
+      //   **又一次「自己刚写的判据先红」**，而红的原因在作用域不在数据。
+      let comp = null;
+      let compErr = '';
+      try {
+        comp = JSON.parse(readFileSync(
+          '/Users/zhourui/code/steer3d/.cache/completeness/completeness.json', 'utf8'));
+      } catch (e) {
+        // ⚠⚠ 这份文件里有 **67 处裸 `NaN`**（全是 per_traj_rho_of_max_dir_median），
+        //   所以它**不是合法 JSON**：Python 的 json 接受 NaN，JS 的 JSON.parse 不接受。
+        //   我第一版直接 JSON.parse ⇒ 抛错 ⇒ comp=null ⇒ E5/E8 恒红，
+        //   而红的原因在**解析器**不在数据 —— 我差点又去改产品。
+        // ⇒ 容忍读取：先把裸 NaN/Infinity 换成 null 再 parse。
+        //   ⚠ 这是**有损的**（NaN ≠ null 语义不同），所以下面每条用到 comp 的判据
+        //   都要能说清「comp 读到了没有」，不能默默当成完整数据。
+        const raw = readFileSync(
+          '/Users/zhourui/code/steer3d/.cache/completeness/completeness.json', 'utf8')
+          .replace(/:\s*(NaN|-?Infinity)\b/g, ': null');
+        comp = JSON.parse(raw);
+        compErr = '（含 67 处裸 NaN，已按 null 容忍读取）';
+      }
+
+      // E1 p_note 的三个数
+      {
+        const want = `${CV.n_candidates_searched} 候选 × ${CV.axes} 轴`;
+        const wantR = `${CV.n_random_directions} 个随机方向`;
+        check('E1 convention.p_note 的「N 候选 × M 轴」与「K 个随机方向」必须现算',
+          CV.p_note.includes(want) && CV.p_note.includes(wantR),
+          `p_note=「${CV.p_note}」；应为「${want}」与「${wantR}」`);
+      }
+      // E2 question 的轴数
+      check('E2 question 里的轴数必须等于 convention.axes',
+        String(truth.question).includes(`${CV.axes} 条独立轴`),
+        `question=「${truth.question}」；convention.axes=${CV.axes}`);
+
+      // E3 criterion 的「全部 N 层」—— 四份都要核，且已由 A10 保证它们逐字相同
+      {
+        const bad = AXES.filter(ax => {
+          const n = truth.axes[ax]?.at_delta0?.n_layers;
+          const t = truth.axes[ax]?.criterion || '';
+          return n === undefined || !t.includes(`全部 ${n} 层`) || !t.includes(`全部 ${NL} 层`);
+        });
+        check('E3 各轴 criterion 的「全部 N 层」必须等于 per_layer 的层数与 at_delta0.n_layers',
+          bad.length === 0,
+          `per_layer 层数=${NL}；` + AXES.map(ax => {
+            const n = truth.axes[ax]?.at_delta0?.n_layers;
+            return `${ax}:${n}`;
+          }).join(' ')
+          + (bad.length ? ` ⇒ 不一致：${bad.join(',')}` : ''));
+      }
+
+      // E4 caution 的三个数：两个余弦 + 一对轴的 cos
+      {
+        const sp = truth.axes.caution?.specificity || {};
+        const cpa = sp.cos_per_axis || {};
+        const t = sp.note || '';
+        const need = [cpa.confidence, cpa.caution, sp.pair_cos_confidence_caution]
+          .map(v => (v === undefined ? null : Number(v).toFixed(4)));
+        const missing = need.filter(v => v === null || !t.includes(v));
+        check('E4 caution 的归属论证里三个数必须等于 cos_per_axis / pair_cos',
+          missing.length === 0,
+          `note=「${t.slice(0, 64)}」；应含 ${JSON.stringify(need)}`
+          + (missing.length ? `；缺 ${JSON.stringify(missing)}` : ''));
+      }
+
+      // E5 confidence 的 Pearson —— 真源在 completeness.json，按**观测对**定位
+      {
+        const pairs = comp?.redundancy_audit?.pairs_pearson_exceeding || [];
+        const hit = pairs.find(p => new Set([p[0], p[1]]).size === 2
+          && [p[0], p[1]].includes('top1_prob_renorm') && [p[0], p[1]].includes('entropy'));
+        const note = truth.axes.confidence?.specificity?.note || '';
+        if (!hit) {
+          check('E5 confidence 的 Pearson 0.96 必须能按观测对定位到 completeness.json', false,
+            'completeness.json 里找不到 (top1_prob_renorm, entropy) 这一对 ⇒ 该数在本环境无源，未判');
+        } else {
+          const want = Number(hit[2]).toFixed(2);
+          check('E5 confidence 的 Pearson 必须等于 completeness.json 里那一对的实测值',
+            note.includes(`Pearson ${want}`),
+            `note 里写的是含「Pearson ${want}」= ${note.includes(`Pearson ${want}`)}；`
+            + `completeness.json 该对 pearson=${hit[2]} spearman=${hit[3]}`);
+        }
+      }
+
+      // E6/E7 creativity 与 reasoning：数字必须等于**句中声明的那一层**
+      {
+        for (const ax of ['creativity', 'reasoning']) {
+          const sp = truth.axes[ax]?.specificity || {};
+          const t = sp.note || '';
+          const mL = t.match(/最佳候选（L(\d+)）([\d.]+)\s*未超位置对照（L(\d+)）([\d.]+)/);
+          if (!mL) {
+            check(`E6 ${ax} 的归属论证必须写明取的是哪一层`, false,
+              `note=「${t}」；句式应为「最佳候选（L<n>）<c> 未超位置对照（L<n>）<k>」`);
+            continue;
+          }
+          const L = mL[1], wantC = Number(mL[2]), L2 = mL[3], wantK = Number(mL[4]);
+          // ⚠ 捕获组下标：整句=0，L14 的 14=1，cos=0.0395=2，第二个 L14=3，对照=4。
+          //   我第一版写成 2..5 ⇒ L 拿到 "0.0395"、cos 拿到 14 ⇒ 两条判红，
+          //   而红的原因是**下标错位**，不是数据。
+          const cell = truth.axes[ax]?.at_delta0?.per_layer?.[L];
+          const okL = L === L2;
+          const okC = cell && Math.abs(cell.cos - wantC) < 5e-4;
+          const okK = cell && Math.abs(cell.control_cos - wantK) < 5e-4;
+          check(`E6 ${ax} 的两个数必须等于它自己声明的那一层（L${L}）`, okL && okC && okK,
+            `note 写 L${L}: cos=${wantC} 对照=${wantK}；产物 per_layer.${L} = `
+            + (cell ? `cos=${cell.cos} 对照=${cell.control_cos}` : '（无此层）')
+            + (okL ? '' : ` ⚠ 两处层号不一致（L${L} vs L${L2}）`));
+          // E7 「未超」这个判决必须与那一层的数据一致
+          check(`E7 ${ax} 的「未超位置对照」判决必须与 L${L} 的数据一致`,
+            cell ? (cell.cos < cell.control_cos) === true : false,
+            cell ? `L${L}: cos=${cell.cos} vs 对照=${cell.control_cos} ⇒ `
+              + (cell.cos < cell.control_cos ? '确实未超 ✔' : '其实**超过**了 ⚠ 判决与数据相反')
+              : '（无此层，未判）');
+          // E7b 顺带把「中位数与该层不一致」报出来 ——
+          // 2026-10-04 就是在这里发现 creativity 的 median 反而**超过**对照。
+          const d0 = truth.axes[ax]?.at_delta0 || {};
+          if (d0.median_cos !== undefined && cell) {
+            const medBeats = d0.median_cos > d0.median_control_cos;
+            check(`E7b ${ax} 的中位数与它声明的那层可能不同（必须报出来，不判红）`,
+              true,
+              `L${L}: cos=${cell.cos} < 对照=${cell.control_cos}；`
+              + `而 median_cos=${d0.median_cos} vs median_control_cos=${d0.median_control_cos} ⇒ `
+              + (medBeats ? '⚠ **中位数反而超过对照**，与本句的判决相反' : '中位数方向一致'));
+          }
+        }
+      }
+
+      // E8 被推翻的 effective_dof=9 必须带着撤回声明，且声明逐字来自 completeness.json
+      {
+        const efd = CV.effective_dof || {};
+        const retr = CV.effective_dof_retraction || '';
+        const dev = comp?.effective_dof?.deviation_from_probe_axes;
+        const stale = efd.after_dropping_redundant !== undefined
+          && efd.after_dropping_redundant !== efd.declared;
+        if (!stale) {
+          check('E8 effective_dof 无需撤回声明（declared == after_dropping_redundant）', true,
+            `declared=${efd.declared} after=${efd.after_dropping_redundant}`);
+        } else if (!dev) {
+          check('E8 effective_dof 的 9 是已被推翻的数，必须带撤回声明', false,
+            'effective_dof 有分叉（9 ≠ 10）但产物里没有 effective_dof_retraction，'
+            + '且 completeness.json 的审计结论读不到 ⇒ 这个 9 看起来像当前结论');
+        } else {
+          check('E8 effective_dof 的 9 必须带撤回声明，且声明逐字来自 completeness.json 的审计',
+            retr.includes(dev) && retr.includes(String(efd.after_dropping_redundant)),
+            `产物撤回声明 ${retr.length} 字，含审计原文=${retr.includes(dev)}；`
+            + `分叉 declared=${efd.declared} vs after=${efd.after_dropping_redundant}`);
+        }
+      }
+    }
+
     {
       const uniq = new Set(AXES.map(k => truth.axes[k]?.criterion));
       check('A10 各轴的 criterion 必须逐字相同（页面只印一条）',
