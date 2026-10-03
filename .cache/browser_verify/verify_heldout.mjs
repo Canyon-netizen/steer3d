@@ -31,6 +31,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const truth = JSON.parse(readFileSync(
   '/Users/zhourui/code/steer3d/frontend/public/latent/data/heldout_readability.json', 'utf8'));
+// 第十八笔：not_claimed 里那七个数（2 / 12 / 14 / 20 / 0.5 / 0.45 / 退回几条）
+// 的源是**另外两份产物**。判据必须自己把它们读进来现算，
+// 而不是拿 truth 里的散文去和 truth 里的结构比对 —— 那只能证明自洽。
+const DATA_D = '/Users/zhourui/code/steer3d/frontend/public/latent/data/';
+const SUB = JSON.parse(readFileSync(DATA_D + 'readable_subspace.json', 'utf8'));
+const AXR = JSON.parse(readFileSync(DATA_D + 'axis_readouts.json', 'utf8'));
+const AX_KEYS = Object.keys(AXR.axes || {});
 
 const results = [];
 const check = (name, ok, detail) => {
@@ -319,6 +326,104 @@ try {
     && P.notClaimed.includes('下界') && P.notClaimed.includes('14')
     && P.notClaimed.includes('12') && P.notClaimed.includes('门槛'),
     `边界 ${P.notClaimed.length} 字`);
+
+  // ---------- G 组：跨产物那七个数，以及「同向行」的账 ----------
+  // 第十八笔的起点：not_claimed 里「门槛 0.45 就退回 12 条」这句话
+  // 混了**两个估计量**。头条「至少 14 条」用的是 perm_min（第十五笔确认），
+  // 同一口径下 0.45 那一档是 **11**；12 是那一档的 greedy 估法。
+  // ⇒ 一句「退回 12 条」在同屏上与 SubspacePanel 的敏感性表
+  //   （0.45 → 「12 条（随机顺序 11–12）」）并排出现，读者无法分辨说的是哪个。
+  const sh = SUB.headline, sens = sh.threshold_sensitivity;
+  const selKey = Object.keys(sens).find(
+    k => Math.abs(Number(k) - Number(sh.separation_threshold)) < 1e-12);
+  const underKeys = Object.keys(sens).filter(k => Number(k) < Number(selKey));
+  const worstKey = underKeys.sort((a, b) => Number(b) - Number(a))[0];   // 紧邻的下一档
+  const gOld = sh.readable_directions_lower_bound_old;
+  const gNew = sh.readable_directions_lower_bound;
+  const gCand = sh.n_candidates;
+  const gThr = sh.separation_threshold;
+  const gWorst = sens[worstKey].perm_min;
+  const gGreedy = sens[worstKey].greedy;
+  const gPermRange = `${sens[worstKey].perm_min}–${sens[worstKey].perm_max}`;
+  const NC = P.notClaimed || '', VD = P.verdict || '';
+  const gNewClean = truth.headline.new_clean, gNewWeak = truth.headline.new_weak;
+
+  check('G0 前置：选定门槛在敏感性表里，且「紧邻的下一档」存在',
+      !!selKey && underKeys.length > 0 && sens[selKey].perm_min === gNew,
+      `选定门槛=${selKey}（表键 ${selKey}）perm_min=${sens[selKey].perm_min} 头条=${gNew}`
+      + ` | 下一档=${worstKey} perm_min=${gWorst} greedy=${gGreedy} 随机顺序=${gPermRange}`);
+
+  // ⚠ 七个数逐个用**带词锚点**的正则取，不许 includes('14')：
+  //   E2 就是 includes('14')/includes('12')，而 '12' 在这段文字里出现多次
+  //   （12→14 的 12、0.45 退回的 12、20 个候选、0.5）⇒ 改对了仍会绿。
+  check('G1 not_claimed 的「补进来 N 条」与 headline 的干净+弱一致',
+      new RegExp('补进来 ' + (gNewClean + gNewWeak) + ' 条').test(NC),
+      `现算 ${gNewClean} + ${gNewWeak} = ${gNewClean + gNewWeak}；`
+      + `原文片段：${(NC.match(/补进来[^，。]*/) || ['<没抓到>'])[0]}`);
+
+  check('G2 「下界从 A 抬到 B」必须等于 readable_subspace 的 old/lower_bound',
+      new RegExp('从 ' + gOld + ' 抬到 \\*\\*' + gNew + '\\*\\*').test(NC),
+      `现算 old=${gOld} new=${gNew}；原文：${(NC.match(/下界因此从[^（]*/) || ['<没抓到>'])[0]}`);
+
+  check('G3 「N 个候选、|cos|<T」必须等于 readable_subspace 的 n_candidates / 选定门槛',
+      new RegExp('\\*\\*' + gNew + '\\*\\*（' + gCand + ' 个候选、\\|cos\\|<' + gThr + '）').test(NC),
+      `现算 n_candidates=${gCand} 选定门槛=${gThr}；`
+      + `原文：${(NC.match(/\*\*\d+\*\*（[^）]*）/) || ['<没抓到>'])[0]}`);
+
+  // ---- 本笔的核心：0.45 那一句必须落在**同一个**估计量上 ----
+  check('G4 「门槛 X 就退回 N 条」必须用 perm_min 口径，且必须与 perm_min 现算一致',
+      new RegExp('门槛 ' + worstKey + ' 就退回 \\*\\*' + gWorst + '\\*\\* 条').test(NC)
+      && new RegExp('同一 perm_min 口径').test(NC),
+      `现算：门槛 ${worstKey} → perm_min ${gWorst}（greedy 给 ${gGreedy}，perm ${gPermRange}）`
+      + `；原文：${(NC.match(/门槛 [\d.]+ 就退回[^）]*）/) || ['<没抓到>'])[0]}`);
+
+  check('G5 两种估计量不许被混用：下一档 greedy 的数必须与 perm_min **不同**才值得说明',
+      gGreedy !== gWorst && new RegExp('greedy 估法给 ' + gGreedy).test(NC)
+      && /不是一回事/.test(NC),
+      gGreedy === gWorst
+        ? `⚠ 下一档的 greedy(${gGreedy}) 与 perm_min(${gWorst}) 相同 ⇒ 那句话已成赘述`
+        : `greedy=${gGreedy} vs perm_min=${gWorst}，原文已分别印出并说「不是一回事」`);
+
+  // ---- 「N 个同向」的账：判决里原来写「其中三个」，而表里有 4 行同向 ----
+  const sameRows = truth.rows.filter(r => r.verdict === 'same_direction');
+  const mLo = Math.min(...sameRows.map(r => r.margin));
+  const mHi = Math.max(...sameRows.map(r => r.margin));
+  const transferKeys = truth.transfer.map(t => t.target);
+  const fromNewFam = sameRows.filter(r => !transferKeys.includes(r.key));
+  check('G6 判决里的「N 个判成同一条方向」必须等于 rows 里 same_direction 的行数',
+      new RegExp('把 ' + sameRows.length + ' 个判成同一条方向').test(VD)
+      && new RegExp('另 ' + (gNewClean + gNewWeak) + ' 个才是新方向').test(VD)
+      && sameRows.length + gNewClean + gNewWeak === truth.rows.length,
+      `现算 same_direction=${sameRows.length}、新方向=${gNewClean + gNewWeak}、`
+      + `rows 共 ${truth.rows.length} 行；原文：${(VD.match(/专属性把[^，]*/) || ['<没抓到>'])[0]}`);
+
+  check('G7 同向行的余量区间必须等于那些行余量的 min–max（不许写死「≈ 1.0×」）',
+      new RegExp('余量 ≈ ' + mLo.toFixed(2) + '–' + mHi.toFixed(2) + '×').test(VD),
+      `现算 min–max = ${mLo.toFixed(4)}–${mHi.toFixed(4)}；`
+      + `原文：${(VD.match(/余量 ≈ [\d.]+–[\d.]+×/) || ['<没抓到>'])[0]}`);
+
+  // ---- 那个「没被判决提到」的行必须被点名，并说清它为什么同向 ----
+  const sdSame = truth.selfdup.pooled.same_step;
+  check('G8 同向行里来自新家族的那一条必须被点名，且它的「同一个观测量」证据'
+      + '必须等于 selfdup 的 same_step（不许只写一个 r）',
+      fromNewFam.length === 1
+      && new RegExp(fromNewFam[0].key).test(VD)
+      && new RegExp('同一步 r = ' + sdSame.toFixed(3)).test(VD)
+      && new RegExp('不是「换函数形式」那 ' + transferKeys.length + ' 个').test(VD),
+      `现算：同向 ${sameRows.length} 行里来自新家族的是 ${fromNewFam.map(r => r.key).join() || '（无）'}`
+      + `，transfer 名单 ${transferKeys.length} 条，same_step=${sdSame.toFixed(6)}`);
+
+  // ---- 命名轴条数：判据不许拿 named_axis_readouts 的长度冒充轴数 ----
+  check('G9 「对 N 条命名轴」里的 N 必须等于 axis_readouts 的轴数'
+      + '（不是 named_axis_readouts 的长度——那个只有表面方向那几条）',
+      sh.named_axes === AX_KEYS.length
+      && new RegExp('对 ' + AX_KEYS.length + ' 条命名轴').test(VD)
+      && new RegExp('对 ' + sh.named_axes + ' 条命名轴').test(VD)
+      && SUB.named_axis_readouts.length !== AX_KEYS.length,
+      `axis_readouts 实际 ${AX_KEYS.length} 条（${AX_KEYS.join()}）`
+      + `；readable_subspace.named_axes=${sh.named_axes}`
+      + `；named_axis_readouts.length=${SUB.named_axis_readouts.length}（**不是轴数**）`
+      + `；原文：${(VD.match(/对 \d+ 条命名轴/) || ['<没抓到>'])[0]}`);
 
   // ---------- F 组：可见性 ----------
   // 加这组是因为截图打脸过一次：判据全绿，但 Δ=20 与「最强对手」被裁掉了。
