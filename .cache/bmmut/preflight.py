@@ -114,7 +114,14 @@ if "source" not in fail:
     for w in unchanged:
         note(False, "effect-%s" % w, "apply() 跑完产物与原文逐字相同 ⇒ 没变异")
 
-    if not (not_applied or touched_outside or unchanged):
+    # ⚠ 汇总行必须把**逐条失败**也算进去。
+    #   我第一版只判 not_applied / touched_outside / unchanged 三个列表，
+    #   而逐条的 note(False, "anchor-XXX") 是记进 `fail` 的 ——
+    #   于是「N3 锚点命中 0 次」和末尾的
+    #   「[PASS] anchor: 48 条变异 / 51 个锚点」**同时打了出来**。
+    #   一个会在有失败时还说 PASS 的汇总，比没有汇总更坏。
+    if not (not_applied or touched_outside or unchanged
+            or any(f.startswith("anchor-") for f in fail)):
         n = len([k for k in rmo.MUTS if k != "BASE"])
         note(True, "anchor",
              "%d 条变异 / %d 个锚点：每个恰好命中 1 次，产物均与原文不同"

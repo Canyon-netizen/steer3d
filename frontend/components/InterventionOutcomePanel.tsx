@@ -927,7 +927,10 @@ export default function InterventionOutcomePanel() {
           </div>
           <p className="text-[10px] text-gray-400 leading-relaxed mt-1"
              data-lit-rule>
-            <b>硬规矩：摘要里没有的东西，不许替论文填。</b>
+            {/* ⚠ 标签只写「提示」，不重复产物字符串的第一句 ——
+                我第一版标签和字符串都以「摘要里没有的东西，不许替论文填」开头，
+                页面上连着印了两遍。判据全绿，**只有截图能看出来**。 */}
+            <b>硬规矩：</b>
             {lit.hard_rule}
             抓取源 <code>{lit.source.api}</code>，查询{" "}
             <code className="font-mono">{lit.source.query}</code>，
@@ -943,7 +946,6 @@ export default function InterventionOutcomePanel() {
               )}
             </li>
             <li data-lit-item="notaccuse">
-              <b className="text-amber-200">这不是指控。</b>
               {H.what_this_is_not}
             </li>
             <li data-lit-item="levels">

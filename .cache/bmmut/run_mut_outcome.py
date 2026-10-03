@@ -281,8 +281,11 @@ def verify_source_untouched():
         "data-lit-item=\"levels\"",
         "data-lit-item=\"read\"",
         "data-lit-row",
-        "摘要里没有的东西，不许替论文填",
-        "这不是指控",
+        # 「摘要里没有的东西，不许替论文填」「这不是指控」都**不在源码里** ——
+        # 它们从 lit_audit.json 渲染进来。我第一版把其中一条当源码标记，
+        # 去掉重复文案后立刻报缺 ⇒ 与 §8.6 那次同一类。
+        # 源码层只留 data-* 和 JSX 字面文案；产物内容交给 N2/N3 判据。
+        "硬规矩：",
         "为什么不给「级别低」",
         "只入库摘要",
         # ⚠ 「未经检验」「n/(n+1)」**不在源码里** —— 它们是从 claim_audit.json
@@ -569,14 +572,13 @@ def apply(which):
              "N1")
     elif which == "N2":
         edit(PANEL,
-             "              <b className=\"text-amber-200\">这不是指控。</b>\n"
              "              {H.what_this_is_not}\n",
              "              {H.statement}\n",
              "N2")
     elif which == "N3":
         # 硬规矩整条删掉：剩下的话读起来就像「摘要=全文」。
         edit(PANEL,
-             "            <b>硬规矩：摘要里没有的东西，不许替论文填。</b>\n"
+             "            <b>硬规矩：</b>\n"
              "            {lit.hard_rule}\n",
              "            {lit.why_not_levels}\n",
              "N3")
