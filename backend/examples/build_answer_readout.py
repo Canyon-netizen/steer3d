@@ -54,7 +54,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from backend.core.aime_loader import _BUILTIN  # noqa: E402
+from backend.core.aime_loader import (  # noqa: E402
+    ANSWER_DOMAIN_RULE, LOADER_SELF_DESCRIPTION, _BUILTIN)
 
 # The problem bank, read from the one place it is defined. See the note in
 # build_cot_effect.py: importing is not copying, and a second hand-typed list
@@ -262,13 +263,15 @@ def main() -> int:
         "model": MODEL,
         "problem_set": {
             "source_file": "backend/core/aime_loader.py :: _BUILTIN",
-            "loader_self_description": (
-                "inspired by AIME 1983-2024 problems. Re-worded but "
-                "mathematically faithful; answers verified"),
+            # ⚠ 第二十四笔：这两句原来在这里手抄，而 `build_cot_effect.py`
+            #   抄了同一句的另一个版本、页面又抄了第三份中文转述
+            #   （那份把 "answers verified" 丢了）。
+            #   ⇒ 唯一出处是题库所在地 aime_loader.py，这里只 import。
+            "loader_self_description": LOADER_SELF_DESCRIPTION,
             "is_official_aime": False,
             "verbatim_checked_against_official": None,
             "reference_answers_from": "_BUILTIN 的 answer 字段，本仓库未独立核对",
-            "answer_domain_rule": "0–999（题库自述采用的 AIME 答案域约定）",
+            "answer_domain_rule": ANSWER_DOMAIN_RULE,
             "n_in_bank": len(_BUILTIN),
             "n_in_screen": len(_labels),
             "labels": _labels,

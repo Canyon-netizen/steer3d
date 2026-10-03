@@ -1649,6 +1649,24 @@ function renderProblemSetNote(PS, where){
        （本仓库没有官方题面可比对）`
     : esc(String(vcheck));
   const n = PS.n_in_screen != null ? PS.n_in_screen : PS.n_in_batch;
+  // ⚠⚠ 第二十四笔：下面这两句原来是**手打的中文转述**。
+  //   「受 AIME 1983-2024 启发、改写过但数学上忠实」——
+  //   产物里 loader_self_description 的原话是
+  //   "…mathematically faithful; **answers verified**"，
+  //   中文转述把 answers verified 整句丢了：
+  //   ⇒ **读者看到的题库自述比题库自己的自述更弱**，而弱的方向恰好是
+  //     「更让人放心」的那一侧。
+  //   「答案在 0–999 内是 AIME 答案域约定」同样没有对应字段可查，
+  //   而两个生成脚本对同一件事还给了两种措辞。
+  // ⇒ 现在照抄字段，一个字都不转述；字段缺失就明说缺，不替它编一句。
+  // ⚠ 两份产物的 answer_domain_rule 措辞不同这件事，第二十四笔已在
+  //   backend/core/aime_loader.py 收成同一句，产物需重跑才会一致。
+  const selfDesc = PS.loader_self_description
+    ? esc(String(PS.loader_self_description))
+    : `<b style="color:#ff8fa3">产物里没有 loader_self_description 字段</b>`;
+  const domainRule = PS.answer_domain_rule
+    ? esc(String(PS.answer_domain_rule))
+    : `<b style="color:#ff8fa3">产物里没有 answer_domain_rule 字段</b>`;
   return `<div class="note" style="font-size:10.5px;margin:0 0 7px;padding:7px 9px;
        background:#131a28;border-left:2px solid #ffd479;border-radius:0 4px 4px 0"
        data-problemset="${esc(where)}">
@@ -1656,13 +1674,13 @@ function renderProblemSetNote(PS, where){
     题号是模仿 AIME 编号的命名，题面文字来自
     <span style="font-family:var(--mono)">${esc(PS.source_file)}</span>
     的内置题库（共 ${PS.n_in_bank} 条），
-    该文件自述为「受 AIME 1983-2024 启发、改写过但数学上忠实」。
+    该文件自述为「${selfDesc}」
+    <span style="color:#5f6b80">（上面是题库自述的原文，本页不转述。）</span>。
     这一屏的<b>标准答案</b>也是这个题库自带的 <span style="font-family:var(--mono)">answer</span>
     字段，<b>本仓库没有独立核对过</b>，所以「答对/答错」是相对这套答案而言的，
     不是相对官方答案而言。<br>
     <span style="color:#8a94a6">与官方原题是否逐字一致：${vtxt}。
-    页面里出现的「答案在 0–999 内」是题库采用的 AIME 答案域约定，
-    是一个筛选条件，<b>不能当作答案正确的证据</b>。</span></div>`;
+    答案域约定（题库自述原文）：${domainRule}。</span></div>`;
 }
 
 /* ---- 逐层 logit lens：每一层离「模型最后说出这个词」还有多远 -------------
@@ -2432,6 +2450,34 @@ function renderAnswerReadout(){
     "#ff8fa3", "答案就写在这一段的末尾");
 
   // 限制写在正文旁边，不是脚注。
+  //
+  // ⚠⚠ 第二十四笔：「答对数的净变化是 0」原来是一个**写死的常数 0**。
+  //   它恰好是真的（by_verdict = right->wrong 1 / wrong->right 1 /
+  //   wrong->wrong 8 ⇒ −1 + 1 = 0），所以核「这个数对不对」永远查不出问题 ——
+  //   核的是常数本身。
+  //   ⇒ 它要随数据变。现在按四种判定现算。
+  //   （第二十二笔在 answer_power.py 上修过同一个断言；同一个断言在
+  //     产物层、页面层各写死一次，两个副本都得改。）
+  //
+  // ⚠⚠ 第一版守卫写成「四类必须齐全」，于是页面印「算不出」。
+  //   产物**只列非零项** —— right->right 为 0 时整个键就不存在，
+  //   所以 by_verdict 稳定只有三个键，要求四个齐全等于要求数据永远是满分。
+  //   ⇒ 缺项按 0 计；「四类之和 == n_eligible」才是真正的自洽闸门，
+  //     而 by_verdict 整个缺失时它也会红（0 ≠ n_eligible）。
+  const bv = sel.by_verdict || {};
+  const nOf = k => (bv[k] == null ? 0 : Number(bv[k]));
+  const missing = ["right->wrong", "wrong->right", "right->right", "wrong->wrong"]
+    .filter(k => bv[k] == null);
+  const nElig = Number(sel.n_eligible);
+  const sumKnown = nOf("right->wrong") + nOf("wrong->right")
+                 + nOf("right->right") + nOf("wrong->wrong");
+  // 净变化：原对变错 −1，原错变对 +1，两边都对/都错 各 0。
+  const netVal = nOf("wrong->right") - nOf("right->wrong");
+  const netTxt = (Number.isFinite(nElig) && sumKnown === nElig)
+    ? String(netVal)
+    : `<b style="color:#ff8fa3">算不出</b>`
+      + `（by_verdict 四类合计 ${sumKnown}，而 n_eligible = ${nElig}）`;
+
   h += `<div class="note" style="margin-top:9px;padding:7px 9px;background:#131a28;
     border-left:2px solid #ffd479;border-radius:0 4px 4px 0;font-size:10.5px">
     <b style="color:#ffd479">读这两段之前，三件事要知道：</b>
@@ -2441,7 +2487,14 @@ function renderAnswerReadout(){
     影子臂是"同一句话被逐词替换"，那里的接缝有意义；这里是两遍各自解码，
     只有开头那段是真正可比的。<br>
     <b>三、</b><b>答案变了不等于变好了。</b>这一题是「${v[0]}」；
-    本批 ${sel.n_eligible} 道变化题里答对数的净变化是 0。
+    本批 ${nElig} 道变化题里答对数的净变化是 ${netTxt}
+    <span style="color:#5f6b80">（由 selection.by_verdict 现算：`
+    + `原对变错 ${nOf("right->wrong")}、原错变对 ${nOf("wrong->right")}、`
+    + `两边都对 ${nOf("right->right")}、两边都错 ${nOf("wrong->wrong")}`
+    + (missing.length
+        ? `；产物只列非零项，缺项 ${missing.length} 个按 0 计）`
+        : `）`)
+    + `</span>
     <span style="color:#5f6b80">（这些数字全部取自生成时逐步实测的量，
     文本本身只做示意。）</span></div>`;
 

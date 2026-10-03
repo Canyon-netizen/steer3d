@@ -53,7 +53,8 @@ DEST = os.path.join(ROOT, "frontend", "public", "latent", "data", "cot_effect.js
 # list of labels or answers would be a second copy of a fact that changes when
 # the bank changes, and nothing would notice -- the same failure as the two
 # copies of the verifier prompt. Importing is not copying.
-from backend.core.aime_loader import _BUILTIN  # noqa: E402
+from backend.core.aime_loader import (  # noqa: E402
+    ANSWER_DOMAIN_RULE, LOADER_SELF_DESCRIPTION, _BUILTIN)
 
 # id -> reference answer, as a string. The bank stores strings and the
 # extractors return floats, so a direct comparison would score every baseline
@@ -89,13 +90,11 @@ REF = {p["id"]: str(p["answer"]).strip() for p in _BUILTIN}
 PROBLEM_SET = {
     "source_file": "backend/core/aime_loader.py :: _BUILTIN",
     "index_file": "data/problem_index_24.json (build_problem_index_24.py -> _BUILTIN)",
-    "loader_self_description": (
-        "inspired by AIME 1983-2024 problems. Re-worded but mathematically "
-        "faithful; answers verified"),
+    "loader_self_description": LOADER_SELF_DESCRIPTION,
     "is_official_aime": False,
     "verbatim_checked_against_official": None,
     "reference_answers_from": "_BUILTIN 的 answer 字段，本仓库未独立核对",
-    "answer_domain_rule": "0–999（AIME 答案域约定；「在域内」只是筛选，不是正确性证据）",
+    "answer_domain_rule": ANSWER_DOMAIN_RULE,
     "n_in_bank": len(_BUILTIN),
 }
 

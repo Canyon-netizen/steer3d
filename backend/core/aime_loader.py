@@ -48,6 +48,38 @@ from typing import Dict, List, Optional
 # Sources: inspired by AIME 1983-2024 problems. Re-worded but
 # mathematically faithful; answers verified.
 
+# ---------------------------------------------------------------------------
+# 第二十四笔：关于这个题库的**自述**，以前是三份手抄。
+#
+#   1. 下面那段注释（Sources: inspired by …）
+#   2. build_answer_readout.py 里的 loader_self_description
+#   3. build_cot_effect.py 里的 loader_self_description
+#      —— 2 和 3 抄的是同一句英文，措辞还差一个空格粒度
+#      （"mathematically faithful" vs "mathematically \n faithful"）
+#   4. latent 页面上还有一份**中文转述**，而那份把 "answers verified"
+#      整句丢了 —— 于是读者看到的题库自述比题库自己的自述**更弱**。
+#
+#   ANSWER_DOMAIN_RULE 更糟：两个生成脚本给了**两种措辞**，
+#   而页面上还有第三份。于是同一个事实在三个地方印成三种样子，
+#   没有任何一处能说清哪一句是原话。
+#
+# ⇒ 这个文件是题库的所在地，也就是这两句话唯一的合法出处。
+#   生成脚本 import 它，页面从产物读它 —— 没有人再手抄第三遍。
+#   ⚠ 改这里之后必须重跑两个生成脚本，否则产物里的旧值不会自己更新
+#     （产物是数据，不会因为源头变了就跟着变）。
+# ---------------------------------------------------------------------------
+
+LOADER_SELF_DESCRIPTION = (
+    "inspired by AIME 1983-2024 problems. Re-worded but "
+    "mathematically faithful; answers verified")
+
+# ⚠ 这条不是「答案正确的证据」，只是题库**采用的筛选约定**。
+#   措辞里必须保留这层区分 —— 第二十四笔之前两个生成脚本各丢了一半：
+#   一份只说「约定」、一份说「不是证据」，都不完整。
+ANSWER_DOMAIN_RULE = (
+    "0–999（题库自述采用的 AIME 答案域约定；「在域内」只是筛选，"
+    "不是答案正确的证据）")
+
 _BUILTIN: List[Dict] = [
     # ---- Combinatorics ----
     {"id": "1983_I_1", "split": "1983",
