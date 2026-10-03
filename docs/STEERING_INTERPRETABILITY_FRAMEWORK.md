@@ -1265,6 +1265,44 @@ S4b 实测比 1.412941 vs 解析比 1.412940、S5 = 1.000000。
 
 BASE 9/9 绿，六条变异全部红在对应判据上。
 
+#### 4.12.3b 2026-10-03 独立复现，并拆掉变异台自己的两个谎
+
+装置自证与变异台在这一轮**重新跑通了一次**（不是引上文，是当场复算）：
+
+```bash
+python3 .cache/intervene/selftest.py              # 9/9 绿（用**系统** python3，torch 2.8.0）
+python3 .cache/intervene/mutate_selftest.py ALL   # BASE + X1–X6 共 7 条，异常 0 处
+```
+
+实测：S1 恒等差 `0.000e+00`；S2 的 `Δ/α` 六档全是 `2.1346`
+（常数 ⇒ 严格正比）；S2b 相对误差 `1.12e-07`；S3 植入方向打赢 200 条随机方向的
+**最坏一条**（`3.5067 < 6.4038`）；S4b 实测比 `1.412941` / 解析比 `1.412940`；
+S7 横向分量 `0.000e+00`。X1–X6 分别红在 `2/9、1/9、1/9、4/9、1/9、6/9` 条上，
+全部落在各自登记的判据里。
+
+**这一轮拆掉的两个谎，都在「跑完了」这一层，不在装置里：**
+
+1. **不带参数 = 零次运行，却照样打「已还原（sha 自证通过）」。**
+   `which = sys.argv[1] if len(sys.argv) > 1 else "BASE"` ——
+   与 `run_all_outcome.sh` 是**同一个病**，而那个我差点就当「全量跑过」提交了。
+   ⇒ 改成不给参数直接 `return 2`，另加 `ALL` 模式跑全量并累计异常数。
+2. **驱动脚本按错误的输出格式匹配，于是 6 条全部误报「没红在预期上」。**
+   我找的是 `"预期红在 S4"`，而脚本印的是 `预期红在 ['S4'] —— 对上了`
+   （`EXPECT` 那个 dict 的 list repr）⇒ **它们明明都红了**。
+   ⇒ 改为逐行看：含「预期红在」的那行里有没有该判据号。
+   ⚠ 与「期望名不存在永远先怀疑装置」同源 ——
+     **先看它到底印什么，再写匹配。**
+
+**一条更贵的教训：不要去装机器上已经有的东西。**
+
+我为跑这套自证，发现 `.cache/venv3d` 没有 torch，就去 `pip install torch==2.2.2`
+（~190 MB）。跑了 **25 分钟、venv 字节数一动没动**，最后判定卡死并放弃。
+而**系统 `python3` 本身就带 torch 2.8.0** —— §4.12.5 上面那张表里已经写着「✅ 有」，
+是我没查就开下了。
+⇒ **装之前先问「本机现成的解释器里有没有」**：
+  `for py in python3 /usr/bin/python3 <venv>/bin/python; do $py -c "import torch" ; done`
+  成本 5 秒，能省掉 25 分钟的空等。
+
 #### 4.12.4 造这套东西时改掉的四个我自己的错
 
 1. **双重点注入**：合成模型 `forward` 既接 hook 又接 `injector` 参数，
@@ -2079,8 +2117,8 @@ python3 .cache/xcheck/heldout_selfdup.py          # §4.9.2：emitted_has_digit 
 python3 .cache/xcheck/recipe_vs_readout.py         # §4.10：可读方向 vs 可写下来的 diff_of_means 配方
 python3 .cache/xcheck/recipe_variants.py          # §4.11：换三种配方结构 + 逐折 sem（判断 max 选中谁）
 python3 .cache/xcheck/build_heldout_readout.py    # §4.9 → 页面产物 heldout_readability.json
-python3 .cache/intervene/selftest.py              # §4.12.2：干预装置自证（合成模型，9 条）
-python3 .cache/intervene/mutate_selftest.py BASE  # §4.12.3：装置变异台 BASE/X1–X6
+python3 .cache/intervene/selftest.py              # §4.12.2：干预装置自证（合成模型，9 条；**用系统 python3**，venv3d 里没有 torch）
+python3 .cache/intervene/mutate_selftest.py ALL   # §4.12.3：装置变异台全量（BASE + X1–X6，异常须为 0）
 python3 .cache/intervene/intervene_qwen.py --preflight-only   # §4.12.5：真干预的前置条件
 python3 .cache/xcheck/arm_asymmetry.py                 # §4.13.2：32k 批次 ±v 配对检验（三条自证前置）
 python3 .cache/xcheck/build_evidence_ladder.py         # §8.1：证据阶梯（6 条跨产物一致性自检）

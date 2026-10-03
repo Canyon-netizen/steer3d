@@ -78,8 +78,59 @@ def restore():
     return sha(HARNESS), sha(SELFTEST)
 
 
+def run_all():
+    """跑 BASE + 全部变异，末尾报「跑了 N 条，按预期变红 M 条」。
+
+    ⚠ 子进程用 `subprocess.run` 取**它自己的**退出码，不用管道 + grep ——
+      那个坑（退出码变成 grep 的、恒为 0）我刚在 run_all_outcome.sh 上踩过。
+    ⚠ 判据是「它是不是红在**预期的那几条**上」，不是「它有没有红」——
+      装置崩了、或一条都没跑，在只看 rc 的时候长得一样。
+    """
+    names = ["BASE"] + sorted(MUTS)
+    bad = []
+    for n in names:
+        p = subprocess.run([sys.executable, str(Path(__file__)), n],
+                           capture_output=True, text=True)
+        out = p.stdout + p.stderr
+        line = [l for l in out.splitlines() if l.startswith("RESULT ")]
+        summary = line[0] if line else "（无 RESULT 行 —— 装置没跑完）"
+        # 「ABORT 装置自身没跑完」是故障，不算判红，也不算通过。
+        crashed = "装置自身没跑完" in out or not line
+        if crashed or "GREEN" in summary and n != "BASE":
+            bad.append(n)
+        print("  %-5s %s" % (n, summary))
+        if crashed:
+            print("         !! 这一条是故障，不是判红，也不是通过")
+        # 判「红在预期的那几条上」时，**必须按真实输出格式匹配**。
+        # 我第一版找 "预期红在 S4"，而脚本印的是 "预期红在 ['S4'] —— 对上了"
+        # （EXPECT 的 list repr）⇒ 6 条全部误报「没红在预期上」，
+        # 而它们明明都红了。⇒ 先看它到底印什么，再写匹配。
+        # 这里不按字符串硬匹配，而是逐行看：含「预期红在」的那行里有没有该判据号。
+        redline = [l for l in out.splitlines() if "预期红在" in l]
+        for e in EXPECT.get(n, []):
+            if not any(e in l for l in redline):
+                bad.append(n + "/" + e)
+                print("         !! 没有红在预期的 %s 上" % e)
+    print("\n跑了 %d 条（BASE + %d 变异），异常 %d 处"
+          % (len(names), len(MUTS), len(bad)))
+    if bad:
+        print("  异常：%s" % ", ".join(bad))
+    print("RESULT %s" % ("OK" if not bad else "RED"))
+    return 1 if bad else 0
+
+
 def main():
-    which = sys.argv[1] if len(sys.argv) > 1 else "BASE"
+    # ⚠ 不带参数时它只跑 BASE，然后照样打「已还原（sha 自证通过）」——
+    #   看着像跑完了，实际 6 条变异一条都没跑。这与 run_all_outcome.sh 是同一个病，
+    #   而那边我差点就把它当「全量跑过」提交了。
+    # ⇒ 改成：不给参数直接报错退出；给 ALL 则跑完全部并累计失败数。
+    if len(sys.argv) < 2:
+        print("用法：ALL | BASE | X1 X2 X3 X4 X5 X6")
+        print("（不带参数就是零次运行。空跑打出的「已还原」看着像跑完了。）")
+        return 2
+    which = sys.argv[1]
+    if which == "ALL":
+        return run_all()
     if not PRISTINE.exists():
         shutil.copy2(HARNESS, PRISTINE)
     if not SELFP.exists():
