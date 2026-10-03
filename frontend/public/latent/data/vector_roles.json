@@ -63,14 +63,16 @@
       "frac_steps_positive": 0.228356590268238,
       "n_traj": 48,
       "n_traj_constant_inside": 0,
-      "frac_traj_constant_inside": 0.0
+      "frac_traj_constant_inside": 0.0,
+      "n_traj_with_any_positive": 48
     },
     "top1_prob": {
       "n_steps": 69155,
       "frac_steps_positive": 0.9153206564962765,
       "n_traj": 48,
       "n_traj_constant_inside": 0,
-      "frac_traj_constant_inside": 0.0
+      "frac_traj_constant_inside": 0.0,
+      "n_traj_with_any_positive": 48
     },
     "self_check": {
       "n_steps": 69155,
@@ -78,16 +80,17 @@
       "n_traj": 48,
       "n_traj_constant_inside": 21,
       "frac_traj_constant_inside": 0.4375,
+      "n_traj_with_any_positive": 27,
       "by_run_mode": {
         "no_think": {
           "n_traj": 24,
-          "all_positive": 0,
-          "all_negative": 24
+          "n_traj_positive_at_step0": 0,
+          "n_traj_negative_at_step0": 24
         },
         "think": {
           "n_traj": 24,
-          "all_positive": 0,
-          "all_negative": 24
+          "n_traj_positive_at_step0": 0,
+          "n_traj_negative_at_step0": 24
         }
       },
       "determined_by_run_mode": false,
@@ -99,16 +102,17 @@
       "n_traj": 48,
       "n_traj_constant_inside": 45,
       "frac_traj_constant_inside": 0.9375,
+      "n_traj_with_any_positive": 24,
       "by_run_mode": {
         "no_think": {
           "n_traj": 24,
-          "all_positive": 0,
-          "all_negative": 24
+          "n_traj_positive_at_step0": 0,
+          "n_traj_negative_at_step0": 24
         },
         "think": {
           "n_traj": 24,
-          "all_positive": 24,
-          "all_negative": 0
+          "n_traj_positive_at_step0": 24,
+          "n_traj_negative_at_step0": 0
         }
       },
       "determined_by_run_mode": true,
@@ -120,14 +124,16 @@
       "frac_steps_positive": 0.9882582604294701,
       "n_traj": 48,
       "n_traj_constant_inside": 0,
-      "frac_traj_constant_inside": 0.0
+      "frac_traj_constant_inside": 0.0,
+      "n_traj_with_any_positive": 48
     },
     "step_frac": {
       "n_steps": 69155,
       "frac_steps_positive": 0.49999276986479646,
       "n_traj": 48,
       "n_traj_constant_inside": 0,
-      "frac_traj_constant_inside": 0.0
+      "frac_traj_constant_inside": 0.0,
+      "n_traj_with_any_positive": 48
     }
   },
   "necessity": {

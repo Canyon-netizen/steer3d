@@ -586,15 +586,30 @@ def observable_audit(trajs: list[dict]) -> dict:
             "n_traj": len(trajs),
             "n_traj_constant_inside": len(constant_traj),
             "frac_traj_constant_inside": len(constant_traj) / len(trajs) if trajs else float("nan"),
+            # n_traj - n_traj_constant_inside is NOT this number. A trajectory
+            # that is positive at every step is constant, so it is counted in
+            # n_traj_constant_inside and not here -- and the prose in
+            # necessity.random_control_is_the_real_null claims the positives are
+            # "spread over N trajectories", which is this field and only this
+            # field. Nothing in the artifact carried it before, so the sentence
+            # had no source at all.
+            "n_traj_with_any_positive": int(
+                sum(1 for t in trajs if float(t[obs].sum()) > 0)),
         }
         if obs in ("self_check", "in_think"):
             modes: dict = {}
             for t in trajs:
                 m = "think" if t["traj"].endswith("__think") else "no_think"
                 modes.setdefault(m, []).append(float(t[obs][0]))
+            # These count the observable's value AT STEP 0, not "all steps".
+            # The old names said `all_positive` / `all_negative`, which reads
+            # as "this trajectory is entirely positive"; a run that is 1 at
+            # step 0 and 0 afterwards was counted in the positive bucket. The
+            # numbers never changed and nothing outside this script read them,
+            # so the rename is free -- the name was the defect.
             entry["by_run_mode"] = {
-                m: {"n_traj": len(v), "all_positive": int(sum(v)),
-                    "all_negative": int(len(v) - sum(v))}
+                m: {"n_traj": len(v), "n_traj_positive_at_step0": int(sum(v)),
+                    "n_traj_negative_at_step0": int(len(v) - sum(v))}
                 for m, v in sorted(modes.items())
             }
             # The observable is the run mode when its value at step 0 is
@@ -950,10 +965,12 @@ def main() -> int:
             a = np.asarray(vals, dtype=np.float64)
             mu, sd = float(a.mean()), float(a.std(ddof=1))
             # mean+3sd is the natural threshold, but on a bounded statistic
-            # with a wide null it can land outside [0,1] — at L20 on
-            # self_check it comes out at 1.128, a gate nothing could ever
+            # with a wide null it can land outside [0,1] — on self_check at the
+            # injection layer it does, which is a gate nothing could ever
             # pass. So the operative floor is the largest value any random
-            # direction reached, and the sd-based one is reported beside it.
+            # direction reached, and the sd-based one is reported beside it
+            # (empirical_floor_mean_plus_3sd) rather than quoted in prose,
+            # where a hand-copy of it would have nothing to check it against.
             floor = float(a.max())
             m3 = mu + EMPIRICAL_SD_GATE * sd
             random_ctl[f"L{L}"][name] = {
@@ -1045,6 +1062,93 @@ def main() -> int:
                   f"{v['share_of_positive_deviation_in_top_decile']:.3f} "
                   f"(uniform 0.100, n_steps={v['n_steps']})")
 
+    # ------------------------------------------------------------------
+    # Numbers quoted in the necessity prose.
+    #
+    # Each one is derived below from a field that is also in the artifact,
+    # so re-running on different data moves the sentence instead of leaving
+    # a stale hand-copy behind. The derivations exit rather than print a
+    # number they cannot source, which is why the sentences can be trusted
+    # to describe this artifact and not the one this code used to run on.
+    # ------------------------------------------------------------------
+    inj = f"L{LAYER_INJECT}"
+
+    def _cells(layer: str, observable: str) -> dict:
+        return {k: v for k, v in random_ctl[layer].items()
+                if v["observable"] == observable}
+
+    def _one(layer: str, observable: str) -> dict:
+        c = _cells(layer, observable)
+        if len(c) != 1:
+            raise SystemExit(
+                f"random_direction_control.{layer} has {len(c)} cells with "
+                f"observable={observable!r} ({sorted(c)}); the necessity prose "
+                f"names ONE cell, so refusing to write a sentence that could "
+                f"mean any of them")
+        return next(iter(c.values()))
+
+    # self_check is a binary label carried by exactly one direction, so the
+    # cell the prose quotes about it is unique. entropy is carried by two
+    # (confidence_up / confidence_down); they are scored on the same random
+    # directions against the same observable, so they must agree -- if they
+    # ever stop agreeing, the single number the prose prints has become
+    # ambiguous and that has to stop the run rather than pick one.
+    sc_ctl = _one(inj, "self_check")
+    ent_cells = _cells(inj, "entropy")
+    if not ent_cells:
+        raise SystemExit(f"no entropy cell in random_direction_control.{inj}")
+    for fld in ("random_min", "random_max", "empirical_floor_mean_plus_3sd"):
+        vals = {v[fld] for v in ent_cells.values()}
+        if len(vals) != 1:
+            raise SystemExit(
+                f"entropy cells {sorted(ent_cells)} disagree on {fld}: {vals}; "
+                f"the prose quotes one number for 'entropy at this layer'")
+    ent_ctl = next(iter(ent_cells.values()))
+
+    n_rand = {v["n_random_directions"]
+              for layer in random_ctl.values() for v in layer.values()}
+    if len(n_rand) != 1:
+        raise SystemExit(
+            f"n_random_directions disagrees across random-control cells: "
+            f"{sorted(n_rand)}; the prose says 'N random directions' once, so "
+            f"there is no single N to print")
+    n_rand = n_rand.pop()
+
+    sc = audit["self_check"]
+    # The sentence quotes the base rate rounded to 4dp and then derives the
+    # compression factor and the required effect size FROM THE ROUNDED
+    # NUMBER. That is deliberate: it is what makes the printed chain
+    # checkable by hand. It is also why the true base rate and the printed
+    # one do not give the same effect size -- sqrt(p(1-p)) at
+    # p=0.005654 is 0.0750 -> d=1.99, while the sentence's 0.075 -> d=1.98
+    # reproduces only off 0.0057. Deriving from the rounded base rate is
+    # what keeps every number on the line consistent with the number before
+    # it, so the line is a derivation and not a list of copies.
+    sc_p = round(sc["frac_steps_positive"], 4)
+    sc_compress = (sc_p * (1.0 - sc_p)) ** 0.5
+    sc_d = floor_traj / sc_compress
+    sc_n_pos = int(round(sc["frac_steps_positive"] * sc["n_steps"]))
+    sc_n_traj = sc["n_traj_with_any_positive"]
+    sc_frac_n = n_traj - 3
+    if not np.isfinite(sc_compress) or sc_compress <= 0:
+        raise SystemExit(
+            f"base-rate compression factor sqrt(p(1-p)) = {sc_compress} at "
+            f"p={sc_p}; the point-biserial step does not apply")
+    # The floor is 1/sqrt(n_traj-3); print the n it came from so the reader
+    # can re-derive it. n_traj-3 is ALSO a different 45 elsewhere in this
+    # artifact (in_think's n_traj_constant_inside), so the sentence names
+    # both the n and its provenance.
+    if abs(1.0 / (sc_frac_n ** 0.5) - floor_traj) > 1e-12:
+        raise SystemExit(
+            f"null_floor_by_traj={floor_traj} is not 1/sqrt({sc_frac_n}); the "
+            f"prose derives the gate from that identity, so the two have to "
+            f"agree before the sentence is written")
+    if not (0 < sc_n_pos <= sc["n_steps"] and 0 < sc_n_traj <= n_traj):
+        raise SystemExit(
+            f"self_check positive-step count out of range: n_pos={sc_n_pos} "
+            f"of n_steps={sc['n_steps']}, spread over {sc_n_traj} of {n_traj} "
+            f"trajectories")
+
     report = {
         "schema": "steer3d.vector_roles/1",
         "generated_by": "backend/examples/analyse_vector_roles.py",
@@ -1103,7 +1207,8 @@ def main() -> int:
                 "那才是真实数字。对 confidence_up / caution 这类「标签本身就是向量定义」的"
                 "方向，in_sample 的高相关不能当证据。"),
             "label_confounds": (
-                "标签本身要先审计，见 observable_audit。in_think 在这 48 条轨迹上"
+                "标签本身要先审计，见 observable_audit。in_think 在这 "
+                f"{n_traj} 条轨迹上"
                 "恒等于运行模式（think 模式全程 1，no_think 模式全程 0），"
                 "所以 creativity 的 necessity 数字量的是「这次是不是 think 模式跑」，"
                 "不是「模型在 think 块内部」。这是向量定义的性质，不是分析的失误。"),
@@ -1117,17 +1222,20 @@ def main() -> int:
                 "−rho），二值标签用 auc_within_traj。三个理由："
                 "(1) 轨迹间差异不是概念，对 in_think 来说它就是运行模式；"
                 "(2) Spearman 打在 0/1 标签上退化成 point-biserial r = d*sqrt(p(1-p))，"
-                "self_check 基率 0.0057、压缩因子 0.075，1/sqrt(45)=0.149 实际要求 d=1.98；"
-                "(3) 门槛取 max(16 个随机方向里的最大值, 1/sqrt(n_traj-3))，"
-                "所以门永远不弱于教科书地板，而在 L20 的 entropy 上比它严格得多"
-                "（随机方向最大能到 0.2548）。"),
+                f"self_check 基率 {sc_p:.4f}、压缩因子 {sc_compress:.3f}，"
+                f"1/sqrt({sc_frac_n})={floor_traj:.3f} 实际要求 d={sc_d:.2f}；"
+                f"(3) 门槛取 max({n_rand} 个随机方向里的最大值, 1/sqrt(n_traj-3))，"
+                f"所以门永远不弱于教科书地板，而在 {inj} 的 entropy 上比它严格得多"
+                f"（随机方向最大能到 {ent_ctl['random_max']:.4f}）。"),
             "random_control_is_the_real_null": (
-                "16 个随机方向是这批数据上真正的零假设。self_check 上它们的 "
-                "auc_within 从 0.21 散到 0.75——391 个正例每一个都是孤立的单步，"
-                "只分布在 27 条轨迹里，独立单位是轨迹不是步，所以 Mann-Whitney 的"
-                "教科书 SE 偏小一个数量级。entropy 在 L20 上同样偏小。"
-                "门槛用「打败全部 16 个随机方向」，因为 mean+3sd 在 L20 的 self_check 上"
-                "会算出 1.128这种没有任何 AUC 能达到的阈值（已记为 unreachable）。"),
+                f"{n_rand} 个随机方向是这批数据上真正的零假设。self_check 上它们的 "
+                f"auc_within 从 {sc_ctl['random_min']:.2f} 散到 "
+                f"{sc_ctl['random_max']:.2f}——{sc_n_pos} 个正例每一个都是孤立的单步，"
+                f"只分布在 {sc_n_traj} 条轨迹里，独立单位是轨迹不是步，所以 Mann-Whitney 的"
+                f"教科书 SE 偏小一个数量级。entropy 在 {inj} 上同样偏小。"
+                f"门槛用「打败全部 {n_rand} 个随机方向」，因为 mean+3sd 在 {inj} 的 self_check 上"
+                f"会算出 {sc_ctl['empirical_floor_mean_plus_3sd']:.3f}"
+                f"这种没有任何 AUC 能达到的阈值（已记为 unreachable）。"),
             "within_vs_between": (
                 "rho_pooled 含轨迹间差异，rho_within_traj 先减掉每条轨迹自己的均值再合并。"
                 "in_think 的 rho_pooled 很高而 rho_within_traj 接近 0，"

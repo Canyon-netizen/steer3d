@@ -1422,6 +1422,191 @@ try {
       + (mismatched.length
          ? ` —— 例如 ${mismatched[0].id} 渲染成「${mismatched[0].text.slice(0, 60)}」`
          : ` | notaccuse: ${NA.slice(0, 30)}`));
+
+  /* ============ E 组：vector_roles.necessity 的三段散文（第二十笔） ============ */
+  // ⚠ 先说层级，而且这一组**整组都在产物层**。
+  //   这三段散文在页面上是**故意不渲染**的：
+  //   InterventionOutcomePanel.tsx:40-47 把它写成面板的第四条 refusal
+  //   —— in_sample_circular 按构造就是循环论证，passes_gate=true 是恒等式
+  //   不是发现 —— 于是面板不渲染 necessity 的任何东西，并说明原因。
+  //   ⇒ 这里**不可能**有渲染层判据。第十六笔的教训：判错的层，
+  //     判据再多也够不着。A7/B8 那种反向断言只能证明「没渲染」，
+  //     证不了「印出来的数对不对」。
+  //   所以 E 组全部核**产物层**，每条判据名里都自报层级。
+  //
+  // E 组能证明什么、不能证明什么（别把这两句读反）：
+  //   能 —— 这份 JSON 里那 13 个数，每一个都能从**同一份 JSON 的别的字段**
+  //         现算回来，且口径（哪一层、哪个可观测量）被钉死到唯一一格；
+  //         生成器源码里不再有手抄副本。
+  //   不能 —— 读者在页面上看不到它们。面板拒绝渲染。所以
+  //         「读者看到的数是对的」在这一块是**不适用**，不是「已核」。
+  const VR = JSON.parse(readFileSync(DATA + '/vector_roles.json', 'utf8'));
+  const E = VR.necessity;
+  const VDen = VR.denominators, VSc = VR.observable_audit.self_check;
+  const VWS = E.which_statistic_and_why, VRC = E.random_control_is_the_real_null;
+  const VLC = E.label_confounds;
+  const VInj = 'L' + VR.layers.journal_injection;
+  const VNat = 'L' + VR.layers.native_extraction;
+  const Vrtl = VR.necessity.random_direction_control;
+  const vcell = (layer, obs) => Object.entries(Vrtl[layer])
+    .filter(([, v]) => v.observable === obs);
+  // 唯一一格 —— 散话说的是「self_check 上它们…」，若自_check 由两个方向
+  // 携带，这句话就没有确定的所指，必须拒绝而不是挑一格。
+  const eSelfCells = vcell(VInj, 'self_check');
+  const eEntCells = vcell(VInj, 'entropy');
+  const eF2 = x => x.toFixed(2), eF3 = x => x.toFixed(3), eF4 = x => x.toFixed(4);
+  // 生成器那句链是「先印基率，再由**印出来的那个基率**推出压缩因子，
+  // 再由压缩因子推出所需效应量」——这样纸上可手算复核。所以这里
+  // 必须复刻同一条链：先 round 到 4 位再用，而不是用真值。
+  // （真值 0.005654 给出 0.0750 → d=1.99；0.0057 给出 0.0753 → d=1.98。
+  //   差在末位，句子也会因此不是同一句。）
+  const eP4 = Math.round(VSc.frac_steps_positive * 1e4) / 1e4;
+  const eComp = Math.sqrt(eP4 * (1 - eP4));
+  const eN3 = VDen.n_trajectories - 3;
+  const eFloor = 1 / Math.sqrt(eN3);
+  const eD = eFloor / eComp;
+  const eNpos = Math.round(VSc.frac_steps_positive * VSc.n_steps);
+  const eNrand = [...new Set(Object.values(Vrtl).flatMap(
+    L => Object.values(L).map(c => c.n_random_directions)))];
+  // 带词锚点的正则 —— 第十八笔的教训：光 `includes('0.21')` 会在同段落里
+  // 另一个 0.21 出现时假绿。锚点取紧邻的数字。
+  const eHas = (s, re) => re.test(s);
+
+  // ⚠ 判据自己连着踩了三次的坑，留在这里免得下一个人重写一遍：
+  //   ① IOP.tsx 那句是 `deliberately does not\n * render` —— 中间有换行，
+  //      按整串 `includes('deliberately does not render')` 永远判红。
+  //   ② 归一化**不能**借用本文件里已有的 `norm`：它的正则是 `/\\s+/g`，
+  //      在 JS 正则字面量里 `\\` 是一个**字面反斜杠**，所以它匹配的是
+  //      「反斜杠后跟若干 s」，不是空白折叠。我第一版直接拿它用，
+  //      归一化没生效，E0 判红。
+  //   ③ 光折叠空白还是不够：JSDoc 每行前缀是 ` * `，折行处折叠出来是
+  //      `not * render`，星号夹在中间 —— 我第二版「删掉全部空白」也照样
+  //      判红，因为删空白得到的是 `not*render`。要判「源里有这句话」，
+  //      得**先剥行首注释符再压空白**（先 `/^\s*\*+/gm` 再 `/\s+/g`）。
+  //      顺序反过来不行：压完空白就再也认不出哪些 `*` 是行首的了。
+  //   ④ 这条的诊断行第一版硬写了 `在场=${true}` —— 一个自己会显得成立的
+  //      假值。判据的诊断行比判据本身更容易骗人：它每轮都印，且没人复核。
+  //      改掉之后它如实报 false，才把上面三次判红引到了真因上。
+  const eIop = readFileSync('/Users/zhourui/code/steer3d/frontend/components/'
+    + 'InterventionOutcomePanel.tsx', 'utf8')
+    .replace(/^\s*\*+/gm, '').replace(/\s+/g, '');
+  const eRefusal = eIop.includes('deliberatelydoesnotrenderanyofit');
+  rec('E0 这三段散文在源里被声明为「故意不渲染」，E 组整组只核产物层（自报层级）',
+      eRefusal && eSelfCells.length === 1 && eEntCells.length >= 1,
+      `IOP.tsx 第四条 refusal 在场=${eRefusal}（剥行首注释符+压空白后匹配）；`
+      + `journal 层 self_check 格数=${eSelfCells.length}（须恰好 1，散话说的是「它们」）；`
+      + `entropy 格数=${eEntCells.length}（散文只说「entropy」，多格必须同值，见 E3）`);
+
+  rec('E1 [产物层] 基率/压缩因子/1/sqrt(n-3)/所需效应量 四者可现算复现，且是同一条链',
+      eHas(VWS, new RegExp('基率 ' + eF4(eP4) + '、压缩因子 ' + eF3(eComp)))
+      && eHas(VWS, new RegExp('1/sqrt\\(' + eN3 + '\\)=' + eF3(eFloor)
+                              + ' 实际要求 d=' + eF2(eD)))
+      && Math.abs(eFloor - VDen.null_floor_by_traj) < 1e-12
+      && Math.abs(eD - VDen.null_floor_by_traj / eComp) < 1e-12,
+      `p→${eF4(eP4)} 压缩因子→${eF3(eComp)} n-3→${eN3} 地板→${eF3(eFloor)} `
+      + `所需 d→${eF2(eD)}；产物 null_floor_by_traj=${eF3(VDen.null_floor_by_traj)}`);
+
+  rec('E2 [产物层] 门槛那句里的随机方向数 = 每一格 n_random_directions（且全等）',
+      eNrand.length === 1
+      && eHas(VWS, new RegExp('max\\(' + eNrand[0] + ' 个随机方向里的最大值'))
+      && eHas(VRC, new RegExp('全部 ' + eNrand[0] + ' 个随机方向')),
+      `全稿 n_random_directions 取值集合=${JSON.stringify(eNrand)}`
+      + `（必须唯一，否则散文里那个 N 没有所指）`);
+
+  // E3/E4 是**口径钉**：数字不仅要对，而且必须是**注入层**那一格。
+  // 散文里「L20 的 entropy」「self_check 上」不带可核的口径标记；
+  // 一旦将来重跑换层，这两句话会安静地开始描述另一格。
+  const eEntMax = Math.max(...eEntCells.map(([, v]) => v.random_max));
+  const eNatEntMax = Math.max(...vcell(VNat, 'entropy').map(([, v]) => v.random_max));
+  rec('E3 [产物层] entropy 那句的层号=注入层，且随机方向最大值=该层 entropy 格的现算值',
+      VWS.includes('在 ' + VInj + ' 的 entropy 上')
+      && VWS.includes('随机方向最大能到 ' + eF4(eEntMax))
+      && eNatEntMax !== undefined && eF4(eEntMax) !== eF4(eNatEntMax),
+      `散文层号=${VInj}（注入层=${VInj}, 抽取层=${VNat}）；`
+      + `注入层 entropy random_max=${eF4(eEntMax)}，抽取层=${eF4(eNatEntMax)}`
+      + `（两格必须不同，否则这条判据钉不住口径）`);
+
+  // ⚠ E4 第一版要求 min 与 max **都**能钉住层，判红了。查下去是判据错：
+  //   抽取层 0.2080、注入层 0.2088，两位小数下**都是 0.21** ——
+  //   散文的「从 0.21 散到」这一端根本不携带层信息，能钉住的只有上端。
+  //   ⇒ 口径钉只挂 max；min 的巧合在诊断行里明写，不当成钉子。
+  const eSc = eSelfCells[0][1];
+  const eNatSc = vcell(VNat, 'self_check')[0][1];
+  const eMinPins = eF2(eSc.random_min) !== eF2(eNatSc.random_min);
+  rec('E4 [产物层] self_check 散布区间=注入层该格 min/max；上端能钉住层，下端不能',
+      VRC.includes('在 ' + VInj + ' 上同样偏小')
+      && eHas(VRC, new RegExp('auc_within 从 ' + eF2(eSc.random_min) + ' 散到 '
+                             + eF2(eSc.random_max)))
+      && eNatSc !== undefined
+      && eF2(eSc.random_max) !== eF2(eNatSc.random_max),
+      `注入层 ${eF2(eSc.random_min)}–${eF2(eSc.random_max)}，`
+      + `抽取层 ${eF2(eNatSc.random_min)}–${eF2(eNatSc.random_max)}；`
+      + `上端能钉层=${eF2(eSc.random_max) !== eF2(eNatSc.random_max)}，`
+      + `下端能钉层=${eMinPins}`
+      + (eMinPins ? '' : '（两位小数下相同，散文那一端不携带层信息 —— 照实说）'));
+
+  rec('E5 [产物层] 正例步数 = frac_steps_positive × n_steps 的现算值',
+      eHas(VRC, new RegExp('——' + eNpos + ' 个正例每一个都是孤立的单步')),
+      `frac ${VSc.frac_steps_positive} × n_steps ${VSc.n_steps} → ${eNpos}`);
+
+  // E6 是这一笔最要紧的一条：「只分布在 27 条轨迹里」这句话，
+  // 改之前**全仓没有任何字段是它的来源** —— 27 既不是 n_traj（48）
+  // 也不是 n_traj−n_traj_constant_inside（那个恰好也等于 27，
+  // 但只有「没有一条轨迹全程为正」时才相等）。它是新加的
+  // n_traj_with_any_positive。
+  rec('E6 [产物层] 「分布在 N 条轨迹里」= n_traj_with_any_positive，且严格小于总轨迹数',
+      VSc.n_traj_with_any_positive !== undefined
+      && VSc.n_traj_with_any_positive < VDen.n_trajectories
+      && eHas(VRC, new RegExp('只分布在 ' + VSc.n_traj_with_any_positive + ' 条轨迹里')),
+      `n_traj_with_any_positive=${VSc.n_traj_with_any_positive} < `
+      + `n_trajectories=${VDen.n_trajectories}；`
+      + `（巧合提醒：n_traj−n_traj_constant_inside=`
+      + `${VDen.n_trajectories - VSc.n_traj_constant_inside}，本数据上与它相等，`
+      + `但只有不存在「全程为正」的轨迹时才相等，判据不依赖这个等式）`);
+
+  rec('E7 [产物层] mean+3sd 的不可达阈值 = 该格现算值，且 reachable 标记为假',
+      VRC.includes('会算出 ' + eF3(eSc.empirical_floor_mean_plus_3sd))
+      && eSc.mean_plus_3sd_reachable === false
+      && eSc.empirical_floor_mean_plus_3sd > 1,
+      `mean+3sd=${eF3(eSc.empirical_floor_mean_plus_3sd)}（>1 即任何 AUC 都够不到）；`
+      + `产物 reachable=${eSc.mean_plus_3sd_reachable}`);
+
+  rec('E8 [产物层] label_confounds 的轨迹数 = denominators.n_trajectories = in_think 审计的分母',
+      eHas(VLC, new RegExp('在这 ' + VDen.n_trajectories + ' 条轨迹上'))
+      && VR.observable_audit.in_think.n_traj === VDen.n_trajectories,
+      `n_trajectories=${VDen.n_trajectories}，in_think 审计 n_traj=`
+      + `${VR.observable_audit.in_think.n_traj}`);
+
+  // E9：源级禁令。散文的源头是**生成脚本**，只改产物会被下次重跑覆盖
+  // （老毛病的源头）。所以要卡在生成器那一层：这些数一旦被手抄回去，
+  // 判据必须红。表要显式列出来，并同时**正向**要求占位符在源码里，
+  // 否则「把三段散文整段删掉」也能让这一条绿（第十八笔：恒假/恒真的合取项）。
+  const eSrc = readFileSync('/Users/zhourui/code/steer3d/backend/examples/'
+    + 'analyse_vector_roles.py', 'utf8');
+  const eBanned = ['基率 0.0057', '压缩因子 0.075', '实际要求 d=1.98',
+    'max(16 个随机方向', '随机方向最大能到 0.2548', '从 0.21 散到',
+    '散到 0.75', '会算出 1.128', '全部 16 个随机方向',
+    '16 个随机方向是这批数据上', '在这 48 条轨迹上'];
+  const eHole = eBanned.filter(s => eSrc.includes(s));
+  const eWant = ['{sc_p:.4f}', '{sc_compress:.3f}', '{sc_d:.2f}', '{n_rand}',
+    "{ent_ctl['random_max']:.4f}", "{sc_ctl['random_min']:.2f}",
+    "{sc_ctl['random_max']:.2f}", '{sc_n_pos}', '{sc_n_traj}',
+    "{sc_ctl['empirical_floor_mean_plus_3sd']:.3f}", '{n_traj}'];
+  const eMiss = eWant.filter(s => !eSrc.includes(s));
+  rec('E9 [源级] 生成器源码里没有这 11 个手抄副本，且 11 个插值占位符都在',
+      eHole.length === 0 && eMiss.length === 0,
+      `手抄副本残留 ${eHole.length} 个${eHole.length ? '：' + eHole.join(' / ') : ''}；`
+      + `缺失占位符 ${eMiss.length} 个${eMiss.length ? '：' + eMiss.join(' / ') : ''}`);
+
+  // E10：反向断言 —— 与 A7/B8 同型。这一条只证明「没渲染」，
+  // **证不了数对不对**（那是 E1–E8 的活），两件事不许互相顶替。
+  const eFrags = ['压缩因子', '个随机方向是这批数据上真正的零假设',
+    '孤立的单步', '实际要求 d='];
+  const eHit = eFrags.filter(f => (state.text || '').includes(f));
+  rec('E10 [渲染层·反向] 这三段散文的独有片段都不在页面上（只证明未渲染，不证明数对）',
+      eHit.length === 0,
+      `页面命中独有片段 ${eHit.length}/${eFrags.length}：`
+      + `${JSON.stringify(eHit)}；面板第四节 refusal 明确不渲染 necessity`);
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {
