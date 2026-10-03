@@ -14,6 +14,7 @@ M4 把下界写死成 4        —— 结论直接反过来（4 条就是全部�
 
 用法：python3 .cache/bmmut/run_mut_subspace.py <M1|M2|M3|M4|BASE> <port>
 """
+import hashlib
 import shutil
 import subprocess
 import sys
@@ -22,10 +23,18 @@ from pathlib import Path
 ROOT = Path("/Users/zhourui/code/steer3d")
 SRC = ROOT / "frontend/components/SubspacePanel.tsx"
 PRISTINE = ROOT / ".cache/bmmut/SubspacePanel.pristine.tsx"
+# 第二个变异目标：数据构建脚本。not_claimed / headline 的文案都在这里，
+# 只改面板源码改不到「页面自相矛盾」那一类缺陷。
+BUILD = ROOT / ".cache/xcheck/build_subspace_readout.py"
+BUILD_PRISTINE = ROOT / ".cache/bmmut/build_subspace_readout.pristine.py"
 JUDGE = ROOT / ".cache/browser_verify/verify_subspace.mjs"
 FRONT = ROOT / "frontend"
 BACKUP = ROOT / ".cache/bmmut/_mut_backup_sub.tsx"
 TRASH = "/Users/zhourui/.minimax/bin/mavis-trash"
+
+
+def sha(p):
+    return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
 M1_OLD = '''              <div className="rounded bg-bg/30 px-1 py-0.5" data-guard={`${r.key}-floor`}>
                 <div className="text-[8px] text-gray-600">地板（打乱后）</div>
@@ -124,24 +133,60 @@ M6_OLD = '''          门槛 0.35→9 条、0.45→12 条、0.60→16 条 ⇒ �
 M6_NEW = '''          门槛 0.35→9 条、0.45→12 条、0.60→16 条 ⇒ 这个数随门槛走。
           好消息是它对遍历顺序不敏感：随机打乱 {h.order_dependence.n_perm} 次，'''
 
-MUTS = {"M1": (M1_OLD, M1_NEW), "M2": (M2_OLD, M2_NEW),
-        "M3": (M3_OLD, M3_NEW), "M4": (M4_OLD, M4_NEW),
-        "M5": (M5_OLD, M5_NEW), "M6": (M6_OLD, M6_NEW)}
+# M7 把**数据**里的下界改成两个不同的值 ⇒ 页面自相矛盾。
+# 这一条是我自己真犯的错：改完 headline 忘了改 not_claimed，
+# 截图上一眼看见「至少 14 条」和「这 12 条」并排。
+# 其余判据全绿 —— 它们各自核对自己那段，没人会跨段互相比。
+#
+# ⚠ 第一版只把第一个 `%d` 换成字面量 `12`，而元组仍给两个值 ⇒
+#   字符串格式化抛 TypeError ⇒ **数据构建脚本崩了，JSON 根本没重新生成**。
+#   而 build() 只检查 BUILD_ID 存在，没检查数据构建是否成功 ⇒
+#   变异从未落到页面上，判据全绿 —— 看起来像「判据没牙齿」，
+#   实际是**变异没生效**。这两件事现象完全一样，必须分开。
+#   修法两条：变异保持元数；build() 断言数据构建成功。
+M7_BUILD_OLD = '        % (bnd["new_recipe"]["perm_min"], bnd["new_recipe"]["perm_min"])'
+M7_BUILD_NEW = '        % (12, bnd["new_recipe"]["perm_min"])  # MUT_M7'
+
+MUTS = {"M1": (SRC, M1_OLD, M1_NEW), "M2": (SRC, M2_OLD, M2_NEW),
+        "M3": (SRC, M3_OLD, M3_NEW), "M4": (SRC, M4_OLD, M4_NEW),
+        "M5": (SRC, M5_OLD, M5_NEW), "M6": (SRC, M6_OLD, M6_NEW),
+        "M7": (BUILD, M7_BUILD_OLD, M7_BUILD_NEW)}
 
 
 def restore():
+    """还原并自证：比的是快照那一刻就固定下来的 sha，不是「刚还原完的两个文件」
+    —— 后者是同义反复，必然相等。"""
     if PRISTINE.exists():
         shutil.copy2(PRISTINE, SRC)
     elif BACKUP.exists():
         shutil.copy2(BACKUP, SRC)
+    if BUILD_PRISTINE.exists():
+        shutil.copy2(BUILD_PRISTINE, BUILD)
+    if PRISTINE.exists() and sha(SRC) != sha(PRISTINE):
+        raise SystemExit("ABORT 还原后面板 sha256 与 pristine 不一致 —— 还原本身坏了")
+    if BUILD_PRISTINE.exists() and sha(BUILD) != sha(BUILD_PRISTINE):
+        raise SystemExit("ABORT 还原后构建脚本 sha256 与 pristine 不一致")
 
 
 def build():
+    """数据类变异改的是数据 ⇒ 必须先重跑 build 脚本，否则 npm build 拿到的还是旧 JSON。
+
+    ⚠ **数据构建失败必须在这里就炸**。第一版 M7 把格式化串的元数改坏了，
+    python 脚本抛 TypeError，而 build() 只看 BUILD_ID 存在 ⇒ 判定「命中」，
+    实际 JSON 根本没重新生成，页面上跑的是未变异的产物 ⇒ 判据全绿。
+    「变异没让判据变红」有两种完全不同的原因（判据没牙齿 / 变异没生效），
+    现象一模一样，所以必须在这里分开。
+    """
+    d = subprocess.run(["python3", str(BUILD)], cwd=ROOT, capture_output=True, text=True)
+    if d.returncode != 0:
+        print("ABORT 数据构建脚本退出码 %d —— 变异没落到数据上，不算命中" % d.returncode)
+        print((d.stdout + d.stderr)[-1500:])
+        return False, d.stdout + d.stderr
     bid = FRONT / ".next/BUILD_ID"
     if bid.exists():
         subprocess.run([TRASH, str(bid)], capture_output=True)
     r = subprocess.run(["npm", "run", "build"], cwd=FRONT, capture_output=True, text=True)
-    return bid.exists(), (r.stdout + r.stderr)
+    return bid.exists(), (d.stdout + d.stderr + r.stdout + r.stderr)
 
 
 def judge(port):
@@ -175,31 +220,36 @@ def main():
     if not PRISTINE.exists():
         PRISTINE.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(SRC, PRISTINE)
+    if not BUILD_PRISTINE.exists():
+        shutil.copy2(BUILD, BUILD_PRISTINE)
     restore()
 
     if which == "BASE":
         print("BASE: 原始产物")
     elif which in MUTS:
-        old, new = MUTS[which]
-        s = SRC.read_text()
+        target, old, new = MUTS[which]
+        s = target.read_text()
         if old not in s:
             print(f"ABORT {which} 锚点没找到，变异未施加")
             return 2
         s2 = s.replace(old, new, 1)
-        SRC.write_text(s2)
-        shutil.copy2(SRC, BACKUP)
-        back = SRC.read_text()
+        target.write_text(s2)
+        if target == SRC:
+            shutil.copy2(SRC, BACKUP)
+        back = target.read_text()
         if new not in back or old in back:
             print(f"ABORT {which} 施加后回读，变异没生效")
+            restore()
             return 2
         what = {"M1": "删掉「地板」栏", "M2": "只把可见的对角文案写死成 0.9999（属性照旧）",
                 "M3": "整块删掉位置轴对照行",
                 "M4": "把下界写死成 4 条",
                 "M5": "整块删掉「下界的前提」块（只留「至少 14 条」）",
-                "M6": "只留门槛计数表，删掉「不能读成可读方向就是这么多条」这句结论"}[which]
+                "M6": "只留门槛计数表，删掉「不能读成可读方向就是这么多条」这句结论",
+                "M7": "把**数据**里的边界下界改回旧值 12（顶部已是 14）⇒ 页面自相矛盾"}[which]
         print(f"{which} 施加：{what}；回读自证通过")
     else:
-        print("用法：BASE | M1 | M2 | M3 | M4 | M5 | M6")
+        print("用法：BASE | M1 | M2 | M3 | M4 | M5 | M6 | M7")
         return 2
 
     ok, log = build()

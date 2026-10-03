@@ -207,6 +207,23 @@ try {
     && P.notClaimed.includes('可读性') && P.notClaimed.includes('因果性')
     && P.notClaimed.includes('GPU'),
     `判决 ${P.verdict.length} 字 / 边界「${P.notClaimed.slice(0, 40)}」`);
+
+  // E4 同一个量在页面上出现两次，就必须处处一致。
+  // 这一条是被**截图**逼出来的：顶部已经改成「至少 14 条」，
+  // 而底部 not_claimed 还写着「这 12 条」—— 页面自相矛盾，
+  // 而上面 31 条判据全绿（它们各自都核对了自己那段，没人会去互相比）。
+  const LB = truth.headline.readable_directions_lower_bound;
+  const LB_OLD = truth.headline.readable_directions_lower_bound_old;
+  // 详情要**指出出错的句子**，不是打印段尾 —— 段尾永远是那句免责声明。
+  const badHit = (P.notClaimed.match(/.{0,18}这 \d+ 条.{0,12}/g) || []).join(' ／ ');
+  check('E4 边界里引用的下界必须与 headline 一致（不得残留旧值）',
+    P.notClaimed.includes(`这 ${LB} 条`)
+    && (LB === LB_OLD || !P.notClaimed.includes(`这 ${LB_OLD} 条`)),
+    `headline=${LB} / 旧值=${LB_OLD} / 边界里出现的「这 N 条」：${badHit || '（一处都没有）'}`);
+
+  check('E5 边界必须说清「可读维度数 ≠ 需要干预验证的轴数」',
+    P.notClaimed.includes('可读维度数') && P.notClaimed.includes('干预'),
+    P.notClaimed.slice(-52) || '（边界没有印出来）');
 } catch (e) {
   check('装置', false, String(e && e.message ? e.message : e));
 } finally {
