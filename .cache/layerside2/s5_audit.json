@@ -1,0 +1,2139 @@
+{
+ "schema": "layerside2.s5_audit/1",
+ "policy": "verify_all_claims 看全部行；failing_claims 只看失败行。两者不混用。",
+ "audit_kind": "literal-from-report vs path-into-layerside2.json",
+ "baseline": {
+  "n_claims": 236,
+  "n_pass": 236,
+  "pass_rate": 1.0,
+  "all_pass": true,
+  "all_rows": [
+   {
+    "group": "§0 摘要",
+    "desc": "confidence 已发表(pca_norm)",
+    "path": "published_reference.probe_axes_L14_delta0_lam0.01.confidence_top1_prob_renorm_pca_norm",
+    "expected": "0.4125",
+    "got": 0.41250607586097715,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution 已发表(pca_norm)",
+    "path": "published_reference.probe_axes_L14_delta0_lam0.01.caution_backtrack_topk_pca_norm",
+    "expected": "0.3077",
+    "got": 0.3076629340648651,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "confidence 注入点重测(dspace)",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.cos_dspace_by_vector_layer.13",
+    "expected": "0.4166",
+    "got": 0.4166022573241245,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution 注入点重测(dspace)",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.cos_dspace_by_vector_layer.13",
+    "expected": "0.3065",
+    "got": 0.3064905004452797,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "confidence 已发表格(dspace)",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.cos_dspace_by_vector_layer.14",
+    "expected": "0.4121",
+    "got": 0.4121261492676251,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution 已发表格(dspace)",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.cos_dspace_by_vector_layer.14",
+    "expected": "0.3039",
+    "got": 0.30388682689382107,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "confidence 只换向量层",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.cos_dspace_by_vector_layer.13",
+    "expected": "0.3782",
+    "got": 0.37824926845420526,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution 只换向量层",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.cos_dspace_by_vector_layer.13",
+    "expected": "0.2735",
+    "got": 0.27349067353833134,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "confidence 只挪读出层",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.cos_dspace_by_vector_layer.14",
+    "expected": "0.4065",
+    "got": 0.40647167697344294,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution 只挪读出层",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.cos_dspace_by_vector_layer.14",
+    "expected": "0.2989",
+    "got": 0.2988511796039447,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "confidence Δ=+0.0045",
+    "path": "item3_readout_grid.derived.matched_minus_published.confidence",
+    "expected": "0.0045",
+    "got": 0.004476108056499395,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution Δ=+0.0026",
+    "path": "item3_readout_grid.derived.matched_minus_published.caution",
+    "expected": "0.0026",
+    "got": 0.0026036735514586296,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "confidence 相对 +1.1%",
+    "path": "item3_readout_grid.derived.matched_rel_pct.confidence",
+    "expected": "1.1",
+    "got": 1.0861014435637557,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution 相对 +0.9%",
+    "path": "item3_readout_grid.derived.matched_rel_pct.caution",
+    "expected": "0.9",
+    "got": 0.8567905289189651,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "confidence 只换向量层 −8.2%",
+    "path": "item3_readout_grid.derived.vector_only_rel_pct.confidence",
+    "expected": "-8.2",
+    "got": -8.220027016878507,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution 只换向量层 −10.0%",
+    "path": "item3_readout_grid.derived.vector_only_rel_pct.caution",
+    "expected": "-10.0",
+    "got": -10.002458371158758,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "confidence 只挪读出层 −1.4%",
+    "path": "item3_readout_grid.derived.readout_only_rel_pct.confidence",
+    "expected": "-1.4",
+    "got": -1.3720246347460623,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution 只挪读出层 −1.7%",
+    "path": "item3_readout_grid.derived.readout_only_rel_pct.caution",
+    "expected": "-1.7",
+    "got": -1.6570798219022,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "confidence 对照倍数 注入点/已发表",
+    "path": "item3_readout_grid.derived.ratio_to_control_matched.confidence",
+    "expected": "38.1",
+    "got": 38.13896063542389,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution 对照倍数 注入点/已发表",
+    "path": "item3_readout_grid.derived.ratio_to_control_matched.caution",
+    "expected": "171.0",
+    "got": 170.97204147038008,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "confidence 对照倍数 已发表格",
+    "path": "item3_readout_grid.derived.ratio_to_control_published.confidence",
+    "expected": "36.1",
+    "got": 36.0657701524457,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "caution 对照倍数 已发表格",
+    "path": "item3_readout_grid.derived.ratio_to_control_published.caution",
+    "expected": "189.0",
+    "got": 188.98687838089492,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "注入点相对幅度",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.relative_amplitude_at_injection_point",
+    "expected": "0.2358",
+    "got": 0.23583995439860306,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§0 摘要",
+    "desc": "同层代价 2.07%→2.87%",
+    "path": "item4_injection_amplitude.same_layer_inflation.ratio_injection_over_L14",
+    "expected": "1.3918",
+    "got": 1.391843837300463,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "confidence_up n_positive",
+    "path": "item1_baseline_reproduction.per_axis.confidence_up.recomputed_n_positive",
+    "expected": "20930",
+    "got": 20930,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "confidence_up n_negative",
+    "path": "item1_baseline_reproduction.per_axis.confidence_up.recomputed_n_negative",
+    "expected": "15718",
+    "got": 15718,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "confidence_up cos(重算,发布)",
+    "path": "item1_baseline_reproduction.per_axis.confidence_up.cos_recomputed_L14_vs_published",
+    "expected": "0.9999999999998",
+    "got": 0.9999999999997926,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "reasoning_deep n_positive",
+    "path": "item1_baseline_reproduction.per_axis.reasoning_deep.recomputed_n_positive",
+    "expected": "15679",
+    "got": 15679,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "reasoning_deep n_negative",
+    "path": "item1_baseline_reproduction.per_axis.reasoning_deep.recomputed_n_negative",
+    "expected": "15679",
+    "got": 15679,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "reasoning_deep cos(重算,发布)",
+    "path": "item1_baseline_reproduction.per_axis.reasoning_deep.cos_recomputed_L14_vs_published",
+    "expected": "0.9999999999986",
+    "got": 0.9999999999985667,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "caution n_positive",
+    "path": "item1_baseline_reproduction.per_axis.caution.recomputed_n_positive",
+    "expected": "379",
+    "got": 379,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "caution n_negative",
+    "path": "item1_baseline_reproduction.per_axis.caution.recomputed_n_negative",
+    "expected": "62420",
+    "got": 62420,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "caution cos(重算,发布)",
+    "path": "item1_baseline_reproduction.per_axis.caution.cos_recomputed_L14_vs_published",
+    "expected": "0.9999999999979",
+    "got": 0.9999999999979028,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "creativity n_positive",
+    "path": "item1_baseline_reproduction.per_axis.creativity.recomputed_n_positive",
+    "expected": "40338",
+    "got": 40338,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "creativity n_negative",
+    "path": "item1_baseline_reproduction.per_axis.creativity.recomputed_n_negative",
+    "expected": "22461",
+    "got": 22461,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "creativity cos(重算,发布)",
+    "path": "item1_baseline_reproduction.per_axis.creativity.cos_recomputed_L14_vs_published",
+    "expected": "0.9999999999973",
+    "got": 0.9999999999972544,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "confidence_down cos(发布,−base)",
+    "path": "item1_baseline_reproduction.per_axis.confidence_down.cos_published_vs_neg_base",
+    "expected": "1.0",
+    "got": 0.9999999999999999,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "reasoning_shallow cos(发布,−base)",
+    "path": "item1_baseline_reproduction.per_axis.reasoning_shallow.cos_published_vs_neg_base",
+    "expected": "1.0",
+    "got": 1.0,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "Σn_prompt_tokens",
+    "path": "item1_baseline_reproduction.sum_n_prompt_tokens",
+    "expected": "6356",
+    "got": 6356,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "跳过后 token 数",
+    "path": "item1_baseline_reproduction.n_tokens_after_n_prompt_skip",
+    "expected": "62799",
+    "got": 62799,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1 基线",
+    "desc": "6/6 复现",
+    "path": "item1_baseline_reproduction.all_reproduced",
+    "expected": "True",
+    "got": true,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "confidence_up cos(发布,v_L13)",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.confidence_up.cos_published_vs_L13",
+    "expected": "0.9551222",
+    "got": 0.9551222137376427,
+    "tol": 5e-08,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "confidence_up cos(v_L13,v_L14)",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.confidence_up.cos_L13_vs_L14",
+    "expected": "0.9551222",
+    "got": 0.9551222207689907,
+    "tol": 5e-08,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "confidence_up 差",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.confidence_up.abs_diff",
+    "expected": "7e-09",
+    "got": 7.031347948327493e-09,
+    "tol": 5e-09,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "caution cos(发布,v_L13)",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.caution.cos_published_vs_L13",
+    "expected": "0.9420589",
+    "got": 0.9420589215335916,
+    "tol": 5e-08,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "caution cos(v_L13,v_L14)",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.caution.cos_L13_vs_L14",
+    "expected": "0.9420589",
+    "got": 0.9420589099379956,
+    "tol": 5e-08,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "caution 差",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.caution.abs_diff",
+    "expected": "1.2e-08",
+    "got": 1.15955960389158e-08,
+    "tol": 5e-09,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "reasoning_deep cos(发布,v_L13)",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.reasoning_deep.cos_published_vs_L13",
+    "expected": "0.9121105",
+    "got": 0.9121104574601504,
+    "tol": 5e-08,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "reasoning_deep cos(v_L13,v_L14)",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.reasoning_deep.cos_L13_vs_L14",
+    "expected": "0.9121104",
+    "got": 0.9121104211022742,
+    "tol": 5e-08,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "reasoning_deep 差",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.reasoning_deep.abs_diff",
+    "expected": "3.6e-08",
+    "got": 3.6357876154191615e-08,
+    "tol": 5e-09,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "creativity cos(发布,v_L13)",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.creativity.cos_published_vs_L13",
+    "expected": "0.9143342",
+    "got": 0.9143342367108849,
+    "tol": 5e-08,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "creativity cos(v_L13,v_L14)",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.creativity.cos_L13_vs_L14",
+    "expected": "0.9143344",
+    "got": 0.9143343626285347,
+    "tol": 5e-08,
+    "ok": true
+   },
+   {
+    "group": "§1.1 恒等式",
+    "desc": "creativity 差",
+    "path": "item2_vector_across_layers.identity_published_L13_equals_L13_vs_L14.creativity.abs_diff",
+    "expected": "1.3e-07",
+    "got": 1.2591764986247256e-07,
+    "tol": 5e-09,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "confidence_up L12↔L13",
+    "path": "item2_vector_across_layers.adjacent_cos.confidence_up.L12_vs_L13",
+    "expected": "0.9511",
+    "got": 0.9510698544208699,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "confidence_up L13↔L14",
+    "path": "item2_vector_across_layers.adjacent_cos.confidence_up.L13_vs_L14",
+    "expected": "0.9551",
+    "got": 0.9551222207689907,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "confidence_up L14↔L15",
+    "path": "item2_vector_across_layers.adjacent_cos.confidence_up.L14_vs_L15",
+    "expected": "0.9236",
+    "got": 0.9235576121542703,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "reasoning_deep L12↔L13",
+    "path": "item2_vector_across_layers.adjacent_cos.reasoning_deep.L12_vs_L13",
+    "expected": "0.9145",
+    "got": 0.9144729767494773,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "reasoning_deep L13↔L14",
+    "path": "item2_vector_across_layers.adjacent_cos.reasoning_deep.L13_vs_L14",
+    "expected": "0.9121",
+    "got": 0.9121104211022742,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "reasoning_deep L14↔L15",
+    "path": "item2_vector_across_layers.adjacent_cos.reasoning_deep.L14_vs_L15",
+    "expected": "0.8868",
+    "got": 0.8867768891397647,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "caution L12↔L13",
+    "path": "item2_vector_across_layers.adjacent_cos.caution.L12_vs_L13",
+    "expected": "0.9412",
+    "got": 0.9411507016556881,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "caution L13↔L14",
+    "path": "item2_vector_across_layers.adjacent_cos.caution.L13_vs_L14",
+    "expected": "0.9421",
+    "got": 0.9420589099379956,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "caution L14↔L15",
+    "path": "item2_vector_across_layers.adjacent_cos.caution.L14_vs_L15",
+    "expected": "0.8962",
+    "got": 0.8962299587805718,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "creativity L12↔L13",
+    "path": "item2_vector_across_layers.adjacent_cos.creativity.L12_vs_L13",
+    "expected": "0.9259",
+    "got": 0.9259258212515791,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "creativity L13↔L14",
+    "path": "item2_vector_across_layers.adjacent_cos.creativity.L13_vs_L14",
+    "expected": "0.9143",
+    "got": 0.9143343626285347,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "creativity L14↔L15",
+    "path": "item2_vector_across_layers.adjacent_cos.creativity.L14_vs_L15",
+    "expected": "0.8397",
+    "got": 0.8396883568448714,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "confidence_up cos(发布,v_L12)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.confidence_up.12",
+    "expected": "0.908",
+    "got": 0.90798734188305,
+    "tol": 0.0005,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "confidence_up cos(发布,v_L13)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.confidence_up.13",
+    "expected": "0.9551",
+    "got": 0.9551222137376427,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "confidence_up cos(发布,v_L14)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.confidence_up.14",
+    "expected": "1.0",
+    "got": 0.9999999999997926,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "confidence_up cos(发布,v_L15)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.confidence_up.15",
+    "expected": "0.9236",
+    "got": 0.9235576233052176,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "caution cos(发布,v_L12)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.caution.12",
+    "expected": "0.8876",
+    "got": 0.8875640581773002,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "caution cos(发布,v_L13)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.caution.13",
+    "expected": "0.9421",
+    "got": 0.9420589215335916,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "caution cos(发布,v_L14)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.caution.14",
+    "expected": "1.0",
+    "got": 0.9999999999979028,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "caution cos(发布,v_L15)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.caution.15",
+    "expected": "0.8962",
+    "got": 0.8962298546323055,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "reasoning_deep cos(发布,v_L12)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.reasoning_deep.12",
+    "expected": "0.857",
+    "got": 0.8570418477339903,
+    "tol": 0.0005,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "reasoning_deep cos(发布,v_L13)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.reasoning_deep.13",
+    "expected": "0.9121",
+    "got": 0.9121104574601504,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "reasoning_deep cos(发布,v_L14)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.reasoning_deep.14",
+    "expected": "1.0",
+    "got": 0.9999999999985667,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "reasoning_deep cos(发布,v_L15)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.reasoning_deep.15",
+    "expected": "0.8868",
+    "got": 0.8867768669803927,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "creativity cos(发布,v_L12)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.creativity.12",
+    "expected": "0.8597",
+    "got": 0.8597333860345278,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "creativity cos(发布,v_L13)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.creativity.13",
+    "expected": "0.9143",
+    "got": 0.9143342367108849,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "creativity cos(发布,v_L14)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.creativity.14",
+    "expected": "1.0",
+    "got": 0.9999999999972544,
+    "tol": 0.05,
+    "ok": true
+   },
+   {
+    "group": "§2 向量随层",
+    "desc": "creativity cos(发布,v_L15)",
+    "path": "item2_vector_across_layers.cos_published_L14_vector_vs_recomputed.creativity.15",
+    "expected": "0.8397",
+    "got": 0.8396882587455992,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr13/Lv12",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.cos_dspace_by_vector_layer.12",
+    "expected": "0.37422721995489017",
+    "got": 0.37422721995489017,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=20 Lr13/Lv12",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL13.cos_dspace_by_vector_layer.12",
+    "expected": "0.02746046029346137",
+    "got": 0.02746046029346137,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr13/Lv13",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.cos_dspace_by_vector_layer.13",
+    "expected": "0.4166022573241245",
+    "got": 0.4166022573241245,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=20 Lr13/Lv13",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL13.cos_dspace_by_vector_layer.13",
+    "expected": "0.03858344274254387",
+    "got": 0.03858344274254387,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr13/Lv14",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.cos_dspace_by_vector_layer.14",
+    "expected": "0.40647167697344294",
+    "got": 0.40647167697344294,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=20 Lr13/Lv14",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL13.cos_dspace_by_vector_layer.14",
+    "expected": "0.03885585662351578",
+    "got": 0.03885585662351578,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr13/Lv15",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.cos_dspace_by_vector_layer.15",
+    "expected": "0.3726802236606709",
+    "got": 0.3726802236606709,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=20 Lr13/Lv15",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL13.cos_dspace_by_vector_layer.15",
+    "expected": "0.038938425134011995",
+    "got": 0.038938425134011995,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr13 对照",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.010933530180032977",
+    "got": 0.010933530180032977,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr13 oofR",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.oof_pearson",
+    "expected": "0.513543090371389",
+    "got": 0.513543090371389,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr13 地板",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.null_floor_cos_max",
+    "expected": "0.07542451125051475",
+    "got": 0.07542451125051475,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr14/Lv12",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.cos_dspace_by_vector_layer.12",
+    "expected": "0.33604304778949967",
+    "got": 0.33604304778949967,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=20 Lr14/Lv12",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL14.cos_dspace_by_vector_layer.12",
+    "expected": "0.023725981401074996",
+    "got": 0.023725981401074996,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr14/Lv13",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.cos_dspace_by_vector_layer.13",
+    "expected": "0.37824926845420526",
+    "got": 0.37824926845420526,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=20 Lr14/Lv13",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL14.cos_dspace_by_vector_layer.13",
+    "expected": "0.028854939370968273",
+    "got": 0.028854939370968273,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr14/Lv14",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.cos_dspace_by_vector_layer.14",
+    "expected": "0.4121261492676251",
+    "got": 0.4121261492676251,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=20 Lr14/Lv14",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL14.cos_dspace_by_vector_layer.14",
+    "expected": "0.03860403997147455",
+    "got": 0.03860403997147455,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr14/Lv15",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.cos_dspace_by_vector_layer.15",
+    "expected": "0.362628874558115",
+    "got": 0.362628874558115,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=20 Lr14/Lv15",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL14.cos_dspace_by_vector_layer.15",
+    "expected": "0.025742531718726383",
+    "got": 0.025742531718726383,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr14 对照",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.01143664425822239",
+    "got": 0.01143664425822239,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr14 oofR",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.oof_pearson",
+    "expected": "0.5203480697509718",
+    "got": 0.5203480697509718,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence Δ=0 Lr14 地板",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.null_floor_cos_max",
+    "expected": "0.07521617002653797",
+    "got": 0.07521617002653797,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr13/Lv12",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.cos_dspace_by_vector_layer.12",
+    "expected": "0.2941928674507998",
+    "got": 0.2941928674507998,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=20 Lr13/Lv12",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL13.cos_dspace_by_vector_layer.12",
+    "expected": "0.002067612336563945",
+    "got": 0.002067612336563945,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr13/Lv13",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.cos_dspace_by_vector_layer.13",
+    "expected": "0.3064905004452797",
+    "got": 0.3064905004452797,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=20 Lr13/Lv13",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL13.cos_dspace_by_vector_layer.13",
+    "expected": "0.008231835323552577",
+    "got": 0.008231835323552577,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr13/Lv14",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.cos_dspace_by_vector_layer.14",
+    "expected": "0.2988511796039447",
+    "got": 0.2988511796039447,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=20 Lr13/Lv14",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL13.cos_dspace_by_vector_layer.14",
+    "expected": "0.007772742536669298",
+    "got": 0.007772742536669298,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr13/Lv15",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.cos_dspace_by_vector_layer.15",
+    "expected": "0.266923441541114",
+    "got": 0.266923441541114,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=20 Lr13/Lv15",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL13.cos_dspace_by_vector_layer.15",
+    "expected": "0.02039866629018542",
+    "got": 0.02039866629018542,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr13 对照",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.0018154202093215895",
+    "got": 0.0018154202093215895,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr13 oofR",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.oof_pearson",
+    "expected": "0.6708814075979522",
+    "got": 0.6708814075979522,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr13 地板",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.null_floor_cos_max",
+    "expected": "0.07985556701976561",
+    "got": 0.07985556701976561,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr14/Lv12",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.cos_dspace_by_vector_layer.12",
+    "expected": "0.2648558772395397",
+    "got": 0.2648558772395397,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=20 Lr14/Lv12",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL14.cos_dspace_by_vector_layer.12",
+    "expected": "0.02193877923353281",
+    "got": 0.02193877923353281,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr14/Lv13",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.cos_dspace_by_vector_layer.13",
+    "expected": "0.27349067353833134",
+    "got": 0.27349067353833134,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=20 Lr14/Lv13",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL14.cos_dspace_by_vector_layer.13",
+    "expected": "0.019014481559814875",
+    "got": 0.019014481559814875,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr14/Lv14",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.cos_dspace_by_vector_layer.14",
+    "expected": "0.30388682689382107",
+    "got": 0.30388682689382107,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=20 Lr14/Lv14",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL14.cos_dspace_by_vector_layer.14",
+    "expected": "0.00859713143887763",
+    "got": 0.00859713143887763,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr14/Lv15",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.cos_dspace_by_vector_layer.15",
+    "expected": "0.2523952467470292",
+    "got": 0.2523952467470292,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=20 Lr14/Lv15",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL14.cos_dspace_by_vector_layer.15",
+    "expected": "0.0025500932115706306",
+    "got": 0.0025500932115706306,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr14 对照",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.0016281401287450217",
+    "got": 0.0016281401287450217,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr14 oofR",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.oof_pearson",
+    "expected": "0.6759773772630961",
+    "got": 0.6759773772630961,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution Δ=0 Lr14 地板",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.null_floor_cos_max",
+    "expected": "0.07090449266373626",
+    "got": 0.07090449266373626,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/oof_pearson",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.oof_pearson",
+    "expected": "0.5135",
+    "got": 0.513543090371389,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/oof_pearson",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.oof_pearson",
+    "expected": "0.5203",
+    "got": 0.5203480697509718,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/oof_pearson",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.oof_pearson",
+    "expected": "0.6709",
+    "got": 0.6708814075979522,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/oof_pearson",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.oof_pearson",
+    "expected": "0.676",
+    "got": 0.6759773772630961,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/control_step_frac_cos_pca_norm_same_cell",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.0109",
+    "got": 0.010933530180032977,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/control_step_frac_cos_pca_norm_same_cell",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.0114",
+    "got": 0.01143664425822239,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/control_step_frac_cos_pca_norm_same_cell",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.0018",
+    "got": 0.0018154202093215895,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/control_step_frac_cos_pca_norm_same_cell",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.0016",
+    "got": 0.0016281401287450217,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/null_floor_cos_max",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.null_floor_cos_max",
+    "expected": "0.0754",
+    "got": 0.07542451125051475,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/null_floor_cos_max",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.null_floor_cos_max",
+    "expected": "0.0752",
+    "got": 0.07521617002653797,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/null_floor_cos_max",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.null_floor_cos_max",
+    "expected": "0.0799",
+    "got": 0.07985556701976561,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/null_floor_cos_max",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.null_floor_cos_max",
+    "expected": "0.0709",
+    "got": 0.07090449266373626,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence|delta20|readoutL14/14",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL14.cos_dspace_by_vector_layer.14",
+    "expected": "0.0386",
+    "got": 0.03860403997147455,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "confidence|delta20|readoutL13/13",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL13.cos_dspace_by_vector_layer.13",
+    "expected": "0.0386",
+    "got": 0.03858344274254387,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution|delta20|readoutL14/14",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL14.cos_dspace_by_vector_layer.14",
+    "expected": "0.0086",
+    "got": 0.00859713143887763,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "caution|delta20|readoutL13/13",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL13.cos_dspace_by_vector_layer.13",
+    "expected": "0.0082",
+    "got": 0.008231835323552577,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/null_floor_cos_max",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL14.null_floor_cos_max",
+    "expected": "0.0686",
+    "got": 0.06860313392601601,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/null_floor_cos_max",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL14.null_floor_cos_max",
+    "expected": "0.071",
+    "got": 0.07103685399351152,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/p_search_corrected",
+    "path": "item3_readout_grid.grid.confidence|delta20|readoutL14.p_search_corrected",
+    "expected": "1.0",
+    "got": 1.0,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/p_search_corrected",
+    "path": "item3_readout_grid.grid.caution|delta20|readoutL14.p_search_corrected",
+    "expected": "1.0",
+    "got": 1.0,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/p_search_corrected",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.p_search_corrected",
+    "expected": "0.0",
+    "got": 0.0,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3 网格",
+    "desc": "grid/p_search_corrected",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.p_search_corrected",
+    "expected": "0.0",
+    "got": 0.0,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3.4 读出随层",
+    "desc": "cos(w_L13,w_L14) top1_prob_renorm Δ=0",
+    "path": "item3_readout_grid.readout_direction_across_layers.L13_vs_L14|demean_within_traj|delta0|lam0.01|top1_prob_renorm.cos_median",
+    "expected": "0.8623",
+    "got": 0.8623091568315997,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3.4 读出随层",
+    "desc": "cos(w_L13,w_L14) top1_prob_renorm Δ=20",
+    "path": "item3_readout_grid.readout_direction_across_layers.L13_vs_L14|demean_within_traj|delta20|lam0.01|top1_prob_renorm.cos_median",
+    "expected": "0.7686",
+    "got": 0.7685932753076911,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3.4 读出随层",
+    "desc": "cos(w_L13,w_L14) backtrack_topk Δ=0",
+    "path": "item3_readout_grid.readout_direction_across_layers.L13_vs_L14|demean_within_traj|delta0|lam0.01|backtrack_topk.cos_median",
+    "expected": "0.8763",
+    "got": 0.8762573514501528,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3.4 读出随层",
+    "desc": "cos(w_L13,w_L14) backtrack_topk Δ=20",
+    "path": "item3_readout_grid.readout_direction_across_layers.L13_vs_L14|demean_within_traj|delta20|lam0.01|backtrack_topk.cos_median",
+    "expected": "0.7601",
+    "got": 0.7601306652660058,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3.4 读出随层",
+    "desc": "cos(w_L13,w_L14) CONTROL_step_frac Δ=0",
+    "path": "item3_readout_grid.readout_direction_across_layers.L13_vs_L14|demean_within_traj|delta0|lam0.01|CONTROL_step_frac.cos_median",
+    "expected": "0.8147",
+    "got": 0.8146509926945549,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3.4 读出随层",
+    "desc": "cos(w_L13,w_L14) CONTROL_step_frac Δ=20",
+    "path": "item3_readout_grid.readout_direction_across_layers.L13_vs_L14|demean_within_traj|delta20|lam0.01|CONTROL_step_frac.cos_median",
+    "expected": "0.8141",
+    "got": 0.8140843648552577,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§3.5 保真",
+    "desc": "pca_var_cum L14 匹配",
+    "path": "item3_readout_grid.pca_var_cum_matches_published_L14",
+    "expected": "True",
+    "got": true,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§3.5 保真",
+    "desc": "Gram 缓存 max|Δw|",
+    "path": "item3_readout_grid.gram_cache_alignment_vs_reference_impl.max_abs_diff_w",
+    "expected": "0.0",
+    "got": 0.0,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§3.5 保真",
+    "desc": "基线复现 n_pass",
+    "path": "item6_selfcheck.baseline_reproduction.checks.n_pass",
+    "expected": "4",
+    "got": 4,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§3.5 保真",
+    "desc": "偏离格数",
+    "path": "item6_selfcheck.deviations_from_published",
+    "expected": "0",
+    "got": [],
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§3.5 保真",
+    "desc": "confidence 复现差",
+    "path": "item6_selfcheck.baseline_reproduction.all_rows.0.abs_diff",
+    "expected": "3.5e-05",
+    "got": 3.469272864053963e-05,
+    "tol": 5e-07,
+    "ok": true
+   },
+   {
+    "group": "§3.5 保真",
+    "desc": "caution 复现差",
+    "path": "item6_selfcheck.baseline_reproduction.all_rows.1.abs_diff",
+    "expected": "3.4e-05",
+    "got": 3.4186433324923104e-05,
+    "tol": 5e-07,
+    "ok": true
+   },
+   {
+    "group": "§3.5 保真",
+    "desc": "对照 confidence 复现值",
+    "path": "item6_selfcheck.baseline_reproduction.all_rows.2.recomputed",
+    "expected": "0.01144",
+    "got": 0.01143664425822239,
+    "tol": 5e-06,
+    "ok": true
+   },
+   {
+    "group": "§3.5 保真",
+    "desc": "对照 caution 复现值",
+    "path": "item6_selfcheck.baseline_reproduction.all_rows.3.recomputed",
+    "expected": "0.00163",
+    "got": 0.0016281401287450217,
+    "tol": 5e-06,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "mean‖h‖ L13 (layer_profiles)",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.mean_norm_L13",
+    "expected": "139.32299807127686",
+    "got": 139.32299807127686,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "mean‖h‖ L14 (layer_profiles)",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.mean_norm_L14",
+    "expected": "164.28964755903297",
+    "got": 164.28964755903297,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "mean‖h‖ L13 (全量)",
+    "path": "item4_injection_amplitude.norms_full_69155_steps.13.mean_L2norm",
+    "expected": "139.37692279469584",
+    "got": 139.37692279469584,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "mean‖h‖ L14 (全量)",
+    "path": "item4_injection_amplitude.norms_full_69155_steps.14.mean_L2norm",
+    "expected": "164.42098847676215",
+    "got": 164.42098847676212,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "R (在线)",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.R_ratio_L14_over_L13",
+    "expected": "1.1791997719930152",
+    "got": 1.1791997719930152,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "R (全量)",
+    "path": "item4_injection_amplitude.variants.full_recompute_69155.R_ratio_L14_over_L13",
+    "expected": "1.1796858847210778",
+    "got": 1.1796858847210778,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "注入点相对幅度(在线)",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.relative_amplitude_at_injection_point",
+    "expected": "0.23583995439860306",
+    "got": 0.23583995439860306,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "注入点相对幅度(全量)",
+    "path": "item4_injection_amplitude.variants.full_recompute_69155.relative_amplitude_at_injection_point",
+    "expected": "0.23593717694421557",
+    "got": 0.23593717694421557,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "等价标称强度",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.s_equivalent_at_L13_for_same_delta",
+    "expected": "0.23583995439860306",
+    "got": 0.23583995439860306,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "‖δ‖ at s=0.2",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.injected_delta_norm_at_s_nominal",
+    "expected": "32.857929511806596",
+    "got": 32.857929511806596,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "‖mean(h)‖ L13",
+    "path": "item4_injection_amplitude.norms_full_69155_steps.13.L2norm_of_mean",
+    "expected": "103.93966872129208",
+    "got": 103.93966872129208,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4 幅度",
+    "desc": "‖mean(h)‖ L14",
+    "path": "item4_injection_amplitude.norms_full_69155_steps.14.L2norm_of_mean",
+    "expected": "121.55480314382336",
+    "got": 121.55480314382336,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4.1 代价",
+    "desc": "½(0.2)²",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.geometric_cost_half_a2_nominal_s_plain",
+    "expected": "0.02",
+    "got": 0.020000000000000004,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§4.1 代价",
+    "desc": "逐token @L14",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.geometric_cost_per_token_avg_at_L14",
+    "expected": "0.020651",
+    "got": 0.020651328316758227,
+    "tol": 5e-07,
+    "ok": true
+   },
+   {
+    "group": "§4.1 代价",
+    "desc": "逐token @注入点",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.geometric_cost_per_token_avg_at_injection_point",
+    "expected": "0.028743",
+    "got": 0.02874342404974848,
+    "tol": 5e-07,
+    "ok": true
+   },
+   {
+    "group": "§4.1 代价",
+    "desc": "½(0.236)²",
+    "path": "item4_injection_amplitude.half_s2_at_relative_amplitude_0p236",
+    "expected": "0.027848",
+    "got": 0.027847999999999998,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4.1 代价",
+    "desc": "同层膨胀比",
+    "path": "item4_injection_amplitude.same_layer_inflation.ratio_injection_over_L14",
+    "expected": "1.391843837300463",
+    "got": 1.391843837300463,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4.1 代价",
+    "desc": "M13/M14 补偿因子",
+    "path": "item4_injection_amplitude.M13_over_M14_compensation_factor",
+    "expected": "0.8480327284238343",
+    "got": 0.8480327284238343,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§4.1 代价",
+    "desc": "文档 L20 解析 2.236%",
+    "path": "item4_injection_amplitude.headline.doc_L20_s0.20_analytic_frac",
+    "expected": "0.02236",
+    "got": 0.02236,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L13 Δ=0 top1_prob_renorm max",
+    "path": "item5_controls.negative_400_random_directions.cells.13|demean_within_traj|0|0.01|top1_prob_renorm|confidence.cos_max",
+    "expected": "0.0754",
+    "got": 0.07542451125051475,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L13 Δ=0 top1_prob_renorm p99",
+    "path": "item5_controls.negative_400_random_directions.cells.13|demean_within_traj|0|0.01|top1_prob_renorm|confidence.cos_p99",
+    "expected": "0.0676",
+    "got": 0.06759165210340287,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L13 Δ=0 top1_prob_renorm p95",
+    "path": "item5_controls.negative_400_random_directions.cells.13|demean_within_traj|0|0.01|top1_prob_renorm|confidence.cos_p95",
+    "expected": "0.0435",
+    "got": 0.0434728170334447,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L13 Δ=0 top1_prob_renorm 中位",
+    "path": "item5_controls.negative_400_random_directions.cells.13|demean_within_traj|0|0.01|top1_prob_renorm|confidence.cos_median",
+    "expected": "0.0152",
+    "got": 0.015213831892555452,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L13 Δ=0 backtrack_topk max",
+    "path": "item5_controls.negative_400_random_directions.cells.13|demean_within_traj|0|0.01|backtrack_topk|confidence.cos_max",
+    "expected": "0.0799",
+    "got": 0.07985556701976561,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L13 Δ=0 backtrack_topk p99",
+    "path": "item5_controls.negative_400_random_directions.cells.13|demean_within_traj|0|0.01|backtrack_topk|confidence.cos_p99",
+    "expected": "0.0665",
+    "got": 0.06649870804090896,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L13 Δ=0 backtrack_topk p95",
+    "path": "item5_controls.negative_400_random_directions.cells.13|demean_within_traj|0|0.01|backtrack_topk|confidence.cos_p95",
+    "expected": "0.0445",
+    "got": 0.04447465352423564,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L13 Δ=0 backtrack_topk 中位",
+    "path": "item5_controls.negative_400_random_directions.cells.13|demean_within_traj|0|0.01|backtrack_topk|confidence.cos_median",
+    "expected": "0.016",
+    "got": 0.016015636730787333,
+    "tol": 0.0005,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L14 Δ=0 top1_prob_renorm max",
+    "path": "item5_controls.negative_400_random_directions.cells.14|demean_within_traj|0|0.01|top1_prob_renorm|confidence.cos_max",
+    "expected": "0.0752",
+    "got": 0.07521617002653797,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L14 Δ=0 top1_prob_renorm p99",
+    "path": "item5_controls.negative_400_random_directions.cells.14|demean_within_traj|0|0.01|top1_prob_renorm|confidence.cos_p99",
+    "expected": "0.0581",
+    "got": 0.058086182864078656,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L14 Δ=0 top1_prob_renorm p95",
+    "path": "item5_controls.negative_400_random_directions.cells.14|demean_within_traj|0|0.01|top1_prob_renorm|confidence.cos_p95",
+    "expected": "0.0444",
+    "got": 0.04441772008569754,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L14 Δ=0 top1_prob_renorm 中位",
+    "path": "item5_controls.negative_400_random_directions.cells.14|demean_within_traj|0|0.01|top1_prob_renorm|confidence.cos_median",
+    "expected": "0.0159",
+    "got": 0.01593917494785157,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L14 Δ=0 backtrack_topk max",
+    "path": "item5_controls.negative_400_random_directions.cells.14|demean_within_traj|0|0.01|backtrack_topk|confidence.cos_max",
+    "expected": "0.0709",
+    "got": 0.07090449266373626,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L14 Δ=0 backtrack_topk p99",
+    "path": "item5_controls.negative_400_random_directions.cells.14|demean_within_traj|0|0.01|backtrack_topk|confidence.cos_p99",
+    "expected": "0.0651",
+    "got": 0.06506838536789315,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L14 Δ=0 backtrack_topk p95",
+    "path": "item5_controls.negative_400_random_directions.cells.14|demean_within_traj|0|0.01|backtrack_topk|confidence.cos_p95",
+    "expected": "0.0454",
+    "got": 0.04539664986064441,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L14 Δ=0 backtrack_topk 中位",
+    "path": "item5_controls.negative_400_random_directions.cells.14|demean_within_traj|0|0.01|backtrack_topk|confidence.cos_median",
+    "expected": "0.015",
+    "got": 0.014974630088512627,
+    "tol": 0.0005,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L14 Δ=20 top1_prob_renorm max",
+    "path": "item5_controls.negative_400_random_directions.cells.14|demean_within_traj|20|0.01|top1_prob_renorm|confidence.cos_max",
+    "expected": "0.0686",
+    "got": 0.06860313392601601,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "L14 Δ=20 backtrack_topk max",
+    "path": "item5_controls.negative_400_random_directions.cells.14|demean_within_traj|20|0.01|backtrack_topk|confidence.cos_max",
+    "expected": "0.071",
+    "got": 0.07103685399351152,
+    "tol": 0.0005,
+    "ok": true
+   },
+   {
+    "group": "§5.2 阳性",
+    "desc": "step_frac L13 Δ=0",
+    "path": "item5_controls.positive_control_step_frac.cells.13|demean_within_traj|0|0.01|CONTROL_step_frac|reasoning.cos_pca_norm",
+    "expected": "0.6273",
+    "got": 0.6272999280713193,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.2 阳性",
+    "desc": "step_frac oofR L13 Δ=0",
+    "path": "item5_controls.positive_control_step_frac.cells.13|demean_within_traj|0|0.01|CONTROL_step_frac|reasoning.oof_pearson",
+    "expected": "0.7383",
+    "got": 0.7383364076425728,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.2 阳性",
+    "desc": "step_frac L13 Δ=20",
+    "path": "item5_controls.positive_control_step_frac.cells.13|demean_within_traj|20|0.01|CONTROL_step_frac|reasoning.cos_pca_norm",
+    "expected": "0.6236",
+    "got": 0.6236180474787605,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.2 阳性",
+    "desc": "step_frac oofR L13 Δ=20",
+    "path": "item5_controls.positive_control_step_frac.cells.13|demean_within_traj|20|0.01|CONTROL_step_frac|reasoning.oof_pearson",
+    "expected": "0.7254",
+    "got": 0.7253694406568235,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.2 阳性",
+    "desc": "step_frac L14 Δ=0",
+    "path": "item5_controls.positive_control_step_frac.cells.14|demean_within_traj|0|0.01|CONTROL_step_frac|reasoning.cos_pca_norm",
+    "expected": "0.6279",
+    "got": 0.6279481886891586,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.2 阳性",
+    "desc": "step_frac oofR L14 Δ=0",
+    "path": "item5_controls.positive_control_step_frac.cells.14|demean_within_traj|0|0.01|CONTROL_step_frac|reasoning.oof_pearson",
+    "expected": "0.7387",
+    "got": 0.7386954225438799,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.2 阳性",
+    "desc": "step_frac L14 Δ=20",
+    "path": "item5_controls.positive_control_step_frac.cells.14|demean_within_traj|20|0.01|CONTROL_step_frac|reasoning.cos_pca_norm",
+    "expected": "0.6245",
+    "got": 0.6245296267088776,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.2 阳性",
+    "desc": "step_frac oofR L14 Δ=20",
+    "path": "item5_controls.positive_control_step_frac.cells.14|demean_within_traj|20|0.01|CONTROL_step_frac|reasoning.oof_pearson",
+    "expected": "0.7257",
+    "got": 0.7256624115253345,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.3 同格对照",
+    "desc": "confidence 对照 L13",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL13.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.0109",
+    "got": 0.010933530180032977,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.3 同格对照",
+    "desc": "caution 对照 L13",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL13.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.0018",
+    "got": 0.0018154202093215895,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.3 同格对照",
+    "desc": "confidence 对照 L14",
+    "path": "item3_readout_grid.grid.confidence|delta0|readoutL14.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.0114",
+    "got": 0.01143664425822239,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§5.3 同格对照",
+    "desc": "caution 对照 L14",
+    "path": "item3_readout_grid.grid.caution|delta0|readoutL14.control_step_frac_cos_pca_norm_same_cell",
+    "expected": "0.0016",
+    "got": 0.0016281401287450217,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "hs27==last_hidden max|diff|",
+    "path": "item6_selfcheck.layer_convention_audit.hs27_vs_last_hidden_max_abs_diff_all_files",
+    "expected": "0.0",
+    "got": 0.0,
+    "tol": 0.0,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "逐位相同元素数",
+    "path": "item6_selfcheck.layer_convention_audit.n_elements_bitwise_identical",
+    "expected": "141629440",
+    "got": 141629440,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "逐位相同比例",
+    "path": "item6_selfcheck.layer_convention_audit.frac_bitwise_identical",
+    "expected": "1.0",
+    "got": 1.0,
+    "tol": 1e-12,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "mean‖h‖ L26",
+    "path": "item6_selfcheck.layer_convention_audit.mean_norm_L26",
+    "expected": "3045.75",
+    "got": 3045.74516846215,
+    "tol": 0.005,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "mean‖h‖ L27",
+    "path": "item6_selfcheck.layer_convention_audit.mean_norm_L27",
+    "expected": "127.49",
+    "got": 127.48623749412552,
+    "tol": 0.005,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "L27/L26 比值",
+    "path": "item6_selfcheck.layer_convention_audit.ratio_L27_over_L26",
+    "expected": "0.04186",
+    "got": 0.041857158246267706,
+    "tol": 5e-06,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "含 padding 文件数",
+    "path": "item6_selfcheck.attention_mask_audit.n_files_with_padding",
+    "expected": "0",
+    "got": 0,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "总步数",
+    "path": "item6_selfcheck.attention_mask_audit.total_rows",
+    "expected": "69155",
+    "got": 69155,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "toy 自检 pass",
+    "path": "item6_selfcheck.toy_selfcheck.pass",
+    "expected": "True",
+    "got": true,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "层号分辨力 pass",
+    "path": "item6_selfcheck.layer_resolution_selfcheck.pass",
+    "expected": "True",
+    "got": true,
+    "tol": 0,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "层号分辨力 目标",
+    "path": "item6_selfcheck.layer_resolution_selfcheck.rho_target",
+    "expected": "0.9565",
+    "got": 0.9565,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "层号分辨力 测得",
+    "path": "item6_selfcheck.layer_resolution_selfcheck.cos_measured_between_layers",
+    "expected": "0.9571451223377447",
+    "got": 0.9571451223377447,
+    "tol": 1e-09,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "层号分辨力 误差",
+    "path": "item6_selfcheck.layer_resolution_selfcheck.abs_error_vs_target",
+    "expected": "0.000645",
+    "got": 0.0006451223377447191,
+    "tol": 5e-07,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "层号分辨力 交叉1",
+    "path": "item6_selfcheck.layer_resolution_selfcheck.cross_cos_L13_w_vs_a2",
+    "expected": "0.9371",
+    "got": 0.9370866689343326,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "层号分辨力 交叉2",
+    "path": "item6_selfcheck.layer_resolution_selfcheck.cross_cos_L14_w_vs_a",
+    "expected": "0.9366",
+    "got": 0.9366375364513466,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "层号分辨力 vs 恒定分量 L13",
+    "path": "item6_selfcheck.layer_resolution_selfcheck.cos_L13_w_vs_mean_dir",
+    "expected": "0.0892",
+    "got": 0.08922218624611114,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "层号分辨力 vs 恒定分量 L14",
+    "path": "item6_selfcheck.layer_resolution_selfcheck.cos_L14_w_vs_mean_dir",
+    "expected": "0.0917",
+    "got": 0.09173160018419357,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "层号分辨力 oofR L13",
+    "path": "item6_selfcheck.layer_resolution_selfcheck.oof_pearson_L13",
+    "expected": "0.9995",
+    "got": 0.9994544671285315,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "层号分辨力 oofR L14",
+    "path": "item6_selfcheck.layer_resolution_selfcheck.oof_pearson_L14",
+    "expected": "0.9995",
+    "got": 0.999456516632373,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§6 自检",
+    "desc": "余弦口径恒等式最大误差",
+    "path": "conventions.identity_max_abs_err",
+    "expected": "2.8e-16",
+    "got": 2.7755575615628914e-16,
+    "tol": 1e-16,
+    "ok": true
+   },
+   {
+    "group": "§8 结论",
+    "desc": "挪一个 block 的最大绝对变动",
+    "path": "item3_readout_grid.derived.one_block_max_abs_change",
+    "expected": "0.0339",
+    "got": 0.03387688081341983,
+    "tol": 5e-05,
+    "ok": true
+   },
+   {
+    "group": "§8 结论",
+    "desc": "结论/地板间距 confidence",
+    "path": "item3_readout_grid.derived.conclusion_over_floor.confidence",
+    "expected": "5.52",
+    "got": 5.523433303272235,
+    "tol": 0.005,
+    "ok": true
+   },
+   {
+    "group": "§8 结论",
+    "desc": "结论/地板间距 caution",
+    "path": "item3_readout_grid.derived.conclusion_over_floor.caution",
+    "expected": "3.84",
+    "got": 3.83806053708714,
+    "tol": 0.005,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "结论/p95 confidence",
+    "path": "item3_readout_grid.derived.conclusion_over_p95_floor.confidence",
+    "expected": "9.58",
+    "got": 9.583051795415562,
+    "tol": 0.005,
+    "ok": true
+   },
+   {
+    "group": "§5.1 阴性",
+    "desc": "结论/p95 caution",
+    "path": "item3_readout_grid.derived.conclusion_over_p95_floor.caution",
+    "expected": "6.89",
+    "got": 6.8913521783427365,
+    "tol": 0.005,
+    "ok": true
+   },
+   {
+    "group": "§8 结论",
+    "desc": "强度侧系统性偏差 R",
+    "path": "item4_injection_amplitude.variants.layer_profiles_json_20010.R_ratio_L14_over_L13",
+    "expected": "1.179",
+    "got": 1.1791997719930152,
+    "tol": 0.0005,
+    "ok": true
+   }
+  ]
+ },
+ "attribution_failing": [],
+ "all_pass": true
+}

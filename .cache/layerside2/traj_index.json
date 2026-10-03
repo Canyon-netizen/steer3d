@@ -1,0 +1,293 @@
+{
+ "total_rows": 69155,
+ "traj": [
+  {
+   "name": "aime__1983__1983_I_1__no_think",
+   "start": 0,
+   "stop": 784,
+   "rows": 784
+  },
+  {
+   "name": "aime__1983__1983_I_1__think",
+   "start": 784,
+   "stop": 1808,
+   "rows": 1024
+  },
+  {
+   "name": "aime__1984__1984_I_1__no_think",
+   "start": 1808,
+   "stop": 2832,
+   "rows": 1024
+  },
+  {
+   "name": "aime__1984__1984_I_1__think",
+   "start": 2832,
+   "stop": 3856,
+   "rows": 1024
+  },
+  {
+   "name": "aime__1985__1985_I_1__no_think",
+   "start": 3856,
+   "stop": 4796,
+   "rows": 940
+  },
+  {
+   "name": "aime__1985__1985_I_1__think",
+   "start": 4796,
+   "stop": 5820,
+   "rows": 1024
+  },
+  {
+   "name": "aime__1986__1986_I_1__no_think",
+   "start": 5820,
+   "stop": 6291,
+   "rows": 471
+  },
+  {
+   "name": "aime__1986__1986_I_1__think",
+   "start": 6291,
+   "stop": 7315,
+   "rows": 1024
+  },
+  {
+   "name": "aime__1987__1987_I_1__no_think",
+   "start": 7315,
+   "stop": 9363,
+   "rows": 2048
+  },
+  {
+   "name": "aime__1987__1987_I_1__think",
+   "start": 9363,
+   "stop": 11411,
+   "rows": 2048
+  },
+  {
+   "name": "aime__1988__1988_I_1__no_think",
+   "start": 11411,
+   "stop": 13459,
+   "rows": 2048
+  },
+  {
+   "name": "aime__1988__1988_I_1__think",
+   "start": 13459,
+   "stop": 15507,
+   "rows": 2048
+  },
+  {
+   "name": "aime__1989__1989_I_1__no_think",
+   "start": 15507,
+   "stop": 16199,
+   "rows": 692
+  },
+  {
+   "name": "aime__1989__1989_I_1__think",
+   "start": 16199,
+   "stop": 18247,
+   "rows": 2048
+  },
+  {
+   "name": "aime__1990__1990_I_1__no_think",
+   "start": 18247,
+   "stop": 19081,
+   "rows": 834
+  },
+  {
+   "name": "aime__1990__1990_I_1__think",
+   "start": 19081,
+   "stop": 21129,
+   "rows": 2048
+  },
+  {
+   "name": "aime__1991__1991_I_1__no_think",
+   "start": 21129,
+   "stop": 22386,
+   "rows": 1257
+  },
+  {
+   "name": "aime__1991__1991_I_1__think",
+   "start": 22386,
+   "stop": 24434,
+   "rows": 2048
+  },
+  {
+   "name": "aime__1992__1992_I_1__no_think",
+   "start": 24434,
+   "stop": 25956,
+   "rows": 1522
+  },
+  {
+   "name": "aime__1992__1992_I_1__think",
+   "start": 25956,
+   "stop": 28004,
+   "rows": 2048
+  },
+  {
+   "name": "aime__1994__1994_I_1__no_think",
+   "start": 28004,
+   "stop": 30052,
+   "rows": 2048
+  },
+  {
+   "name": "aime__1994__1994_I_1__think",
+   "start": 30052,
+   "stop": 32100,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2000__2000_I_1__no_think",
+   "start": 32100,
+   "stop": 32793,
+   "rows": 693
+  },
+  {
+   "name": "aime__2000__2000_I_1__think",
+   "start": 32793,
+   "stop": 34841,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2002__2002_I_1__no_think",
+   "start": 34841,
+   "stop": 35234,
+   "rows": 393
+  },
+  {
+   "name": "aime__2002__2002_I_1__think",
+   "start": 35234,
+   "stop": 37282,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2004__2004_I_1__no_think",
+   "start": 37282,
+   "stop": 37860,
+   "rows": 578
+  },
+  {
+   "name": "aime__2004__2004_I_1__think",
+   "start": 37860,
+   "stop": 39908,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2010__2010_I_1__no_think",
+   "start": 39908,
+   "stop": 40173,
+   "rows": 265
+  },
+  {
+   "name": "aime__2010__2010_I_1__think",
+   "start": 40173,
+   "stop": 42133,
+   "rows": 1960
+  },
+  {
+   "name": "aime__2012__2012_I_1__no_think",
+   "start": 42133,
+   "stop": 42480,
+   "rows": 347
+  },
+  {
+   "name": "aime__2012__2012_I_1__think",
+   "start": 42480,
+   "stop": 43929,
+   "rows": 1449
+  },
+  {
+   "name": "aime__2014__2014_I_1__no_think",
+   "start": 43929,
+   "stop": 45662,
+   "rows": 1733
+  },
+  {
+   "name": "aime__2014__2014_I_1__think",
+   "start": 45662,
+   "stop": 47710,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2016__2016_I_1__no_think",
+   "start": 47710,
+   "stop": 48170,
+   "rows": 460
+  },
+  {
+   "name": "aime__2016__2016_I_1__think",
+   "start": 48170,
+   "stop": 50218,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2020__2020_I_1__no_think",
+   "start": 50218,
+   "stop": 50938,
+   "rows": 720
+  },
+  {
+   "name": "aime__2020__2020_I_1__think",
+   "start": 50938,
+   "stop": 52986,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2021__2021_I_1__no_think",
+   "start": 52986,
+   "stop": 55034,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2021__2021_I_1__think",
+   "start": 55034,
+   "stop": 57082,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2022__2022_I_1__no_think",
+   "start": 57082,
+   "stop": 57839,
+   "rows": 757
+  },
+  {
+   "name": "aime__2022__2022_I_1__think",
+   "start": 57839,
+   "stop": 59887,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2023__2023_I_1__no_think",
+   "start": 59887,
+   "stop": 60232,
+   "rows": 345
+  },
+  {
+   "name": "aime__2023__2023_I_1__think",
+   "start": 60232,
+   "stop": 62280,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2024__2024_I_1__no_think",
+   "start": 62280,
+   "stop": 64328,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2024__2024_I_1__think",
+   "start": 64328,
+   "stop": 66376,
+   "rows": 2048
+  },
+  {
+   "name": "aime__2025__2025_I_1__no_think",
+   "start": 66376,
+   "stop": 67107,
+   "rows": 731
+  },
+  {
+   "name": "aime__2025__2025_I_1__think",
+   "start": 67107,
+   "stop": 69155,
+   "rows": 2048
+  }
+ ]
+}
