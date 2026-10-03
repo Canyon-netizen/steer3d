@@ -93,6 +93,13 @@ const PAD_R = 8;
 
 export default function StrengthLawPanel() {
   const [law, setLaw] = useState<Law | null>(null);
+  // 这批 32k 数据的强度**不在** linearity_law.json 里，它在干预产物里。
+  // 以前这句「The existing 32k batch sits at strength 0.2」里的 0.2 是
+  // **写死的字面量**，而它恰好等于 safe_regime.strength_max ⇒ 页面看着对、
+  // 判据全绿，产物一变就两边一起错（§8.3 ⑨ 那一类）。
+  // ⇒ 这里真的去取，取不到就**明说取不到**，不拿字面量兜底。
+  const [batch, setBatch] = useState<{ strength: number; layer: number } | null>(null);
+  const [batchErr, setBatchErr] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -101,6 +108,11 @@ export default function StrengthLawPanel() {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((j: Law) => alive && setLaw(j))
       .catch((e) => alive && setErr(String(e.message || e)));
+    fetch("/latent/data/steer_directions.json")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((j: { strength: number; layer: number }) =>
+            alive && setBatch({ strength: j.strength, layer: j.layer }))
+      .catch(() => alive && setBatchErr(true));
     return () => { alive = false; };
   }, []);
 
@@ -260,8 +272,19 @@ export default function StrengthLawPanel() {
           {law.conclusions.beyond_safe_regime.max_real_vs_random_gap_pp.toFixed(2)} pp
         </span>
         . Those points are not counterexamples — the quadratic term is simply
-        no longer the whole story there. The existing 32k batch sits at
-        strength 0.2, just inside the boundary.
+        no longer the whole story there.{" "}
+        {/* 跨产物声明：边界来自 linearity_law，这批强度来自 steer_directions。
+            以前那句 0.2 是字面量；现在真去取，取不到就明说取不到。 */}
+        <span data-law-boundary-note="true">
+          {batch
+            ? <>The existing 32k batch sits at strength {batch.strength}
+                 (L{batch.layer}), {" "}
+                 {batch.strength < safe.strength_max ? "just inside" : "exactly at"}
+                 the boundary of {safe.strength_max}.</>
+            : batchErr
+              ? "（32k 批次的强度取不到：不拿字面量兜底。）"
+              : "（正在取 32k 批次的强度…）"}
+        </span>
       </p>
 
       <p className="text-[10px] text-gray-600 leading-relaxed mt-1">

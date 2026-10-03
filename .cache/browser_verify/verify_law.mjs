@@ -20,6 +20,10 @@ const PROFILE = process.env.T3D_PROFILE
 const DATA = '/Users/zhourui/code/steer3d/frontend/public/latent/data';
 
 const LAW = JSON.parse(readFileSync(DATA + '/linearity_law.json', 'utf8'));
+// L12 要核的那句是**跨产物**声明：边界来自 linearity_law，
+// 而 32k 批次的强度在 steer_directions 里。判据必须两边都读，
+// 否则就是「判据与产品引用同一份东西」——等于没有独立参照。
+const DIR = JSON.parse(readFileSync(DATA + '/steer_directions.json', 'utf8'));
 const SHOW_LAYER = 20;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -70,6 +74,11 @@ try {
         spread: g('[data-spread]', ['data-spread']),
         nRandom: g('[data-law-random]', ['data-law-random']),
         outOfDepth: g('[data-outofdepth-from]', ['data-outofdepth-from']),
+        // L12 用：失效区那段里的「32k 批次强度」那句。
+        // ⚠ 第一版我另起一次 page.eval 去取，返回 null 而元素其实在
+        //   （探针已证明）⇒ 装置自己的问题。选择器要并进**这一次** eval。
+        boundaryNote: (() => { const n = el.querySelector('[data-law-boundary-note]');
+          return n ? (n.innerText || '').replace(/\\s+/g, ' ').trim() : null; })(),
         curve: (() => { const p = el.querySelector('[data-curve="analytic"]');
           if (!p) return null;
           const b = p.getBoundingClientRect();
@@ -207,7 +216,47 @@ try {
     .filter(e => e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error')
     .map(e => (e.params.args || []).map(a => a.value ?? a.description ?? '').join(' '))
     .filter(t => !/favicon|Failed to load resource/i.test(t));
-  rec('L11 页面无 console error', errs.length === 0,
+  // L12 失效区那句话里的批强度必须**来自 steer_directions.json**，不是字面量。
+//     第一版那句是 `strength 0.2, just inside the boundary` 的硬编码，
+//     而 0.2 恰好等于 safe_regime.strength_max ⇒ 页面看着全对、判据全绿。
+//     产品侧已改为真去取；判据侧必须独立地从另一份产物核。
+rec('L12 跨产物声明：32k 批次的强度必须来自 steer_directions，且不许是字面量',
+  (() => {
+    const t = st.boundaryNote;
+    if (t == null) return false;
+    // ⚠ 不能用 `t.includes(String(DIR.strength))` ——
+    //   同一段里还有「the boundary of 0.2」，那个 0.2 会把 includes 喂饱。
+    //   我第一版就是这么写的，变异把批次强度改成 0.5、这一条**照样绿**。
+    // ⇒ 必须把「sits at strength 后面的那个数」单独**抠出来**比。
+    const got = t.match(/sits at strength\s*([\d.]+)/)?.[1];
+    const gotLayer = t.match(/\(L(\d+)\)/)?.[1];
+    return got === String(DIR.strength) && gotLayer === String(DIR.layer)
+        && t.includes(String(LAW.conclusions.safe_regime.strength_max));
+  })(),
+  `产物 steer_directions.strength=${DIR.strength} layer=${DIR.layer}；`
+  + `linearity safe_regime.strength_max=${LAW.conclusions.safe_regime.strength_max}；`
+  + `页面「${st.boundaryNote == null ? '（该段不存在）' : st.boundaryNote.slice(0, 96)}」`);
+
+// L13 源级：L12 抓得住「值写错」，**抓不住「值恰好正确却写死」** ——
+//     那种情况下渲染逐字相同，L12 必然绿。这正是 §8.3 ⑨ 说的那一类，
+//     只能问源码。本条直接读组件源码，禁止 `sits at strength` 后面跟字面量。
+rec('L13 源级：失效区那句话的批次强度不许是字面量（L12 在这一层无解）',
+  (() => {
+    const raw = readFileSync('/Users/zhourui/code/steer3d/frontend/components/'
+                             + 'StrengthLawPanel.tsx', 'utf8');
+    // ⚠ 必须先**剥掉 // 注释**再查。
+    //   我第一版直接 indexOf('sits at strength')，命中的居然是自己写的中文注释
+    //   ——「…sits at strength 0.2」里的 0.2 是**写死的字面量**，而它恰好等于…
+    //   ⇒ 于是在**正确源码上**就判红。注释里提旧字面量是合法的。
+    const code = raw.split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+    if (!/\{batch\.strength\}/.test(code)) return false;
+    // 剥完注释后，任何 `sits at strength` 后面都不该紧跟数字字面量
+    return !/sits at strength\s+\d/.test(code);
+  })(),
+  '源码里 sits at strength 后面必须写 {batch.strength}；'
+  + '写成字面量时页面与真值相同，L12 那一层在构造上无解');
+
+rec('L11 页面无 console error', errs.length === 0,
       errs.length ? errs.slice(0, 2).join(' | ') : 'none');
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 400));
