@@ -143,7 +143,12 @@ def main():
         #   ⇒ TypeError: PosixPath % str。第一版就这么每条都崩。
         env = dict(os.environ,
                    T3D_URL="http://127.0.0.1:%s/" % port,
-                   T3D_PROFILE=str(ROOT / ("profile_ml_" + which)))
+                   # ⚠ 目录要放在 .cache/browser_verify 下面。第一版写成
+        #   ROOT / ("profile_ml_" + which)
+        # 于是 Chromium 的 profile 直接落在**仓库根目录**，六条变异留下
+        # 六个未跟踪目录。路径层级要在拼接之后再补。
+                   T3D_PROFILE=str(ROOT / ".cache/browser_verify"
+                                 / ("profile_ml_" + which)))
         r = subprocess.run(["node", str(JUDGE)], capture_output=True, text=True,
                            timeout=420, env=env)
         out = r.stdout + r.stderr
