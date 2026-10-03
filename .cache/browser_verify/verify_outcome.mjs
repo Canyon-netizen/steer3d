@@ -214,6 +214,8 @@ try {
             l0survives: g('data-ca-l0-survives'),
             l2declared: g('data-ca-l2-declared'),
             l2supported: g('data-ca-l2-supported'),
+            l6declared: g('data-ca-l6-declared'),
+            l6supported: g('data-ca-l6-supported'),
             selfDeclared: g('data-ca-self-declared'),
             selfSupported: g('data-ca-self-supported'),
           };
@@ -879,14 +881,34 @@ try {
       ML0 ? ML0.slice(0, 220) : '缺 [data-ca-item="l0"]');
 
   const ML6 = C3.items.l6 || '';
+  const L6A = byId('l6-no-random-arm').audit;
+  // ⚠ 原来这一条是 `ML6.includes('6') && ML6.includes(String(supported))`。
+  //   那是个**子串谓词，作用域大于被核量** —— 同一句里有两个诱饵数字：
+  //     「声明 **L6**」      ← declared，喂 includes('6')
+  //     「升到 **L5** 只需」  ← cheapest_next_step.to_level，喂 includes('5')
+  //   实测（对真实渲染文本跑这个谓词）：
+  //     supported=5 ⇒ 谓词绿，页面却印 L4   ← 假绿
+  //     supported=6 ⇒ 谓词绿，页面却印 L4   ← 假绿
+  //   supported=1 / 8 才正确判红（句中根本没有那两个数）。
+  // ⇒ 而组件**早就发了** data-ca-l6-declared / data-ca-l6-supported，
+  //   与 l0 / l2 / self 三行同款，却只有 l6 这一行退回子串匹配。
+  //   修法：读那两个属性，并把文本断言**锚定到句子结构**而不是裸 includes。
   rec('M2 「声明 L6 ⇒ 实测降到 L4」必须印出，并点名缺的是随机臂',
-      byId('l6-no-random-arm').audit.declared_level === 6
-      && byId('l6-no-random-arm').audit.max_level_supported < 6
-      && ML6.includes('6') && ML6.includes(String(byId('l6-no-random-arm').audit.max_level_supported))
+      L6A.declared_level === 6
+      && L6A.max_level_supported < 6
+      // ① 属性侧：逐值等于产物（l0/l2/self 已经是这个口径）
+      && Number(C3.l6declared) === L6A.declared_level
+      && Number(C3.l6supported) === L6A.max_level_supported
+      // ② 文本侧：**锚定结构**「声明 L6 ⇒ L4」，裸 includes 已被上面证明会被喂饱
+      && new RegExp(`声明\\s*L${L6A.declared_level}\\s*⇒\\s*L${L6A.max_level_supported}(?![0-9])`)
+             .test(ML6)
       && /随机方向臂/.test(ML6)
       && /排除不了/.test(ML6)
-      && !!byId('l6-no-random-arm').audit.cheapest_next_step,
-      ML6 ? ML6.slice(0, 230) : '缺 [data-ca-item="l6"]');
+      && !!L6A.cheapest_next_step,
+      ML6 ? `属性 l6declared=${C3.l6declared} l6supported=${C3.l6supported}`
+             + `（产物 ${L6A.declared_level}/${L6A.max_level_supported}）; `
+             + ML6.slice(0, 190)
+           : '缺 [data-ca-item="l6"]');
 
   const MSL = C3.items.self || '';
   rec('M3 本项目自己的那句话必须被这把尺子量过，并印出实测级别',

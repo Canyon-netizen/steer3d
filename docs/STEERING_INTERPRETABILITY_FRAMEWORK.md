@@ -3070,3 +3070,88 @@ C5 清单里最要紧的一段在 `StrengthLawPanel`：失效区那句话里
     M3 图例改回「四个命名」          → L14 红（14/15）
     M4 层跨度改回「0–27」           → F8 红（17/18）
     每条都只有它自己红 ⇒ 归因干净
+
+#### 第九笔：守卫自己退回子串匹配，而同一句里有两个诱饵数字
+
+C4 报「21 个标记页面上有、但没有任何判据读过」。这 21 个不能当缺口算 ——
+必须逐个问「它承载的信息有没有被别的判据覆盖」。逐个定性之后，
+只有一个是真问题，而且**不在产品侧，在守卫侧**。
+
+`InterventionOutcomePanel` 的 `claim-audit` 块给四行都发了专用属性：
+
+    data-ca-l0-declared / -supported / -survives
+    data-ca-l2-declared / -supported
+    data-ca-l6-declared / -supported     ← 前 7 个都被 verify_outcome 读了
+    data-ca-self-declared / -supported
+
+**唯独 `data-ca-l6-declared` / `data-ca-l6-supported` 没人读。**
+那一行的守卫退回到：
+
+    ML6.includes('6') && ML6.includes(String(max_level_supported))
+
+而 l6 那句渲染出来是：
+
+    「Injecting the vector improves accuracy」 声明 L6 ⇒ L4，
+    缺同范数随机方向臂，排除不了「随便什么方向都能做到」。升到 L5 只需：…
+
+⇒ **同一句里有三个数字，其中两个是诱饵**：`6` 是 declared，
+  `5` 是 `cheapest_next_step.to_level`。而 supported 现在恰好是 `4`，
+  全文只有那一处 —— 所以**今天它没有被喂饱**（实测 `includes("4")` 由 1 处满足，
+  就在 `L4` 上）。这一点必须说清楚，否则就成了「今天的判据是错的」。
+
+但把谓词对**真实渲染文本**跑一遍，假绿是**可证明的**：
+
+| 假设 supported | 旧谓词 | 页面实际印 | 结论 |
+|---|---|---|---|
+| **4**（真值） | 绿 | L4 | 正确 |
+| **5** | **绿** | L4 | **假绿** —— 被「升到 L5 只需」喂饱 |
+| **6** | **绿** | L4 | **假绿** —— 被「声明 L6」喂饱 |
+| 1 / 8 | 红 | L4 | 正确判红（句中没有那两个数） |
+
+⇒ 触发条件写得很具体：**产物的 `max_level_supported` 一旦落到 5 或 6，
+  这条判据就再也挡不住页面印错**。今天 L4 只是运气好。
+⇒ 这是 [[子串匹配的作用域必须与被核量一致]] 的第四个变体：
+  作用域（整句话）比被核量（「⇒ 后面那个级别」）大一号，
+  而句子里**恰好存在**能满足它的别处数字。
+
+**修法不是加严谓词，是改读那条已经存在的属性**（与 l0/l2/self 三行同款），
+并把文本断言**锚定到句子结构**：
+
+    Number(C3.l6declared) === L6A.declared_level
+    && Number(C3.l6supported) === L6A.max_level_supported
+    && new RegExp(`声明\\s*L${L6A.declared_level}\\s*⇒\\s*L${L6A.max_level_supported}(?![0-9])`)
+           .test(ML6)
+
+**变异验证**（当场做、当场还原，端口 21790）：
+把 l6 那行的 `L{s2.audit.max_level_supported}` 写死成 `L5` ⇒
+
+    RESULT FAIL 52/53，只有 M2 红
+    detail：属性 l6declared=6 l6supported=4（产物 6/4）;
+            「Injecting the vector improves accuracy」 声明 L6 ⇒ L5，…
+
+⇒ 这条输出同时是「**属性对、文案错**」的又一份铁证（G6 那一族）：
+  属性读出 4（数据驱动），文案印 L5。**只查属性会绿，只查文案会漏，两边都要。**
+
+##### 21 个未读标记的逐个定性
+
+| 标记 | 承载什么 | 结论 |
+|---|---|---|
+| `data-ca-l6-declared` / `-supported` | 「声明 L6 ⇒ 实测 L4」的机器可读形式 | **真洞（第九笔）**，已修 |
+| `data-diagonal` / `data-floor` | 每条 surface 方向的对角线 / 地板 | 重复 —— 同一数在单元格里以 `data-kind`+`data-value` 渲染，**B1 已核属性与可见文字** |
+| `data-decay` / `data-decay-label` | Δ=20 衰减倍数与其标签 | 重复 —— `data-decay-value` 被 **B3** 核（含可见文字 `N×`） |
+| `data-specific` / `data-strongest` | 每条轴的专属性与最强轴 | 重复 —— **D4 已独立从产物重算 strongest** 并核页面的 role 标记 |
+| `data-lower-bound-old` | 旧口径 12 | 重复 —— **G6** 逐字核了「上一版…它是 12 条」 |
+| `data-bound-caveat-text` | caveat 段的标记 | 重复 —— **G6** 读整块 innerText |
+| `data-control-delta100` | 阳性对照 Δ=100 的 cos | 重复 —— **G7** 逐字核了 control.note 全文（含该数） |
+| `data-rung-here` | 当前断言所在级 | 需 `verify_ladder` 单独确认（`data-rung` 已读） |
+| `data-candidate` | Δ=0 读出方向的名字（**可见文字**） | **未闭合缺口** —— 名字没人核，见下 |
+| `data-beats` | 每层是否超过位置对照 | 冗余中间量 —— 汇总值 `data-beating` 被读，且 `n_layers_beating_control` / `min_ratio_over_control` 都渲染成可见文字 |
+| `data-extent-fraction` / `-maxabs` / `data-has-entropy` / `data-on-screen-points` / `data-painted` / `data-rendered-points` | 2D 降级画布的运行时诊断（画了几个点、视野范围、有无熵） | **未闭合缺口** —— 这 6 个是**本环境唯一能验**的那条路径（C3 列的 14 个 WebGL 条件块验不了），却没人读 |
+
+⚠ 定性过程中**两次怀疑被自己推翻**，都记在这里以免下一个人重走：
+
+    ① 「min_ratio_over_control 没印出来」→ 错，270/286/301/317 行都渲染成可见文字
+    ② 「『≥ 对照的 3 倍』是写死的门槛」→ 错，那是 {d.axes.confidence?.criterion}，来自产物
+
+⇒ **判红之前先读源码**。一个洞的成本是一轮 build + 全量守卫，
+  而一个误报的成本是同样的，还会让真正的洞被淹掉。
