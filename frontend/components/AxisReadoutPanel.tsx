@@ -82,9 +82,13 @@ type Payload = {
   };
 };
 
-const AXES = ["confidence", "caution", "creativity", "reasoning"] as const;
+// ⚠ 原来这里有两条手抄名单，都已删除（§8.9 第十三笔）：
+//   const AXES      = ["confidence","caution","creativity","reasoning"]
+//   const AXIS_KEYS = ["confidence","caution","creativity","reasoning_deep"]
+// 行与矩阵列一律改为在组件内从 `Object.keys(d.axes)` 派生。
+// 留着它们的危害不是「多写了几个字符串」，而是**判据与产品共用同一份字面量** ⇒
+// 产物新增一条轴时两边同时看不到变化。
 const LAYERS = ["12", "14", "20"] as const;
-const AXIS_KEYS = ["confidence", "caution", "creativity", "reasoning_deep"] as const;
 const AXIS_LABEL: Record<string, string> = {
   confidence: "confidence",
   caution: "caution",
@@ -125,6 +129,15 @@ export default function AxisReadoutPanel() {
   }, []);
 
   const box = "rounded bg-bg/40 border border-border p-3";
+  // ⚠ §8.9 第十三笔：轴清单**必须**从产物派生，不能手抄。
+  //   我原来写死 `const AXES = ["confidence","caution","creativity","reasoning"]`
+  //   并用它 map 出每一行 ⇒ 产物加第 5 条轴时，面板会**静默只显示 4 行**。
+  //   而 verify_axis_readout.mjs 里**也**写死了同一份名单 ⇒ 判据照样全绿。
+  //   两边共用一个手写常量，任何新增都会被**双方同时忽略** ——
+  //   这比「判据漏读一个标记」更糟：判据的取样范围和被测范围是同一个字面量。
+  //   处置与第十一笔 L13「按 built_from 动态加载」同形。
+  const AXES = d ? Object.keys(d.axes) : [];
+  const nAxes = AXES.length;
   if (err) {
     return (
       <div className={box} data-axis="error">
@@ -150,7 +163,7 @@ export default function AxisReadoutPanel() {
          data-position-axis={d.headline.position_axis.join(",")}
          data-not-measured={d.headline.not_measured.join(",")}>
       <h3 className="text-xs text-gray-300 mb-1">
-        四条独立轴各自指向什么？<span className="text-gray-600">（对照已并排显示）</span>
+        {nAxes} 条独立轴各自指向什么？<span className="text-gray-600">（对照已并排显示）</span>
       </h3>
 
       <p className="text-[10px] text-gray-500 leading-relaxed mb-2">
@@ -169,6 +182,15 @@ export default function AxisReadoutPanel() {
           const st = STATUS_TEXT[a.status];
           const d0 = a.at_delta0;
           const mean = CAND_TEXT[d0.modal_candidate ?? ""] ?? d0.modal_candidate;
+          // ⚠ 矩阵的列**不能**用 AXES：`cos_per_axis` 的键是**方向名**，
+          //   第四个键叫 `reasoning_deep`，而 `axes` 的行键叫 `reasoning`。
+          //   我第一版把列也换成 AXES ⇒ `cos_per_axis['reasoning']` 是 undefined
+          //   ⇒ `.toFixed()` 在活页面上抛 TypeError，**整页崩**。
+          //   ⚠ 而 `tsc --noEmit` 与 `next build` 都通过 ——
+          //     编译期与构建期都看不出这个 undefined，**只有真页面能**。
+          //   处置：列从产物自己的 `cos_per_axis` 键派生。
+          const specAxes = a.specificity?.cos_per_axis
+            ? Object.keys(a.specificity.cos_per_axis) : [];
           return (
             <div key={ax} data-axis-row={ax} data-status={a.status}
                  data-beating={d0.n_layers_beating_control}
@@ -227,10 +249,11 @@ export default function AxisReadoutPanel() {
                      data-specific={String(a.specificity.specific)}>
                   <div className="text-[8.5px] text-gray-600">
                     同一格 <span className="font-mono text-gray-500">{a.specificity.cell}</span>{" "}
-                    的 w* 对四条轴：
+                    的 w* 对 {specAxes.length} 条轴：
                   </div>
-                  <div className="grid grid-cols-4 gap-1 mt-0.5">
-                    {AXIS_KEYS.map((k) => {
+                  <div className="grid gap-1 mt-0.5"
+                       style={{ gridTemplateColumns: `repeat(${specAxes.length}, minmax(0, 1fr))` }}>
+                    {specAxes.map((k) => {
                       const v = a.specificity!.cos_per_axis![k];
                       const isRow = k === a.specificity!.axis_of_report_row;
                       const isMax = k === a.specificity!.strongest_axis;
@@ -352,11 +375,23 @@ export default function AxisReadoutPanel() {
         {d.convention.control}
         <br />
         <span className="text-gray-500">判定口径：</span>
+        {/* ⚠ 这里只印 confidence 一条的 criterion。当前四份 criterion 逐字相同
+            （我验过去重后是 1 种），所以印哪条都一样；但**一旦它们分叉**，
+            印一条就会让读者以为那是四条共同的口径。
+            已交给判据 A10 核「各轴必须逐字相同」——
+            分叉时判据会红，而不是让页面安静地印错一条。 */}
         {d.axes.confidence?.criterion}
       </p>
       <p className="text-[10px] text-gray-600 leading-relaxed mt-1">
         <b className="text-gray-500">词表提醒：</b>
-        {d.headline.vocabulary_caveat} 上面的四行是四条独立轴，不是四个标签。
+        {/* data-vocab-caveat 是必需的，不是装饰：原来 C3 判据在**整块面板**的
+            innerText 里 find「四条独立轴」，而这块面板有**三处**含这个短语
+            （本 caveat、标题「N 条独立轴各自指向什么？」、以及下面那句尾注），
+            于是「caveat 被删掉」这件事 C3 根本看不见 ——
+            子串匹配的 haystack 比被核量的作用域大。
+            有了这个标记，判据才能把作用域收到这一句上。 */}
+        <span data-vocab-caveat="true">{d.headline.vocabulary_caveat}</span>
+        {" "}上面那 {nAxes} 行是 {nAxes} 条独立轴，不是 {nAxes} 个标签。
       </p>
     </div>
   );

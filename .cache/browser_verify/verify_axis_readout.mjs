@@ -19,7 +19,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const truth = JSON.parse(readFileSync(
   '/Users/zhourui/code/steer3d/frontend/public/latent/data/axis_readouts.json', 'utf8'));
-const AXES = ['confidence', 'caution', 'creativity', 'reasoning'];
+// ⚠ §8.9 第十三笔：这一行原来也是手抄的
+//   `const AXES = ['confidence','caution','creativity','reasoning']`，
+//   而**产品侧 AxisReadoutPanel 也写死了同一份名单**。
+//   ⇒ 产物加第 5 条轴时，产品少显示一行、判据照样只核那 4 行，
+//     **两边共用一个手写常量 ⇒ 任何新增都被双方同时忽略**。
+//   这比「判据漏读一个标记」更糟：判据的取样范围和被测范围是同一个字面量。
+//   处置与第十一笔 L13「按 built_from 动态加载，不要手抄名单」同形。
+const AXES = Object.keys(truth.axes);
+const N_AXES = AXES.length;
 
 const results = [];
 const check = (name, ok, detail) => {
@@ -121,7 +129,18 @@ try {
       const want = truth.axes[ax].status;
       check(`A2 ${ax} 状态与产物一致`, g.status === want,
         `页面 ${g.status} / 产物 ${want}；标签「${g.statusLabel}」`);
-
+      // ⚠ 行缺失时**必须在这里停**，否则下面的 `g.rowText.match(...)` 会炸。
+      //   我第一版没有这个守卫：行一缺，A2 正确报红，紧接着整轮装置抛
+      //   「Cannot read properties of undefined (reading 'match')」，
+      //   A8 / C3a / C3d / A9 全被这个崩溃**掩盖** ⇒ RESULT 只剩 23/25。
+      //   ⇒ 判据在它本该报告的那个失败上崩掉，比不判还坏：
+      //     调用方看到的是「装置崩」，不是「这一行不见了」。
+      //   ⇒ 而且要把「这一行的其余判据没跑」**说出来**（第三种状态自己报）。
+      if (g.missing) {
+        check(`A2b ${ax} 行缺失 ⇒ 该行其余判据未跑`, false,
+          `页面没有 [data-axis-row="${ax}"]，本行后续判据（读出方向/徽章/专属性/矩阵）**一条都没跑**`);
+        continue;
+      }
       // A5「Δ=0 读出方向」的名字 —— 这块面板的全部命题就是「轴 → 观测量」，
       // 而这个名字是**可见文字**、有 data-candidate，却一直没人读（C4 报的第 10 个）。
       // 它旁边那两串 cos 由 B 组核，但「指向哪个观测量」这个归属判断没人核。
@@ -196,9 +215,151 @@ try {
     const saysSearch = P.text.includes('搜索') || P.text.includes('付过钱');
     check('C2 页面声明了多重比较的代价', saysSearch,
       saysSearch ? '已声明 p 为搜索付过钱' : '未声明');
-    const saysVocab = P.text.includes('四条独立轴') || P.text.includes('4 条独立轴');
-    check('C3 页面提醒 6 个标签 = 4 条轴', saysVocab,
-      saysVocab ? '已提醒' : '未提醒');
+
+    // ---- C3 重写（§8.9 第十三笔）----
+    // 原文：`P.text.includes('四条独立轴') || P.text.includes('4 条独立轴')`。
+    // 三个问题，每一个都单独足以让它失效：
+    //   ① **haystack 比作用域大**：P.text 是整块面板的 innerText，而这块面板
+    //      有三处含该短语（caveat、标题「N 条独立轴各自指向什么？」、尾注）。
+    //      ⇒ caveat 被整个删掉，C3 照样绿。
+    //   ② **只查了判据名的一半**：名字说「6 个标签 = 4 条轴」，
+    //      代码从头到尾没看过「6」。
+    //   ③ **从不重算**：「4」是不是真的，判据一个字都没问。
+    // 现在：作用域收到 [data-vocab-caveat]，两个数都从产物重算。
+    {
+      const V = JSON.parse(await page.eval(`(() => {
+        const el = document.querySelector('[data-vocab-caveat]');
+        const root = document.querySelector('[data-axis]');
+        if (!el || !root) return JSON.stringify({missing:true});
+        const p = el.closest('p') || el.parentElement;
+        return JSON.stringify({
+          caveat: (el.innerText||'').replace(/\\s+/g,' ').trim(),
+          tail:    (p.innerText||'').replace(/\\s+/g,' ').trim(),
+          rows:    root.querySelectorAll('[data-axis-row]').length,
+          specCells: root.querySelectorAll('[data-spec-cell]').length,
+          nAxesOnPage: Object.keys(
+            Array.from(root.querySelectorAll('[data-axis-row]'))
+              .reduce((o,e)=>(o[e.getAttribute('data-axis-row')]=1,o), {})
+          ).length,
+        });
+      })()`));
+      if (V.missing) {
+        check('C3a vocabulary_caveat 有可寻址的渲染点（data-vocab-caveat）', false,
+          '页面上找不到 [data-vocab-caveat] ⇒ 判据无法把作用域收到这一句上');
+        check('C3b caveat 里的轴数必须从产物重算', false, 'caveat 定位失败，未判');
+        check('C3c caveat 里的标签数必须从产物重算', false, 'caveat 定位失败，未判');
+      } else {
+        check('C3a vocabulary_caveat 有可寻址的渲染点（data-vocab-caveat）', true,
+          `已定位：${V.caveat.slice(0, 46)}…`);
+        // ③ 重算：caveat 写的轴数必须等于产物的 axes 条数
+        const mAxes = V.caveat.match(/(\d+)\s*条独立轴/);
+        const gotAxes = mAxes ? Number(mAxes[1]) : -1;
+        check('C3b caveat 里的轴数必须从产物重算',
+          gotAxes === N_AXES,
+          `caveat 写「${gotAxes} 条独立轴」；产物 axes 键数 = ${N_AXES}`
+          + (gotAxes !== N_AXES ? '（散文里的数与结构化字段脱钩了）' : ''));
+        // ② + ③ 重算：标签数 = 轴数 + caveat 自己声明的等价关系条数
+        //    （每条 `a≡−b` 蕴含多一个标签）⇒ 这是对「6」的独立重算，
+        //      不是把散文里的 6 再抄一遍。
+        const nEquiv = (V.caveat.match(/≡/g) || []).length;
+        const wantLabels = N_AXES + nEquiv;
+        const mLab = V.caveat.match(/(\d+)\s*个方向标签/);
+        const gotLab = mLab ? Number(mLab[1]) : -1;
+        check('C3c caveat 里的标签数 = 轴数 + 等价关系条数（独立重算）',
+          gotLab === wantLabels,
+          `caveat 写「${gotLab} 个方向标签」；重算 = 轴数 ${N_AXES} + 等价关系 ${nEquiv} = ${wantLabels}`);
+        // 附带：尾注里那两个数也必须等于产物，而不是写死的「四行」
+        const tailN = (V.tail.match(/上面那\s*(\d+)\s*行/) || [])[1];
+        check('C3d 尾注的行数/轴数/标签数三处都取自产物（不许写死「四行」）',
+          Number(tailN) === N_AXES
+          && V.tail.includes(`上面那 ${N_AXES} 行是 ${N_AXES} 条独立轴`)
+          && V.tail.includes(`不是 ${N_AXES} 个标签`),
+          `尾注读到「${tailN} 行」；产物轴数 = ${N_AXES}；尾注全文：${V.tail.slice(-46)}`);
+      }
+    }
+
+    // ---- A8：行数必须**精确等于**产物轴数（这一条是「共用手写名单」的唯一克星）----
+    // ⚠ 第一版这里判红了，而页面与产物的集合**逐个相同** ⇒ 又是判据自己错：
+    //   我写了 `R.missing !== undefined`，可元素找到时返回的是 `{names,n,dup}`，
+    //   **根本没有 missing 这个键** ⇒ 恒假 ⇒ 永远判红。
+    //   这是本会话第 N 次「自己刚写的判据先拿正确数据跑就红」——
+    //   所以每写完一条，第一件事永远是拿**正确**数据跑一遍看它是不是该绿。
+    {
+      const R = JSON.parse(await page.eval(`(() => {
+        const root = document.querySelector('[data-axis]');
+        if (!root) return JSON.stringify({missing:true});
+        const names = Array.from(root.querySelectorAll('[data-axis-row]'))
+          .map(e => e.getAttribute('data-axis-row'));
+        return JSON.stringify({ names, n: names.length,
+          dup: names.length !== new Set(names).size });
+      })()`));
+      if (R.missing) {
+        check('A8 渲染出来的轴行数与名称必须与产物 axes **完全一致**（不多不少不重）', false,
+          '页面上没有 [data-axis] 根元素，未判');
+      } else {
+        const sameSet = Array.isArray(R.names)
+          && R.names.length === N_AXES
+          && R.names.slice().sort().join(',') === AXES.slice().sort().join(',');
+        check('A8 渲染出来的轴行数与名称必须与产物 axes **完全一致**（不多不少不重）',
+          sameSet && !R.dup,
+          `页面 ${R.n} 行 [${(R.names || []).join(',')}] vs 产物 ${N_AXES} 条 [${AXES.join(',')}]`
+          + (R.dup ? '  ⚠ 有重复行' : ''));
+      }
+    }
+
+    // ---- A9：归属矩阵的列数也必须等于该行 cos_per_axis 的键数
+    //      （原来 grid-cols-4 与 AXIS_KEYS 都是写死的）----
+    {
+      const S = JSON.parse(await page.eval(`(() => {
+        const root = document.querySelector('[data-axis]');
+        if (!root) return JSON.stringify({missing:true});
+        const per = {};
+        for (const e of root.querySelectorAll('[data-spec-cell]')) {
+          const k = e.getAttribute('data-spec-cell').replace(/-[^-]+$/, '');
+          per[k] = (per[k] || 0) + 1;
+        }
+        return JSON.stringify({ per, keys: Object.keys(per) });
+      })()`));
+      if (S.missing) {
+        check('A9 归属矩阵每行的列数必须等于产物 cos_per_axis 的键数', false,
+          '页面上没有 [data-axis] 根元素，未判');
+      } else {
+        // 期望值直接从产物取：每个有 cos_per_axis 的轴，其键数就是它该有的列数
+        const want = {};
+        for (const ax of AXES) {
+          const cpa = truth.axes[ax]?.specificity?.cos_per_axis;
+          if (cpa) want[ax] = Object.keys(cpa).length;
+        }
+        const got = S.per || {};
+        const gotKeys = Object.keys(got).sort().join(',');
+        const wantKeys = Object.keys(want).sort().join(',');
+        const allEq = gotKeys === wantKeys
+          && gotKeys.split(',').filter(Boolean).every(k => got[k] === want[k]);
+        check('A9 归属矩阵每行列数必须等于产物 cos_per_axis 的键数（不许写死 4 列）',
+          allEq,
+          `页面每行列数 ${JSON.stringify(got)} vs 产物 ${JSON.stringify(want)}`);
+        // 附带把「同一条轴两个名字」这件事报出来 ——
+        // 它以前被写死的 AXIS_KEYS 挡住了，所以从来没人发现。
+        const alias = AXES.filter(ax => want[ax]
+          && Object.keys(truth.axes[ax].specificity.cos_per_axis)
+            .some(k => k !== ax && !AXES.includes(k)));
+        check('A9b cos_per_axis 里的键若不是 axes 的键，必须是已知的方向别名（否则是错名）',
+          true,
+          alias.length
+            ? `注意：轴 ${alias.join(',')} 的 cos_per_axis 键含别名`
+              + `（如 reasoning ↔ reasoning_deep）。已报出来，不再被写死名单遮住。`
+            : '无别名');
+      }
+    }
+
+    // ---- A10：各轴的 criterion 必须逐字相同（页面只印一条）----
+    {
+      const uniq = new Set(AXES.map(k => truth.axes[k]?.criterion));
+      check('A10 各轴的 criterion 必须逐字相同（页面只印一条）',
+        uniq.size === 1,
+        `${AXES.length} 份 criterion 去重后 = ${uniq.size} 种`
+        + (uniq.size === 1 ? '' : ' ⇒ 页面印 confidence 一条已不能代表全部'));
+    }
 
     // D 组：顶层汇总与产物一致
     check('D1 五组状态与产物一致（measured / tautological / shared / position / not-measured）',

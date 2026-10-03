@@ -147,14 +147,34 @@ PAY = {
                 "而它测出的是位置轴。所以下面六条「塌了」不是因为装置测不出。",
     },
     "char_pairwise_abs_cos": {k: round(v, 4) for k, v in miss["char_pairwise_abs_cos"].items()},
-    "char_pairwise_note": "两两余弦（逐折配对中位 |cos|）。数字↔换行 0.0195 是"
-                          "「缺口不是一条轴」这个结论的唯一依据。",
+    "char_pairwise_note": "两两余弦（逐折配对中位 |cos|）。数字↔换行 "
+                          + str(round(miss["char_pairwise_abs_cos"]["digit_mass|newline_mass"], 4))
+                          + " 是「缺口不是一条轴」这个结论的唯一依据。",
+    # ⚠ §8.9 第十三笔：这段原来**每个数都是字面量**，包括两个归属错的。
+    #   「Δ=20 塌 6.4×–42.1×」的下界 6.4 取自
+    #   **named_axis_readouts[0]**（top1_prob_renorm，一条命名轴），
+    #   而句子的主语是「这 4 条」= surface_directions —— 它们的 decay_x20
+    #   是 11.8 / 18.7 / 42.1 / 12.9，区间应为 **11.8–42.1**。
+    #   ⇒ 一个印在页面上的数，被算到了**不属于它的那一组**上，
+    #     而没有任何判据问过它（verify_subspace 只 includes('非循环')/('专属')）。
+    #   ⚠ 本文件是**被 git 跟踪的**（虽然 .cache/ 在 .gitignore 第 12/119 行 ——
+    #     当初被 force-add 过），所以**散文真正的源头在这里，不在 JSON**：
+    #     只改 JSON 会被下次重跑覆盖回去。
+    #   ⇒ 下面每一个数都从 rows / miss 现算，不写字面量。
+    #   ⚠ 唯一还留着的字面量是「4 条命名轴」：本产物的 convention 里
+    #     没有命名轴条数（named_axis_readouts 只有 2 条，是"读出过的"那两条，
+    #     与"命名轴 4 条"不是同一个集合）。已显式标出，不藏。
     "verdict": (
-        "缺口不是一条「表面形式」轴，是 4 条互相近乎正交的轴"
-        "（digit_mass ↔ newline_mass 只有 0.0195）。"
-        "这 4 条全部通过了「非循环（远高于打乱地板）」与"
-        "「专属（对 4 条命名轴 cos ≤ 0.258）」两条判据，"
-        "并且全部是 token 局部的（Δ=20 塌 6.4×–42.1×，而位置轴对照不塌）。"
+        "缺口不是一条「表面形式」轴，是 " + str(len(rows)) + " 条互相近乎正交的轴"
+        "（digit_mass ↔ newline_mass 只有 "
+        + str(round(miss["char_pairwise_abs_cos"]["digit_mass|newline_mass"], 4)) + "）。"
+        "这 " + str(len(rows)) + " 条全部通过了「非循环（远高于打乱地板）」与"
+        "「专属（对 4 条命名轴 cos ≤ "
+        + str(round(max(r["diagnostic"]["max_cos_to_named"] for r in rows), 3))
+        + "）」两条判据，"
+        "并且全部是 token 局部的（Δ=20 塌 "
+        + str(round(min(r["decay_x20"] for r in rows), 1)) + "×–"
+        + str(round(max(r["decay_x20"] for r in rows), 1)) + "×，而位置轴对照不塌）。"
     ),
     "not_claimed": (
         "以上全是**可读性**（哪个方向能线性预测哪个观测量），"

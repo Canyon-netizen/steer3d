@@ -3691,3 +3691,205 @@ C4 剩下那 16 个未读标记里，**只有一个是真缺口**，而它恰好
   **真缺口不再被淹在重复标记里**。
   （剩下的 7 个未读标记是 3D 条件块与运行期诊断，见上表第 1、2 行，
   本环境**不可验**，不是缺口。）
+
+#### 第十三笔：判据与产品**共用同一份手抄名单**，以及一个数被算到了不属于它的那一组
+
+第十一笔末尾我留了一句没人核的假设：
+
+> 其余 27 段都落在带标记祖先里（祖先属性**多半**带着同一句话的机器可读真值，
+> **是否真被核过仍要逐段看**）
+
+「多半」就是第十一笔那个形状。逐段看的第一个结果，是这一笔的全部内容。
+
+##### ① 最尖锐的一处：两边共用一个字面量，于是任何新增都被同时忽略
+
+`AxisReadoutPanel.tsx` 与 `verify_axis_readout.mjs` 里**各有一份**：
+
+    // 产品
+    const AXES = ["confidence", "caution", "creativity", "reasoning"] as const;
+    {AXES.map((ax) => { ... 这一行 ... })}
+    // 判据（第 22 行）
+    const AXES = ['confidence', 'caution', 'creativity', 'reasoning'];
+
+⇒ 产物 `axis_readouts.json` 的 `axes` 恰好也是这 4 条，**三者偶然一致**。
+  产物加第 5 条轴时：产品**少显示一行**，判据**照样只核那 4 行**、照样全绿。
+⇒ 这比「判据漏读一个标记」更糟：
+  **判据的取样范围和被测范围是同一个手写常量** ——
+  两者一起漂移时，没有任何东西会红。
+⇒ 处置与第十一笔 L13「按 `built_from` 动态加载，不要手抄名单」同形：
+  产品 `Object.keys(d.axes)`、判据 `Object.keys(truth.axes)`，
+  再加 **A8** 核「渲染出来的轴行数与名称必须与产物**完全一致**（不多不少不重）」。
+
+##### ② 改的过程中，活页面抓到一个**编译期看不见**的整页崩溃
+
+把矩阵的列也从 `AXES` 派生之后，页面崩了：
+
+    TypeError: Cannot read properties of undefined (reading 'toFixed')  at Array.map
+    ⇒ [data-axis] 整个元素消失、bodyLen 从 22963 掉到 103
+
+真因在产物里：
+
+    axes 的键                = ['confidence','caution','creativity','reasoning']
+    cos_per_axis 的键        = ['confidence','caution','creativity','reasoning_deep']
+
+`cos_per_axis` 的键是**方向名**（`reasoning_deep`），`axes` 的行键是 `reasoning` ——
+**同一条轴在产物里有两个名字**。用它去取值就是 `undefined`，`.toFixed()` 直接抛。
+
+⚠ **`tsc --noEmit` 与 `next build` 都通过。** 编译期与构建期都看不见它，
+  **只有真页面能**。这一条是「UI 改动必须浏览器实测」最直接的一次兑现。
+⇒ 处置：矩阵的列从产物**自己的** `cos_per_axis` 键派生。
+⇒ 附带：那两个名字的不一致以前**被写死的 `AXIS_KEYS` 挡住了** ——
+  写死的恰好是「对的那份」，所以「错的那份」永远不被发现。
+  现在 **A9b** 把它**报出来**（不判红，因为它是已知的方向别名，
+  但它必须出现在 detail 里，否则下一个人还会以为两边一样）。
+
+##### ③ C3 那条判据同时有三重毛病
+
+    // 原文
+    const saysVocab = P.text.includes('四条独立轴') || P.text.includes('4 条独立轴');
+    check('C3 页面提醒 6 个标签 = 4 条轴', saysVocab, ...);
+
+- **① haystack 比作用域大**：`P.text` 是整块面板的 innerText，
+  而「N 条独立轴」在**三处**出现（caveat、标题「N 条独立轴各自指向什么？」、尾注）
+  ⇒ **caveat 被整个删掉，C3 照样绿。**
+- **② 只查了判据名的一半**：名字说「6 个标签 = 4 条轴」，
+  代码从头到尾**没看过「6」**。
+- **③ 从不重算**：「4」是不是真的，判据一个字都没问。
+
+⇒ 处置：产品侧给 caveat 加 `data-vocab-caveat`（**让判据能把作用域收到这一句**，
+  没有它这条判据在原理上就写不出来），C3 重写为四条：
+
+    C3a caveat 有可寻址的渲染点（否则 C3b/C3c 只能「未判」）
+    C3b caveat 里的轴数 == Object.keys(axes).length
+    C3c caveat 里的标签数 == 轴数 + caveat 自己声明的 ≡ 条数   ← 对「6」的独立重算
+    C3d 尾注的行数/轴数/标签数三处都取自产物（不许写死「四行」）
+
+⚠ C3c 的重算方式值得记：不是把散文里的 6 再抄一遍，
+  而是用 **4 + 2 = 6**（每条 `a≡−b` 蕴含多一个标签）从结构**推**出来。
+  这与 L13「数字必须在 `built_from` 里有出处」同族，但更严：
+  L13 是找得到，L13c 是**算得出**。
+
+##### ④ 判据在它本该报告的那个失败上崩掉了
+
+把行数改成只渲染前 3 条（模拟手写名单漏一条）之后：
+
+    [FAIL] A2 reasoning 状态与产物一致: 页面 undefined / 产物 position_axis
+    [FAIL] 装置: Cannot read properties of undefined (reading 'match')
+    RESULT FAIL  23/25
+
+A2 **正确报红了**，但后面没有 `continue`，直接掉进 `g.rowText.match(...)`，
+整轮装置抛异常 ⇒ **A8 / C3a / C3d / A9 全被这个崩溃掩盖**。
+
+⇒ 判据在它本该报告的失败上崩掉，**比不判还坏** ——
+  调用方看到的是「装置崩」，不是「这一行不见了」。
+⇒ 补守卫，并且把「本行其余判据**一条都没跑**」**说出来**（第三种状态自己报）。
+
+##### ⑤ A8 自己第一次跑就红，红的是判据
+
+    [FAIL] A8 渲染出来的轴行数…: 页面 4 行 [confidence,caution,creativity,reasoning]
+                                vs 产物 4 条 [confidence,caution,creativity,reasoning]
+
+两边**逐个相同**。我写了 `R.missing !== undefined`，可元素找到时返回的是
+`{names, n, dup}` —— **根本没有 `missing` 这个键** ⇒ 恒假 ⇒ 永远判红。
+⇒ 每写完一条判据，**第一件事是拿正确数据跑一遍看它是不是该绿**。
+
+##### ⑥ 真正的产品缺陷：一个数被算到了不属于它的那一组
+
+子智能体普查全部产物时挖到的，我复核后确认：
+
+    判决原文：……这 4 条全部是 token 局部的（Δ=20 塌 6.4×–42.1×，而位置轴对照不塌）。
+    「这 4 条」= surface_directions，decay_x20 = 11.8 / 18.7 / 42.1 / 12.9
+              ⇒ 区间应为 11.8–42.1
+    6.4 的真身 = named_axis_readouts[0].decay_x20（top1_prob_renorm，**一条命名轴**）
+
+⇒ 一个印在页面上的数，被算到了**不属于它的那一组**上，
+  而没有任何判据问过它（C3 原来只 `includes('非循环')` / `includes('专属')`）。
+
+⚠ **散文真正的源头不是 JSON，是生成器** ——
+  `readable_subspace.json` 的 `verdict` 是
+  `.cache/xcheck/build_subspace_readout.py` 里的一段**字面量**。
+  ⚠ 而那个生成器**是被 git 跟踪的**（虽然 `.cache/` 在 `.gitignore` 第 12/119 行 ——
+    当初被 `git add -f` 加进去的，`.gitignore` 第 127 行还记着一次同类事故）。
+  ⇒ **只改 JSON 会被下次重跑覆盖回去。** 修生成器才是修根。
+
+⇒ 处置：把 `verdict` 里 5 个数**全部改成从 `rows` / `miss` 现算**，然后重跑生成器。
+  重跑后逐字段 diff：**只有 1 个字段变化**，正是那一处 ——
+  插值算出的 `4` / `0.0195` / `0.258` 与旧字面量**完全相同**
+  ⇒ 这证明**那几个字面量本来就是对的**，错的只有 decay 区间。
+  （`char_pairwise_note` 的 0.0195 也改成插值，重跑后逐字未变，同理。）
+
+⚠ 顺带一处自相矛盾：`readable_subspace.convention.note` 写着
+  「**全部数字来自本项目自己的脚本**，见 `.cache/xcheck/`。页面只负责显示。」
+  而 `verdict` 的数是字面量 ⇒ **这句出处声明被产物自己的内容推翻了。**
+
+⇒ **C3b / C3c**（`verify_subspace.mjs`）：
+
+    C3b 判决里的「Δ=20 塌 X×–Y×」必须等于那 4 条 decay_x20 的最小/最大
+    C3c 判决的 decay 区间不得混入命名轴的 decay（那是另一个集合）
+
+⚠ C3b 必须**按范围比对**而不是 `includes('6.4')` ——
+  改对之后 `includes('6.4')` 仍然会绿（6.4 在别处也出现）。
+
+**变异验证**（改 JSON，无需重建）：
+
+    把判决下界改回 6.4
+      → [FAIL] C3b: 判决写「6.4×–42.1×」；重算 = 11.8–42.1（11.8, 18.7, 42.1, 12.9）
+      → [FAIL] C3c: 命名轴 decay = 6.4, 12.9；判决下界 = 6.4；surface 下界 = 11.8 ⚠ 下界取自命名轴
+      → RESULT FAIL  40/42（恰好这 2 条）
+      → 重跑生成器还原 → 42/42
+
+##### 这一笔的其余变异（当场做、逐字还原）
+
+    产物侧：caveat 轴数 4→5、标签数 6→5、一份 criterion 分叉
+      → 恰好 C3b / C3c / A10 三条红，51/54
+    产品侧：行只渲染 3 条 / 删掉 data-vocab-caveat / 矩阵只渲染 3 列
+      → A8 / C3a / A9 红（+ A2b 明说「本行其余判据一条都没跑」+ D4 连带红）
+    产品侧：尾注写死「四行/四条/四个」
+      → 恰好 C3d 一条红，53/54
+
+##### 遗留：普查出的清单（**本轮只做了 6 个，其余未动**）
+
+子智能体把 23 份产物里所有「手写散文型字符串」的数字过了一遍，分成
+「本来就能重算却无人核」/「判据已守着」/「纯说明性」三类。与本笔同形、尚未处置的：
+
+| 产物 | 无人核的散文数字 | 可重算来源 |
+|---|---|---|
+| `axis_readouts` | `p_note` 的 9 / 4 / 400；4 处 `criterion` 的「3 层」；各 `specificity.note` 的 7 个数 | `convention.*`、`at_delta0.n_layers`、`cos_per_axis.*` |
+| `readable_subspace` | `bound_caveat` 的 4 组门槛敏感性（0.35→9 …）；`caution_absorbed` 的 0.5537 / 6 / 4；`control.note` 的 0.7087；`char_pairwise_note` | `headline.*`、`axis_readouts.specificity.pair_cos_confidence_caution` |
+| `heldout_readability` | 112 / 244 / 6 / 2 / 0.0925 / 0.0002 / 0.0839 / 1.15 / 2.05 / 0.301 / 1.50 | `headline.*`、`selfdup.*` 差值、`recipe.*`、`rows[4..5].*` |
+| `answer_power` | `verdict` 与 `not_claimed` 约 30 个数 | `full_verdicts`、`incomplete_breakdown`、`flips*` |
+| `steer_directions` | 21 / 23 / 20 / 5 / 15 / 6.1e-05 / 0.0343 / 0.0686 / 2.21 / 1.20 / 16 / 0.0931 | `closed_counts`、`blew_up.*`、`kl_contrast`、`length.*` |
+| `arm_asymmetry` | −0.0344 / 0.0060 / +0.0392 / 0.0046 / 0.74 | `metrics[0..2]` |
+| `logit_lens` | 43008 == 1536 × 28；48 / 24 / 32 | `sampling.*`、`model.n_layers` |
+| `token_backmap` | 4.421699 / 33.00 | `aggregate.rank.*` |
+| `vector_roles` | 0.149 / 16 / 391 / 27 / 48 / 45 | `denominators.*`、`necessity.*` |
+
+⚠ **给下一轮的三条警告**（子智能体实测出来的）：
+
+  1. **朴素 haystack 会造假绿**：`axis_readouts` 的 `0.985` 会命中
+     `per_layer.14.cos_ceiling.reasoning = 0.9844`，`0.965` 会命中某个 `p` 值，
+     `logit_lens` 的 `0.09` 会命中 `p_argmax`
+     ⇒ 照抄 L13 的 `nums.some()` 会造出新的假绿。新判据必须**逐字段切作用域**。
+  2. **同一份手抄可能横跨两份产物**：
+     `readable_subspace.caution_absorbed` 的 `0.5537` 与
+     `axis_readouts.specificity.pair_cos_confidence_caution` 是同一个数抄了两遍
+     ⇒ 只在一处加判据，另一处仍会漂。
+  3. **散文里还有按字面量硬编码的生成脚本**，它们本身就是「无人核」的证据：
+     `xcheck/build_subspace_readout.py` 的 `bound_caveat` / `caution_absorbed`、
+     `xcheck/build_heldout_readout.py:157`、`.cache/rolesverify/build_axis_readouts.py`。
+     ⇒ **判据要卡在生成器那一层**（源级禁止字面量），只卡 JSON 会漏。
+
+##### 这一笔的结果
+
+    verify_axis_readout  47 → 54/54   （A8 / A9 / A9b / A10 / C3a–d）
+    verify_subspace      40 → 42/42   （C3b / C3c）
+    页面标记 227 → 228（+1 = data-vocab-caveat），被读 220 → 221，覆盖率仍 97%
+    未读标记仍 7，真孤儿仍 0
+
+⇒ 一般形态三条：
+  1. **判据与产品共用一个字面量 ⇒ 两者一起漂移时无人会红。**
+     凡「被测集合」由手写常量决定的地方，判据必须改为**从产物派生**。
+  2. **编译通过不等于页面不崩。** `undefined.toFixed()` 在
+     `tsc` 与 `next build` 里都是合法的。
+  3. **散文的源头是生成脚本，不是 JSON。**
+     只改产物会在下一次重跑时被覆盖回去。

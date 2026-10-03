@@ -325,6 +325,35 @@ try {
     && P.notClaimed.includes('GPU'),
     `判决 ${P.verdict.length} 字 / 边界「${P.notClaimed.slice(0, 40)}」`);
 
+  // ---- C3b 判决里的 decay 区间必须**从那 4 条自己重算**（§8.9 第十三笔）----
+  // 原句写「Δ=20 塌 6.4×–42.1×」，而下界 6.4 取自
+  // **named_axis_readouts[0]**（top1_prob_renorm，一条**命名轴**），
+  // 句子主语却是「这 4 条」= surface_directions（11.8/18.7/42.1/12.9）。
+  // ⇒ 区间应为 11.8–42.1。判据原来只 includes('非循环')/('专属')，从不看数。
+  // ⚠ 判据必须**按范围比对**而不是 includes 那个写死的串 ——
+  //   includes('6.4') 在改对之后仍然会绿（6.4 在别处也出现过）。
+  {
+    const decays = truth.surface_directions.map(r => r.decay_x20);
+    const lo = Math.min(...decays), hi = Math.max(...decays);
+    const m = P.verdict.match(/Δ=20\s*塌\s*([\d.]+)×\s*[–-]\s*([\d.]+)×/);
+    const gotLo = m ? Number(m[1]) : NaN, gotHi = m ? Number(m[2]) : NaN;
+    check('C3b 判决里的「Δ=20 塌 X×–Y×」必须等于那 4 条 decay_x20 的最小/最大',
+      m && Math.abs(gotLo - lo) < 0.05 && Math.abs(gotHi - hi) < 0.05,
+      `判决写「${gotLo}×–${gotHi}×」；从 surface_directions[].decay_x20 重算 = `
+      + `${lo}–${hi}（${decays.join(', ')}）`
+      + (m ? '' : '  ⚠ 判决里根本没有「Δ=20 塌 X×–Y×」这个句式'));
+    // 顺带核另一个归属：下界不许取自命名轴（那是 2026-10-04 修掉的那个错）
+    const namedDecays = (truth.named_axis_readouts || []).map(x => x.decay_x20);
+    if (namedDecays.length) {
+      check('C3c 判决的 decay 区间不得混入命名轴的 decay（那是另一个集合）',
+        !namedDecays.some(v => Math.abs(v - gotLo) < 1e-9 && v < lo),
+        `命名轴 decay = ${namedDecays.join(', ')}；判决下界 = ${gotLo}；`
+        + `surface 下界 = ${lo}`
+        + (namedDecays.some(v => Math.abs(v - gotLo) < 1e-9 && v < lo)
+           ? '  ⚠ 下界取自命名轴' : ''));
+    }
+  }
+
   // E4 同一个量在页面上出现两次，就必须处处一致。
   // 这一条是被**截图**逼出来的：顶部已经改成「至少 14 条」，
   // 而底部 not_claimed 还写着「这 12 条」—— 页面自相矛盾，
