@@ -43,6 +43,17 @@ MUTS = {
     # not a pass. O8 hardcodes a value that cannot coincide.
     "O7": ("hardcodes the median instead of reading the artifact", "G3"),
     "O8": ("hardcodes a median that is not the artifact's", "G3"),
+    # ---- H 组：±v 配对检验（§4.13）。三条各打一条 H 判据 ----
+    # O9 把「CI 跨 0 ⇒ 分不开」这条判断写死成「都分得开」。
+    #    这是最容易犯的一类：只印一个 +3.52 的配对差，读者会以为有差异，
+    #    而它的 95% CI 是 [-6.04, +12.17]。
+    "O9": ("hardcodes every arm as distinguishable", "H3"),
+    # O10 删掉「没有同范数随机对照 ⇒ 不构成方向专属性」这条限制。
+    #     数字全对、结论也还对，但读者会以为这就是方向专属性的证据。
+    "O10": ("drops the missing-random-control limitation", "H5"),
+    # O11 把配对差写死成两臂合并的差（= 0），属性照旧。
+    #     专打「文案撒谎、属性诚实」。
+    "O11": ("hardcodes the paired diff while attributes stay honest", "H2"),
 }
 
 
@@ -191,6 +202,31 @@ def apply(which):
         edit(PANEL,
              "        <Stat label=\"first changed step\" v={stats.fdMed != null ? `~${stats.fdMed}` : \"—\"}",
              "        <Stat label=\"first changed step\" v=\"~13\"", "O7")
+    elif which == "O9":
+        # 判可分性的三元写死成 true —— 所有行都会印「两臂分得开」
+        edit(PANEL,
+             "                {m.distinguishable ? (",
+             "                {true ? (  // MUT_O9",
+             "O9")
+    elif which == "O10":
+        edit(PANEL,
+             "            <b>但这不构成方向专属性：</b>本批次\n"
+             "            <b>没有同范数随机方向对照臂</b>。同幅度的随机方向注入同样会产生\n"
+             "            非零 KL、同样会让一致率低于 1，也可能左右不对称。\n"
+             "            缺的那一格已经定位清楚 ——\n"
+             "            <b>同层 {arm.layer}、同强度 ±{arm.strength}、同这 {arm.n_pairs} 道题、\n"
+             "            随机单位方向</b>，跑出来直接和上面两个数比。\n"
+             "            在补上之前，只能说「这条轴的响应不对称且可测」，\n"
+             "            不能说「这个效果是 confidence 特有的」。",
+             "            本批次的控制臂是零强度对照。",
+             "O10")
+    elif which == "O11":
+        # 属性照旧（data-arm-diff 仍读产物），只有可见文字改成合并差
+        edit(PANEL,
+             "                  配对差 {m.paired_diff >= 0 ? \"+\" : \"\"}{m.paired_diff.toFixed(4)} ±{\" \"}\n"
+             "                  {m.paired_sem.toFixed(4)}",
+             "                  配对差 +0.0000 ± 0.0000  // MUT_O11",
+             "O11")
     elif which == "O8":
         edit(PANEL,
              "        <Stat label=\"token agreement\" v={stats.agreeMed != null ? pct(stats.agreeMed) : \"—\"}",
