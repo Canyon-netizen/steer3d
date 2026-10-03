@@ -97,6 +97,33 @@ try {
     && g.text.includes('选定的'),
     g.missing ? '整块缺失' : g.text.slice(0, 78));
 
+  // ---------- G6 caveat 段里的**数字**必须逐个对得上 ----------
+  // ⚠ G1 只核了那段散文的**措辞**（候选集合 / 门槛 / 选定的），
+  //   里面的**数字**一个都没核。而下界、旧值、候选数、门槛
+  //   各自的属性（data-lower-bound / data-bound-old / data-n-candidates）
+  //   在**别的元素**上 —— 属性全对、这段话撒谎，没有任何判据会红。
+  //   这就是 N4「只查属性不看渲染文本」的同一个洞，只是换了个块。
+  // ⇒ 判据主体必须是**读者看到的那段话**本身。
+  const H = truth.headline;
+  const need = [
+    [`至少 ${H.readable_directions_lower_bound} 条`, '当前下界'],
+    [`这 ${H.n_candidates} 个`, '候选数'],
+    [`它是 ${H.readable_directions_lower_bound_old} 条`, '旧值（须带「上一版」框定）'],
+    [`|cos| < ${H.separation_threshold}`, '分隔门槛'],
+  ];
+  const miss = need.filter(([s]) => !g.text.includes(s)).map(([, w]) => w);
+  // 旧值必须**只**出现在「上一版」这一句里，不能被当成当前结论。
+  const oldBare = (g.text.match(new RegExp('(?<!上一版候选只有 20 个里的 14 个时，)'
+    + `它是?\\s*${H.readable_directions_lower_bound_old}\\s*条`, 'g')) || []).length;
+  const oldFramed = g.text.includes(`上一版候选只有 20 个里的 14 个时，`
+    + `它是 ${H.readable_directions_lower_bound_old} 条`);
+  check('G6 caveat 段里印的每个数字都必须与产物一致（属性对≠文案对）',
+    !g.missing && miss.length === 0 && oldFramed && oldBare <= 1,
+    g.missing ? '整块缺失'
+      : (miss.length ? '缺：' + miss.join('、')
+         : `全部对上（14 / 20 / 12 / 0.5），旧值带「上一版」框定=${oldFramed}`)
+        + `　段文：${g.text.slice(0, 120)}`);
+
   // ⚠ 块缺失时 `g.rows` 是 undefined。第一版直接 `g.rows[sep]` ⇒ TypeError
   // 被外层 catch 记成「装置错」，结果 G3/G4/G5 **根本没跑**。
   // 断言必须在被检验对象缺失时**干净地红**，而不是把后面的检查一起吞掉。
