@@ -124,6 +124,35 @@ try {
          : `全部对上（14 / 20 / 12 / 0.5），旧值带「上一版」框定=${oldFramed}`)
         + `　段文：${g.text.slice(0, 120)}`);
 
+  // ---------- G7 两段「承载判决的话」必须逐字印出 ----------
+  // ⚠ 它们以前连 data-* 都没有 ⇒ 没有任何判据读得到，而两段都带关键数字：
+  //   caution_absorbed  cos(confidence,caution)=0.5537 已超 0.5 门槛 / 被吸收 6 条 / 其中 4 条同源
+  //   control.note       Δ=100 仍有 0.7087 ⇒ 装置有能力测出持续方向（**阳性对照论证**）
+  //   已有判据只核了同一面板的 4 个 cos 格子与 caveat 段的数字，
+  //   这两段承载的是**归属与阳性对照两个判决**，一个都没核。
+  // ⇒ 判据主体是**读者看到的那两段话**本身，要求逐字命中产物。
+  const notes = JSON.parse(await page.eval(`(() => {
+    const g = s => { const e = document.querySelector(s);
+                     return e ? (e.innerText||'').replace(/\\s+/g,' ').trim() : null; };
+    return JSON.stringify({
+      absorbed: g('[data-absorbed-note]'),
+      control : g('[data-control-note]'),
+    });
+  })()`));
+  const flat = t => String(t || '').replace(/\s+/g, ' ').trim();
+  const pairs = [
+    ['caution_absorbed', truth.headline.caution_absorbed, notes.absorbed],
+    ['control.note', truth.control.note, notes.control],
+  ];
+  for (const [name, want, got] of pairs) {
+    check(`G7 ${name} 逐字印出（它承载判决，不是装饰）`,
+      !!want && !!got && flat(got) === flat(want),
+      got == null
+        ? `页面上找不到该段（没有 data-* 标记 ⇒ 没人能查它）`
+        : (flat(got) === flat(want) ? '逐字一致'
+           : '⚠ 页面上印的与产物**不同**') + `　${flat(got).slice(0, 104)}`);
+  }
+
   // ⚠ 块缺失时 `g.rows` 是 undefined。第一版直接 `g.rows[sep]` ⇒ TypeError
   // 被外层 catch 记成「装置错」，结果 G3/G4/G5 **根本没跑**。
   // 断言必须在被检验对象缺失时**干净地红**，而不是把后面的检查一起吞掉。

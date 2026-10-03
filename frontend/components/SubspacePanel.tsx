@@ -183,7 +183,12 @@ export default function SubspacePanel() {
         </p>
       </div>
 
-      <p className="text-[9.5px] text-gray-600 leading-relaxed mb-2">
+      {/* ⚠ 这两段（caution_absorbed / control.note）都带关键数字和整条推理链，
+          以前连 data-* 都没有 ⇒ 没有任何判据读得到。
+          与 G6 / L12 / D6 同一族：承载判决的那一句必须自己带标记，
+          并配一条直接读它渲染文本的判据。 */}
+      <p className="text-[9.5px] text-gray-600 leading-relaxed mb-2"
+         data-absorbed-note="true">
         {h.caution_absorbed}
       </p>
 
@@ -287,7 +292,8 @@ export default function SubspacePanel() {
           </span>{" "}
           （<span className="font-mono">{d.control.decay_x20}×</span>，几乎不塌）
         </p>
-        <p className="text-[8.5px] text-gray-500 mt-0.5 leading-snug">{d.control.note}</p>
+        <p className="text-[8.5px] text-gray-500 mt-0.5 leading-snug"
+           data-control-note="true">{d.control.note}</p>
       </div>
 
       <p className="text-[9.5px] text-gray-400 leading-relaxed mt-2 pt-2 border-t border-border/60"
