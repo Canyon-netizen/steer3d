@@ -91,6 +91,11 @@ try {
   rec('L0 强度定律面板已挂载', mounted, mounted ? '' : '等了 ~18s');
 
   let st = null;
+  // ⚠⚠ 第二十六笔 C2b：下面 `g()` 的说明**原来写在 page.eval 的模板串内部** ——
+  //   那里 `//` 不是注释，是要发给浏览器 eval 的字符串。页面侧不会坏
+  //   （每条只注释自己那一行），坏在扫描器：`markers_in()` 刻意
+  //   「保留字符串字面量内容」⇒ 注释里提到的 data-gap 会被当成真的读取引用。
+  //   今天无害，可页面一旦删掉那个属性，C2 就会报一个由注释制造的假死引用。
   for (let i = 0; i < 15; i++) {
     await sleep(1000);
     st = await page.eval(`(() => {
@@ -99,8 +104,8 @@ try {
       const g = (sel, attrs) => {
         const n = el.querySelector(sel); if (!n) return null;
         const o = { text: (n.textContent || '').trim() };
-        // attrs 传**完整**属性名。第一版传的是 'gap'/'spread'，于是
-        // getAttribute('gap') 恒为 null，判据红；页面上的 data-gap 好好的。
+        // attrs 传**完整**属性名。第一版传的是 'gap'/'spread'（短名），
+        //   getAttribute 拿不到带前缀的属性，判据恒红而页面好好的。
         for (const a of attrs) o[a] = n.getAttribute(a);
         const b = n.getBoundingClientRect();
         o.cx = b.x + b.width / 2; o.cy = b.y + b.height / 2;

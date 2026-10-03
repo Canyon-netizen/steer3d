@@ -22,14 +22,24 @@ const DATA = '/Users/zhourui/code/steer3d/frontend/public/latent/data';
 const VECD = '/Users/zhourui/code/steer3d/backend/examples/output/steering_vectors';
 
 const RC = JSON.parse(readFileSync(DATA + '/vector_random_control.json', 'utf8'));
+const ROLES = JSON.parse(readFileSync(DATA + '/vector_roles.json', 'utf8'));
+const AP = JSON.parse(readFileSync(DATA + '/answer_power.json', 'utf8'));
 const REG = JSON.parse(readFileSync(VECD + '/steering_vectors.json', 'utf8'));
 // 真值来源：注册表里每条 derived_from 记一次"这个方向是另一个取反来的"。
 // 页面说几对，必须和这里数出来的一样。
 const derived = Object.entries(REG).filter(([, v]) => v.derived_from).map(([k]) => k);
 const npairs = derived.length;
 const unpairedCos = Object.values(RC.unpaired_cosine)[0].cosine;
-const INJECT_LAYER = '20';
-const LAYERS = ['12', '14', '16', '20', '24'];
+// ⚠⚠ 第二十六笔：这三行原来也是手抄的 ——
+//   const INJECT_LAYER = '20';
+//   const LAYERS = ['12', '14', '16', '20', '24'];
+// 写死它们的**双重**代价：产物换一层，判据与产品**两边一起错**，
+// 于是「产品说 L16、产物说 L20」这种错，在这个文件里**核不出来** ——
+// 判据自己就假绿。第十三轮修 AXES 时是这个形状，LAYERS/INJECT_LAYER 被漏了。
+// ⇒ 判据与产品必须从**同一个字段**派生，且下面 S9/S13 会核「页面那一份也等于它」。
+const INJECT_LAYER = String(ROLES.layers.journal_injection);
+const EXTRACT_LAYER = String(ROLES.layers.native_extraction);
+const LAYERS = RC.layers.map(String);
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = [];
@@ -95,6 +105,13 @@ try {
   }
   rec('S0 结构面板已挂载', mounted, mounted ? '' : '等了 ~18s');
 
+  // ⚠⚠ 第二十六笔 C2b：下面这段采集的说明**原来写在 page.eval 的模板串内部** ——
+  //   那里 `//` 不是注释，是要发给浏览器 eval 的字符串。
+  //   页面侧不会坏（每条只注释自己那一行），坏在扫描器：
+  //   `markers_in()` 刻意「保留字符串字面量内容」，于是注释里的
+  //   data-drawn / data-rnd-line 会被当成**真的读取引用**。
+  //   今天无害（那几个标记页面上都有），可一旦页面删掉其中一个，
+  //   C2 就会报一个由注释制造的假死引用 ⇒ 注释必须写在真正的注释位置。
   let st = null;
   for (let i = 0; i < 15; i++) {
     await sleep(1000);
@@ -107,8 +124,6 @@ try {
         drawn: parseFloat(r.getAttribute('data-drawn')),
         top: parseFloat(r.getAttribute('data-top')),
         flip: r.getAttribute('data-flip') || '',
-        // 真·渲染出来的几何：getBoundingClientRect 与 data-drawn 必须一致，
-        // 否则 data-drawn 自己就是个谎。
         rectW: r.getBoundingClientRect().width,
         rectH: r.getBoundingClientRect().height,
       }));
@@ -124,17 +139,41 @@ try {
         // 表头里的对照数量。写死 200 而产物改了 n_random，页面会继续说
         // "200 random controls" —— 分母错了，整段结论的分母就错了。
         nRandomHdr: el.querySelector('[data-n-random]')?.getAttribute('data-n-random') ?? null,
-        // 线的**实际绘制几何**。只读 data-rnd-line 不够：V2 那条变异
-        // 只把 x1/x2 换成满宽、属性原封不动，于是读属性的判据全绿，
-        // 而屏幕上是一条横贯全图的线 —— 正好与事实相反。
-        // 竖线的包围盒宽≈0；横线宽≈整条绘图区。
         lnBox: ln ? (() => { const b = ln.getBoundingClientRect();
           return { w: b.width, h: b.height, left: b.left, right: b.right }; })() : null,
         peaks: [...el.querySelectorAll('[data-peak]')].map(s => ({
           dir: s.getAttribute('data-peak-dir'),
           l: s.getAttribute('data-peak'),
           f: parseFloat(s.getAttribute('data-peak-frac')),
+          // 每一行都要报出它用的提取层。缺这个属性时下面 S13 无法区分
+          // 「页面用了别的层」与「页面根本没接这个字段」。
+          x: s.getAttribute('data-extract-layer'),
           t: (s.textContent || '').trim() })),
+        // 散文里那个「N of the M peak at LK」——第二十六笔新增的现算断言。
+        peakAtExtract: el.querySelector('[data-peak-at-extract]')
+          ? parseInt(el.querySelector('[data-peak-at-extract]').getAttribute('data-peak-at-extract'), 10) : null,
+        nDirs: el.querySelector('[data-n-dirs]')
+          ? parseInt(el.querySelector('[data-n-dirs]').getAttribute('data-n-dirs'), 10) : null,
+        extractLayer: el.querySelector('[data-peak-at-extract]')
+          ? el.querySelector('[data-peak-at-extract]').getAttribute('data-extract-layer') : null,
+        // ⚠⚠ 第二十六笔变异台加的：页面**实际扫了哪几层**。
+        //   只核答案（峰值层）有个盲区：把层名单从 5 层截断成前 2 层，
+        //   六个方向的 argmax **一个都不变**（L14 在 L12/L14 里恒为最大）
+        //   ⇒ 页面输出逐字相同，核 peak 的判据全绿。
+        //   ⇒ 判据必须落在**输入**上：扫的层数/层名 == 产物的 layers。
+        layersScanned: (() => {
+          const s = el.querySelector('[data-layers-scanned]');
+          const raw = s ? s.getAttribute('data-layers-scanned') : null;
+          return raw === null || raw === '' ? null : raw.split(',');
+        })(),
+        // 第二十四笔那个「净变化 = 0」的**第二份副本**。属性值为空串表示
+        // 「产物没到」—— 与「实测就是 0」必须能区分开。
+        netChange: (() => {
+          const n = el.querySelector('[data-net-change]');
+          if (!n) return null;
+          const v = n.getAttribute('data-net-change');
+          return v === '' ? 'unavailable' : Number(v);
+        })(),
       };
     })()`);
     if (st.state === 'ready') break;
@@ -144,9 +183,13 @@ try {
   /* ---------------------------------------------------------------- */
   // 第 2 层：每根柱子的数值与产物逐值相同。
   const want = RC.per_layer[INJECT_LAYER].real;
+  // ⚠ 第二十六笔：这里原来写死 `st.bars.length === 6` 与 `wantDistinct = 6 - npairs`。
+  //   产物若换一组方向（条数变了），判据与产品会一起按 6 算而双双对不上，
+  //   但因为两边都写死，**判据自己不会红** —— 它会拿 6 去要求一个 5 根柱的页面。
+  const nDirsWant = Object.keys(want).length;
   const bad = st.bars.filter(b => !(b.dir in want) || b.frac !== want[b.dir]);
-  rec('S2 六根柱子的 subspace_frac 与产物 JSON 逐值相同',
-      st.bars.length === 6 && bad.length === 0,
+  rec('S2 柱子的 subspace_frac 与产物 JSON 逐值相同（条数也由产物定）',
+      st.bars.length === nDirsWant && bad.length === 0,
       bad.length ? JSON.stringify(bad)
                  : `n=${st.bars.length} ` +
                    st.bars.map(b => `${b.dir}=${b.frac}`).join(' '));
@@ -170,10 +213,10 @@ try {
   // 不是拍脑袋写 5。第一版这里写死 >=5，和 S8「翻转对完全相同」
   // 自相矛盾（6 根柱里必然有 2 根重复），判的是我的想当然。
   const nDistinct = new Set(st.bars.map(b => b.drawn)).size;
-  const wantDistinct = 6 - npairs;
+  const wantDistinct = nDirsWant - npairs;
   rec('S3 柱宽与 subspace_frac 成比例、顺序一致、重复数等于翻转对数',
       drawnOk && ordered && nDistinct === wantDistinct,
-      `distinct widths=${nDistinct} 期望=${wantDistinct}（6 根柱 - ${npairs} 对翻转）  ` +
+      `distinct widths=${nDistinct} 期望=${wantDistinct}（${nDirsWant} 根柱 - ${npairs} 对翻转）  ` +
       st.bars.map(b => `${b.dir}:${b.frac}->${b.drawn}px`).join('  '));
 
   // data-drawn 也不能自己撒谎：它必须等于浏览器真正画出来的宽度。
@@ -226,8 +269,14 @@ try {
   // 逐对验余弦是不是 -1。
   rec('S6 页面对「反向向量对数」的说法与注册表 + .npy 真值一致',
       npairs === 2
-      && /two of the six are sign flips/i.test(st.text)
-      && /four vectors/i.test(st.text)
+      // ⚠ 第二十六笔：原来这两条正则写的是英文**词** —— /two of the six are
+      //   sign flips/ 与 /four vectors/。页面上那两句散文原来也是手抄的
+      //   「Two of the six」「The six labels are four vectors」，于是判据与产品
+      //   共用同一份手抄：产品把 four 改成 five，判据**跟着一起要 five**，
+      //   核不出来。现在页面改成现算，判据就核那个**算出来的数**，
+      //   散文措辞只用来确认那段话真的印出来了。
+      && st.text.includes(`${npairs} of the ${nDirsWant} are sign flips`)
+      && st.text.includes(`The ${nDirsWant} labels are ${nDirsWant - npairs} vectors`)
       && !/three (opposite |sign-?flipped )?pairs?/i.test(st.text),
       `steering_vectors.json 里 derived_from 记了 ${npairs} 条翻转 ` +
       `(${derived.join(', ')})；caution·creativity cos=${unpairedCos.toFixed(4)} 不是反向`);
@@ -282,15 +331,78 @@ print(json.dumps(out))
   //   缺 dir 时必须判红，不能让它退化成「空集即通过」。
   const noDir = st.peaks.filter(p => !p.dir);
   const peakBad = noDir.length ? [] : st.peaks.filter(p => p.l !== peakWant[p.dir]);
-  const allPeak14 = Object.values(peakWant).every(v => v === '14')
-                   && st.peaks.length === 6
-                   && st.peaks.every(p => p.l === '14');
-  rec('S9 六个方向的峰值层都是 L14，且与产物一致',
-      allPeak14 && peakBad.length === 0 && noDir.length === 0,
-      noDir.length
-        ? `❌ ${noDir.length} 个 [data-peak] 没有 data-peak-dir ⇒ 逐方向核对结构上跑不了`
-          + `（空集会被当成「无不一致」）`
-        : `产物算出 ${JSON.stringify(peakWant)}；页面 ${st.peaks.map(p => p.l).join(',')}`);
+  // ⚠⚠ 第二十六笔：原来这里要求 `every(v => v === '14')` —— 把「六个方向全部
+  //   峰在 L14」当成**判据**。可那是一条**经验断言**，不是不变式：
+  //   产物若换成一组峰层分散的方向，产品会如实印「5 of the 6」而**完全正确**，
+  //   这条判据却会转红 ⇒ 一个只在数据变了时才正确、平时恒绿的判据，
+  //   等于把「数据必须长成今天这样」写成红线（永远红的判据会被直接关掉）。
+  // 现在页把那一句改成**现算的计数**，判据核的是「这个计数 == 产物算出来的计数」。
+  const wantPeakAtExtract = Object.values(peakWant)
+    .filter(v => v === EXTRACT_LAYER).length;
+  // 每行的「← extracted here」标记必须与该行自己的峰值层一致
+  // （原来它判的是写死的 "14"，产物换层就静默全灭）。
+  const markBad = st.peaks.filter(p => {
+    const marked = /←\s*extracted here/.test(p.t);
+    return marked !== (p.l === p.x);
+  });
+  const extractBad = st.peaks.filter(p => p.x !== EXTRACT_LAYER);
+  rec('S9 每个方向的峰值层与产物逐值一致，且「extracted here」标记逐行自洽',
+      st.peaks.length === nDirsWant && peakBad.length === 0
+      && noDir.length === 0 && markBad.length === 0 && extractBad.length === 0,
+      // ⚠⚠ 第二十六笔：这一行原来写成三段嵌套三元，只报**第一个**非零的原因。
+      //   变异台一次改三处时，提取层错会盖住「峰值层也算错」这个独立信号 ——
+      //   判据红了，可诊断行指向的病因只覆盖了一半，另一半没被看见。
+      // ⇒ 四个计数**一起报**（同族：「收集齐再报」，不是遇到第一条就中止）。
+      `峰值层与产物不符 ${peakBad.length} 行；无 data-peak-dir ${noDir.length} 行；`
+      + `标记与自身峰值层不符 ${markBad.length} 行；提取层号 != 产物 ${extractBad.length} 行`
+      + `　| 产物 ${JSON.stringify(peakWant)}`
+      + `　| 页面 ${st.peaks.map(p => `${p.dir}=L${p.l}/x${p.x}`).join(' ')}`
+      + `　| 提取层 ${EXTRACT_LAYER}，其中 ${wantPeakAtExtract} 个峰在该层`);
+
+  /* ---------------------------------------------------------------- */
+  // 第二十六笔：散文里「N of the M peak at LK」必须是**现算的**，
+  // 且 K 必须等于 vector_roles.json 的 native_extraction（不是写死的 14）。
+  // 判它「是现算的」而不是「恰好为真」的方式：核 N 与 M 各自等于产物算出的值。
+  // 只核 N === 6 是不够的 —— 那个 6 正是本条要防的手抄。
+  rec('S15 散文的「N of the M peak at LK」现算自产物（K 取自 vector_roles）',
+      st.peakAtExtract === wantPeakAtExtract
+      && st.nDirs === nDirsWant
+      && st.extractLayer === EXTRACT_LAYER
+      && st.text.includes(`${wantPeakAtExtract} of the ${nDirsWant} peak at L${EXTRACT_LAYER}`),
+      `产物算出 ${wantPeakAtExtract}/${nDirsWant} 峰在 L${EXTRACT_LAYER}`
+      + `（roles.native_extraction=${ROLES.layers.native_extraction}）  `
+      + `页面 data-peak-at-extract=${st.peakAtExtract} data-n-dirs=${st.nDirs}`
+      + ` data-extract-layer=${st.extractLayer}`);
+
+  // 「← extracted here」不能是判据自己的层号：逐行 x 必须都是产物那个。
+  rec('S16 注入层取自 vector_roles.journal_injection（页面 top3var 也核在这一层）',
+      st.text.includes(`at L${INJECT_LAYER}, which holds only`)
+      && st.top3var === RC.top3_variance_frac[INJECT_LAYER],
+      `roles.journal_injection=${ROLES.layers.journal_injection}  页面散文中出现 "at L${INJECT_LAYER},"`
+      + `  data-top3var=${st.top3var}  产物=${RC.top3_variance_frac[INJECT_LAYER]}`);
+
+  // ⚠⚠ 这一条判的是**输入**（扫了哪几层），不是答案（峰值层）。
+  //   变异台的教训：把层名单截断成前 2 层，六个方向的 argmax 一个都不变
+  //   （L14 恒大于 L12），页面输出**逐字相同** ⇒ 核 peak 的判据全绿。
+  //   「名单被截断」这件事在输出不变时**没有任何其他判据看得见**。
+  //   逐项比而不是只比个数：只比个数的话，截断成
+  //   ['12','14','16','20','24','99'] 这种也躲得过。
+  rec('S18 页面实际扫过的层名单逐项等于产物 layers（判输入，不只判答案）',
+      Array.isArray(st.layersScanned)
+      && st.layersScanned.length === LAYERS.length
+      && st.layersScanned.every((L, i) => L === LAYERS[i]),
+      `产物 layers=[${LAYERS.join(',')}]  页面 data-layers-scanned=`
+      + `[${Array.isArray(st.layersScanned) ? st.layersScanned.join(',') : st.layersScanned}]`
+      + `　（层数 ${Array.isArray(st.layersScanned) ? st.layersScanned.length : '—'} / ${LAYERS.length}）`);
+
+  // 第二十四笔那个「净变化是 0」的**第二份副本**：这里印的必须是
+  // answer_power.json 的 net_change，且「没取到」与「实测为 0」必须可区分。
+  rec('S17 「净变化」这份副本接的是 answer_power.net_change（未取到不许印 0）',
+      st.netChange === AP.net_change
+      && st.text.includes(AP.net_change > 0 ? `+${AP.net_change}` : `${AP.net_change}`)
+      && st.text.includes(`over ${AP.n_complete_pairs} complete pairs`),
+      `产物 net_change=${AP.net_change}（${AP.n_complete_pairs} 个完整配对）  `
+      + `页面 data-net-change=${JSON.stringify(st.netChange)}`);
 
   /* ---------------------------------------------------------------- */
   // 页面上两个数据驱动的数字：top-3 方差占比、比值。

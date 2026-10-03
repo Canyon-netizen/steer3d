@@ -78,6 +78,15 @@ try {
   }
   await sleep(12000);
 
+  // ⚠⚠ 第二十六笔：下面那两行注释原来写在 page.eval 的**模板字符串内部**。
+  //   那里 `//` **不是注释**，是要发给浏览器 eval 的字符串 ——
+  //   而扫描器 `markers_in()` 有一条刻意的规则：「字符串字面量要保留内容」
+  //   （把字符串也剥掉的话，提取结果会是空的，而空集合恒绿）。
+  //   ⇒ 写在里面的标记名会被**当成真的读取引用**提取出来。
+  //   实测后果：那个重复块已从页面删掉，而 C2 报「root 页死引用 1 个」，
+  //   死的是我这两行注释。更糟的是 C2a（负控，本意是抓「剥注释吃掉了标记」）
+  //   恰恰被这一行**喂饱**了 ⇒ 负控被一个字符串里的假引用顶账。
+  //   ⇒ 注释只能写在真正的注释位置，且不要用方括号包住已删标记名。
   const root = await page.eval(`(() => {
     const el = document.querySelector('[data-subspace]');
     if (!el) return JSON.stringify({missing: true});
@@ -89,8 +98,6 @@ try {
       namedAxes: el.getAttribute('data-named-axes'),
       nRows: el.getAttribute('data-n-rows'),
       headline: (el.querySelector('[data-headline-verdict]')?.innerText || '').trim(),
-      dn: el.querySelector('[data-cos-digit-newline]')?.getAttribute('data-cos-digit-newline'),
-      dnText: (el.querySelector('[data-cos-digit-newline]')?.innerText || '').trim(),
       verdict: (el.querySelector('[data-verdict]')?.innerText || '').trim(),
       notClaimed: (el.querySelector('[data-not-claimed]')?.innerText || '').trim(),
       ctrlRow: el.querySelector('[data-control-row]')?.getAttribute('data-control-row'),
@@ -245,11 +252,25 @@ try {
 
   // A3：下界必须**大于**命名轴数，而且这个比较要出现在**可见文字**里。
   // 写成 data-lower-bound=4 页面照样渲染，但结论就反了。
+  // ⚠ 第二十六笔：这条原来核的是那个**已删除**的重复块里的元素（标记名见
+  //   git show 67a9f1e 删掉的那段），而那个块已删。改核 `d.verdict` **本身** ——
+  //   它才是这个结论的唯一来源，而且它是产物的字段、逐字可核。
+  //   ⇒ 这条判据因此变强了：原来「结论 + 余弦」分两处核，
+  //     现在核的是「页面上那句判决 == 产物那句判决，且余弦与条数在其中」。
+  // ⚠⚠ 这里**刻意不写**那个已删标记名的方括号形式：C2a 是「raw 里方括号里的
+  //   标记必须出现在剥完注释的文本里」的负控，而负控的输入是**未剥注释**的原文
+  //   ⇒ 真注释里写 `[已删标记]` 会被 C2a 判成「剥注释吃掉了它」而恒红。
   const dn = String(truth.char_pairwise_abs_cos['digit_mass|newline_mass']);
-  check('A3 「不是一条轴」的结论印在可见文字里，且数字↔换行余弦与产物一致',
+  const nSD = truth.surface_directions.length;
+  check('A3 「不是一条轴」的结论印在可见文字里，且条数与余弦都与产物一致',
     P.headline.includes(String(truth.headline.readable_directions_lower_bound))
-    && P.dn === dn && P.dnText.includes(Number(dn).toFixed(4)),
-    `属性 ${P.dn} / 文字「${P.dnText}」/ 产物 ${dn}`);
+    && P.verdict === truth.verdict
+    && P.verdict.includes(dn) && P.verdict.includes(`${nSD} 条`),
+    `判决逐字等于产物 verdict=${P.verdict === truth.verdict}；`
+    + `判决含余弦 ${dn}=${P.verdict.includes(dn)}；`
+    + `含条数 ${nSD} 条=${P.verdict.includes(`${nSD} 条`)}；`
+    + `headline 含下界 ${truth.headline.readable_directions_lower_bound}`
+    + `=${P.headline.includes(String(truth.headline.readable_directions_lower_bound))}`);
 
   for (const key of ROWS) {
     const r = truth.surface_directions.find(x => x.key === key);

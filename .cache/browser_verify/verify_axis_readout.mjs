@@ -183,7 +183,16 @@ try {
         `「${g.verdictText.slice(0, 70)}」`);
 
       // B 组：cos 与对照都要真的印出来，且与产物一致
-      for (const L of ['12', '14', '20']) {
+      //
+      // ⚠⚠ 第二十六笔：这一行原来是 `for (const L of ['12','14','20'])` ——
+      //   它与产品侧 `AxisReadoutPanel.tsx` 里模块级的
+      //   `const LAYERS = ["12","14","20"]` 抄的是**同一份字面量**。
+      //   第十三笔为 `AXES` 修掉的正是这个形状（「判据与产品共用同一份手抄名单」），
+      //   而 LAYERS 被漏了 ⇒ 产物 `per_layer` 增删一层时，
+      //   **产品与判据会同时看不到变化**，面板少显示一列而判据照样全绿。
+      //   ⇒ 层清单从产物派生，判据与产品同源。
+      const LAYERS = Object.keys(truth.axes[ax].at_delta0.per_layer);
+      for (const L of LAYERS) {
         const c = truth.axes[ax].at_delta0.per_layer[L];
         const cell = await page.eval(`(() => {
           const el = document.querySelector('[data-cell="${ax}-${L}"]');

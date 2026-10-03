@@ -120,7 +120,13 @@ export default function SubspacePanel() {
   }
 
   const h = d.headline;
-  const dn = d.char_pairwise_abs_cos["digit_mass|newline_mass"];
+  // ⚠ 第二十六笔：`const dn = d.char_pairwise_abs_cos["digit_mass|newline_mass"]`
+  //   已删。它唯一用处是那个 data-not-one-axis 重复块里的 data-cos-digit-newline，
+  //   而那块整个删掉了 ⇒ 留下的是一个**没人用的变量**。
+  //   那个余弦现在仍然被核，只是核在**判据**侧：verify_subspace 的 A3
+  //   要求页面上 d.verdict 那句判决**逐字等于**产物 verdict，且其中含这个余弦
+  //   与「N 条」。⇒ 数值还在核，只是核它的位置从「一个重复块里的属性」
+  //   换成了「这个结论的唯一来源」。
   // 操作点在扫描表里排第几档。
   // ⚠ 必须按**数值**比，不能 indexOf(String(...))：
   //   键是 "0.35"/"0.40"/"0.45"/"0.50"/…，而 String(0.5) === "0.5"，
@@ -216,19 +222,23 @@ export default function SubspacePanel() {
         {h.caution_absorbed}
       </p>
 
-      {/* 缺口不是一条轴，是四条 —— 这是这一节最反直觉的结论。
-          那个余弦从产物读，不写死：上一轮判据刚抓过「写死的 1.18×」。 */}
-      <div className="rounded bg-bg/30 border border-border/60 p-1.5 mb-2"
-           data-not-one-axis="true">
-        <p className="text-[9.5px] text-gray-400 leading-snug">
-          <b>缺口不是一条「表面形式」轴，是 4 条互相近乎正交的轴。</b>
-          「{d.surface_directions[0]?.label}」与「{d.surface_directions[2]?.label}」两条方向的余弦只有{" "}
-          <span className="font-mono text-amber-300"
-                data-cos-digit-newline={dn}>{dn.toFixed(4)}</span>{" "}
-          —— 几乎正交。把它们平均成一个「格式方向」只会得到一个对谁都只对齐
-          0.3–0.6 的废物。
-        </p>
-      </div>
+      {/* ⚠ 第二十六笔：这一整块（data-not-one-axis）**删掉了**，不是修。
+          它是「4 条互相近乎正交」这个结论的**第二个来源**，而下方的
+          `d.verdict`（data-verdict，已被 C3/C3b 逐字核过）已经把同一句
+          话说全了，包括那个余弦 0.0195。
+          留着的代价有三个，每一个都具体：
+            1. 「4 条」是**手写**的字面量（恰好等于 surface_directions.length，
+               改了条数页面不会红）—— 与 AXES/LAYERS 同一个形状；
+            2. `surface_directions[0]` 与 `[2]` 是**硬编码下标**，
+               产物换顺序就指向别的方向；
+            3. 「平均成一个格式方向只会得到一个对谁都只对齐 **0.3–0.6** 的废物」
+               里的 0.3–0.6 **产物从未计算过** —— 我扫过 readable_subspace.json
+               全部标量，没有任何一个字段是「把 4 条平均后的对齐度」。
+               ⇒ 它既没有源、也没被算过。
+          而下面那段关于 data-diagonal / data-floor / data-decay 的注释
+          写的正是同一个处置：「同一个事实有两个来源：那边改了这边不会改，
+          且没有任何判据会红（§8.9 第八笔那个形状）」。
+          ⇒ 这次把那条规则用在这一块自己身上。 */}
 
       {/* 行上原来还发过 data-diagonal / data-floor / data-decay ——
           同一行单元格里以 data-kind + data-value 渲染，而 B1/B3 已核

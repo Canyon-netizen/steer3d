@@ -88,7 +88,6 @@ type Payload = {
 // 行与矩阵列一律改为在组件内从 `Object.keys(d.axes)` 派生。
 // 留着它们的危害不是「多写了几个字符串」，而是**判据与产品共用同一份字面量** ⇒
 // 产物新增一条轴时两边同时看不到变化。
-const LAYERS = ["12", "14", "20"] as const;
 const AXIS_LABEL: Record<string, string> = {
   confidence: "confidence",
   caution: "caution",
@@ -138,6 +137,16 @@ export default function AxisReadoutPanel() {
   //   处置与第十一笔 L13「按 built_from 动态加载」同形。
   const AXES = d ? Object.keys(d.axes) : [];
   const nAxes = AXES.length;
+  // ⚠ 第二十六笔：层清单也是手抄的，而且**判据里抄了同一份**。
+  //   我原来在模块级写 `const LAYERS = ["12","14","20"]`，
+  //   而 verify_axis_readout.mjs:186 写的是 `for (const L of ['12','14','20'])` ——
+  //   与上面 AXES 那个洞**完全同形**：两边共用一个字面量，
+  //   产物 `per_layer` 增删一层时，产品与判据**同时**看不到变化。
+  //   讽刺的是同一段代码里 AXES 已经派生好了，只差 LAYERS。
+  //   ⇒ 派生口径与判据一致：取第一条轴的 per_layer 的键。
+  const LAYERS = d
+    ? Object.keys((d.axes[AXES[0]]?.at_delta0?.per_layer ?? {}) as Record<string, unknown>)
+    : [];
   if (err) {
     return (
       <div className={box} data-axis="error">
@@ -231,7 +240,16 @@ export default function AxisReadoutPanel() {
                       </div>
                       <div className="text-[8.5px] font-mono text-gray-600"
                            data-control-cos={c.control_cos ?? ""}>
-                        对照 {(c.control_cos ?? 0).toFixed(3)}
+                        {/* ⚠ 第二十六笔：原来这里是 `(c.control_cos ?? 0).toFixed(3)`，
+                            而**同一格**的属性用的是 `?? ""`。
+                            ⇒ control_cos 为 null 时属性是空的、字却是「对照 0.000」：
+                            同一个空缺在页面上被印成了两个不同的意思，
+                            而 0.000 会被读成「实测的对照余弦是 0」。
+                            今天 12 格全非 null，所以看不出；Cell 类型允许 null。 */}
+                        对照{" "}
+                        {c.control_cos == null
+                          ? "—"
+                          : c.control_cos.toFixed(3)}
                       </div>
                     </div>
                   );

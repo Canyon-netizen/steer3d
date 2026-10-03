@@ -130,24 +130,41 @@ try {
     {
       let paint = null;
       for (let i = 0; i < 12; i++) {
+        // ⚠⚠ 第二十六笔：这里原来写的是
+        //   const g = n => c.getAttribute('data-' + n);
+        //   ... g('on-screen-points') / g('extent-maxabs') / ...
+        // 运行时**读的是对的**，但 C4 是拿正则 `data-[a-z0-9-]+` 扫判据源码的
+        // ⇒ 拼名的那四个名字在源码里**一个都不字面存在** ⇒ C4 把它们报成
+        // 「页面上有、没人读过」的覆盖缺口。子智能体审计把它标成假阳性，是对的：
+        // 判据确实读了，只是以 C4 看不见的写法读的。
+        // 处置不是去改 C4 的正则（那会让扫描器猜运行时语义），而是**把这四个
+        // 名字写出来**：C4 看得见，判据也确实读，两边都不用让步。
         paint = JSON.parse(await page.eval(`(() => {
           const cs = [...document.querySelectorAll('canvas')]
             .filter(c => c.getAttribute('data-painted') !== null
                       || c.getAttribute('data-rendered-points') !== null);
           const c = cs[0];
           if (!c) return JSON.stringify({ found: false });
-          const g = n => c.getAttribute('data-' + n);
           return JSON.stringify({
-            found: true, painted: g('painted'),
-            rendered: g('rendered-points'), onScreen: g('on-screen-points'),
-            extentMaxabs: g('extent-maxabs'), extentFraction: g('extent-fraction'),
-            hasEntropy: g('has-entropy'), layer: g('layer'),
+            found: true,
+            painted: c.getAttribute('data-painted'),
+            rendered: c.getAttribute('data-rendered-points'),
+            onScreen: c.getAttribute('data-on-screen-points'),
+            extentMaxabs: c.getAttribute('data-extent-maxabs'),
+            extentFraction: c.getAttribute('data-extent-fraction'),
+            hasEntropy: c.getAttribute('data-has-entropy'),
+            layer: c.getAttribute('data-layer'),
           });
         })()`));
-        if (paint.found && paint.rendered !== null) break;
+        // 退出条件从「属性出现了」改成「**画完了**」。
+        // 原来 `rendered !== null` 在第一帧就成立，而 rAF 还在继续；
+        // 改成同时要求 onScreen > 0，等画布真的稳定出可见点再取样。
+        if (paint.found && paint.rendered !== null
+            && Number(paint.onScreen) > 0) break;
         await new Promise(r => setTimeout(r, 900));
       }
       const nRendered = Number(paint && paint.rendered);
+      const nOnScreen = Number(paint && paint.onScreen);
       check('J11 2D 降级画布必须自证「真的画过」（proof-of-paint 属性可读且点数 > 0）',
         !!(paint && paint.found) && paint.painted === '1'
         && Number.isFinite(nRendered) && nRendered > 0,
@@ -157,6 +174,37 @@ try {
             + ` hasEntropy=${paint.hasEntropy} layer=${paint.layer}`
           : '画布上没有任何 data-painted / data-rendered-points ⇒ 绘制循环没跑过，'
             + '或属性已被删（本环境 3D 验不了，这是唯一能自动取证的画布证据）');
+
+      // ⚠⚠ 第二十六笔新增：J11 原来把上面那四个属性**只印在诊断行里**，
+      //   断言只有 painted==='1' && rendered>0 ⇒ 「所有点都投影到屏外」
+      //   （onScreen=0，屏幕上什么都没有）这一种坏法**照样绿**。
+      //   而 onScreen 恰恰是「画布上真的有珠子」这句话唯一直接对应的那个数 ——
+      //   rendered 数的是**算出来的**点，不是**看得见的**点。
+      //   ⇒ 判据必须落在 onScreen 上。实测本环境 rendered=onScreen=193。
+      check('J11b 画布上必须有**投在屏内**的点（rendered 数的是算出来的，onScreen 才是看得见的）',
+        !!(paint && paint.found) && paint.painted === '1'
+        && Number.isFinite(nOnScreen) && nOnScreen > 0
+        && nOnScreen <= nRendered,
+        paint && paint.found
+          ? `onScreen=${paint.onScreen} / rendered=${paint.rendered}`
+            + `（屏内占 ${nRendered > 0 ? (100 * nOnScreen / nRendered).toFixed(1) : '—'}%）`
+            + ` extentFraction=${paint.extentFraction}`
+          : '画布没找到，无法核屏内点数');
+
+      // 那三个属性若为 null，说明绘制循环在写 data-painted 之前就断了
+      // （或属性被改名）。getAttribute 对「已写入但值为空串」返回 ""，
+      // 对「属性不存在」返回 null ⇒ 两者可区分，这条判的就是这个区别。
+      const attrsPresent = paint && paint.found
+        && paint.extentMaxabs !== null && paint.extentFraction !== null
+        && paint.hasEntropy !== null && paint.layer !== null;
+      check('J11c 轨迹范围/熵/层号三个属性都必须被写进 DOM（null = 绘制循环半途而废）',
+        attrsPresent,
+        paint && paint.found
+          ? `data-extent-maxabs=${JSON.stringify(paint.extentMaxabs)}`
+            + ` data-extent-fraction=${JSON.stringify(paint.extentFraction)}`
+            + ` data-has-entropy=${JSON.stringify(paint.hasEntropy)}`
+            + ` data-layer=${JSON.stringify(paint.layer)}`
+          : '画布没找到');
     }
 
     const pass0 = results.filter(r => r.ok).length;
