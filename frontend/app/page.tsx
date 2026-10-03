@@ -13,6 +13,7 @@ import VectorStructurePanel from "@/components/VectorStructurePanel";
 import AxisReadoutPanel from "@/components/AxisReadoutPanel";
 import SubspacePanel from "@/components/SubspacePanel";
 import HeldoutPanel from "@/components/HeldoutPanel";
+import EvidenceLadderPanel from "@/components/EvidenceLadderPanel";
 import StrengthLawPanel from "@/components/StrengthLawPanel";
 import LayerDerivationPanel from "@/components/LayerDerivationPanel";
 import TokenStreamPanel from "@/components/TokenStreamPanel";
@@ -152,6 +153,7 @@ export default function Page() {
           <AxisReadoutPanel />
           <SubspacePanel />
           <HeldoutPanel />
+          <EvidenceLadderPanel />
           <StrengthLawPanel />
           <ArchivedExperiments />
           <InterpretationPanel />

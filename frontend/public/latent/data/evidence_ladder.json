@@ -1,0 +1,93 @@
+{
+ "schema": "evidence_ladder/1",
+ "what": "任何「某 steering vector 编码了概念 X」的断言，能被放上去量的八级阶梯",
+ "built_from": [
+  "linearity_law.json",
+  "readable_subspace.json",
+  "heldout_readability.json",
+  "arm_asymmetry.json",
+  "cot_texts.json"
+ ],
+ "selfcheck_passed": true,
+ "ladder": [
+  {
+   "level": "L0",
+   "claim": "注进去模型变了",
+   "needs": "一次前向，比较两个 logits",
+   "state": "done",
+   "here": "随手可得",
+   "note": "任何方向都成立，不能区分方向"
+  },
+  {
+   "level": "L1",
+   "claim": "破坏量 = ½(s·rms/‖h‖)²，与方向无关",
+   "needs": "解析式 + 玩具自检 + 逐方向实测",
+   "state": "done",
+   "here": "s ≤ 0.2：实测 2.026%–2.245% vs 解析 2.018%–2.268%",
+   "note": "跨方向极差 0.104pp、真实-vs-随机 0.037pp。⚠ s = 0.5 时该近似本身失效（极差涨到 1.72pp），那些点不是反例，是解析式超范围。"
+  },
+  {
+   "level": "L2",
+   "claim": "这个方向线性编码了观测量 y",
+   "needs": "留出轨迹 + 打乱地板",
+   "state": "done",
+   "here": "14 条",
+   "note": "20 候选、|cos|<0.50；200 次随机顺序恒为 14"
+  },
+  {
+   "level": "L3",
+   "claim": "这条方向**专属于** y",
+   "needs": "专属性矩阵 + 余量 + 约束方身份 + 差距/sem",
+   "state": "partial",
+   "here": "1 条干净",
+   "note": "另有 4 条余量 ≈1.0×，判为同向重造"
+  },
+  {
+   "level": "L4",
+   "claim": "能写成可注入的 diff_of_means",
+   "needs": "留一轨迹上配方仍预测得动",
+   "state": "done",
+   "here": "0.3688（地板 0.0045，82×）",
+   "note": "方向 emitted_is_upper"
+  },
+  {
+   "level": "L5",
+   "claim": "这条配方**专一**到能注入",
+   "needs": "同上 + 同范数随机方向对照",
+   "state": "missing",
+   "here": "0 条（余量 1.15× < 2×）",
+   "note": "换配方结构后最好 1.68×，但两个竞争者差 0.03 sem ⇒ 归属不可判"
+  },
+  {
+   "level": "L6",
+   "claim": "注入改变行为，且改变是这条方向特有的",
+   "needs": "教师强制前向 + **随机方向臂**",
+   "state": "partial",
+   "here": "92 个真 run / 23 题配对",
+   "note": "**缺随机臂** ⇒ 只能说「改变了」。分得开的量：mean_logit_kl、token_agreement"
+  },
+  {
+   "level": "L7",
+   "claim": "改变的是这个**概念**，不是位置或格式",
+   "needs": "行为指标 + 位置轴对照",
+   "state": "missing",
+   "here": "一次都没测",
+   "note": ""
+  }
+ ],
+ "answerable": [
+  "一个这样的断言需要什么证据才成立",
+  "哪些级别的证据在**任何**方向上都成立（因此不能区分方向）"
+ ],
+ "not_answerable": [
+  "模型内部到底在算什么",
+  "L5 及以上：本项目一行都没有"
+ ],
+ "max_level_reached": "L4",
+ "most_common_overreach": "L2 → L5：把「找到 N 条可读方向」读成「有 N 条可用的轴」",
+ "overreach_numbers": {
+  "readable_directions": 14,
+  "usable_axes": 0,
+  "note": "「0」是**未测**，不是「实测为 0」"
+ }
+}
