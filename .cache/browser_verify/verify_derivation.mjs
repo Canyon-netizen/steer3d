@@ -584,6 +584,69 @@ try {
     .filter(e => e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error')
     .map(e => (e.params.args || []).map(a => a.value ?? a.description ?? '').join(' '))
     .filter(t => !/favicon|Failed to load resource/i.test(t));
+  /* ==================== D 组：sampling 的恒等式 ==================== */
+  // ⚠ **这一组在产物层**：LayerDerivationPanel 只读 `lens.trajectories`，
+  //   全组件 0 次出现 `sampling` ⇒ 这些字段**不渲染**，渲染层判据够不着。
+  //   与 A7 / B8 同一处置：必须说清层级。
+  //
+  // 第十九笔的起点：`sampling.identity` 是一句**印出来的断言**
+  //   「n_tokens == n_steps * n_layers: 43008 == 1536 * 28」
+  // 而它只是一个 f-string —— n_steps / n_layers 若变了而 n_tokens 的算法没跟上，
+  // 它照样把「X == Y * Z」印出来，X ≠ Y*Z 时**没有任何东西会红**。
+  // ⇒ 判据必须自己把这条恒等式算一遍，并且核对那句字符串。
+  const SP = LENS.sampling || {};
+  const TR = LENS.trajectories || [];
+  const widths = [...new Set(TR.map(t => t.window[1] - t.window[0]))];
+  const dProbs = new Set(TR.map(t => t.problem)).size;
+  const dModes = new Set(TR.map(t => t.mode)).size;
+  const dSteps = TR.length * (widths.length === 1 ? widths[0] : NaN);
+  const dTokens = dSteps * SP.n_layers;
+
+  rec('D0 前置：sampling 字段齐全，窗口宽度**唯一**，且层数与 model 一致',
+      SP.n_traj != null && SP.n_steps != null && SP.n_layers != null
+      && SP.n_tokens != null && widths.length === 1
+      && SP.n_layers === LENS.model.n_layers
+      && SP.n_layers === LENS.aggregate.n_layers,
+      `窗口宽度集合=${JSON.stringify(widths)} | 层数 sampling=${SP.n_layers} `
+      + `model=${LENS.model.n_layers} aggregate=${LENS.aggregate.n_layers}`);
+
+  rec('D1 n_traj / steps_per_traj / n_steps 必须与 trajectories 现算一致',
+      SP.n_traj === TR.length
+      && SP.steps_per_traj === widths[0]
+      && SP.n_steps === dSteps
+      && SP.n_problems === dProbs && SP.n_modes === dModes
+      && dProbs * dModes === TR.length,
+      `现算 traj=${TR.length} 宽=${widths[0]} n_steps=${dSteps} 题=${dProbs} 模式=${dModes}`
+      + `（题×模式=${dProbs * dModes}）| 产物 n_traj=${SP.n_traj} `
+      + `steps_per_traj=${SP.steps_per_traj} n_steps=${SP.n_steps} `
+      + `n_problems=${SP.n_problems} n_modes=${SP.n_modes}`);
+
+  // ---- 本笔的核心：那句被印出来的等式 ----
+  rec('D2 **恒等式 n_tokens == n_steps × n_layers** 必须真的成立（不是只印出来）',
+      SP.n_tokens === dTokens && SP.n_tokens === SP.n_steps * SP.n_layers,
+      `现算 ${dSteps} × ${SP.n_layers} = ${dTokens} | 产物 n_tokens=${SP.n_tokens}`
+      + ` | sampling 印的是：${SP.identity}`);
+
+  rec('D3 identity 那句字符串必须印出与现算**相同**的三个数（它有能力印一个假等式）',
+      SP.identity === `n_tokens == n_steps * n_layers: ${SP.n_tokens} == ${SP.n_steps} * ${SP.n_layers}`
+      && SP.identity.includes(String(dTokens)) && SP.identity.includes(String(dSteps))
+      && SP.identity.includes(String(SP.n_layers)),
+      `期望「n_tokens == n_steps * n_layers: ${dTokens} == ${dSteps} * ${SP.n_layers}」`
+      + `；实际：${SP.identity}`);
+
+  // ---- rule 散文里的三个数（48 / 24 / 32）不许再有一个是写死的 ----
+  rec('D4 rule 散文里的 traj / 题数 / 窗口宽必须等于现算值（带锚点取数，非 includes）',
+      new RegExp('all ' + TR.length + ' trajectories').test(SP.rule || '')
+      && new RegExp('\\(' + dProbs + ' problems x').test(SP.rule || '')
+      && new RegExp('LAST ' + widths[0] + ' steps').test(SP.rule || ''),
+      `现算 ${TR.length} / ${dProbs} / ${widths[0]}；原文：${SP.rule}`);
+
+  rec('D5 n_tokens_meaning 说的口径必须与恒等式一致（read-outs = 每步每层一次 unembedding）',
+      /n_steps \* n_layers/.test(SP.n_tokens_meaning || '')
+      && /one unembedding per step per layer/.test(SP.n_tokens_meaning || '')
+      && SP.n_tokens === SP.n_steps * SP.n_layers,
+      SP.n_tokens_meaning || '（缺）');
+
   rec('F10 页面无 console error', errs.length === 0,
       errs.length ? errs.slice(0, 2).join(' | ') : 'none');
 

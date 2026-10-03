@@ -396,6 +396,23 @@ def main() -> int:
               f"({time.time()-t_start:5.1f}s)")
 
     n_steps = tot["steps"]
+    # ---- 第十九笔：`identity` 是一句**印出来的断言**，原来谁都没验 ----
+    # 「n_tokens == n_steps * n_layers: 43008 == 1536 * 28」这句话在产物里
+    # 只是一个 f-string：n_steps / n_layers 若哪天变了而 lens_rows 的算法没跟上，
+    # 它照样会把「X == Y * Z」印出来，而 X ≠ Y*Z。
+    # ⇒ 写之前先验；不成立就抛错，不产出这句话。
+    n_problems = len({t.get("problem") for t in trajs})
+    n_modes = len(by_mode) or 1
+    if n_problems * n_modes != len(trajs):
+        raise SystemExit(
+            "ABORT 题数 %d × 模式数 %d = %d ≠ trajectories %d —— "
+            "「%d problems x {think, no_think}」这句对不上"
+            % (n_problems, n_modes, n_problems * n_modes, len(trajs), n_problems))
+    if lens_rows != n_steps * n_layers:
+        raise SystemExit(
+            "ABORT identity 不成立：n_tokens %d ≠ n_steps %d * n_layers %d = %d —— "
+            "宁可不给这句话，也不印一个假的等式"
+            % (lens_rows, n_steps, n_layers, n_steps * n_layers))
     payload = {
         "schema": "logit_lens_v1",
         "title": "每一层离『模型最后说出这个词』还有多远",
@@ -423,12 +440,18 @@ def main() -> int:
         "model": {"name": args.model_path.name, "n_layers": n_layers,
                   "d_model": d_model, "n_vocab": n_vocab},
         "sampling": {
-            "rule": f"all {len(paths)} trajectories (24 problems x "
+            # ⚠ 第十九笔：这里原来把「24 problems」写死，而 `all {len(paths)}` 与
+            #   `{args.window}` 都是插值的 ⇒ 同一段散文里一个数有源、一个没有。
+            #   题数从 trajectories 现算（distinct problem），不拿 n_traj 除以模式数 ——
+            #   后者在「某一题缺一个模式」时会静默给出一个小数。
+            "rule": f"all {len(paths)} trajectories ({n_problems} problems x "
                     f"{{think, no_think}}); for each, the LAST {args.window} "
                     f"steps (constant width, tail = the answer-emission region)",
             "why_tail": "the question is about the derivation of the token the "
                         "model is about to say; the tail is where it says it",
             "n_traj": len(trajs),
+            "n_problems": n_problems,
+            "n_modes": n_modes,
             "steps_per_traj": args.window,
             "n_steps": n_steps,
             "n_layers": n_layers,
