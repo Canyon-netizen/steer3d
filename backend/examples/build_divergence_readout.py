@@ -165,6 +165,22 @@ def build(model_dir, div_name, pre_name):
         }
 
     agg = div["aggregate"]
+    # 每题用多少个同范数随机方向。页面上那句「同范数的 N 个随机方向里，
+    # 有 X 的比例能扳出同样的词」原来把 N **写死成 128**。
+    # 它可以推（总数 ÷ 题数），但「推出来的数」与「写死的那个数」
+    # 之间没有任何绑定关系 —— 换一批数据，页面还印 128。
+    # ⇒ 做成字段，页面读字段；除不尽就拒绝出这份产物。
+    c4_hits = int(agg["C4_random_hits_informative"])
+    c4_total = int(agg["C4_random_total_informative"])
+    if n <= 0 or c4_total % n != 0:
+        raise SystemExit(
+            "%s: C4_random_total_informative=%d 除以题数 %d 除不尽 —— "
+            "「每题 N 个随机方向」没有整数答案，页面不该印一个整数"
+            % (model_dir, c4_total, n))
+    c4_dirs_per_problem = c4_total // n
+    if not (0 <= c4_hits <= c4_total):
+        raise SystemExit("%s: C4 命中 %d 越界（总数 %d）"
+                         % (model_dir, c4_hits, c4_total))
     out = {
         "schema": "steer3d.divergence_readout/1",
         "source": ["backend/examples/analyse_divergence_logits.py",
@@ -176,8 +192,10 @@ def build(model_dir, div_name, pre_name):
         "inject_layer": div["inject_layer"],
         "layers": LAYERS,
         "final_layer": 28,
-        "c4_random_hits": "%d/%d" % (agg["C4_random_hits_informative"],
-                                     agg["C4_random_total_informative"]),
+        "c4_random_hits": "%d/%d" % (c4_hits, c4_total),
+        "c4_random_hits_n": c4_hits,
+        "c4_random_hits_denom": c4_total,
+        "c4_random_dirs_per_problem": c4_dirs_per_problem,
         "lens_argmax_offsets": agg["lens_argmax_offsets"],
         "problems": problems,
     }

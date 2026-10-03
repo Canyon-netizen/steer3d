@@ -797,11 +797,19 @@ async function loadTraj(i, prog){
   render();
   trace("post-render");
   // 叙述性数据在这里取，不等用户点标签。取完再重画一次，让 #extras
-  // 面板里的三块（逐层 readout / 向量三角色 / token 反向映射）落进页面。
-  // 不 await 的话第一次 render() 时 S.backmap 还是 null，面板会是空的；
-  // 这里 await 保证首屏就带着这三块，而不是等读者去点某个标签。
+  // 面板里的四块（逐层 readout / 向量三角色 / token 反向映射 / 候选词读出）
+  // 落进页面。不 await 的话第一次 render() 时 S.backmap 还是 null，
+  // 面板会是空的；这里 await 保证首屏就带着这几块，而不是等读者去点某个标签。
   try{
     await loadNarrative();
+    // ⚠ 第四块（候选词读出）按题索引，而 S.pm 以前**只在用户点「干预 vs 对照」
+    //   标签时**才加载（loadPairMeta 在那个 onclick 里）⇒ boot 时 S.pm 是 null，
+    //   那一块只能印「没有题目 ? 的读出」。
+    //   ⇒ 这里只取那份小 JSON（pairs.json），**不**碰 pca_00.bin / mean_00.bin ——
+    //     那个基是默认 XY/BAR/DIM 视图要用的，属于超出本次修复的行为改变。
+    //   loadPairMeta 的早退条件也相应改成按「基是否已加载」判断，
+    //   否则点标签时会因为 S.pm 已存在而跳过取基，把 DELTA 视图弄坏。
+    await loadPairList();
     renderExtras();
     trace("narrative loaded");
   }catch(e){ trace("loadNarrative failed: " + e.message); }
@@ -822,15 +830,28 @@ function tokInfo(k){
    rel_shift·‖h‖，相减的结果里信号和噪声一个量级。manifest 里每个层
    都记了两种做法的 SNR。 */
 
-async function loadPairMeta(){
+/* 只取配对清单（一份小 JSON），供按题索引的叙述块在首屏用。
+   刻意**不**取 pca_00.bin / mean_00.bin —— 那个基是默认 XY/BAR/DIM 视图
+   用的，在 boot 里拉它属于超出「让那一块显示出来」这个修复范围的行为改变。
+   loadPairMeta() 仍然负责取基，两者的早退条件已改成不冲突。 */
+async function loadPairList(){
   if(S.pm) return true;
   try{
     const r = await fetch(dataBase()+"pairs/pairs.json");
     if(!r.ok) return false;
     S.pm = await r.json();
   }catch(e){ trace("pairs.json unavailable: " + e.message); return false; }
+  fillPairSelect();
+  trace("pair manifest " + S.pm.pairs.length);
+  return true;
+}
 
+/* 幂等：boot 的 loadPairList 与点标签时的 loadPairMeta 都会调它，
+   重复 appendChild 会让下拉框里出现两份同样的题。 */
+function fillPairSelect(){
   const sel = $("#selPair");
+  if(!sel || !S.pm) return;
+  if(sel.dataset.filled === String(S.pm.pairs.length)) return;
   S.pm.pairs.forEach((p,i)=>{
     const o = document.createElement("option");
     o.value = i;
@@ -839,7 +860,25 @@ async function loadPairMeta(){
                       ? `  答案 ${p.answer.control}` : "  未闭合");
     sel.appendChild(o);
   });
+  sel.dataset.filled = String(S.pm.pairs.length);
   sel.onchange = () => loadPair(+sel.value);
+}
+
+async function loadPairMeta(){
+  // 早退看**基是否已加载**，不是看 S.pm。
+  // 以前是 `if(S.pm) return true;`，那时 S.pm 只可能由本函数设置；
+  // 现在 boot 的 loadPairList() 也会设置它，而 loadPairList() 故意**不**取基
+  // —— 于是按 S.pm 早退会让点标签时跳过取基，DELTA 视图直接坏掉。
+  if(S.pm && S.pComp) return true;
+  try{
+    if(!S.pm){
+      const r = await fetch(dataBase()+"pairs/pairs.json");
+      if(!r.ok) return false;
+      S.pm = await r.json();
+    }
+  }catch(e){ trace("pairs.json unavailable: " + e.message); return false; }
+
+  fillPairSelect();
   trace("pair manifest " + S.pm.pairs.length);
 
   // PCA 基与无干预的那一套**共用**（build_paired_bundle 用的是 pca_00.bin）。
@@ -921,11 +960,11 @@ async function loadNarrative(){
   }catch(e){ trace("cot_texts unavailable: " + e.message); }
   // 第五批：逐层 logit lens。这是「各个 hidden states 最后如何推导出这个
   // token」的直接答案——把最后一层的 RMSNorm+unembedding 套到 0..27 层
-  // 每���层上，看第几层开始就指向最终 token。
+  // 每一层上，看第几层开始就指向最终 token。
   //
   // 这份数据自己带一个锚点：第 27 层的 readout 必须复现模型真实选择的
   // token（npz 里的 topk_indices[t,0]）。我独立复算过 40/40 全中。它进页面
-  // 之前必须先过这道锚点，否则页面上那条曲线只是"某���种算法画的图"。
+  // 之前必须先过这道锚点，否则页面上那条曲线只是"某种算法画的图"。
   try{
     const cr5 = await fetch(dataBase()+"logit_lens.json");
     if(cr5.ok){
@@ -1297,9 +1336,14 @@ function dvSpark(margin){
 function renderDivergenceReadout(){
   const wrap = inner => `<tr><td colspan="3">${inner}</td></tr>`;
   const p = S.pm && S.pm.pairs[S.pi];
-  if(!S.dv) return wrap(`<div class="note" style="padding-top:12px">` +
+  // esc2 是**别的**函数各自定义的局部常量，不是全局的 —— 直接用会 ReferenceError，
+  // 而页面有全局错误兜底，抛异常的 render 会让整块**静默消失而页面照常**
+  // （verify_backmap.mjs 的头一条记的就是这个）。所以这里自己定义一个。
+  const esc2 = s => esc(s == null ? "" : String(s));
+  let _dvRoot = `data-dvroot="${esc2(p ? p.id : "?")}"`;
+  if(!S.dv) return wrap(`<div class="note" style="padding-top:12px" ${_dvRoot}>` +
     `候选词读出数据未载入，这一块解释缺失（不影响上面「被推了多远」那些数）。</div>`);
-  if(!p || !S.dv.problems[p.id]) return wrap(`<div class="note" style="padding-top:12px">` +
+  if(!p || !S.dv.problems[p.id]) return wrap(`<div class="note" style="padding-top:12px" ${_dvRoot}>` +
     `这份数据里没有题目 ${p ? p.id : "?"} 的读出。</div>`);
 
   const q = S.dv.problems[p.id];
@@ -1323,7 +1367,14 @@ function renderDivergenceReadout(){
   // out of view. The full eight are in divergence_readout.json. A regression
   // check measures both arms' first rows against the band's bottom edge.
   const NCAND = 5;
-  let h = `<div data-dvblock="1" style="padding-top:2px">`;
+  // ⚠ _dvRoot 原来只出现在上面两个「没有数据」的早退分支上 ——
+  //   也就是说 data-dvroot 这个标记**只在块渲染不出来的时候才在 DOM 里**。
+  //   第二十三笔的新探针按「源码里有、两遍 DOM 都没有」统计死代码时，
+  //   它被列成 18 个里的一个，看着像「这一块还没搬」，
+  //   实际上块早就搬了、也渲染了（data-dvblock 一直在）。
+  //   ⇒ 标记必须跟着块一起出现在**有数据**的主路径上，
+  //     否则它表达的是「这块坏了」而不是「这块在讲第几题」。
+  let h = `<div data-dvblock="1" ${_dvRoot} style="padding-top:2px">`;
   h += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">` +
        `<div style="font-size:13px;font-weight:600">为什么最后吐出的是这个词，而不是另一个</div></div>`;
   h += `<div class="note" style="margin:2px 0 4px;font-size:10.5px">` +
@@ -1406,9 +1457,27 @@ function renderDivergenceReadout(){
                 : `但改口前这一步反而比平时分得更开，<b>不能说"险本来就在"</b> —— ` +
                   `按对照臂自己的轨迹，险是到分叉那一步才冒出来的`));
   }
-  if(su.dlg_med != null && su.dlg_at != null)
-    bits.push(`分叉那一步的 logit 变化 ${su.dlg_at.toFixed(2)}，前缀中位数是 ${su.dlg_med.toFixed(2)}；` +
-              `同范数的 128 个随机方向里，有 <b>${S.dv.c4_random_hits}</b> 的比例能扳出同样的词`);
+  // ⚠ 这句里的随机方向数原来写死成 128。修法有两层，这一层是**不依赖新字段**的：
+  //   已发布产物里本来就有 c4_random_hits（"123/768"）与 problems 的键，
+  //   每题的随机方向数 = 分母 ÷ 题数，除不尽就不印整数。
+  //   为什么不在这里直接读 c4_random_dirs_per_problem 那个字段：
+  //   data/ 目录在 .gitignore 里，那个新字段进不了提交 ⇒ 页面会依赖一个
+  //   别人 checkout 之后拿不到的字段，渲染成「undefined 个随机方向」。
+  //   ⇒ 页面自己算（有守卫），产物字段只作额外交叉核对（见 verify_divergence_readout V4）。
+  const dvDirsPerProblem = (() => {
+    if(S.dv.c4_random_dirs_per_problem != null)
+      return Number(S.dv.c4_random_dirs_per_problem);
+    const m = /^\s*(\d+)\s*\/\s*(\d+)\s*$/.exec(String(S.dv.c4_random_hits || ''));
+    if(!m) return null;
+    const nP = Object.keys(S.dv.problems || {}).length;
+    const den = Number(m[2]);
+    return (nP > 0 && den % nP === 0) ? den / nP : null;
+  })();
+  if(su.dlg_med != null && su.dlg_at != null && dvDirsPerProblem != null)
+    bits.push(`分叉那一步的 logit 变化 <b data-dvdlgat="${esc2(String(su.dlg_at))}">${su.dlg_at.toFixed(2)}</b>，`
+      + `前缀中位数是 ${su.dlg_med.toFixed(2)}；`
+      + `同范数的 <b data-dvdirs="${esc2(String(dvDirsPerProblem))}">${dvDirsPerProblem}</b> 个随机方向里，`
+      + `有 <b data-dvhits="${esc2(String(S.dv.c4_random_hits))}">${S.dv.c4_random_hits}</b> 的比例能扳出同样的词`);
   bits.push(`两条流吐出不同的词，<b>不等于答案的含义变了</b>，有些只是同义改写`);
   h += `<div class="note" style="margin-top:10px;font-size:11px;color:#8891a4;` +
        `border-top:1px solid var(--line);padding-top:8px">` +
@@ -1598,7 +1667,7 @@ function renderProblemSetNote(PS, where){
 
 /* ---- 逐层 logit lens：每一层离「模型最后说出这个词」还有多远 -------------
    这是「各个 hidden states 到底最后如何推导出这个 token」的直接答案。
-   做法：把最后一层的 RMSNorm + unembedding 套到第 0..27 层每���层的残差流
+   做法：把最后一层的 RMSNorm + unembedding 套到第 0..27 层每一层的残差流
    上，看每一层自己预测哪个 token，看第几层开始和最终 token 一致。
 
    两条不写在页面上、但决定了这条曲线可不可信的事：
@@ -1623,6 +1692,43 @@ function renderExtras(){
   h += renderLogitLens();
   h += renderVectorRoles();
   h += renderTokenBackmap();
+  // ⚠ 这一块原来**只**在 drawDeltaSide() 里被调用，而那个函数在
+  //   `!p || !S.pMeta` 时提前 return —— S.pMeta 是用户点开某个配对才加载的。
+  //   ⇒ 上面那三块（logit_lens / vector_roles / token_backmap）早就为此被搬进
+  //     renderExtras（见 3634 附近的注释：「页面上没有任何提示，看起来像功能不存在」），
+  //     而这一块被漏掉了。
+  //   后果不是「排版不好看」：这一块是「为什么最后吐出的是这个词，而不是另一个」，
+  //   也就是**读出层怎么选出这个 token** 的唯一一块解释 ——
+  //   不点「干预 vs 对照」标签就永远看不到，页面上没有任何提示。
+  //   S.pm 在 boot 时已加载、S.pi 默认 0，所以这里直接渲染第 0 题；
+  //   缺数据时它自己印「没有这一题的读出」，不会崩。
+  h += renderDivergenceReadout();
+  // ⚠⚠ 下面这三块（思维链层面 / 答案位移逐篇读 / 逐字读）与上面那块
+  //   是**同一个病**，而且更深一层。
+  //
+  //   依赖链是：drawDeltaSide() 在 `!p || !S.pMeta` 时提前 return，
+  //   而 renderCotEffect() 只被 drawDeltaSide() 调用（它内部再调
+  //   renderAnswerReadout() / renderCotTexts()）。
+  //   S.pMeta 是用户点开「干预 vs 对照」某个配对才加载的
+  //   ⇒ 只要用户没点过那三个标签，**这三块一个都不渲染**，
+  //     页面上没有任何提示，看起来像功能不存在。
+  //
+  //   第二十三笔用新探针（点遍 13 组控件、收两遍 DOM）量出来：
+  //   latent 页源码里有 36 个 data-* 标记，渲染只出来 19 个，
+  //   其中 15 个属于这三块。第二十三笔只搬了 dv 一块，
+  //   cot / answer / cottext 三块**留在原地**，于是那 15 个标记
+  //   在「加载后」和「交互后」两遍 DOM 里都不在。
+  //
+  //   为什么能直接搬：S.cot / S.cotTexts / S.ansRead 三份数据
+  //   都在 boot 里取回（见 fetch 那几行），不依赖 S.pMeta；
+  //   且 renderAnswerReadout / renderCotTexts 缺数据时返回空串，
+  //   renderCotEffect 缺数据时自己印「这一块没有数据」。
+  //
+  //   为什么用一张表包住 renderCotEffect()：它的缺数据分支返回的是
+  //   `<tr><td colspan="3">`，而 #extras 是 div —— 浏览器会把游离的
+  //   <tr> 直接丢掉，整块连同那句「没有数据」一起消失。
+  //   ⇒ 包进 <table>，DELTA 视图那边一行都不用改。
+  h += `<table style="width:100%;border-collapse:collapse">${renderCotEffect()}</table>`;
   host.innerHTML = h;
   bindExtraEvents(host);
 }
@@ -1644,6 +1750,17 @@ function bindExtraEvents(host){
       if(Number.isFinite(v)){ S.lensStep = v; renderExtras(); }
     };
   }
+  // 候选词读出的层按钮。原来绑在 drawDeltaSide() 里，而那个函数
+  // 在 `!S.pMeta` 时提前 return ⇒ 在 #extras 这条路上**从没被绑过**，
+  // 按钮看得到、点了没反应。这里重画，所以走 renderExtras() 而不是
+  // drawDeltaSide()（后者在默认视图里根本不会跑到底）。
+  const dvChips = host.querySelectorAll("[data-dvl]");
+  for(let i=0;i<dvChips.length;i++){
+    dvChips[i].onclick = () => {
+      S.dvLayer = dvChips[i].dataset.dvl;
+      renderExtras();
+    };
+  }
   // token 反向映射的步选择器。17 个按钮各自对应产物里一个实测步，
   // 两种 regime 用不同颜色，点了之后下面那张实测网格要跟着换。
   const bmBtns = host.querySelectorAll("[data-bmstep]");
@@ -1651,6 +1768,36 @@ function bindExtraEvents(host){
     bmBtns[i].onclick = () => {
       const v = parseInt(bmBtns[i].dataset.bmstep, 10);
       if(Number.isFinite(v)){ S.bmStep = v; renderExtras(); }
+    };
+  }
+  // ⚠ 思维链方向芯片 / 答案题号芯片 / 正文挑选器。原来绑在 drawDeltaSide()
+  //   里，而那个函数在 `!p || !S.pMeta` 时提前 return ⇒ 在 #extras 这条路上
+  //   **从没被绑过**，按钮看得到、点了没反应。跟上面 dvChips 同一个病。
+  // ⚠ 这里不绑 data-jump / data-cotjump / data-arjump：那两个「↓ 逐字读 /
+  //   ↓ 逐篇读」是给 DELTA 那个 300px 滚动窗口用的跳转锚点，
+  //   它们的 onclick 在 drawDeltaSide() 里、依赖 tb（DELTA 的表）。
+  //   它们是 drawDeltaSide() 自己 h += 的两行、**不在** renderCotEffect() 里，
+  //   所以搬进 #extras 的那份天然就没有它们 —— 不是漏搬，是有意的：
+  //   #extras 里页面本身在滚，再放跳转锚点是多余的。
+  const cotBtns = host.querySelectorAll("[data-cotdir]");
+  for(let i=0;i<cotBtns.length;i++){
+    cotBtns[i].onclick = () => {
+      S.cotDir = cotBtns[i].dataset.cotdir;
+      renderExtras();
+    };
+  }
+  const arBtns = host.querySelectorAll("[data-arpick]");
+  for(let i=0;i<arBtns.length;i++){
+    arBtns[i].onclick = () => {
+      S.ansPick = parseInt(arBtns[i].dataset.arpick, 10);
+      renderExtras();
+    };
+  }
+  const cotPick = host.querySelector("[data-cotpick]");
+  if(cotPick){
+    cotPick.onchange = () => {
+      const v = parseInt(cotPick.value, 10);
+      if(Number.isFinite(v)){ S.cotTextPick = v; renderExtras(); }
     };
   }
 }
