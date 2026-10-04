@@ -288,7 +288,7 @@
 
    <h2>四 · 本页不主张的 4 种说法</h2>
    <p data-latent-not-claimed="lead">下面这些是新手最自然会形成的理解。它们在这个页面上<i class="inline-gloss">曾经被当成结论写出来过，后来被实测数据否掉了</i>，所以现在不主张。</p>
-   <div class="noitem"><span class="claim">「干预把候选词的分数重新排了一遍，所以能解释模型为什么选这个词。」</span>否掉的依据：改口时真正变了的 logit，只占整份状态被推动量的 <b data-f="ret">0.0%–20.7%</b>；真正参与的维度是 <b data-f="neff">587–831</b> / <span data-f="d">2048</span>。两个量级不是一回事，解释不成立。</div>
+   <div class="noitem"><span class="claim">「干预把候选词的分数重新排了一遍，所以能解释模型为什么选这个词。」</span>否掉的依据：改口时真正变了的 logit，只占整份状态被推动量的 <b data-f="ret">0.0%–20.7%</b>；这份推动量摊在 <b data-f="neff">587–831</b> 个维度上（这个模型一共 <span data-f="d">2048</span> 个）。<i class="inline-gloss">这叫「参与比」：把这次推动平均分给这么多个维度，能得到同样大的净效果——是个数，不是「第几号到第几号」。</i>两个量级不是一回事，解释不成立。</div>
    <div class="noitem"><span class="claim">「换一个词，是因为草稿被挪了位置。」</span>否掉的依据：逐个词拆开看，位移与改口的关系不是这样，而且方向还写反了。</div>
    <div class="noitem"><span class="claim">「状态已经被压到少数几个方向上，其余维度都清零了。」</span>否掉的依据：页面上那个"收拢程度"的数字来自 2D 散点的形状，从 2 个数推不出 <span data-f="d">2048</span> 个数被压成了几个。</div>
    <div class="noitem"><span class="claim">「干预是把答案推向某个方向。」</span>否掉的依据：逐个词拆开有三种机制——两头一起发力、只压低败者、只抬高胜者，没有单一机制。</div>
