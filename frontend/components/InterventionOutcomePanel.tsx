@@ -229,6 +229,30 @@ type ClaimAudit = {
 };
 
 // §8.7 把尺子指向真实论文摘要。写它的是 .cache/xcheck/lit_audit.py。
+// ⚠ 第二十八笔新增：只声明**这一块真正读到的**字段，不整份照抄。
+//   理由与 O 层那条纪律一致：类型写全了而代码不用其中一半，
+//   读代码的人会以为那些字段参与了什么判断。
+type VectorRolesLite = {
+  unmeasured?: {
+    lm_head_anchor?: {
+      claim?: string;
+      status?: string;
+      reason?: string;
+      pre_existing_measurement?: string;
+    };
+  };
+  necessity?: {
+    in_sample_circular?: Record<
+      string,
+      Record<string, {
+        n_traj_pooled?: number;
+        n_traj_within_which_rho_is_defined?: number;
+        rho_within_traj?: number;
+      }>
+    >;
+  };
+};
+
 type LitAudit = {
   what: string;
   source: { api: string; query: string; n_papers: number; only_abstracts: boolean };
@@ -343,6 +367,24 @@ export default function InterventionOutcomePanel() {
   const [rep, setRep] = useState<Repetition | null>(null);
   const [ca, setCa] = useState<ClaimAudit | null>(null);
   const [lit, setLit] = useState<LitAudit | null>(null);
+  // ⚠⚠ 第二十八笔新增：这一块讨论的「那个产物」就是 vector_roles.json，
+  //   而它**本来没被取**。于是这段话里的三个数全是手抄的：
+  //     · 「99.5% of sampled steps」—— 产物给的是 all_steps 1532/1536 = 0.9974，
+  //       页面那个 99.5% 既不是 99.74%，口径也说错了（不是抽样，是全部 1536 步）
+  //     · 「max logit error 0.125」—— 值对，可是手抄
+  //     · 「One direction rests on 3 trajectories out of 48」—— 两个数都有源，
+  //       在 necessity.in_sample_circular.{L14,L20}.creativity 里
+  //   关键：vector_roles.json 的 unmeasured.lm_head_anchor.pre_existing_measurement
+  //   **已经写着全部正确的数**，而且把两个口径分开了
+  //   （all_steps 1532/1536 = 0.9974；top1-top2 margin >= 1.0 的可判定步
+  //     1420/1420 = 1.0），末尾还自带一句「该数字由 build_logit_lens.py 产出，
+  //   不是本脚本重算的，引用而非复现」—— 那正是这里需要的措辞。
+  //   ⇒ 直接渲染那句话，不重新叙述它。
+  // ⚠ 为什么取它而不是 logit_lens.json：那三个数的结构化字段只在
+  //   logit_lens.json 里，而它有 **1.7 MB**（第二大产物）；
+  //   本面板现在 8 份产物合计 256 KB，加它就是 6.7 倍 ——
+  //   为一个句子里的两个数不划算。vector_roles.json 只有 52 KB。
+  const [roles, setRoles] = useState<VectorRolesLite | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   // Mounted with a cancellation guard, same shape as InterpretationPanel's
@@ -384,9 +426,15 @@ export default function InterventionOutcomePanel() {
       // 两者一起变坏时还能互相指出问题。
       fetch("/latent/data/lit_audit.json").then((r) =>
         r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
+      // 第二十八笔：这段话讨论的那个产物本身。52 KB。
+      fetch("/latent/data/vector_roles.json").then((r) =>
+        r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
     ])
-      .then(([c, a, m, p, d, rp, q, li]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower, DirCompare, Repetition, ClaimAudit, LitAudit]) => {
-        if (alive) { setCot(c); setAns(a); setArm(m); setPw(p); setSd(d); setRep(rp); setCa(q); setLit(li); }
+      .then(([c, a, m, p, d, rp, q, li, vr]: [CotTexts, AnswerReadout, ArmAsymmetry, AnswerPower, DirCompare, Repetition, ClaimAudit, LitAudit, VectorRolesLite]) => {
+        if (alive) {
+          setCot(c); setAns(a); setArm(m); setPw(p); setSd(d); setRep(rp);
+          setCa(q); setLit(li); setRoles(vr);
+        }
       })
       .catch((e) => { if (alive) setErr(String(e.message || e)); });
     return () => { alive = false; };
@@ -1095,8 +1143,29 @@ export default function InterventionOutcomePanel() {
                 : null}
             </li>
             <li data-ca-item="self">
-              <b>本项目自己那句话</b>（±v 闭合率 5/23 vs 20/23，破坏模式是逐字重复退化）
-              声明 L{s3.audit.declared_level} ⇒ 按它自己的尺子只到{" "}
+              <b>本项目自己那句话</b>
+              {/* ⚠⚠ 第二十八笔：原来这里是手写的一句转述
+                  「（±v 闭合率 5/23 vs 20/23，破坏模式是逐字重复退化）」。
+                  而 s3.quote（claim_audit.json 的原文）是：
+
+                    在同一根轴上注入 +v 会让生成跑飞（闭合率 5/23 vs
+                    **共享对照 21/23**），而 −v 几乎不变（20/23）；
+                    破坏模式是逐字重复退化。
+
+                  ⇒ 转述把「共享对照 21/23」和「−v 的 20/23」并成了
+                    一个「20/23」，于是这句话与它**所引用的原文**自相矛盾；
+                  而 steer_directions.json 的 closed_counts.caliber 字段明写：
+                    down_minus_v / up_plus_v = 与共享零臂**配对**后两臂都跑完的题数
+                    down_arm_own / up_arm_own = 该臂自己跑完的题数
+                  ⇒ 20 与 21 是**两个口径**（配对交集 vs 零臂自身），
+                    不写出来就成了同屏矛盾（第十七笔在主三格表上修过一次，
+                    这里这个自评块是同一问题的第二处）。
+                  修法不是把那三个数算对，是**别再转述** ——
+                  原样渲染 quote，它自己就分得清两个口径。
+                  同一个 <li> 里的兄弟条目（cheapest_next_step.how 等）
+                  本来就是直接渲染产物字符串的，这里是唯一一处例外。 */}
+              <span data-ca-self-quote={s3.quote}>{s3.quote}</span>
+              {" "}声明 L{s3.audit.declared_level} ⇒ 按它自己的尺子只到{" "}
               <b className="font-mono text-gray-200">
                 L{s3.audit.max_level_supported}</b>。
               差的正是那条随机臂。
@@ -1182,21 +1251,83 @@ export default function InterventionOutcomePanel() {
           with several directions passing its gate. Those correlations are
           circular: the vector is defined as a difference of group means
           over these tokens, then correlated back against the same labels,
-          so the pass/fail is an identity rather than a finding. One
-          direction rests on 3 trajectories out of 48. The non-circular
+          so the pass/fail is an identity rather than a finding.{" "}
+          {/* ⚠⚠ 第二十八笔：原来这里是「One direction rests on 3 trajectories out
+              of 48」—— 两个数都是手抄的。源在 vector_roles.json 的
+              necessity.in_sample_circular.L14.<方向>：
+              n_traj_within_which_rho_is_defined 与 n_traj_pooled。
+              注意这两个**不是同一件事**：分母 48 是池化的全部轨迹，
+              分子 3 是「轨迹内 rho 有定义」的条数（常数轨迹上 Spearman
+              无定义，只从逐轨迹 rho 里剔除，pooled 仍用上它的每一步 ——
+              产物自己在 per_traj_denominator_note 里写了这件事）。
+              而 rho_within_traj 0.0489 说明这 3 条上的效应也确实很小。 */}
+          {roles ? (() => {
+            // ⚠ 只看第一个层（L14 / L20 的 n 相同，取哪个都一样），
+            //   一次遍历找分子**最小**的那个方向。
+            //   不点名某个方向 —— 手写名字在这里同样是「猜哪个是它」，
+            //   而「最小」是能从产物算出来的。
+            const byLayer = Object.values(
+              roles.necessity?.in_sample_circular ?? {})[0] ?? {};
+            let dir: string | null = null;
+            let best: { n: number; pool: number; rho: number } | null = null;
+            for (const [d, r] of Object.entries(byLayer)) {
+              const n = r.n_traj_within_which_rho_is_defined;
+              const pool = r.n_traj_pooled;
+              if (n == null || pool == null) continue;
+              if (best === null || n < best.n) {
+                best = { n, pool, rho: r.rho_within_traj ?? NaN };
+                dir = d;
+              }
+            }
+            if (!best || dir === null) return null;
+            return (
+              <>
+                The thinnest one,{" "}
+                <span className="font-mono" data-thin-dir={dir}
+                      data-thin-n={best.n} data-thin-pool={best.pool}
+                      data-thin-rho={best.rho}>
+                  {dir}
+                </span>
+                , rests on{" "}
+                <span className="font-mono">{best.n}</span> trajectories out of{" "}
+                <span className="font-mono">{best.pool}</span>{" "}
+                {best.n === best.pool
+                  ? "(all of them)."
+                  : `(the other ${best.pool - best.n} have no within-trajectory rho defined — the statistic is undefined on a constant trace, and pooled still uses their steps).`}
+              </>
+            );
+          })() : null}{" "}
+          The non-circular
           (held-out) half of that evidence is not reproduced here either.
           Numbers like these render as convincing bars and mean nothing,
           so the panel omits them and tells you instead.
         </p>
         <p className="text-[10px] text-gray-600 leading-relaxed mt-1.5">
-          That artifact also records one check as
-          &ldquo;not recomputed, no weights on this machine&rdquo;. The
+          That artifact also records one check as{" "}
+          <span className="font-mono" data-anchor-status={roles?.unmeasured?.lm_head_anchor?.status ?? ""}>
+            {roles?.unmeasured?.lm_head_anchor?.status ?? "unavailable"}
+          </span>
+          . The
           weights are in this repository under{" "}
           <span className="font-mono">datasets/models/Qwen3-1.7B/</span>, and
-          the step was run independently afterwards: argmax reproduces the
-          recorded token on 99.5% of sampled steps, max logit error 0.125
-          against the stored top-64. It needs numpy and about half a minute,
-          not a GPU. The gap was bookkeeping, not a missing prerequisite.
+          the step was run independently afterwards:{" "}
+          {/* ⚠⚠ 第二十八笔：原来这里是
+              「argmax reproduces the recorded token on 99.5% of sampled steps,
+                max logit error 0.125 against the stored top-64」——
+              99.5% **既不是产物值也不对**：anchor.all_steps.rate = 0.9974，
+              而口径是「全部 1536 步」，不是「sampled steps」。
+              产物（vector_roles.json 的 unmeasured.lm_head_anchor.
+              pre_existing_measurement）**已经把正确的话整句写好了**，
+              两个口径分开、末尾还自带「引用而非复现」的说明
+              ⇒ 这里直接渲染那句话，不重新叙述它。
+              读不到就印 unavailable，而不是退回一个手抄的百分数。 */}
+          {roles?.unmeasured?.lm_head_anchor?.pre_existing_measurement
+            ? (
+              <span data-anchor-note>
+                {roles.unmeasured.lm_head_anchor.pre_existing_measurement}
+              </span>
+            )
+            : <span data-anchor-note="">unavailable</span>}
         </p>
       </details>
     </div>

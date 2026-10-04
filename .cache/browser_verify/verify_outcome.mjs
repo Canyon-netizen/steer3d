@@ -37,6 +37,10 @@ const SD  = JSON.parse(readFileSync(DATA + '/steer_directions.json', 'utf8'));
 const RP  = JSON.parse(readFileSync(DATA + '/steer_repetition.json', 'utf8'));
 const CA  = JSON.parse(readFileSync(DATA + '/claim_audit.json', 'utf8'));
 const LIT = JSON.parse(readFileSync(DATA + '/lit_audit.json', 'utf8'));
+// ⚠ 第二十八笔：提到模块层，因为**渲染层**也要用它（见 K6/K7）。
+//   E 组在下面另有一处同名局部变量，那是刻意保持 E 组「纯产物层」的自述；
+//   那里改成复用这一份，声明本身不动。
+const VR = JSON.parse(readFileSync(DATA + '/vector_roles.json', 'utf8'));
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = [];
@@ -1310,6 +1314,97 @@ try {
       && byId('project-confidence-claim').audit.overreach_vs_declared === true,
       MSL ? MSL.slice(0, 220) : '缺 [data-ca-item="self"]');
 
+  /* ---------------------------------------------------------------- */
+  // ⚠⚠ 第二十八笔：M3 原来只查**级别**，不查**引文本身** ——
+  //   而页面那一格是把产物的 quote **转述**过的，且转述时把两个口径并成了一个：
+  //     产物原文：「…（闭合率 5/23 vs **共享对照 21/23**），而 −v 几乎不变（20/23）…」
+  //     页面转述：「（±v 闭合率 5/23 vs **20/23**，破坏模式是逐字重复退化）」
+  //   ⇒ 页面那句与它**所引用的原文**自相矛盾：20 是 −v 臂自己的数，
+  //     不是那个对照臂的数（21 才是）。而 M3 全程绿。
+  //   所以「引文必须逐字等于产物」这条要单独成立，不能指望级别那条顺带核到。
+  const selfQuote = byId('project-confidence-claim').quote;
+  rec('M3b 「本项目自己那句话」必须**逐字**等于产物 quote（不许转述后并口径）',
+      !!selfQuote
+      && MSL.includes(selfQuote)
+      // 反向断言：那个被并过的形式不许回来。
+      // ⚠ 锚点要够紧 —— 段里另有 5/23 与 20/23 两个数（它们各自都对），
+      //   只查 includes('5/23') 会被别处的 5/23 喂饱（第九笔同款）。
+      && !/5\/23\s*vs\s*20\/23/.test(MSL)
+      && !/±v\s*闭合率/.test(MSL),
+      `产物 quote=${selfQuote.slice(0, 90)}  页面逐字含它=${MSL.includes(selfQuote)}  `
+      + `含被并过的 "5/23 vs 20/23"=${/5\/23\s*vs\s*20\/23/.test(MSL)}`);
+
+  /* ---------------------------------------------------------------- */
+  // 第二十八笔·缺陷 A：那段话原来印「argmax reproduces the recorded token on
+  // **99.5%** of sampled steps, max logit error 0.125」——
+  // 99.5% 既不是产物值（anchor.all_steps.rate = 0.9974），
+  // 口径也错（不是抽样，是全部 1536 步）。
+  // 而 vector_roles.json 的 unmeasured.lm_head_anchor.pre_existing_measurement
+  // **已经把正确的那整句写好了**（两个口径分开、末尾自带「引用而非复现」）。
+  // ⇒ 判据核「页面逐字渲染了那句话」，并反向断言 99.5% 不许回来。
+  const anchorNote = VR.unmeasured?.lm_head_anchor?.pre_existing_measurement || '';
+  const omittedTxt = state.omitted || '';
+  rec('K6 lm_head 那段必须逐字渲染产物的 pre_existing_measurement（99.5% 不许回来）',
+      !!anchorNote
+      && omittedTxt.includes(anchorNote)
+      && !/99\.5\s*%/.test(omittedTxt)
+      && !/sampled steps/.test(omittedTxt)
+      // 产物那句里自带的两个口径必须都在（这是它比手抄强的地方）
+      && /1532\/1536\s*=\s*0\.9974/.test(anchorNote)
+      && /1420\/1420\s*=\s*1\.0/.test(anchorNote),
+      `产物 pre_existing_measurement 长度=${anchorNote.length}  `
+      + `页面逐字含它=${omittedTxt.includes(anchorNote)}  `
+      + `页面仍含 99.5%=${/99\.5\s*%/.test(omittedTxt)}  `
+      + `页面仍含 "sampled steps"=${/sampled steps/.test(omittedTxt)}`);
+
+  // 「One direction rests on 3 trajectories out of 48」原来两个数都手抄。
+  // 源在 necessity.in_sample_circular（第一个层）里 **分子最小**的方向。
+  // 判据自己现算那个最小值，不接受页面报一个别的数。
+  const circByDir = Object.values(VR.necessity?.in_sample_circular ?? {})[0] ?? {};
+  const vThin = Object.entries(circByDir)
+    .map(([d, r]) => ({ d, n: r.n_traj_within_which_rho_is_defined, pool: r.n_traj_pooled }))
+    .filter((x) => x.n != null && x.pool != null)
+    .sort((a, b) => a.n - b.n)[0] || null;
+  // ⚠⚠ 第二十八笔：这条判据**第一版是假红，而假红的是判据**。
+  //   我第一版除了正向断言，还加了反向断言 `!/3 trajectories out of 48/`，
+  //   想把「手写的那句」挡在外面 —— 可现算出来的值**恰好就是 3/48**，
+  //   于是页面逐字渲染出同一串字，反向断言恒红。
+  //   ⇒ 同一个字符串既可能是手抄、也可能是现算，**在输出层无法区分**
+  //     （与第二十六笔 F5b 同一个道理的反面：那里是输出不变而输入变了，
+  //      这里是输出与手抄完全一致 —— 两种情况下「看输出」都判不出来）。
+  //   ⇒ 正向断言保留（页面印的 == 产物现算的），反向断言**删掉**，
+  //     改在**源码层**防回流 —— 与 L13/L14（读 .tsx 剥注释）同一处置。
+  rec('K7 「最薄的那个方向」的分子/分母必须由 necessity.in_sample_circular 现算',
+      !!vThin
+      && omittedTxt.includes(vThin.d)
+      && omittedTxt.includes(` ${vThin.n} trajectories out of ${vThin.pool} `),
+      `产物现算最薄 = ${vThin ? `${vThin.d} ${vThin.n}/${vThin.pool}` : '（无）'}  `
+      + `页面含该方向名=${vThin ? omittedTxt.includes(vThin.d) : '—'}  `
+      + `页面含 "${vThin?.n} trajectories out of ${vThin?.pool}"=`
+      + `${vThin ? omittedTxt.includes(` ${vThin.n} trajectories out of ${vThin.pool} `) : '—'}`
+      + `　⚠ 本条**没有**「3 trajectories out of 48 不许出现」那条反向断言：`
+      + `现算值恰好就是 3/48，两种写法输出逐字相同 ⇒ 只能去源码层判`);
+
+  rec('K7b 源级：那句不许退回手写（3 / 48 都必须从产物取）',
+      (() => {
+        const raw = readFileSync('/Users/zhourui/code/steer3d/frontend/components/'
+                                 + 'InterventionOutcomePanel.tsx', 'utf8');
+        // 与 L13 同一把刀：先剥块注释再剥行注释，否则扫到的是我自己写的解释。
+        const code = raw.replace(/\/\*[\s\S]*?\*\//g, '')
+                         .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+        // 修复后的写法必须在场，否则一次改名就让本条空转（第十四笔的教训）。
+        const hasDerivation =
+          /n_traj_within_which_rho_is_defined/.test(code)
+          && /n_traj_pooled/.test(code);
+        // 手写形态：把 3 与 48 直接写进 JSX 文案
+        const hasLiteral = /3\s+trajectories out of\s+48/.test(code)
+                        || /rests on\s*\{?3\}?\s*trajectories/.test(code);
+        return hasDerivation && !hasLiteral;
+      })(),
+      '源码里必须出现 n_traj_within_which_rho_is_defined 与 n_traj_pooled 的取数，'
+      + '且不许出现「3 trajectories out of 48」这种写死形态');
+
+
   const MCC = C3.coverage || '';
   rec('M4 覆盖限制必须印出：对外部文献的判定力未经检验（不许只印工具不印限制）',
       !!MCC
@@ -1440,7 +1535,6 @@ try {
   //         生成器源码里不再有手抄副本。
   //   不能 —— 读者在页面上看不到它们。面板拒绝渲染。所以
   //         「读者看到的数是对的」在这一块是**不适用**，不是「已核」。
-  const VR = JSON.parse(readFileSync(DATA + '/vector_roles.json', 'utf8'));
   const E = VR.necessity;
   const VDen = VR.denominators, VSc = VR.observable_audit.self_check;
   const VWS = E.which_statistic_and_why, VRC = E.random_control_is_the_real_null;
