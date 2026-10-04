@@ -418,19 +418,38 @@ try {
     console.log('　（不依赖前提的照判：J9 读的是 Scene3D.tsx 源码，不碰运行时。）');
   }
 
+  // ⚠⚠⚠ 第三十三笔之十二：这里原来写的是 `if (s.badge) return s;`。
+  //
+  //   那是**拿到「有标签」就返回** —— 而 `data-scene-focus` 是 3D 的
+  //   **聚焦标签**，上一次拖动留下的那个**不会立刻消失**。
+  //   ⇒ 第二次拖动一进去，第一次轮询就捞到了**上一轮的旧标签**并直接返回。
+  //   实测症状：J10 印 `752 -> 752`（两次拿到同一个步号），
+  //   而 nudge 明明是 1 与 6，目标相差 5 步。
+  //   ⇒ 修法：必须等到 badge 的步号**等于这次设的目标**才返回；
+  //     步号对不上的那些一律当作**陈旧读数**继续等，并把次数报出来。
+  //
+  //   （与「读快照 vs 等它停」同族：不是被测对象不动，是**读数没赶上**。
+  //     但症状在汇总行里长得一模一样——都印成 `FAIL`。）
   const focusInWindow = async (nudge) => {
+    let stale = 0, last = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       const cur = JSON.parse(await page.eval(readBoth));
       if (!cur.scene || !cur.scene.high) return null;
       const target = Math.max(0, Math.min(cur.scene.high, cur.rangeMax) - nudge);
-      await page.eval(setSlider.replace('${TARGET}', String(target)));
+      const set = JSON.parse(await page.eval(setSlider.replace('${TARGET}', String(target))));
+      if (set && set.missing) return null;
       for (let w = 0; w < 14; w++) {
         await sleep(400);
         const s = JSON.parse(await page.eval(readBoth));
-        if (s.badge) return s;
+        last = s;
+        if (s.badge && Number(s.badge.step) === target) {
+          return { ...s, target, stale, sliderMoved: s.chain?.step === String(target) };
+        }
+        // 有标签但步号不是这次的目标 ⇒ **陈旧读数**，继续等
+        if (s.badge) stale++;
       }
     }
-    return null;
+    return last ? { ...last, target: null, stale, sliderMoved: null } : null;
   };
   const s1 = await focusInWindow(1);
   const inWin = s1?.badge?.step ?? s1?.chain?.step ?? null;
@@ -465,7 +484,11 @@ try {
     //   于是整段被 `catch` 吞成「装置: Cannot read properties of null
     //   (reading 'badge')」——**红的是一个异常，不是判决**。
     //   ⇒ 可选链要一路写到根：s1?.badge?.step。
-    `${s1?.badge?.step} -> ${s2?.badge?.step}${s2?.badge ? '' : '（第二次没拿到标签）'}`);
+    `${s1?.badge?.step} -> ${s2?.badge?.step}`
+    + `　目标 ${s1?.target} / ${s2?.target}`
+    + `　陈旧读数 ${s1?.stale} / ${s2?.stale} 次`
+    + `　滑杆真的动了吗 ${s1?.sliderMoved} / ${s2?.sliderMoved}`
+    + `${s2?.badge ? '' : '（第二次没拿到标签）'}`);
 
   // 接线自证：源码里确实有 onClick 调 setFocusedStep（光线拾取本身验不了）
   const src = readFileSync(
