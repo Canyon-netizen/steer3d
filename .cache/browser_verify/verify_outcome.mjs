@@ -374,9 +374,34 @@ try {
       '未发现把循环判定渲染成结论的文案');
 
   /* ---------------------------------------------------------------- */
-  rec('G9 解释了为什么注入在 3D 里几乎看不见（并给出量级）',
-      !!state.note && /0\.3%|0\.3/.test(state.note) && /30\.4|29\.8/.test(state.note),
-      String(state.note).slice(0, 140));
+  // ⚠⚠⚠ 第二十九笔：这一条原来**要求那几个字面量出现在页面上**：
+  //     !!state.note && /0\.3%|0\.3/.test(state.note) && /30\.4|29\.8/.test(state.note)
+  //   那五个数（0.02 / 5.4 / 0.3% / 29.8 / 30.4）在仓库里找不到任何源，
+  //   而散文写着「Measured on this recording」—— 可它们是编译期常量，
+  //   对每条录制都一样 ⇒ 那句话按构造是假的。
+  //   ⇒ 旧判据不是「漏了检查」，它是**把缺陷钉死了**：
+  //     页面一改对（不再印不可复现的数），判据反而转红。
+  //   这与第十三/二十六笔「判据与产品共用同一份手抄」是同一族，
+  //   但方向相反：那边是判据也抄了一份所以核不出，
+  //   这边是**判据要求那一份必须存在**。
+  // 现在核三件事：① 回答了那个问题 ② 明说这个比较**没有**在这里复现
+  //              ③ 那个不可复现的数与「实测」说法不许回来。
+  // ⚠ 诊断行逐项列，不只印原文：第二十六笔 S9 那个教训
+  //   （三段嵌套三元只报第一个非零原因，把同批的独立信号盖住了）。
+  const nt = state.note || '';
+  const g9 = {
+    回答了问题: /inject/i.test(nt),
+    提到三维: /3-?D|three dimensions/i.test(nt),
+    明说未复现: /not recomputed|does not print a number/i.test(nt),
+    '无 29.8/30.4': !/29\.8|30\.4/.test(nt),
+    '无 0.3%': !/0\.3\s*%/.test(nt),
+    '无 L1 distance': !/L1\s+distance/i.test(nt),
+    '无 Measured on this recording': !/Measured on this recording/i.test(nt),
+  };
+  rec('G9 解释「注入在 3D 里几乎看不见」时，不许印无法复现的数，也不许自称实测',
+      !!state.note && Object.values(g9).every(Boolean),
+      `逐项：${Object.entries(g9).map(([k, v]) => `${k}=${v ? '✓' : '✗'}`).join('  ')}`
+      + `　| 原文 ${nt.slice(0, 150)}`);
 
   const errs = page.events
     .filter(e => e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error')

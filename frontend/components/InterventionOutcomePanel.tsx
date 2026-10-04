@@ -1225,20 +1225,53 @@ export default function InterventionOutcomePanel() {
       </p>
 
       {/* --- why the slider looks like it does nothing --- */}
+      {/* ⚠⚠⚠ 第二十九笔：这一段原来写着
+
+          Measured on this recording: the injection shifts the projection by an L1
+          distance of ~0.02, against a trajectory whose own coordinates span ~5.4
+          — about 0.3%. An independent SVD says why: the vector moves the top-3
+          subspace by 29.8 while the model itself moves 30.4 per step. One
+          injection is worth about one step of the model's own motion.
+
+          **那五个数在本仓库里找不到任何源**，而「Measured on this recording」
+          按构造是假的：它们是**编译期常量**，对每一条录制都一样。
+          查过的四条路都是空的（第二十九笔的记录）：
+            1. 产物字段 —— latent/data 下 20 份 JSON 逐份查过；
+               logit_lens.json 里命中的 "29.8"/"30.4" 是 real_margin:29.875 与
+               p_final 数组里 29.8429/30.4954 的**子串巧合**，不是那个量。
+            2. 页面现算 —— 本组件**不读 store**（0 处 useApp），3D 数据走
+               WebSocket 进 Scene3D；而原始隐状态是 hs_*.bin
+               5.2 MB × 24 ≈ 125 MB，页面不可能为了一个比值去拉。
+            3. 生成脚本 —— backend/examples 下无任何脚本算「注入位移 vs
+               轨迹跨度」这个比值。
+            4. 框架文档 —— 6600 行里没有这几个数，也没有这段断言的来历。
+          ⇒ 判据 G9 原来**要求这几个字面量出现在页面上**（/0\.3%|0\.3/ 与
+            /30\.4|29\.8/），也就是把缺陷钉死了：页面一改对，判据就红。
+          处置：**删掉那五个数与「实测」的说法，保留问题与定性回答，
+            并明说这个比较在这里没有复现**（与 vector_roles.json 里
+            unmeasured.* 用的是同一套措辞纪律）。这比保留一个不可复现的数
+            诚实 —— 代价是这一段的定量说服力下降，页面因此更弱而不是更强，
+            这一点必须一起说，不能只说收益。
+      */}
       <div
         className="mt-2 px-2 py-1.5 rounded text-[10px] leading-relaxed"
         style={{ background: "#131a28", borderLeft: "2px solid #4a90d9", color: "#9db4cc" }}
         data-invisible-note
       >
-        <b>Why the 3-D curve barely moves when you inject.</b> Measured on
-        this recording: the injection shifts the projection by an L1
-        distance of ~0.02, against a trajectory whose own coordinates span
-        ~5.4 — about <b>0.3%</b>. An independent SVD says why: the vector
-        moves the top-3 subspace by 29.8 while the model itself moves 30.4
-        per step. One injection is worth about one step of the model&apos;s
-        own motion. It is acting on the residual stream (‖v‖ and its
-        projection are reported live) — it is just not visible in three
-        dimensions.
+        <b>Why the 3-D curve barely moves when you inject.</b>{" "}
+        {/* 定性回答保留，并明说它没有在这里被复现 */}
+        <span data-invisible-verified="0">
+          The expected reading is that one injection is a small fraction of
+          the model&apos;s own per-step motion, so at the scale a 3-D view
+          shows, the vector is not visible even when it is doing something.
+        </span>{" "}
+        <b>That comparison is not recomputed here</b> — it would need the
+        per-step residual streams (about 125 MB), so this page does not print
+        a number for it. What <i>is</i> reported live, and what you can check
+        yourself, is the vector&apos;s own length and its projection onto the
+        recorded states. Whether the behaviour moved is answered elsewhere on
+        this page, with denominators — and the answer there is a net change of
+        zero correct answers over the complete pairs.
       </div>
 
       {/* --- what is deliberately not shown --- */}
