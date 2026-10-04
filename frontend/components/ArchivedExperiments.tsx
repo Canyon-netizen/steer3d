@@ -138,6 +138,21 @@ export default function ArchivedExperiments() {
   // The payload shape depends on `file.kind`, so there is no single type
   // to hold it; each branch below narrows to the one it renders.
   const [data, setData] = useState<unknown>(null);
+  // ⚠⚠ 第三十一笔：这个 state 是**修一个整页白屏**用的。
+  //   原来渲染条件是 `{data != null && file.kind === "extraction" ? ... }`，
+  //   而 setData(null) 在 useEffect 里 —— 它**晚一轮渲染**。
+  //   ⇒ 切档那一瞬间：`file.kind` 已经是 "extraction"，
+  //     `data` 却还是**上一档**的数据（idx=0 是 SweepRow[]，一个数组），
+  //     于是 <ExtractionTable data={数组}> 渲染时
+  //     `Object.keys(data.per_layer)` 拿到 undefined ⇒ TypeError ⇒
+  //     Next 的 error boundary 接管，**整页白屏**。
+  //   实测：bodyLen 23093 → 103，页面变成
+  //     「Application error: a client-side exception has occurred」。
+  //   ⇒ 只要把下拉框切到「Extraction layer vs effect」或
+  //     「Cross-layer cosine」就必崩 —— 而默认档是 0，所以**每次都崩**。
+  //   ⇒ 修法：记下 data 来自哪个 url，只在 `loadedFor === file.url` 时渲染。
+  //     这样 stale data 根本到不了新 kind 的组件。
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -148,13 +163,17 @@ export default function ArchivedExperiments() {
     setLoading(true);
     setError(null);
     setData(null);
+    setLoadedFor(null);
     fetch(file.url)
       .then((r) => {
         if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
         return r.json();
       })
       .then((j) => {
-        if (!cancelled) setData(j);
+        if (!cancelled) {
+          setData(j);
+          setLoadedFor(file.url);
+        }
       })
       .catch((e) => {
         if (!cancelled) setError(String(e.message ?? e));
@@ -168,12 +187,20 @@ export default function ArchivedExperiments() {
   }, [file.url]);
 
   return (
-    <div className="flex flex-col gap-2 p-4 rounded-lg bg-panel border border-border">
+    // ⚠⚠ 第三十一笔：这一整块原来**一个 data-* 都没有** ⇒ 它既不进覆盖矩阵，
+    //   也不进探针的未标记段落清单（那份清单当时还写死了 8 个面板名），
+    //   于是「ArchivedExperiments 里那句手写的 6%」三重隐形。
+    //   另注意这个面板靠 <select> 切 6 个文件，**默认 idx=0**，
+    //   而承载那句话的 extraction 表在 idx=4 ⇒ 默认视图里根本看不到它。
+    //   data-archived / data-archived-file 让判据能定位并切过去。
+    <div className="flex flex-col gap-2 p-4 rounded-lg bg-panel border border-border"
+         data-archived="ready">
       <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
         Archived experiments
       </h2>
 
       <select
+        data-archived-file={String(idx)}
         value={idx}
         onChange={(e) => setIdx(parseInt(e.target.value, 10))}
         className="px-2 py-1 rounded bg-bg border border-border text-xs text-gray-200"
@@ -194,16 +221,16 @@ export default function ArchivedExperiments() {
         </p>
       )}
 
-      {data != null && file.kind === "sweep" ? (
+      {loadedFor === file.url && data != null && file.kind === "sweep" ? (
         <SweepTable rows={data as SweepRow[]} />
       ) : null}
-      {data != null && file.kind === "scan" ? (
+      {loadedFor === file.url && data != null && file.kind === "scan" ? (
         <ScanTable data={data as ScanFile} />
       ) : null}
-      {data != null && file.kind === "extraction" ? (
+      {loadedFor === file.url && data != null && file.kind === "extraction" ? (
         <ExtractionTable data={data as ExtractionFile} />
       ) : null}
-      {data != null && file.kind === "nullfloor" ? (
+      {loadedFor === file.url && data != null && file.kind === "nullfloor" ? (
         <NullFloorTable data={data as NullFloorFile} />
       ) : null}
     </div>
@@ -468,6 +495,17 @@ function ExtractionTable({ data }: { data: ExtractionFile }) {
   const means = layers.map((L) => data.per_layer[String(L)].mean);
   const max = Math.max(...means, 1e-9);
   const sat = data.saturation;
+  // ⚠⚠ 第三十一笔：原来末段手写「about 6% below the inert control」。
+  //   产物里 token_agreement 逐层现算（见下）⇒ 距 1.0 的缺口是
+  //   **5.40–6.01 个百分点**（均值 5.64），不是每层都 6%：
+  //   L8 只有 5.40。所以「at every one of them … 6%」不成立。
+  //   基准取 1.0 是**定义**推的（零强度注入 ⇒ 逐 token 不变），
+  //   产物里**没有**单独实测的 inert control token_agreement 字段 ——
+  //   顶层那个 control = 0.0 是**效应量指标** mean_logit_kl 的对照，
+  //   与 token agreement 是两个量。下面那句话里必须说清这件事。
+  const taVals = layers.map((L) => data.per_layer[String(L)].token_agreement);
+  const gapLo = (1 - Math.max(...taVals)) * 100;
+  const gapHi = (1 - Math.min(...taVals)) * 100;
 
   return (
     <div className="flex flex-col gap-2.5 max-h-80 overflow-y-auto">
@@ -529,10 +567,35 @@ function ExtractionTable({ data }: { data: ExtractionFile }) {
             out past where it is applied buys nothing
           </>
         ) : null}
-        . Token agreement barely varies across the same range — though it
-        sits about 6% below the inert control at every one of them, so the
-        intervention is never free; only the distributional divergence grows
-        with extraction depth.
+        {/* ⚠⚠ 第三十一笔：原来这里是手写的
+            「sits about 6% below the inert control at every one of them」，
+            三处问题：
+             ① 6% 是字面量，而且「每一层都约 6%」不成立
+                （实测缺口 5.40–6.01 个百分点，L8 只有 5.40）。
+             ② **产物里没有 inert control 的 token_agreement 字段**。
+                基准 1.0 是**定义**推出来的：零强度注入 ⇒ 输出逐 token 不变。
+                这一句必须把这件事说出来，否则读者会以为有实测对照。
+             ③ 「the inert control」与本卡顶栏「controls read exactly 0.0000」
+                **撞名但不是同一个东西**：顶栏那个 0.0000 是 mean_logit_kl 的
+                对照，这里说的是 token agreement 的 1.0 基准。
+                混读会得出「对照是 0，所以差 6 个百分点」这种不存在的对比。
+                ⇒ 下面刻意不叫「control」，改说「zero-strength baseline」，
+                  并显式指出产物里没有单独实测它。
+            data-ta-gap 属性只作交叉核对，主体断言在可见文案上。 */}
+        . Token agreement barely varies across the same range (
+        {(Math.min(...taVals) * 100).toFixed(2)}–
+        {(Math.max(...taVals) * 100).toFixed(2)}
+        %), i.e. it stays{" "}
+        <span className="font-mono text-gray-300"
+              data-ta-gap-lo={gapLo.toFixed(2)} data-ta-gap-hi={gapHi.toFixed(2)}>
+          {gapLo.toFixed(2)}–{gapHi.toFixed(2)} percentage points
+        </span>{" "}
+        short of the zero-strength baseline of 1.0 — a baseline fixed{" "}
+        <b>by definition</b> (a zero-strength injection leaves every token
+        unchanged), not a separately measured control: the artifact only
+        records the effect-size control, which reads exactly 0.0000 above.
+        The intervention is therefore never free; only the distributional
+        divergence grows with extraction depth.
       </p>
     </div>
   );

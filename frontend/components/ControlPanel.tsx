@@ -123,7 +123,14 @@ export default function ControlPanel({ sendControl }: Props) {
             </select>
             {/* Say where the tokens come from. A picker alone still leaves the
                 reader guessing whether the stream is generated or replayed. */}
-            <p className="text-[10px] text-gray-500 leading-relaxed">
+            {/* ⚠ 第三十一笔：探针去掉「写死的 8 面板名单」之后，这段
+                被算成「祖先链为空」。但**它其实被读过** ——
+                verify_picker.mjs 里就写着 "Replaying a recorded"，
+                只是那是**全文 includes**，不是按标记读。
+                ⇒ 「祖先链为空」不等于「没人读」，这两件事必须分开说。
+                ⇒ 给它一个标记，让「按标记读」这条路也通。 */}
+            <p className="text-[10px] text-gray-500 leading-relaxed"
+               data-replay-note="true">
               Replaying a recorded Qwen3-1.7B trajectory — the
               hidden states, tokens and per-step entropy are the ones captured on
               the cluster, not generated here.

@@ -210,7 +210,14 @@ export default function SteeringControl({ sendControl }: Props) {
             </button>
           ))}
         </div>
-        <p className="text-[10px] text-gray-500 leading-snug">
+        {/* ⚠ 第三十一笔：同款 —— 这段含实时数字（随滑块变），
+            去掉名单后被算成「祖先链为空」。
+            ⚠ 它的 ‖v‖ 与 ‖h‖ 都是**现算**的（strength × layerRms / layerRms），
+              不是手抄；`grep -rn "16.43"` 在 attr_null_1p7b.json 里的
+              4 处命中全是 `-16.430028915405273` 这类长浮点的**子串巧合**。
+            ⇒ 加标记让它可被按标记读。 */}
+        <p className="text-[10px] text-gray-500 leading-snug"
+           data-vec-scale="true">
           {calibrated ? (
             <>
               ‖v‖ ={" "}

@@ -6895,3 +6895,278 @@ artifact_consumers 4/4、dedup_rendered 24/24。
    两个数都还在，只是从「手抄」变成「派生」。
    真正的新增是：读者现在能分辨 `1.68`（配方的余量）与 `2.05`
    （读出方向那一行）**不是同一个量**。
+
+---
+
+#### 第三十一笔：一个下拉框里藏着三个「一击必白屏」，而它四重隐形
+
+这一笔本来只是去收尾一个候选（`ArchivedExperiments` 里手写的「6%」）。
+结果在核那 6% 的过程中撞上一个**能让整页白屏的既有缺陷** ——
+而这个缺陷在四重意义上都是隐形的。候选本身反而成了次要事件。
+
+##### ① 四重隐形
+
+那一块面板在 `page.tsx` 里正常渲染、用户能看见，但：
+
+1. **整块面板一个 `data-*` 都没有** ⇒ 不进覆盖矩阵
+   （矩阵统计的是「有标记的块」，没有标记的块对它是不可见的）；
+2. **探针的未标记段落清单写死了 8 个面板名**
+   （`[data-outcome] [data-subspace] [data-ladder] [data-axis]
+     [data-heldout] [data-structure] [data-law] [data-derivation]`），
+   而根页 import 了 **15 个组件** ⇒ 名单外的面板对 `C5`/`C6` **完全隐形**；
+3. **没有任何 verify 脚本读它**（`grep -rl "extraction_layer|ArchivedExperiments|data-archived"`
+   命中 0 个文件）；
+4. **它靠一个 `<select>` 切 6 个文件，默认 `idx=0`**，
+   而承载缺陷的那张表在 `idx=2 / 4` ⇒ **默认视图根本不渲染它**。
+
+⇒ 前面每一笔的普查（手抄数字、无源常数、判据假绿）都从「覆盖矩阵」和
+「未标记段落清单」这两份表出发，而这块面板**在两份表里都不存在**。
+⇒ 这不是「某个洞没被发现」，是**发现机制本身漏掉了这一类**。
+
+##### ② 把名单去掉之后，判据立刻变红
+
+`probe_panels.mjs` 的 `roots` 改成「扫全页面 `<p>`，面板归属由最近带标记祖先反推」，
+重跑一次 root 探针：
+
+    原来  roots 写死 8 面板 ⇒ unmarked 25 段，orphan 0 段
+    改后  扫全页面          ⇒ unmarked 31 段，**orphan 4 段**
+
+⇒ `C6`（"真孤儿必须为 0"）一直是**绿的假象**。
+真实有 4 段带实质文字的散文处在任何按标记读的判据都够不着的地方：
+
+| 字数 | 开头 | 归属 | 判据有没有读 |
+|---|---|---|---|
+| 149 | Replaying a recorded Qwen3-1.7B trajectory… | `ControlPanel` | **读过**（有 verify 命中） |
+| 50 | ‖v‖ = 16.43 against a measured ‖h‖ ≈ 164.3 at L14. | `SteeringControl` | 无 |
+| 365 | Columns: strength · token agreement · Δentropy … | `ArchivedExperiments` | 无 |
+| 104 | Layers whose activation magnitude tracks next-token entropy… | `InterpretationPanel` | 无 |
+
+⚠ 那 50 字里的 `16.43` / `164.3` **是现算的**（`(strength * layerRms).toFixed(2)`
+与 `layerRms.toFixed(1)`），不是手抄。
+⚠ 而 `grep -rn "16.43"` 在 `backend/examples/output/attr_null_1p7b.json` 里有 4 处命中 ——
+**全是 `-16.430028915405273` 这类长浮点的子串巧合**，
+与第二十九笔那五个数（`29.8` / `30.4` 命中 `real_margin: 29.875`）是同一族陷阱。
+⇒ 「数字看起来眼熟」与「这个数是手抄的」之间没有关系。
+
+##### ③ 真正的发现：切档会把整页打崩
+
+为了核那个 6%，判据必须先切到 `idx=4`。切完之后页面变成：
+
+    切档前  bodyLen = 23093
+    切档后  bodyLen = 103
+           「Application error: a client-side exception has occurred
+             (see the browser console for more information).」
+
+⚠ 这一条如果只写进 `Q1` 的诊断，读起来会是「页面印的是（没抓到）」——
+**像「标记没找到」，而真因是「整页已经死了」**。
+⇒ 所以必须有一条独立判「页面还活着」的守卫，而且要**逐档**切（见 ④）。
+
+抓崩溃原因（`Runtime.enable` 与 `Page.addScriptToEvaluateOnNewDocument`
+在这个精简 CDP 客户端里都不可用 ⇒ 改成**就绪后、切档前**用 `page.eval`
+装 `window.onerror` / `console.error` 收集器）：
+
+    TypeError: Cannot convert undefined or null to object
+        at Object.keys (<anonymous>)
+        at J (…/static/chunks/app/page-….js:1:126600)
+
+根因在 `ArchivedExperiments.tsx` 的渲染条件：
+
+    {data != null && file.kind === "extraction" ? <ExtractionTable data={data}/> : null}
+
+`setData(null)` 写在 `useEffect` 里，而 **`useEffect` 晚一轮渲染**。
+⇒ 切档那一瞬间：`file.kind` 已经是新档，`data` 却还是**上一档的数据**
+（`idx=0` 是 `SweepRow[]`，一个数组），
+于是 `<ExtractionTable data={数组}>` 渲染时 `Object.keys(data.per_layer)`
+拿到 `undefined` ⇒ `TypeError` ⇒ Next 的 error boundary 接管。
+
+⚠ 服务端文件完全正常：`/intervention/extraction_layer_effect.json`
+返回 200、`per_layer` 有 4 层、1258 字节 ⇒ 这一次又证明
+**「读不到」与「读错了对象」是两件事**。
+
+##### ④ 崩的档位比预想的多：6 个选项里 3 个是地雷
+
+修之前我只以为 `idx=4`（extraction）会崩。变异台退回缺陷后逐档实测：
+
+    idx 0  bodyLen 23034   活（默认档）
+    idx 1  bodyLen 23816   活
+    idx 2  bodyLen   103   ✗ 崩（Injection-layer scan）
+    —— 后面不必再测，页面已经死了
+
+⇒ `sweep → scan` 就崩，而 `sweep → sweep` 不崩
+（两个档的数据都是数组，字段恰好兼容）。
+⇒ 所以**6 个选项里有 3 个是地雷**（scan / extraction / nullfloor），
+用户选中任何一个就白屏。默认档 0 恰好是安全的那一个，
+这也是它能活到现在的原因。
+
+##### ⑤ 处置：让 stale data 到不了新 kind 的组件
+
+记下 `data` 来自哪个 url，只在 `loadedFor === file.url` 时渲染对应表：
+
+    const [loadedFor, setLoadedFor] = useState<string | null>(null);
+    //   useEffect 里 setData(null) 的旁边加 setLoadedFor(null)，
+    //   .then(j) 里 setData(j) 的旁边加 setLoadedFor(file.url)
+    {loadedFor === file.url && data != null && file.kind === "extraction" ? … }
+
+⇒ 四个渲染条件（`sweep` / `scan` / `extraction` / `nullfloor`）全部加上这一道。
+⚠ 这比「在组件里判形状」好：形状判断会把「数据碰巧有那个字段」当成合法，
+而 `loadedFor` 判的是**因果**（这份数据是不是为这个文件取的）。
+
+修复后逐档实测（`Q0` 的诊断行）：
+
+    idx 0  23034   idx 1  23816   idx 2  22685
+    idx 3  23046   idx 4  23236   idx 5  22997     6/6 档全活
+
+##### ⑥ 候选本身：那个「6%」也不成立，但理由比「手抄」更重
+
+`heldout` 那笔的同族结论在这里是**加强版**。逐层实算：
+
+    L8  token_agreement 0.946038  距 1.0 = 5.40 个百分点
+    L14 0.939891                   6.01
+    L20 0.943989                   5.60
+    L24 0.944672                   5.53
+    均值 5.64    区间 5.40 – 6.01
+
+⇒ 原句「sits about **6%** below the inert control **at every one of them**」：
+- **6% 是字面量**（应当现算）；
+- **「每一层都约 6%」不成立**：L8 只有 5.40；
+- ⚠⚠ **「inert control」在产物里根本没有这个字段**。
+  产物顶层那个 `control = 0.0` 是**效应量指标** `mean_logit_kl` 的对照
+  （页面顶栏印的「controls read exactly 0.0000」就是它），
+  与 token agreement 完全是两件事。
+  基准 1.0 是**定义**推出来的（零强度注入 ⇒ 输出逐 token 不变），不是实测值。
+- ⚠ 最隐蔽的一层：**「inert control」与顶栏那个「controls read exactly 0.0000」
+  撞名却不是同一个量**。同屏两个「control」指两件事，
+  混读会得出「对照是 0，所以差 6 个百分点」这种不存在的对比。
+
+⇒ 处置：缺口区间现算（`1 - token_agreement` 的 min/max），
+措辞改成 `short of the zero-strength baseline of 1.0`（刻意不叫 control），
+并显式写明这个基准 **by definition**、
+且**产物里没有单独实测的 inert 对照**（顶栏那个 0.0000 是另一件事）。
+
+⇒ 代价也要说：这一段因此**变长也变弱**了。
+原来一句话给一个数，现在给区间 + 两句口径说明。
+诚实的代价是文风，不是「说得更准就更强」。
+
+##### ⑦ 去掉名单暴露的 5 段，逐段处置
+
+| 段 | 归属 | 处置 |
+|---|---|---|
+| 365 字「Columns: strength · token agreement …」 | `ArchivedExperiments` | 随 `data-archived` 一起有了作用域 |
+| 149 字「Replaying a recorded Qwen3-1.7B trajectory…」 | `ControlPanel` | 加 `data-replay-note` |
+| 50 字「‖v‖ = 16.43 against a measured ‖h‖ ≈ 164.3」 | `SteeringControl` | 加 `data-vec-scale`（数字是现算的） |
+| 104 字「Layers whose activation magnitude tracks…」 | `InterpretationPanel` | 加 `data-entropy-layer-note` |
+| 85 字 / 56 字（latent 页两段） | `latent/index.html` | 加 `data-latent-lead` / `data-latent-not-claimed` |
+
+⚠⚠ 而那 149 字那一段**其实早被读过** ——
+`verify_picker.mjs` 里就写着 `Replaying a recorded`（全文 `includes`）。
+⇒ 所以 **「祖先链为空」不等于「没人读」**，这一点有实测反例。
+⇒ 处置是把 `C6` 的**措辞**改准确（**阈值不动，仍然是 0**）：
+  从「承载判决的话不能无人可读」改成
+  「没有任何**按标记读**的判据能定位到它；⚠ 这不等于『没人读』」。
+
+⚠ **这一笔没有为这 5 段新增内容判据**，只给了它们可被读的作用域。
+如实记下代价：它们从此「可读」，但「真的被核过」仍然不成立 ——
+这与第二十八笔那句「`data-thin-*` 只作交叉核对」是同一条纪律的不同实例。
+
+##### ⑧ 判据侧：三条新守卫，以及一处「诊断行比判据更容易骗人」
+
+`Q0`（**最重要**）：逐档切 6 个文件，每一档都必须「页面还活着」。
+
+    判据：!isNextError && archivedAlive && bodyLen > 5000，且 6/6 档都跑到
+    诊断：逐档 bodyLen  L0=23034 L1=23816 L2=22685 L3=23046 L4=23236 L5=22997
+
+⚠⚠ 为什么必须**独立**成一条而不是并进 `Q1`：
+修复前切档会让整页死掉，那时 `Q1` 的诊断是「页面印的是（没抓到）」——
+**与「选择器写错了」无法区分**，读起来像标记问题。
+⇒ 「页面死了」和「没读到」是两个层次，判据必须分别报。
+
+⚠ 为什么必须**遍历 6 档**而不是只测 `idx=4`：
+崩的机制是「切档瞬间 data 与 kind 不匹配」，
+所以任何「上一档 data 形状 ≠ 下一档所需形状」的切换都可能崩。
+实测也印证了这一点 —— 退回缺陷后最先崩的是 **idx 2**，不是我预判的 idx 4。
+⚠ 只测一个值，会让人以为「只要测住那个档就够了」。
+
+`Q1`：缺口区间必须逐层现算，且用正则从**可见文案**里抓
+（不用 `includes`，否则页面上任何位置出现同一串数字都能顶账）。
+`Q2`：那个 1.0 基准必须明说「按定义、不是实测对照」，
+并与顶栏那个 `0.0000` 的 effect-size control 区分开 —— **这一条守的是口径不是数值**。
+`Q3`（源码层）：`about 6%` 与 `inert control` 都不许回来。
+
+归属是个**妥协**，先说清楚：`ArchivedExperiments` 严格说该另开
+`verify_archived.mjs`，而 `.gitignore` 第 12/119 行排除整个 `.cache/`，
+那 20 个 `verify_*` 是**被排除之前**就已跟踪的；
+新建文件要进仓库必须 `git add -f`，按规矩不 force-add
+⇒ 只能放进**已跟踪**的 `verify_outcome.mjs`（同一个
+`run_intervention.py` 产物家族）。
+⚠ 代价：文件头描述的覆盖面比实际少一块。
+
+#### 变异台
+
+| 变异 | 施加的缺陷 | 实测 |
+|---|---|---|
+| `M-F` | 去掉 `loadedFor === file.url` 守卫（退回白屏） | **Q0 红**，逐档诊断精确指出 `崩掉 1 档：idx 2`；Q3 绿 |
+| `M-G` | 写死 `6%` + 退回 `inert control` 说辞 | **Q1/Q2/Q3 红**，Q0 绿 |
+
+⚠ `M-F` 的分层是这一笔的核心演示：
+去掉守卫后页面死掉 ⇒ `Q0` 红，而 `Q3`（源码层）仍绿 ——
+**源码层判据不依赖页面存活**，这正是它该有的性质。
+⚠ 而 `M-F` 之所以值得单独做：它同时暴露了「我只以为 idx=4 会崩」这个**预判错误**。
+
+##### ⑨ 这一笔的结果
+
+    verify_outcome   100/100 → **104/104**（Q0 / Q1 / Q2 / Q3 四条新增）
+    两页探针         root 249 → **254** 个标记、latent 33 → **35** 个
+    覆盖扫描         GREEN 11/11
+                     ⚠ 中途 C2 曾红：判据诊断模板串里写了 `data-ta-gap-*`，
+                       扫描器把它当成 `data-ta-gap-` 这个前缀引用
+                       （第二十六笔「注释写在模板串里会被当引用」同族）。
+                       改成 `data-ta-gap-lo/hi` 之后消失。
+                       `data-ta-gap-lo/hi` 本身登记进例外簿：
+                       它们只在 ArchivedExperiments 第 5 档渲染，
+                       而覆盖扫描看到的根页 DOM 是默认 idx=0。
+    run_chain        21 条：**判红 0 ／ 跳过 1（WebGL）／ 一条都没跑 0
+                     ／ 装置崩 0 ／ 认不出判决 0**，exit 0
+
+逐条：verify_outcome 104/104、verify_law 17/17、verify_ladder 17/17、
+verify_structure 20/20、verify_derivation 26/26、verify_subspace 51/51、
+verify_axis_readout 66/66、verify_heldout 74/74、verify_scene_link 8/8（SKIP）、
+verify_backmap 24/24、verify_dv_readout 7/7、verify_cot_extras 11/11、
+verify_latent_prose 11/11、verify_logit_lens 11/11、assertion_guard 13/13、
+panel_coverage 11/11、dead_url 5/5、live_blocks 5/5、json_strict 4/4、
+artifact_consumers 4/4、dedup_rendered 24/24。
+
+##### ⑩ 一般形态
+
+1. **发现机制里任何「名单」都要问「名单外的东西去哪了」。**
+   `roots` 写死 8 个面板名，而根页有 15 个组件 ⇒ 名单外的面板对 C5/C6 隐形，
+   而 C6 印出来的「真孤儿 0 段」读起来像是**全页面**的结论。
+   去掉名单后真孤儿立刻变成 3（根页）+ 2（latent）。
+   ⇒ 修法只有一条：**别写名单，从现场反推全集。**
+2. **相邻两档「数据形状恰好兼容」会让切档缺陷完全不显形。**
+   `sweep→sweep` 不崩（都是数组、字段兼容），`sweep→scan` 崩。
+   ⇒ 这类缺陷的寿命取决于**默认值有多幸运**，不取决于它有多严重。
+   ⇒ 守卫必须**逐档**切；只测一个值会漏掉更早的崩溃点
+   （本轮预判崩在 idx=4，实测最先崩的是 **idx=2**）。
+3. **页面已经死了的时候，判据的诊断会读起来像「标记没找到」。**
+   ⇒ 必须有一条**独立**判「页面还活着」的守卫，诊断要印 `bodyLen` + 是否 error 页。
+4. **「祖先链为空」不等于「没人读」。**
+   `ControlPanel` 那 149 字是反例：`verify_picker.mjs` 全文 `includes` 了它。
+   ⇒ `C6` 的措辞已改准确（**阈值不动**）。它说的是
+   「没有任何**按标记读**的判据能定位到它」。
+
+##### ⑪ 诚实交代这一笔**没有**做到的
+
+1. **没有为暴露出来的 5 段散文新增内容判据**，只给了它们可被读的作用域。
+   它们从此「可读」，但「真的被核过」仍不成立 —— 与第二十八笔
+   「`data-thin-*` 只作交叉核对」是同一条纪律的不同实例。
+2. **`probe_panels.mjs` 与 `scan_panel_coverage.py` 都仍未跟踪**（被
+   `.gitignore` 的 `.cache/` 排除），而 `C0`–`C8` 全靠它们。
+   ⇒ 也就是说，**这一笔最重要的那个守卫（去掉名单）目前不进仓库**，
+   新克隆跑出来的仍然是「8 面板」那套覆盖。
+   ⚠ 按规矩不 force-add，所以只能留本地并说明。
+3. **「白屏」这一类缺陷（切档 / 交互引发的客户端异常）目前只有 `Q0` 一处守卫**，
+   而它只覆盖 ArchivedExperiments 这一个下拉框。
+   页面上其它交互控件（3D 滑块、DELTA 标签切档等）没有被同类守卫覆盖。
+4. **排版观感与 3D 联动仍未验**（沙箱 Chromium 无 WebGL，内置浏览器加载不完
+   `/latent/index.html`）。这一笔新加的两段英文散文长度明显变长，
+   **需要用户用普通 Chrome 看一眼排版**。

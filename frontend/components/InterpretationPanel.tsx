@@ -285,7 +285,9 @@ export default function InterpretationPanel() {
               );
             })}
           </div>
-          <p className="text-[10px] text-gray-500 leading-relaxed mt-2">
+          {/* ⚠ 第三十一笔：同款，去掉名单后被算成「祖先链为空」。 */}
+          <p className="text-[10px] text-gray-500 leading-relaxed mt-2"
+             data-entropy-layer-note="true">
             Layers whose activation magnitude tracks next-token entropy
             most closely. Measured over{" "}
             {profile?.n_trajectories ?? "?"} trajectories.

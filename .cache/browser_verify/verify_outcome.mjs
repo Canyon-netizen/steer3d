@@ -41,6 +41,11 @@ const LIT = JSON.parse(readFileSync(DATA + '/lit_audit.json', 'utf8'));
 //   E 组在下面另有一处同名局部变量，那是刻意保持 E 组「纯产物层」的自述；
 //   那里改成复用这一份，声明本身不动。
 const VR = JSON.parse(readFileSync(DATA + '/vector_roles.json', 'utf8'));
+// ⚠ 第三十一笔：Q 组要读归档扫描产物，**目录与上面这批不同**
+//   （frontend/public/intervention/ 而不是 latent/data/）。
+const EE = JSON.parse(readFileSync(
+  '/Users/zhourui/code/steer3d/frontend/public/intervention/'
+  + 'extraction_layer_effect.json', 'utf8'));
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const R = [];
@@ -1981,6 +1986,152 @@ try {
       + `${jMiss.length ? '：' + jMiss.join(' / ') : ''}；`
       + `docstring 与注释里保留旧文案（有意留，交代来历）`
       + `${jBanned.filter(s => jSrcRaw.includes(s)).length} 处`);
+
+  // ------------------------------------------------------------------
+  // ⚠ Q 组（第三十一笔）：ArchivedExperiments 面板
+  //
+  // ⚠⚠ 归属是个**妥协**，先说清楚：
+  //   这组核的是 ArchivedExperiments（读 frontend/public/intervention/*.json
+  //   这批归档扫描），严格说该另开一个 verify_archived.mjs。
+  //   但 `.gitignore` 第 12/119 行排除整个 `.cache/`，
+  //   而这里 20 个 verify_* 是**被排除之前**就已跟踪的；
+  //   新建文件要进仓库必须 `git add -f`，而按规矩不 force-add
+  //   ⇒ 只能放进**已跟踪**的脚本。归属理由：与本文件核的 intervention
+  //     产物同族（同一个 `run_intervention.py` 家族）。
+  //   ⇒ 代价如实记下：文件头描述的覆盖面比实际少一块。
+  //
+  // 这一块为什么之前三重隐形：
+  //   ① 整块面板**一个 data-* 都没有** ⇒ 不进覆盖矩阵
+  //   ② 探针的未标记段落清单**写死了 8 个面板名** ⇒ 也不进那份清单
+  //   ③ 面板靠 <select> 切 6 个文件、**默认 idx=0**，
+  //      而承载那句话的 extraction 表在 idx=4 ⇒ 默认视图根本不渲染它
+  {
+    const tas = Object.keys(EE.per_layer).map(Number).sort((a, b) => a - b)
+      .map(L => Number(EE.per_layer[String(L)].token_agreement));
+    const gapLo = (1 - Math.max(...tas)) * 100;   // 缺口最小的那层
+    const gapHi = (1 - Math.min(...tas)) * 100;   // 缺口最大的那层
+    const lo = gapLo.toFixed(2), hi = gapHi.toFixed(2);
+    // ⚠ React 受控 <select> 必须走原型 setter，直接赋 .value 不触发 onChange。
+    const pickArchived = (i) => `(() => {
+      const sel = document.querySelector('[data-archived-file]')
+        || [...document.querySelectorAll('select')].find(s =>
+             [...s.options].some(o => /Extraction layer/.test(o.textContent)));
+      if (!sel) return 'NO-SEL';
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLSelectElement.prototype, 'value').set;
+      setter.call(sel, '${i}');
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      return 'ok';
+    })()`;
+    const probePage = `JSON.stringify({
+      bodyLen: (document.body.innerText || '').length,
+      isNextError: /Application error|client-side exception/i
+                   .test(document.body.innerText || ''),
+      archivedAlive: !!document.querySelector('[data-archived]'),
+    })`;
+    // ---- Q0：**每一档**都切一遍，任何一档崩了都不许放过 ----
+    // ⚠⚠ 这条是这一笔最重要的守卫，也是「诊断行会骗人」的一个实例：
+    //   修复前切到 idx=4 会让 Next 的 error boundary 接管，bodyLen 23093 → 103。
+    //   那时 Q1 的诊断只会印「页面印的是（没抓到）」——
+    //   **读起来像「标记没找到」，而真因是「整页已经死了」**。
+    //   ⇒ 所以 Q0 必须单独判「页面还活着」，并把 bodyLen / error 文本印出来。
+    // ⚠ 为什么遍历 6 档而不是只测 idx=4：崩的机制是「切档瞬间 data 与 kind 不匹配」，
+    //   所以**任何**「上一档 data 形状 ≠ 下一档所需形状」的切换都可能崩。
+    const perTab = [];
+    for (let i = 0; i < 6; i++) {
+      await page.eval(pickArchived(i));
+      let pg = null;
+      for (let k = 0; k < 20; k++) {          // 等这一档渲染稳定（最多 4s）
+        await sleep(200);
+        pg = JSON.parse(await page.eval(probePage));
+        if (!pg.isNextError && pg.bodyLen > 5000) break;
+      }
+      perTab.push({ i, ...pg });
+      if (pg.isNextError) break;              // 已经死了，后面的档没意义
+    }
+    const dead = perTab.filter(p => p.isNextError || !p.archivedAlive || p.bodyLen <= 5000);
+    rec('Q0 切换归档文件的**每一档**都不得让整页崩（这里曾是一击必白屏的缺陷）',
+      perTab.length === 6 && dead.length === 0,
+      `逐档 bodyLen: ${perTab.map(p => `L${p.i}=${p.bodyLen}`).join(' ')}`
+      + `　已验 ${perTab.length}/6 档　崩掉 ${dead.length} 档`
+      + (dead.length ? `：idx ${dead.map(d => d.i).join(',')}` : '')
+      + `　⚠ 原缺陷：useEffect 里的 setData(null) 晚一轮渲染 ⇒`
+      + `切档瞬间 file.kind 已是新档而 data 还是上一档的形状 ⇒`
+      + `Object.keys(data.per_layer) 拿到 undefined（bodyLen 23093 → 103）`);
+
+    // 停回 extraction 档（idx=4），Q1/Q2 读它的内容
+    await page.eval(pickArchived(4));
+    // ⚠ 切档是 fetch + 重渲染，固定 sleep 会偶发读到上一档 ⇒ 轮询到标记出现
+    let AR = { missing: true, text: '', gapLo: null, gapHi: null, cur: null };
+    for (let i = 0; i < 25; i++) {
+      AR = JSON.parse(await page.eval(`(() => {
+        const box = document.querySelector('[data-archived]');
+        if (!box) return JSON.stringify({ missing: true, text: '', gapLo: null, gapHi: null, cur: null });
+        const g = box.querySelector('[data-ta-gap-lo]');
+        return JSON.stringify({
+          missing: false,
+          text: (box.innerText || '').replace(/\\s+/g, ' ').trim(),
+          gapLo: g ? g.getAttribute('data-ta-gap-lo') : null,
+          gapHi: g ? g.getAttribute('data-ta-gap-hi') : null,
+          cur: box.querySelector('[data-archived-file]')?.getAttribute('data-archived-file') ?? null,
+        });
+      })()`));
+      if (AR.gapLo != null) break;
+      await sleep(200);
+    }
+    const qTxt = AR.text || '';
+    const taMean = (1 - tas.reduce((a, b) => a + b, 0) / tas.length) * 100;
+
+    // ⚠ 主体断言在**可见文案**上；data-ta-gap-* 只作交叉核对。
+    //   用正则抓「stays X–Y percentage points」而不是 includes，
+    //   否则页面上任何位置出现同一串数字都会顶账。
+    const qm = /stays\s+([0-9.]+)[–—-]([0-9]+(?:\.[0-9]+)?)\s+percentage points/
+               .exec(qTxt);
+    rec('Q1 token agreement 距零强度基准的缺口必须逐层现算（不许手写 6%）',
+      AR.missing !== true && qm != null
+      && qm[1] === lo && qm[2] === hi
+      && AR.gapLo === lo && AR.gapHi === hi,
+      `产物逐层 token_agreement ${tas.map(v => v.toFixed(4)).join(' / ')}`
+      + ` ⇒ 缺口 ${lo}–${hi} 个百分点（均值 ${taMean.toFixed(2)}）`
+      + `　页面印的是 ${qm ? qm[1] + '–' + qm[2] : '（没抓到）'}`
+      + `　data-ta-gap-lo/hi=${AR.gapLo}/${AR.gapHi}（交叉核对）`
+      + `　⚠ 手写的「about 6% at every one of them」不成立：L8 只有 ${lo}`);
+
+    // ⚠ 这一条守的是**口径**而不是数值：基准 1.0 是定义推的，
+    //   产物里没有单独实测的 inert control —— 而页面上「inert control」
+    //   这个词原本与顶栏「controls read exactly 0.0000」撞名却是两个量。
+    const qBase = /short of the zero-strength baseline of 1\.0/.test(qTxt);
+    const qDef = /by definition/.test(qTxt);
+    const qNoCtrl = /not a separately measured control/.test(qTxt);
+    const qDistr = /effect-size control, which reads exactly 0\.0000/.test(qTxt);
+    rec('Q2 那个 1.0 基准必须明说「按定义、不是实测对照」，'
+      + '并与顶栏那个 0.0000 的 effect-size control 区分开',
+      qBase && qDef && qNoCtrl && qDistr,
+      `基准句=${qBase}　by definition=${qDef}　`
+      + `not a separately measured control=${qNoCtrl}　`
+      + `与 effect-size control 区分=${qDistr}`
+      + `　⚠ 产物顶层 control=${EE.control}（那是 ${EE.metric} 的对照，`
+      + `与 token agreement 无关）；token_agreement 无对照字段`);
+
+    // 源码层：防回流。现算值恰好含 "6.01"，而旧文案的 "6%" 与它只差 0.01
+    //   ⇒ 判据若只查「6.00」这种精确值就抓不到旧写法。
+    //   这里查的是**整句**的消失。
+    rec('Q3 源级：「about 6% below the inert control at every one of them」'
+      + '不许回来（那三个数一个都不在产物里）',
+      (() => {
+        const code = readFileSync('/Users/zhourui/code/steer3d/frontend/components/'
+                                  + 'ArchivedExperiments.tsx', 'utf8')
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+        const bad = [/[Aa]bout 6%/, /inert control/, /6% below/]
+          .filter(re => re.test(code));
+        return bad.length === 0
+          && /per_layer\[String\(L\)\]\.token_agreement/.test(code)
+          && /1 - Math\.(min|max)\(\.\.\.taVals\)/.test(code);
+      })(),
+      '必须由 per_layer[*].token_agreement 现算缺口；'
+      + '「about 6%」与「inert control」都不许出现在代码里（注释里留着交代来历）');
+  }
 } catch (e) {
   rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {
