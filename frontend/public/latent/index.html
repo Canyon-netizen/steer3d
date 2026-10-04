@@ -3991,8 +3991,17 @@ function render(){
     S.view==="XY" ? "隐空间 2D 投影 · L"+S.layer :
     S.view==="BAR" ? "该步的候选词分数 · 第 "+S.tok+" 步" :
     "这一层这一步，"+S.m.d_model+" 维里最活跃的维度 · L"+S.layer;
+  // ⚠⚠ 原来这里只写「共 N 步」，而 token 滑块只到 n_tokens_shipped-1
+  //   （实测 1.7B：1024 / 2048 / 1449 / 1960 步，但每题只 ship 了 48 步）。
+  //   ⇒ 读者看到「共 1024 步」配一个停在 47 的滑块，
+  //     只会得出「这页坏了 / 只给了 4.7% 却不说为什么」。
+  //   这个解释页面**本来就有**（drawBar 里「原始向量只打包了前 N 步」），
+  //   但它挂在一个**滑块根本到不了的状态**上 ⇒ 说给谁听？
+  //   ⇒ 并进副标题，沿用页面自己的措辞，不新造词。
   $("#mainSub").textContent =
-    t.problem_id + " · " + t.tokens[S.tok]?.s?.replace(/\n/g," ") + " · 共 " + t.n_tokens_total + " 步";
+    t.problem_id + " · " + t.tokens[S.tok]?.s?.replace(/\n/g," ")
+    + " · 共 " + t.n_tokens_total + " 步（原始向量只打包了前 "
+    + t.n_tokens_shipped + " 步）";
   trace("pre-canvas");
   if(S.view==="XY") drawXY(); else if(S.view==="BAR") drawBar(); else drawDim();
   trace("post-canvas");
