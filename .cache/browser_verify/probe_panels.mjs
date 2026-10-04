@@ -134,12 +134,79 @@ try {
               clickSweep.length, appeared.length,
               appeared.length ? '(' + appeared.join(', ') + ')' : '');
 
-  // ---- C5 的输入：有没有「大段文字、但自己一个 data-* 都不带」的 <p> ----
+  // ---- 第三十三笔之六：口径普查（阈值必须是量出来的，不是拍出来的）----
+  // ⚠⚠ 这一步是**先量后选**的纪律：第三十三笔之六的原口径是
+  //   「只扫 <p>、且 ≥40 字」，而导读浮层里 11 个真缺口有 10 个是
+  //   h1/h2/div，且最短的只有 11 字 ⇒ 它们**结构性不可见**。
+  //   但反过来把门槛降到 0、把元素集扩到全部标签，
+  //   两页的「未读」清单会膨胀到几百条 —— 清单太长就等于没有信息。
+  // ⇒ 这里把「元素集 × 长度阈值」的规模矩阵**一次量出来**写进产物，
+  //   阈值的选择必须能指着这张表说清为什么。
+  const CENSUS = JSON.parse(await page.eval(`(() => {
+    const SEL = 'h1,h2,h3,p,li,div';
+    const THRS = [0, 6, 10, 12, 16, 20, 30, 40];
+    const hasData = e => Array.from(e.attributes).some(a => a.name.startsWith('data-'));
+    const hasDataDesc = e => Array.from(e.querySelectorAll('*'))
+      .some(c => Array.from(c.attributes).some(a => a.name.startsWith('data-')));
+    const byTag = {}; const total = {}; const orphan = {};
+    for (const e of document.querySelectorAll(SEL)) {
+      if (hasData(e) || hasDataDesc(e)) continue;
+      const t = (e.innerText || '').replace(/\\s+/g, ' ').trim();
+      if (!t) continue;
+      let chain = 0;
+      for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) {
+        if (Array.from(a.attributes).some(x => x.name.startsWith('data-'))) chain++;
+      }
+      const tag = e.tagName.toLowerCase();
+      for (const th of THRS) {
+        if (t.length < th) continue;
+        total[th] = (total[th] || 0) + 1;
+        if (chain === 0) orphan[th] = (orphan[th] || 0) + 1;
+        (byTag[tag] = byTag[tag] || {})[th] = ((byTag[tag] || {})[th] || 0) + 1;
+      }
+    }
+    return JSON.stringify({ sel: SEL, thrs: THRS, byTag, total, orphan });
+  })()`));
+  // ⚠ node 的 console.log **不认** %-14s / %2d 这类带 flag 的宽度占位符
+  //   （util.format 只会把 %-14 里的 -14 当普通文本，把 %d 单独消费），
+  //   打印出来是一行乱码。下面一律用 padEnd/padStart 自己拼。
+  console.log('口径普查（元素集 %s）：阈值 → 段数（其中祖先链为空）', CENSUS.sel);
+  for (const th of CENSUS.thrs) {
+    const byT = CENSUS.byTag;
+    const parts = Object.keys(byT).sort().map(tg => tg + '=' + ((byT[tg][th]) || 0));
+    console.log('  >= ' + String(th).padStart(2) + ' 字：合计 ' + String(CENSUS.total[th] || 0).padStart(4)
+      + '（孤儿 ' + String(CENSUS.orphan[th] || 0).padStart(3) + '）  ' + parts.join(' '));
+  }
+
+  // ---- C5 的输入：有没有「大段文字、但自己一个 data-* 都不带」的块 ----
   // ⚠ 覆盖矩阵**天生看不见**这类洞：它统计的是「有标记的块」，
-  //   而 D6 / G7 那两个洞正是两段**完全没有标记**的 <p> ——
+  //   而 D6 / G7 那两个洞正是几段**完全没有标记**的散文 ——
   //   没有标记 ⇒ 不进矩阵 ⇒ 永远不会被「未被读过」那一栏列出来。
   //   矩阵只能报「读过没有」，报不了「有没有被登记过」。
-  //   ⇒ 这里单独量一遍：面板根里，文字 ≥40 字、自身无 data-*、且无 data-* 后代的 <p>。
+  //   ⇒ 这里单独量一遍：自身无 data-*、且无 data-* 后代、带文字的块。
+  // ⚠⚠ 第三十三笔之六：元素集与阈值的**口径**变了，理由与实测规模：
+  //   ① 元素集从「只扫 p」扩到 'h1,h2,h3,p,li,div'。
+  //      实测（port 22208 普查）：导读浮层 #orientation 里 11 个真缺口有
+  //      **10 个根本不是 <p>**（h1×1 / h2×5 / div×4），只扫 <p> 时它们
+  //      一个都进不来 —— 这不是「浮层没打开」造成的（.hide 是 visibility，
+  //      innerText 读得到），是**标签集太窄**造成的。
+  //   ② 长度阈值从 40 降到 THRESH（见下）。
+  // ⚠⚠ **阈值为什么是 10：它不是挑的，是被那 11 条决定的。**
+  //   那 11 条真缺口的字数是 16 / 66 / 12 / 16 / 14 / 16 / 11 / 54 / 60 / 50 / 29
+  //   ⇒ 最小的 11（`<h2>五 · 这些数字的边界`）把阈值顶死在 **≤11**：
+  //     取 12 就丢掉它；取 16 一次丢 3 条；取 20 把 h1 和 5 个 h2 全丢光；
+  //     取 30 连 29 字的提示语也丢。⇒ 10（留一点余量，免得「刚好 11」像运气）。
+  //   规模代价（上面 census 实测，两页合计，去重前）：
+  //     阈值 0 → 565 段（孤儿 140）  10 → 451（128）  20 → 325（77）
+  //     阈值 30 → 224（52）         40 → 182（44）  ← 40 是旧口径量级
+  //   去重后实际收 444 段（孤儿 122）。
+  //   ⇒ 清单变长**不靠抬阈值**消化（那正是这个项目反复栽的坑：
+  //     为了让数字好看而收窄口径），改用两条结构规则 + python 侧分层打印：
+  //        - 自身无 data-* 且**无 data-* 后代**（容器不进清单，否则一个
+  //          容器 + 它的 20 个子块会被重复计 21 次，清单直接失效）；
+  //        - 文本**完全等于**某个候选后代 ⇒ 纯包裹元素，丢弃。
+  //      留下的才是「页面上真的印着、但没有标记能定位到它」的文字。
+  const THRESH = 10;
   const unmarked = JSON.parse(await page.eval(`(() => {
     const hasData = e => Array.from(e.attributes).some(a => a.name.startsWith('data-'));
     const hasDataDesc = e => [].concat(...Array.from(e.querySelectorAll('*')))
@@ -156,10 +223,46 @@ try {
     //   ⇒ 处置：**不写名单**。扫全页面 <p>，面板归属由「最近带标记祖先」反推。
     //     名单一写死，名单外就永远没人看 —— 与「抽取器变少下游缺失数变好看」同族。
     const out = [];
-    for (const p of document.querySelectorAll('p')) {
+    // ⚠ 第三十三笔之六：候选元素集。
+    //   原来只有 'p' ⇒ 导读浮层里 10 个真缺口（h1/h2/div）结构性不可见。
+    //   这几个标签是**浮层里真实存在的那些**（实测：h1 / h2 / p / li / div），
+    //   不含 span/em/b（它们几乎总是长在有标记的祖先里，带进来只会成倍重复）。
+    const SEL = 'h1,h2,h3,p,li,div';
+    // ⚠⚠ 第三十三笔之十一：**必须判可见性**，否则把看不见的文字算成缺口。
+    //   实测（_probe_vis.mjs）：latent 页有两条含「正在加载隐空间数据…」的 div，
+    //   一条自己 display:none、一条祖先被藏（它自己 display:block、visibility:visible），
+    //   两条 innerText 都**不是空**（我原以为隐藏元素 innerText 会返回空串，实测不是）
+    //   ⇒ 只要不查可见性它们就进清单，而**读者永远看不到它们**。
+    //   一个读者看不到的占位符不是覆盖缺口，是**噪声**。
+    //   这一套逻辑与 survey_orientation.mjs 里的 shown() 相同 ——
+    //   而两支探针**各写各的**，结果只有一支查了可见性。
+    //   ⇒ 教训：同一段判据逻辑在两处各存一份时，
+    //     **先问「另一份有没有这份检查」**，别只保证自己这份有。
+    //   ⚠⚠ 而且**整段都在 page.eval 的模板串里**：注释里也不能出现反引号，
+    //     它会**截断模板串**，报出来的是 "missing ) after argument list"
+    //     —— 位置指向模板串开头那一行，离真凶很远。node --check 抓得到这个。
+    const shown = e => {
+      for (let p = e; p && p !== document.body; p = p.parentElement) {
+        const cs = getComputedStyle(p);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      }
+      return true;
+    };
+    const cands = Array.from(document.querySelectorAll(SEL))
+      .filter(e => !hasData(e) && !hasDataDesc(e) && shown(e));
+    for (const p of cands) {
       const t = (p.innerText || '').replace(/\\s+/g, ' ').trim();
-      if (t.length < 40) continue;
-      if (hasData(p) || hasDataDesc(p)) continue;
+      if (t.length < ${THRESH}) continue;
+      // ⚠ 纯包裹元素去重：文本与某个候选后代**完全相同** ⇒ 这个元素
+      //   只是壳（<div><span>…</span></div>、<li><div>…</div></li>），
+      //   记两份会让同一句话在清单里出现两次。留最内层那个。
+      let wrap = false;
+      for (const c of p.querySelectorAll(SEL)) {
+        if (cands.indexOf(c) < 0) continue;
+        const ct = (c.innerText || '').replace(/\\s+/g, ' ').trim();
+        if (ct === t) { wrap = true; break; }
+      }
+      if (wrap) continue;
       // ⚠ 第一版这里写的是 r.getAttribute(<第一个 data-* 名>)，
       //   那是**值**（如 'ready'）而不是**名字**，而 find 有时又落空 ⇒ 退化成
       //   r.tagName，整列都印成 'div'，看不出是哪块面板。
@@ -177,30 +280,39 @@ try {
       // ⚠ 祖先链为空时**不要**给它编一个面板名（如 '?'）：
       //   那会让 C6 的分组把「真孤儿」混进普通面板里数。
       const pn = (chain[0] || [])[0] || '（祖先链为空）';
-      out.push({ panel: pn, len: t.length, head: t.slice(0, 70),
+      out.push({ tag: p.tagName.toLowerCase(), panel: pn, len: t.length,
+                 head: t.slice(0, 70),
                  ancestors: chain, orphan: chain.length === 0 });
     }
     return JSON.stringify(out);
   })()`));
 
   for (const d of Object.keys(B).map(Number).sort((a, b) => a - b)) {
-    console.log('\\n=== data 树深度 %s，共 %d 个 ===', d, B[d].length);
+    console.log('\n=== data 树深度 ' + d + '，共 ' + B[d].length + ' 个 ===');
     for (const b of B[d]) {
-      console.log('  %-26s tc=%-6d it=%-6d  %s', b.data, b.tc_len, b.it_len, b.heading);
+      // ⚠ padEnd/padStart 而不是 %-26s：node 的 console.log 不支持宽度占位符
+      console.log('  ' + String(b.data).padEnd(26) + ' tc=' + String(b.tc_len).padStart(5)
+        + ' it=' + String(b.it_len).padStart(5) + '  ' + b.heading);
     }
   }
   // 供 python 侧读取
   const fs = await import('fs');
   // ⚠ page 字段不是装饰：python 侧靠它把清单分回「根页 / latent 页」，
   //   而这正是第二十三笔 C2 假红的根因（拿两页的东西互相对账）。
+  // ⚠⚠ 第三十三笔之六：census / thresh 也不装饰。python 侧 C5 要印
+  //   「阈值是怎么选出来的」那张表，靠的就是这份 census；
+  //   而 thresh 记下**这次实际用的门槛**，免得 C5 印的数
+  //   与产物里的清单来自两个不同口径（换过一次而没人知道）。
   fs.writeFileSync(OUT, JSON.stringify({
     page: IS_LATENT ? 'latent' : 'root', url: URL,
-    byDepth: B, unmarked,
+    byDepth: B, unmarked, census: CENSUS, thresh: THRESH,
     beforeNames, afterNames, appeared, clicked: clickSweep.length,
   }, null, 2));
-  console.log('\n=== 有实质文字、但**自己不带任何 data-\\*** 的 <p>（%d 个）===', unmarked.length);
+  console.log('\n=== 有实质文字、但**自己不带任何 data-\\* 的块**（>= ' + THRESH
+    + ' 字，' + CENSUS.sel + '，共 ' + unmarked.length + ' 个）===');
   for (const u of unmarked) {
-    console.log('  [%s] %d 字  %s', u.panel, u.len, u.head);
+    console.log('  <' + String(u.tag).padEnd(4) + '> [' + u.panel + '] '
+      + String(u.len).padStart(4) + ' 字  ' + u.head);
   }
   console.log('已写出 %s（page=%s，加载后 %d 个标记 / 交互后 %d 个）',
               OUT, IS_LATENT ? 'latent' : 'root', beforeNames.length, afterNames.length);

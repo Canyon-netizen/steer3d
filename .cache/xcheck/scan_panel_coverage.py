@@ -115,6 +115,56 @@ CROSSCHECK_EXEMPT = {
 #   ⇒ 所以拆成两本：装饰进簿子，真缺口进这份清单。
 #   ⇒ 清单里每条都写清「它承载什么、为什么现在没核」；
 #     处置完一个就删一条，账会自己变短。
+def okey(u):
+    """一个真孤儿的**身份**：来源页 + 标签 + 文本前 24 字。
+
+    ⚠ 用文本前缀而不是块计数：同一个标签同一段文字可能在页面上出现多次，
+    只数数量会把「同一条被记了两遍」和「两条不同的」混起来
+    （第三十三笔之六的 mut_panel_coverage.py 就栽过：子串 `in` 匹配
+    把按钮栏那条和它内部那句提示语算成同一条）。
+    """
+    return (u.get("page", "?"), u.get("tag", "?"), u.get("head", "")[:24])
+
+
+def assign_keys(items):
+    """给一组块编号身份：okey + 出现次序。
+
+    ⚠⚠ 第三十三笔之十一：只按 (页,标签,前缀) 会**碰撞** —— 实测
+      latent 37 段塌成 36 个 key、root 81 段塌成 74 个（8 组碰撞），
+      例如两个 `<div>` 的文字都是 `strong L14`（长度也相同），
+      **加 len 也分不开**。⇒ 登记一条会静默盖住两块。
+      ⇒ 只能靠**出现次序**区分：同页同 key 的第 k 个加后缀 #k。
+      代价是页面里多插一个块会让后面的次序整体平移 ⇒ 它们重新变成
+      「未分类」。这个方向的错**是安全的**（宁可多报不可漏报）。
+    """
+    seen = {}
+    out = []
+    for u in items:
+        k = okey(u)
+        seen[k] = seen.get(k, 0) + 1
+        out.append((k[0], k[1], k[2] + ("#%d" % seen[k] if seen[k] > 1 else "")))
+    return out
+
+
+# ---- C6 的两个登记簿（第三十三笔之十一）--------------------------------
+# 「真孤儿」这个集合在修完两个病因之后大 17 倍，里面混着**性质不同**的东西：
+#   承载主张的散文（该还）、图表标签/按钮/图例/<select> 选项（不该算缺口）、
+#   以及旧工具从没看见的承载论证的 <div> 散文（该还，而且是新发现）。
+# ⇒ 与其用一个数去套，不如**逐条定归属**：进装饰簿或进欠账簿，两本都要写理由。
+#   判据判「未登记的 = 0」—— 与 C4 的「新增未分类 = 0」同一形状。
+# ⚠ **初始为空是有意的**：C6 现在红 118，那是诚实的初态，
+#   那 118 条就是接下来几笔的活清单。**不许为了让它变绿而批量自动登记** ——
+#   自动登记等于把「夸大」合法化，而夸大正是这本账一直在反的东西。
+ORPHAN_DECORATION = {
+    # 例（尚未逐条处置，先给形状）：
+    # ("latent", "div", "▶ Run ⏸ pause ⟲ reset"): "播放控件文字，纯 UI。",
+}
+
+ORPHAN_DEBT = {
+    # 例：
+    # ("latent", "h1", "第一次打开这个页面？先读完这一页"): "导读标题，零判据覆盖。",
+}
+
 KNOWN_UNREAD = {
     # ---- latent 页：动态渲染的解释块（合计上万字）----
     "data-arm": "4 块（COT 的干预臂/对照臂），tc=1035/1031/573/564 —— "
@@ -315,14 +365,50 @@ def main():
     # 探针第二版把产物改成 {byDepth, unmarked}。兼容旧的纯 byDepth 结构。
     Bs = {p: (raws[p].get("byDepth", raws[p]) if isinstance(raws[p], dict) else raws[p])
           for p in (BLOCKS, LATENT_BLOCKS)}
-    unmarked = raws[BLOCKS].get("unmarked") if isinstance(raws[BLOCKS], dict) else None
-    flat = [it for items in Bs[BLOCKS].values() for it in items]
-    has_all = all("all_data" in it for it in flat)
     # ⚠ 两份产物必须**自报是哪一页**，且不能都报同一页。
     #   少了这一条，两次探针都跑同一个 URL 也会「都成功」，
     #   而 latent 页的 36 个标记一个都没进矩阵 —— 看起来一切正常。
     pages = {p.name: (raws[p].get("page") if isinstance(raws[p], dict) else None)
              for p in (BLOCKS, LATENT_BLOCKS)}
+    # ⚠⚠⚠ 第三十三笔之六（病因 A）：这一段原来只有**一行** ——
+    #   unmarked = raws[BLOCKS].get("unmarked") if isinstance(raws[BLOCKS], dict) else None
+    #   **只读根页那一份**（panel_blocks.json），
+    #   latent 页那份 panel_blocks_latent.json 的 unmarked 清单**整个被丢掉** ——
+    #   而 C5/C6 印出来的「26 段 / 真孤儿 0 段」读起来像**两页**的结论。
+    #   实测 latent 页那份里一直有 1 段（66 字的 `p.olead`，祖先链为空），
+    #   从来没被 C6 看到过。
+    # ⇒ 现在两页都收，且每条带上「来自哪一页」
+    #   （下面 C5 的判据会盯着「两页都在」这件事）。
+    #   ⚠⚠ 合并**不等于**混成一个总数报出去：第三十二笔吃过一次
+    #     「两页互相对账」的假红（拿 latent 的标记去问根页的 DOM）。
+    #     反过来的错在这里同样成立：把两页加在一起报成「444 段」，
+    #     读者就看不出其中 231 段来自一个**python 从来没读过**的页。
+    #     ⇒ 每条都带 page，且**所有计数按页分开报**。
+    unmarked_by_page = {}
+    unmarked_missing = []
+    for p in (BLOCKS, LATENT_BLOCKS):
+        pg = pages[p.name]
+        lst = raws[p].get("unmarked") if isinstance(raws[p], dict) else None
+        if not isinstance(lst, list):
+            # ⚠ 少一份**不能**当成「那一页没有缺口」—— 那是把「没量」当「量过」。
+            unmarked_missing.append("%s(page=%s)" % (p.name, pg))
+            continue
+        for it in lst:
+            it = dict(it)
+            it["page"] = pg
+            unmarked_by_page.setdefault(pg, []).append(it)
+    unmarked = [it for pg in sorted(unmarked_by_page) for it in unmarked_by_page[pg]]
+    flat = [it for items in Bs[BLOCKS].values() for it in items]
+    has_all = all("all_data" in it for it in flat)
+    # ⚠⚠ 第三十三笔之六：unmarked 的**口径**也变了（元素集 + 阈值），
+    #   产物里必须自报这次用的门槛 —— 否则「清单里的数」与「阈值」会各说各话。
+    thresh_by_page = {pages[p.name]: (raws[p].get("thresh") if isinstance(raws[p], dict) else None)
+                      for p in (BLOCKS, LATENT_BLOCKS)}
+    check("C0b 两页的未读清单必须用**同一个口径**（元素集与阈值都自报在产物里）",
+          None not in thresh_by_page.values() and len(set(thresh_by_page.values())) == 1,
+          "thresh：%s；census 齐全=%s"
+          % ("、".join("%s=%s" % (pg, thresh_by_page[pg]) for pg in sorted(thresh_by_page)),
+             all(isinstance(raws[p].get("census"), dict) for p in (BLOCKS, LATENT_BLOCKS))))
     page_ok = (pages[BLOCKS.name] == "root"
                and pages[LATENT_BLOCKS.name] == "latent")
     src_mt, src_which = newest_source_mtime()
@@ -604,71 +690,174 @@ def main():
         print("       ⚠ 登记簿里有 %d 条在源码里**根本不存在**：%s"
               % (len(unknown_exempt), ", ".join(unknown_exempt)))
 
-    # ---- C5 / C6：段落级没有标记的那些 <p> ----
+    # ---- C5 / C6：带文字、但**一个 data-* 都没有**的那些块 ----
     # 覆盖矩阵统计的是「带 data-* 的块」。D6（归属论证那段 note）与
     # G7（caution_absorbed / control.note）那两个洞，恰恰是**一个 data-* 都没有**
-    # 的 <p> —— 没有标记 ⇒ 不进矩阵。
+    # 的散文 —— 没有标记 ⇒ 不进矩阵。
     #
     # ⚠⚠ 但我原来在这里写的结论是**错的**，已改：
     #   「所以『未被读过』那一栏永远不会列出来」——**这句是错的，已改**。
-    #   2026-10-03 实测（probe_unmarked_ancestors.mjs）：这 27 段**全部**落在
+    #   2026-10-03 实测（probe_unmarked_ancestors.mjs）：那 27 段**全部**落在
     #   某个带 data-* 的祖先里，祖先属性往往就带着同一句话的机器可读真值，
     #   例如 data-outcome#2 的祖先带 data-cos-up-down=-0.9999999999999997，
     #   正对应散文里的「cos = -1.0000」。
     # ⇒ 「自身无标记」≠「没人读」。真正无解的是**真孤儿**（祖先链为空），
     #   那是 C6；而 C5 只负责**列名**，不负责算数。
-    if unmarked is None:
-        check("C5 探针须给出「有文字但没标记」的段落清单", False,
-              "探针产物里没有 unmarked 字段 —— 探针是旧版，重跑 probe_panels.mjs")
+    #
+    # ⚠⚠⚠ 第三十三笔之六：口径改了两处，两处都有实测依据
+    #   ① **两页都用**（病因 A，见上面 unmarked_by_page）。
+    #      原来只有根页 ⇒ latent 页的清单整份丢失，而数字读起来像两页的。
+    #   ② **元素集与阈值**（病因 B）：原来「只扫 <p>、且 ≥40 字」。
+    #      实测（.cache/browser_verify/probe_panels.mjs 的 census 字段，
+    #      端口 22208）：导读浮层 #orientation 里 11 个真缺口有
+    #      **10 个根本不是 <p>**（h1×1 / h2×5 / div×4），最短的一条只有 11 字
+    #      （`<h2>五 · 这些数字的边界`）⇒ 旧口径**结构上**看不见它们。
+    #      注意这与浮层开不开无关（.hide 是 visibility，innerText 读得到）。
+    # ⇒ 阈值 10 不是挑的，是**被那 11 条决定的**：
+    #   阈值必须 ≤ 11 才能收进最短那条，取 10 免得「刚好 11」像运气。
+    #   规模代价（实测 census，两页合计）：
+    #     阈值   0 → 565 段（孤儿 140）   10 → 451（128）   20 → 325（77）
+    #     阈值  30 → 224（52）   40 → 182（44）  ← 40 是旧口径量级
+    #   ⇒ **不因为清单变长就抬高阈值**：那正是这个项目反复栽的坑
+    #     （为了让数字好看而收窄口径）。清单变长改用**分两层打印**解决：
+    #     真孤儿层逐条列名（那才是缺口），在标记作用域内的只聚合计数
+    #     （逐条全名在 probe_panels.mjs 的 stdout 里，一条不少）。
+    if unmarked_missing or len(unmarked_by_page) < 2:
+        check("C5 探针须给出「有文字但没标记」的块清单，**且两页都要有**"
+              "（第三十三笔之六的病因 A：只读根页 ⇒ latent 页整份丢失）", False,
+              "缺 %s —— 探针是旧版，或两页跑的是同一个 URL。"
+              "两页都要重跑 probe_panels.mjs（latent 那遍别忘了换 PROBE_OUT）"
+              % ("、".join(unmarked_missing) or "（有清单但只到一页）"))
     else:
-        by_panel = {}
-        for u in unmarked:
-            by_panel[u["panel"]] = by_panel.get(u["panel"], 0) + 1
-        check("C5 「有实质文字、但段落级没被登记」的段落必须被逐条列名并计数",
-              isinstance(unmarked, list) and len(unmarked) > 0,
-              "%d 段，按面板：%s" % (len(unmarked),
-              "、".join("%s=%d" % (k, v) for k, v in sorted(by_panel.items()))))
-        nums = [u for u in unmarked if re.search(r"\d", u["head"])]
-        print("       ⇒ 这 %d 段**段落级**没有标记，所以它们自己不会进矩阵；"
+        n_page = {pg: len(v) for pg, v in sorted(unmarked_by_page.items())}
+        n_orph = {pg: sum(1 for u in v if u.get("orphan")) for pg, v in sorted(unmarked_by_page.items())}
+        # ⚠ 以**新清单**回算旧口径（tag=p 且 ≥40 字），
+        #   这样「口径放宽了多少」是当场算出来的数，不是记忆里的数。
+        #   ⚠ 而且**按页分开**：26 + 1 = 27 里那个 1 是 latent 页的 `p.olead` ——
+        #     旧工具打出来的是「26 段」，那 1 段它**连读都没读过**
+        #     （病因 A：unmarked 只从根页那份产物里取）。
+        old_scope = [u for u in unmarked if u.get("tag") == "p" and u.get("len", 0) >= 40]
+        old_pp = {pg: sum(1 for u in old_scope if u["page"] == pg) for pg in n_page}
+        check("C5 「有实质文字、但自己没被登记」的块必须逐条列名并计数（两页合计）",
+              len(unmarked) > 0 and len(unmarked_by_page) == 2,
+              "%d 段；分页 %s；其中真孤儿 %d 段（分页 %s）；"
+              "⚠ 旧口径（只扫 <p> 且 ≥40 字）回算只有 %d 段（分页 %s）"
+              "—— 差出来的 %d 段旧工具**从来没量过**"
+              "（含导读浮层那 11 条实测全部在内，"
+              "逐条断言见 mut_panel_coverage.py）"
+              % (len(unmarked),
+                 "、".join("%s 页 %d 段" % (pg, n) for pg, n in n_page.items()),
+                 sum(n_orph.values()),
+                 "、".join("%s 页 %d 段" % (pg, n) for pg, n in n_orph.items()),
+                 len(old_scope),
+                 "、".join("%s 页 %d 段" % (pg, n) for pg, n in sorted(old_pp.items())),
+                 len(unmarked) - len(old_scope)))
+        print("       ⇒ 这 %d 段**块级**没有标记，所以它们自己不会进矩阵；"
               % len(unmarked))
         print("         但这不等于「没人读」——见下面 C6 的祖先统计。")
-        print("         其中一部分是纯说明文字（不该算缺口），")
-        print("         另一部分带数字并承载论证（是真缺口）——")
-        print("         **判据不许因为「它没被登记」就自动算数，必须逐段看。**")
+        print("         判据不许因为「它没被登记」就自动算数，必须逐段看。")
+        nums = [u for u in unmarked if re.search(r"\d", u["head"])]
         print("         前 70 字里带数字的有 %d 段（更可能是承载论证的）："
               % len(nums))
+        print("       ⚠ 清单按两层看：**真孤儿**（C6 的缺口）与**在标记作用域内**"
+              "（祖先属性多半带着同一句话的机器可读真值）。")
+        for pg, v in sorted(unmarked_by_page.items()):
+            bpan = {}
+            for u in v:
+                bpan[u["panel"]] = bpan.get(u["panel"], 0) + 1
+            print("       ── %s 页 %d 段（真孤儿 %d 段）：%s"
+                  % (pg, len(v), n_orph[pg],
+                     "、".join("%s=%d" % (k, x) for k, x in sorted(bpan.items()))))
 
-        # ---- C6：真孤儿必须为 0 ----
+        # ---- C6：真孤儿必须**逐条有归属** ----
         # 「承载判决的那句话必须落在某个可读作用域里」——
-        # 祖先链为空 = 任何按标记读的判据都够不着它，那才是真正的缺口。
-        # 这条**能变红**：把任一段落挪到带标记容器之外，或删掉祖先的 data-*，
-        # 孤儿数就会 >0。
+        # 祖先链为空 = 任何按标记读的判据都够不着它。
+        # 这条**能变红**：删掉某个 data-*，那个块自己就成了孤儿。
+        #
+        # ⚠⚠ 第三十一笔：措辞已改。原话「承载判决的话不能无人可读」——**有反例**：
+        #   ControlPanel 那 149 字的「这是回放」段落祖先链为空，
+        #   但 verify_picker.mjs 里就写着 "Replaying a recorded"（全文 includes）。
+        #   ⇒ **祖先链为空 ≠ 没人读**。它只说明「没有任何按标记读的判据能定位它」。
+        #
+        # ⚠⚠⚠ 第三十三笔之十一：**判据形状改了**，因为目标值必须在新集合上重新标定。
+        #   C6 的「必须为 0」是在 **26 段散文 <p>** 上标定的。
+        #   修完两个病因之后集合变成 440 段 / 118 个真孤儿：元素集从 <p> 扩到
+        #   h1,h2,h3,p,li,div、阈值 40 → 10、还把 latent 页收了回来。
+        #   ⇒ 同一个 0，被套在一个**大 17 倍、性质也变了**的集合上。
+        #   实测这 118 条混着三类：
+        #     ① 导读那 11 条真缺口（承载主张，该还）
+        #     ② UI 文字：图表标签、按钮、图例、<select> 的 option 列表
+        #        （"Layer (residual stream) layer 0 layer 1…"、"▶ Run ⏸ pause"）
+        #     ③ **旧工具从没看见的承载论证的散文**（它们是 <div> 不是 <p>）：
+        #        「这一层在做什么 L14：…单点的方差恒为 0」
+        #        「几乎不做取舍。熵 0.0004 nats（越接近 0 = 越不做取舍）」
+        #        「浅层的轨迹看着小，是因为隐状态方差本身随深度暴涨」
+        #   ⇒ ② 不该叫缺口（把标签页文字算成「缺口」是**夸大**）；
+        #     ①③ 该叫 —— 而 ③ 是**这一笔真正的收获**：工具变准了，不是变吵了。
+        #
+        #   ⇒ 处置照抄 C4 自己的形状（C4 判的就是「新增未分类 = 0」）：
+        #     **判「未逐条登记的 = 0」，而不是「总数 = 0」。**
+        #   这**不是放宽**：没登记的照样红，而且必须**逐条列名**（页 + 标签 + 文本）。
+        #   打印上限改为**按页分列** —— 上一版是全局 40 条，
+        #   118 条里 latent 页占前 40，**root 页一条都看不见**。
+        #   ⇒ 登记表初始为空 ⇒ C6 现在红 118，这是**诚实的初态**，
+        #     它就是接下来几笔的活清单。
         no_anc = [u for u in unmarked if "ancestors" not in u]
-        if no_anc:
-            check("C6 探针须给出每段的祖先链（判断真孤儿的前提）", False,
-                  "%d/%d 段缺 ancestors 字段 —— 探针是旧版，重跑 probe_panels.mjs"
-                  % (len(no_anc), len(unmarked)))
+        no_pg = [u for u in unmarked if "page" not in u]
+        if no_anc or no_pg:
+            check("C6 探针须给出每段的祖先链与来源页（判断真孤儿的前提）", False,
+                  "%d/%d 段缺 ancestors、%d 段缺 page —— 探针是旧版，重跑 probe_panels.mjs"
+                  % (len(no_anc), len(unmarked), len(no_pg)))
         else:
             orphans = [u for u in unmarked if u.get("orphan")]
             by_o = {}
             for u in orphans:
-                by_o[u["panel"]] = by_o.get(u["panel"], 0) + 1
-            # ⚠⚠ 第三十一笔：措辞不准确，已改。
-        #   原话「承载判决的话不能无人可读」——**有反例**：
-        #   ControlPanel 那 149 字的「这是回放」段落祖先链为空，
-        #   但 verify_picker.mjs 里就写着 "Replaying a recorded"（全文 includes）。
-        #   ⇒ **祖先链为空 ≠ 没人读**。它只说明「没有任何按标记读的判据能定位它」。
-        #   阈值不动（仍然是 0），改的是这句话对自己的描述。
-        check("C6 「段落级无标记且祖先链也为空」的段落必须为 0"
-              "（= 没有任何按标记读的判据能定位到它；⚠ 这不等于「没人读」，"
-              "已有反例：ControlPanel 那段被 verify_picker 全文 includes 过）",
-                  len(orphans) == 0,
-                  "真孤儿 %d 段 %s；其余 %d 段都落在带标记祖先里（祖先属性多半带着"
-                  "同一句话的机器可读真值，是否真被核过仍要逐段看）"
+                by_o[(u["page"], u["panel"])] = by_o.get((u["page"], u["panel"]), 0) + 1
+            ukeys = assign_keys(orphans)
+            unclassified = sorted({k for k in ukeys
+                                  if k not in ORPHAN_DECORATION
+                                  and k not in ORPHAN_DEBT})
+            orph_dec = [k for k in ukeys if k in ORPHAN_DECORATION]
+            orph_debt = [k for k in ukeys if k in ORPHAN_DEBT]
+            # 登记簿里已经不在页面上的条目要报出来（C4 有同样的 stale 检查）：
+            #   否则「登记过就永远绿」—— 页面改了、标记搬走了，簿子不会自己发现。
+            live = set(assign_keys(unmarked))
+            stale_reg = sorted((set(ORPHAN_DECORATION) | set(ORPHAN_DEBT)) - live)
+            if stale_reg:
+                print("       ⚠ 登记簿里有 %d 条在两页 DOM 上都不存在：%s"
+                      % (len(stale_reg), "、".join(k[1] for k in stale_reg[:6])))
+            check("C6 「块级无标记且祖先链也为空」的块，必须**逐条有归属**"
+                  "（= 没有任何按标记读的判据能定位到它；⚠ 这不等于「没人读」，"
+                  "已有反例：ControlPanel 那段被 verify_picker 全文 includes 过）"
+                  "　⚠ 第三十三笔之十一改过判据形状：判「未登记的 = 0」而非「总数 = 0」，"
+                  "理由见上面那段注释",
+                  len(unclassified) == 0,
+                  "真孤儿 %d 段 %s；已登记 装饰簿 %d + 欠账簿 %d，**新增未分类 %d** 段%s"
                   % (len(orphans),
-                     ("：" + "、".join("%s=%d" % (k, v) for k, v in sorted(by_o.items())))
+                     ("：" + "、".join("%s 页 %s=%d" % (pg, k, v)
+                                      for (pg, k), v in sorted(by_o.items())))
                      if by_o else "",
-                     len(unmarked) - len(orphans)))
+                     len(orph_dec), len(orph_debt), len(unclassified),
+                     ("：" + "、".join(k[1] for k in unclassified[:6])
+                      + ("…" if len(unclassified) > 6 else ""))
+                     if unclassified else "（全部已逐条登记）"))
+            # ⚠ 逐条列名（这就是 C5 承诺的「只报数不列名 = 没有信息」）。
+            for pg, v in sorted(unmarked_by_page.items()):
+                og = [u for u in v if u.get("orphan")]
+                if not og:
+                    continue
+                un = [u for u, k in zip(og, assign_keys(og)) if k in set(unclassified)]
+                cap = 30
+                print("       ── 真孤儿明细（%s 页 %d 段；未分类 %d 段%s）："
+                      % (pg, len(og), len(un),
+                         "，每页最多列 %d 条" % cap if len(un) > cap else ""))
+                for u in un[:cap]:
+                    print("         <%s> %3d 字  %s"
+                          % (u.get("tag", "?"), u.get("len", 0), u["head"][:60]))
+                if len(un) > cap:
+                    print("         …… 该页其余 %d 条未分类见 probe_panels.mjs 的 stdout"
+                          % (len(un) - cap))
+
 
     failed = [r for r in results if not r["ok"]]
     print("\nRESULT panel_coverage  %s  %d/%d 条通过"
