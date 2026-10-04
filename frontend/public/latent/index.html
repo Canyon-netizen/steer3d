@@ -2264,7 +2264,11 @@ function renderVectorRoles(){
       ① 必要性：模型自己跑的时候会用这一维吗</div>`;
     h += `<div class="note" style="font-size:10px;margin:0 0 4px">
       用留出法测的：在一半题目上重建对比、另一半评测，所以不是拿定义它的
-      数据去证明它自己。</div>`;
+      数据去证明它自己。
+      <br>⚠ 第三十三笔之二：下面每个方向印的是<b>两个折</b> ——
+      留出法的两个半集，题目不同、步数也不同。
+      <b>两个数都过才判「通过」</b>；只印一个会把较不利的那一折藏起来
+      （实测两折 ρ 差到 0.218）。</div>`;
     const rows = [];
     for(const dir in hd.folds){
       const f = hd.folds[dir];
@@ -2274,8 +2278,23 @@ function renderVectorRoles(){
       // 两个折的判定必须一致；只有一个折通过时如实说半个。
       const pass = ks.map(k => sc[k].passes_gate);
       const nPass = pass.filter(Boolean).length;
-      const auc = sc[ks[0]].auc_within_traj;
-      const rho = sc[ks[0]].rho;
+      // ⚠⚠ 第三十三笔之二：原来这里只取 **ks[0]**（第一折），
+      //   而 folds 里有**两个折**（fit0_score1 / fit1_score0）。
+      //   后果有两层：
+      //     ① 数值：只印更有利的那一折。实测两折的 rho 差到 0.218 ——
+      //        creativity 折0=+0.7441、折1=+0.5260，而页面只印 0.7441，
+      //        另一折从不出现。判 verdict 用的是**两折一致**，
+      //        于是读者看到「一个数 + 通过」，而真实是「两个数 + 都通过」。
+      //     ② 分母：n 也只取 ks[0] ⇒ `n=33030` 是**一折**的步数
+      //        （另一折 36125，两折题目不同，是不同的半集）。
+      //        印成一个 n 会被读成留出法的总步数。
+      //   ⇒ 现在两折都取、都印，并写明 n 是两折各自的。
+      const aucs = ks.map(k => sc[k].auc_within_traj);
+      const rhos = ks.map(k => sc[k].rho);
+      const ns   = ks.map(k => sc[k].n_steps_scored);
+      const nposs= ks.map(k => sc[k].n_positive_steps);
+      const auc = aucs[0] != null ? aucs[0] : null;
+      const rho = rhos[0];
       // 余量：真实方向超出随机控制上限多少个随机标准差。缺了它，一个
       // 1.8σ 的胜出和一个 5σ 的胜出在页面上长得一模一样，都是"通过"——
       // 而这两者的可信度差得很远。
@@ -2287,15 +2306,23 @@ function renderVectorRoles(){
       // 同一格在「循环论证」那一块里是否不通过。两块必须并排：只看留出
       // 会把一个 1.8σ 的勉强胜出显示成干净的"通过"。
       const ins = ((N.in_sample_circular || {})["L14"] || {})[dir] || {};
-      rows.push({dir, obs:f.observable, auc, rho, n: sc[ks[0]].n_steps_scored,
-                 npos: sc[ks[0]].n_positive_steps, floor, z,
+      rows.push({dir, obs:f.observable, auc, rho,
+                 aucs, rhos, ns, nposs, nFold: ks.length, floor, z,
                  insample_pass: ins.passes_gate,
                  verdict: nPass === ks.length ? true : (nPass === 0 ? false : "一半")});
     }
     rows.forEach(r => {
-      const metric = (r.auc != null)
-        ? `轨迹内 AUC <b style="color:${r.verdict === true ? "#3ddc97" : "#ff8fa3"}">${r.auc.toFixed(3)}</b>`
-        : `ρ <b style="color:${r.verdict === true ? "#3ddc97" : "#ff8fa3"}">${(r.rho >= 0 ? "+" : "") + r.rho.toFixed(3)}</b>`;
+      // ⚠ 两折都印。fmt 的入参是「值 + 单位」；缺的那折印「—」而不是省略，
+      //   否则「只有一个折有值」与「两个折都有值但其中一个是 0」读起来一样。
+      // ⚠⚠ 别把这两条共用一个 formatter：AUC 是比例（0.521），
+      //   正号对它没有意义，而我第一版写的 `v < 1 ? "+" : ""`
+      //   会把「轨迹内 AUC +0.978」印出来 —— 读起来像相关性。
+      const fmtRaw = v => (v == null || !isFinite(v)) ? "—" : v.toFixed(3);
+      const fmtRho = v => (v == null || !isFinite(v)) ? "—" : ((v >= 0 ? "+" : "") + v.toFixed(3));
+      const two = (a, f) => (r.nFold > 1 ? a.map(f).join(" / ") : f(a[0]));
+      const metric = (r.aucs.some(v => v != null))
+        ? `轨迹内 AUC <b style="color:${r.verdict === true ? "#3ddc97" : "#ff8fa3"}">${two(r.aucs, fmtRaw)}</b>`
+        : `ρ <b style="color:${r.verdict === true ? "#3ddc97" : "#ff8fa3"}">${two(r.rhos, fmtRho)}</b>`;
       // 超出随机控制上限多少个随机标准差。只陈述这个量，不给它贴
       // "通过/勉强" 的标签：caution 高出随机均值 3.4σ、稳稳越过 16 个随机
       // 方向的上限，creativity 越过的幅度看着差不多，可两者的随机 sd 差了
@@ -2307,7 +2334,9 @@ function renderVectorRoles(){
         ? ` <span style="color:#ff8fa3">循环口径下不通过</span>` : "";
       h += `<div class="kv"><div class="k">${esc2(r.dir)} vs ${esc2(r.obs)}</div>
         <div class="v">${metric} ${yn(r.verdict)}${marg}${ins}
-        <span style="color:#8a94a6">（n=${r.n}${r.npos ? "，正例 " + r.npos : ""}）</span>
+        <span style="color:#8a94a6">（${r.nFold > 1
+          ? `两折 n=${r.ns.join(" / ")}` : `n=${r.ns[0]}`}${(r.nposs || []).some(v => v != null)
+          ? "，正例 " + r.nposs.map(v => v == null ? "—" : v).join(" / ") : ""}）</span>
         </div></div>`;
     });
     // 门槛必须写明是随机控制，不是 1/√(n-3)。实测随机方向散布比教科书地板
