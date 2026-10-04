@@ -158,7 +158,30 @@ run verify_derivation     "T3D_URL=$U node .cache/browser_verify/verify_derivati
 run verify_subspace       "BV_URL=$U  node .cache/browser_verify/verify_subspace.mjs"
 run verify_axis_readout   "BV_URL=$U  node .cache/browser_verify/verify_axis_readout.mjs"
 run verify_heldout        "BV_URL=$U  node .cache/browser_verify/verify_heldout.mjs"
-run verify_scene_link     "STEER3D_WEBGL=1 BV_URL=$U  node .cache/browser_verify/verify_scene_link.mjs"
+run verify_scene_link     "BV_URL=$U  node .cache/browser_verify/verify_scene_link.mjs"
+# ⚠⚠⚠ 第三十三笔之十一：**这里默认不开 WebGL，是第三十三笔之九之后改回来的。**
+#   那一笔我把它改成了 `STEER3D_WEBGL=1`，链里报 PASS 13/13，
+#   我据此说「3D 进链了」—— **那句话是错的，本笔更正。**
+#   同一份脚本、同一台服务器、不开任何别的负载，连跑三次：
+#
+#       第 1 次  RESULT FAIL 12/13   J3b 等 60000ms 仍在增长（769 步）
+#       第 2 次  RESULT FAIL 11/13   J3b 等 60000ms 仍在增长（721 步）、J10 752->752
+#       第 3 次  RESULT FAIL  7/9    J3b 40s 稳定在 385 步，但 J6 仍红
+#                                     + 装置异常 Cannot read properties of null
+#
+#   ⇒ **13/13 是撞对的**，不是常态。两种失败要分开看：
+#     · J3b 是**负载敏感**：软件光栅慢，机器一忙 60 秒预算就不够。
+#     · J6 是**前提不成立**：`data-scene-focus` 那 4 个标记要射线拾取点击
+#       之后才出现，而「软件光栅能不能拾取」这件事本环境给不出判决
+#       （详见 05cc462 的记录：J6 只验了源码接线）。
+#       它连带的 `reading 'badge'` 是**判据自己抛的**，不是页面坏了。
+#   ⇒ 门禁**随机红**比诚实的「本环境验不了」更糟：前者会让人不再相信它。
+#     所以默认退回 SKIP，并在 `verify_scene_link.mjs` 自己的输出里印原因。
+#   ⇒ 要在链里真验 3D，需要先做两件事（都还没做）：
+#     ① J3b 的预算按实测重标（空闲 40s / 负载 >60s），且**超预算要报独立态**，
+#        不能报 FAIL —— 与 run() 的 NORUN 同一族；
+#     ② J6 必须在**真机 Chrome** 上验射线拾取，软件光栅下它只能 SKIP。
+
 # ⚠ verify_backmap 读的是 **LAT_URL**，不是 T3D_URL / BV_URL。
 #   这一点本身就是个坑：我第一次跑它时给的是 T3D_URL，于是它带着自己的
 #   默认端口去访问一个没人监听的地址，回来一个 0/8 的假红，

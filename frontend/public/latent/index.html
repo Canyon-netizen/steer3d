@@ -257,10 +257,10 @@
  <div id="orientScroll">
   <div id="orientBody">
 
-   <h1 id="orientTitle">第一次打开这个页面？先读完这一页</h1>
-   <p class="olead">一个只会写数学题的 AI，每写一个字之前脑子里那份"笔记"长什么样——这个页面把它摊开给你看，还能让你亲手推它一把，看它会不会改口。</p>
+   <h1 id="orientTitle" data-orient-part="h1">第一次打开这个页面？先读完这一页</h1>
+   <p class="olead" data-orient-part="lead">一个只会写数学题的 AI，每写一个字之前脑子里那份"笔记"长什么样——这个页面把它摊开给你看，还能让你亲手推它一把，看它会不会改口。</p>
 
-   <h2>一 · 这台机器在做什么</h2>
+   <h2 data-orient-part="sec1">一 · 这台机器在做什么</h2>
    <!-- ⚠ 第三十一笔：探针去掉「写死的 8 面板名单」之后，latent 页这两段
         也被算成「祖先链为空」。给它们标记，让「按标记读」这条路也通。
         ⚠ 第三十三笔之六：这 10 段（`data-lead-seg`）原先**连标记都没有**，
@@ -271,7 +271,7 @@
         **判决性的**（它声明本页否掉了哪 4 种理解），更该有人读。 -->
    <p data-latent-lead="what">它读一道数学竞赛题，一个字一个字地把答案写出来。写每个字之前，它都要在内部先算一遍"下一个字最可能是哪个"。这个页面把那份内部计算的结果画出来给你看，并且让你自己拨着看。</p>
 
-   <h2>二 · 用页面上真实的数字走一遍</h2>
+   <h2 data-orient-part="sec2">二 · 用页面上真实的数字走一遍</h2>
    <div class="ex">
     <div data-lead-seg="1">页面刚打开时，左边「当前 <i class="inline-gloss">token</i>」是 <b>0</b>，模型正准备写 <b>&lt;think&gt;</b>。同名的<i class="inline-gloss">token = 模型一次写的一个词的碎片</i>，页面上所有 `'s`、`.` 这样的小片段都是它。</div>
     <div data-lead-seg="2">此时左边有一行，写着「<i class="inline-gloss">熵 = 模型有多犹豫，0 是铁了心，越大越拿不定主意</i>」。</div>
@@ -285,7 +285,7 @@
     <div data-lead-seg="10">拖左边「当前层」的滑块，能看这份状态在 28 道工序里怎么一步步变形。L0 是每个词的出厂编号，<i class="inline-gloss">embedding = 查表把词变成一串数字</i>，越往后越不一样。</div>
    </div>
 
-   <h2>三 · 你会在这页上遇到的词</h2>
+   <h2 data-orient-part="sec3">三 · 你会在这页上遇到的词</h2>
    <div class="gitem" data-term="隐空间"><div class="gterm">隐空间<br>隐状态</div><div class="gdef"><span class="plain">模型脑子里那份"笔记"本身。它不是文字，是一串数字。</span><span class="where">在哪儿看：页面大标题、左侧「怎么读」那段、右侧「这一层在做什么」。</span></div></div>
    <div class="gitem" data-term="token"><div class="gterm">token</div><div class="gdef"><span class="plain">模型一次写的一个词的碎片，不是完整的词。</span><span class="where">在哪儿看：左边「当前 token」滑块。这道题一共 <span id="walkTok">—</span> 步，滑块拨到第几步，下方那行 readout 就报第几步。</span></div></div>
    <div class="gitem" data-term="候选词"><div class="gterm">候选词</div><div class="gdef"><span class="plain">模型此刻心里排队的字，按分数从高到低排成一张表。</span><span class="where">在哪儿看：右上「top-64 候选词」表。</span></div></div>
@@ -301,14 +301,14 @@
    <div class="gitem" data-term="位移"><div class="gterm">位移 Δ</div><div class="gdef"><span class="plain">被推了多远、朝哪个方向。</span><span class="where">在哪儿看：「干预 vs 对照」下面那张图，图内左上角画着的那行小字（它在 canvas 上，所以没有图例色块可点）。</span></div></div>
    <div class="gitem" data-term="logit"><div class="gterm">logit</div><div class="gdef"><span class="plain">候选词还没归一化的原始打分，只有相对大小有意义。</span><span class="where">在哪儿看：右边「这一层在做什么」那段（把 token 滑块拖过第 1 步就会出现）。</span></div></div>
 
-   <h2>四 · 本页不主张的 4 种说法</h2>
+   <h2 data-orient-part="sec4">四 · 本页不主张的 4 种说法</h2>
    <p data-latent-not-claimed="lead">下面这些是新手最自然会形成的理解。它们在这个页面上<i class="inline-gloss">曾经被当成结论写出来过，后来被实测数据否掉了</i>，所以现在不主张。</p>
    <div class="noitem"><span class="claim">「干预把候选词的分数重新排了一遍，所以能解释模型为什么选这个词。」</span><i class="inline-gloss">干预 = 人为往残差流里推一把；对照 = 同一道题什么都不做地跑一遍，用来和它比。两个词必须合起来看</i>否掉的依据：改口时真正变了的 logit<i class="inline-gloss">（logit = 候选词还没归一化的原始打分，只有相对大小有意义）</i>，只占整份状态被推动量的 <b data-f="ret">0.0%–20.7%</b>；这份推动量摊在 <b data-f="neff">587–831</b> 个维度上（这个模型一共 <span data-f="d">2048</span> 个）。<i class="inline-gloss">这叫「参与比」：把这次推动平均分给这么多个维度，能得到同样大的净效果——是个数，不是「第几号到第几号」。</i>两个量级不是一回事，解释不成立。</div>
-   <div class="noitem"><span class="claim">「换一个词，是因为草稿被挪了位置。」</span>否掉的依据：逐个词拆开看，位移与改口的关系不是这样，而且方向还写反了。</div>
+   <div class="noitem" data-orient-part="claim"><span class="claim">「换一个词，是因为草稿被挪了位置。」</span>否掉的依据：逐个词拆开看，位移与改口的关系不是这样，而且方向还写反了。</div>
    <div class="noitem"><span class="claim">「状态已经被压到少数几个方向上，其余维度都清零了。」</span>否掉的依据：页面上那个"收拢程度"的数字来自 2D 散点的形状，从 2 个数推不出 <span data-f="d">2048</span> 个数被压成了几个。</div>
-   <div class="noitem"><span class="claim">「干预是把答案推向某个方向。」</span>否掉的依据：逐个词拆开有三种机制——两头一起发力、只压低败者、只抬高胜者，没有单一机制。</div>
+   <div class="noitem" data-orient-part="claim"><span class="claim">「干预是把答案推向某个方向。」</span>否掉的依据：逐个词拆开有三种机制——两头一起发力、只压低败者、只抬高胜者，没有单一机制。</div>
 
-   <h2>五 · 这些数字的边界</h2>
+   <h2 data-orient-part="sec5">五 · 这些数字的边界</h2>
    <ul class="lim">
     <li data-bound="n-problems">只有 <b>10</b> 道题做过"干预 vs 对照"（题号 1984 到 2025，<b>不连续</b>；题号是模仿 AIME 编号的命名，题面改写过，见上面那一屏的交代），而且全是同一族的美式数学竞赛题。</li>
     <li data-bound="model">本页是 <b data-f="label">Qwen3-1.7B</b>；两个尺寸都收录了（层数相同、只差宽度），换模型家族没测过。</li>
@@ -318,7 +318,7 @@
 
   </div>
  </div>
- <div id="orientFoot">
+ <div id="orientFoot" data-orient-part="foot">
   <button id="orientClose" class="on">我读完了，开始看</button>
   <button id="orientReset">重置：下次打开再弹一次</button>
   <div class="sp"></div>

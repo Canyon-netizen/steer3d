@@ -766,6 +766,128 @@ try {
       + (bad.length ? `　⚠ ${bad.join('；')}` : '　两个模型逐槽对上 ✅'));
 
   // ==================================================================
+  // Z12–Z14（第三十三笔之十）：导读浮层的**骨架**也必须有人读
+  // ==================================================================
+  // C6 的真孤儿清单里，导读浮层占 11 条：h1 / 导语 p / 五个 h2 /
+  // 两条「否掉的说法」/ 按钮栏 + 提示行。它们的性质与「图表标签、
+  // <select> 选项」那一类**不同** —— 读者靠那五个 h2 知道自己在读第几节，
+  // 而那两条「否掉的说法」是**判决性散文**（它们声明本页否掉了哪两种理解）。
+  //
+  // ⚠⚠⚠ 加标记时**没有复用** `data-latent-not-claimed`：
+  //   本文件 :222 / :513 / :578 三处都用
+  //   `querySelector('[data-latent-not-claimed]')` 取**第一个**，
+  //   Z6 靠它量那一段的包围盒。复用会让 first-match 静默漂到 h1 上
+  //   ⇒ 判据**认错对象**（与属性 first-match 换人是同一族，只是这次在加标记）。
+  //   ⇒ 另起 `data-orient-part`，那三处语义一个都不动。
+  //   验证方式不是「我觉得没动」，是**数**：`grep -c data-latent-not-claimed`
+  //   仍为 1，且它在文档序里仍**先于**两个 data-orient-part="claim"。
+  const ORI = await page.eval(`(() => {
+    const ov = document.getElementById('orientation');
+    if (!ov) return { err: 'no #orientation' };
+    if (ov.classList.contains('hide')) {
+      const b = document.getElementById('btnOrient'); if (b) b.click();
+    }
+    const t = s => ((s || '') + '').replace(/\\s+/g, ' ').trim();
+    const parts = [...ov.querySelectorAll('[data-orient-part]')].map(e => ({
+      role: e.getAttribute('data-orient-part'),
+      tag: e.tagName.toLowerCase(),
+      len: t(e.innerText).length,
+      head: t(e.innerText).slice(0, 40),
+      // 下一节标题自称的编号（中文数字）—— Z12 用它钉「不许跳号」
+      num: (t(e.innerText).match(/^([一二三四五六七八九十])/) || [])[1] || null,
+    }));
+    // Z13：每个 sec 后面紧跟的那个内容块有多长（0 = 空节）
+    const secFill = {};
+    for (const e of ov.querySelectorAll('[data-orient-part^="sec"]')) {
+      let n = e.nextElementSibling, n2 = 0;
+      while (n && n2 < 200) { n2 += 1; if (n.textContent.trim().length > 0) break; n = n.nextElementSibling; }
+      secFill[e.getAttribute('data-orient-part')] = n ? t(n.innerText).length : 0;
+    }
+    // 四条「否掉的说法」里，哪些带了新标记（可读标记）
+    const noitems = [...ov.querySelectorAll('.noitem')].map(n => ({
+      marked: !!n.querySelector('[data-orient-part]') || n.hasAttribute('data-orient-part'),
+      hasNumSlot: !!n.querySelector('[data-f]'),
+      len: t(n.innerText).length,
+    }));
+    return JSON.stringify({ parts, secFill, noitems });
+  })()`);
+  // ⚠⚠ `page.eval` 返回什么类型，取决于**页面侧 return 的是什么**：
+  //   上面几处直接 `return {...}`，拿回来就是对象；我这里 `return JSON.stringify(...)`，
+  //   拿回来是**字符串**，必须自己 parse。
+  //   ⚠ 本文件两种写法都存在，而第一版我抄了 `JSON.stringify` 却没抄配对的
+  //     `JSON.parse` ⇒ O.parts / O.secFill / O.noitems 全是 undefined
+  //     ⇒ Z12/Z13/Z14 **三条一起红**，而红的原因是判据读不到东西，不是页面坏了。
+  //   （同族：[[差异比对器必须先证明它读到了东西]]。）
+  //   ⇒ 一条判据「三条同时红」时，先问「是不是同一个取数环节炸了」。
+  const O = (() => {
+    try { return JSON.parse(ORI) || {}; }
+    catch (e) { return { err: 'JSON.parse 失败：' + e.message, raw: String(ORI).slice(0, 120) }; }
+  })();
+  const PARTS = O.parts || [];
+  const byRole = r => PARTS.filter(p => p.role === r);
+  const CN = ['一', '二', '三', '四', '五'];
+
+  // ---- Z12：骨架完整 + 五个小节编号连续 ----
+  // ⚠ 期望**只钉骨架的形状**（哪些角色各该有几条、编号是不是 一…五），
+  //   文本内容一律从 DOM 反推 —— 写死文本就成了「判据与产品共用同一份手抄」。
+  const shape = { h1: 1, lead: 1, sec1: 1, sec2: 1, sec3: 1, sec4: 1, sec5: 1,
+                  claim: 2, foot: 1 };
+  const shapeBad = Object.keys(shape).filter(r => byRole(r).length !== shape[r]);
+  const extraRole = PARTS.map(p => p.role).filter(r => !(r in shape));
+  const secNums = ['sec1', 'sec2', 'sec3', 'sec4', 'sec5']
+    .map(r => (byRole(r)[0] || {}).num);
+  const numsOk = secNums.every((v, i) => v === CN[i]);
+  rec('Z12 导读浮层的**骨架**必须逐块有可读标记：标题 1 + 导语 1 + 五个小节 1×5'
+      + ' + 两条无数字的「否掉的说法」2 + 按钮栏 1；且五个小节自称的编号必须是 一…五 连续',
+      !O.err && !shapeBad.length && !extraRole.length && numsOk,
+      (O.err ? `⚠ 取数失败：${O.err}　${O.raw || ''}` : '')
+      + `实到 ${PARTS.length} 条：${PARTS.map(p => p.role + '/' + p.tag).join('、')}`
+      + (shapeBad.length ? `　⚠ 条数不对：${shapeBad.join('、')}` : '　各角色条数都对')
+      + (extraRole.length ? `　⚠ 出现没登记的角色：${[...new Set(extraRole)].join('、')}` : '')
+      + (numsOk ? '　编号 一二三四五 连续' : `　⚠ 小节编号是 ${secNums.join('、')}，不是 一…五`));
+
+  // ---- Z13：每个小节不许是空节 ----
+  const fillBad = Object.keys(O.secFill || {})
+    .filter(r => (O.secFill[r] || 0) < 40);
+  rec('Z13 导读的每个小节标题后面必须紧跟**有实质内容**的块（≥40 字）'
+      + '——只有标题没有内容的小节，读者点进来看到的是空的',
+      Object.keys(O.secFill || {}).length === 5 && fillBad.length === 0,
+      Object.keys(O.secFill || {}).map(r => `${r}=${O.secFill[r]}字`).join('、')
+      + (fillBad.length ? `　⚠ 空节：${fillBad.join('、')}` : '　五节都有内容')
+      + (Object.keys(O.secFill || {}).length !== 5
+         ? `　⚠ 只量到 ${Object.keys(O.secFill || {}).length} 个 sec` : ''));
+
+  // ---- Z14：四条「否掉的说法」必须**每一条都可达** ----
+  // ⚠⚠ 这条针对的是一个具体的漏法：`#2`、`#4` 之所以在 C6 里是真孤儿，
+  //   是因为**它们内部没有 [data-f] 数字槽** —— 探针的 `hasDataDesc`
+  //   把带数字槽的 #1、#3 结构性排除了，于是「没绑数字」被当成了
+  //   「不是论断」。这两条同样是判决性散文。
+  //
+  // ⚠⚠⚠ 期望值**第一版写错了**：写成「4 条都自带 data-orient-part」，
+  //   实测 Z14 红。判红先分清是「页面在撒谎」还是「判据问错了」——
+  //   这次是**判据问错**：#1、#3 内部有 [data-f] 槽，Z11 已经**逐槽**核过
+  //   它们的值，它们本来就可达，不该被要求再加一遍标记。
+  //   ⇒ 正确的性质是「每一条都**落在某个可读标记的覆盖范围内**」。
+  //   而且必须**分开报**「自带标记的」与「靠数字槽可达的」——
+  //   混成一个数就看不出「该补的那两条到底补上没有」。
+  const ni = O.noitems || [];
+  const niUnreach = ni.filter(n => !n.marked && !n.hasNumSlot);
+  const niByOwn = ni.filter(n => n.marked);
+  const niBySlot = ni.filter(n => !n.marked && n.hasNumSlot);
+  rec('Z14 四条「本页不主张的说法」每一条都要**可达**：要么自带可读标记，'
+      + '要么内部有 [data-f] 数字槽（Z11 逐槽核过）'
+      + '（⚠ 其中两条没有数字槽，探针的 hasDataDesc 会把它们与「不是论断」'
+      + '混为一谈 —— 没绑数字不等于不是论断）',
+      ni.length === 4 && niUnreach.length === 0,
+      `实到 ${ni.length} 条：自带标记 ${niByOwn.length} 条`
+      + `　靠 [data-f] 槽可达 ${niBySlot.length} 条`
+      + `　不可达 ${niUnreach.length} 条`
+      + (niUnreach.length
+         ? `　⚠ 不可达的是第 ${niUnreach.map(n => ni.indexOf(n) + 1).join('、')} 条`
+         : '　四条全部可达')
+      + (ni.length !== 4 ? `　⚠ 条数不是 4` : ''));
+
+  // ==================================================================
   // W 组（第三十三笔之四）：[data-arm] / [data-armtext] / [data-cotarm]
   //                  —— 同一道题跑两遍，两臂逐字对照（承载判决）
   // ==================================================================
