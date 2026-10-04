@@ -219,7 +219,71 @@ try {
   //        - 文本**完全等于**某个候选后代 ⇒ 纯包裹元素，丢弃。
   //      留下的才是「页面上真的印着、但没有标记能定位到它」的文字。
   const THRESH = 10;
-  const unmarked = JSON.parse(await page.eval(`(() => {
+  // ⚠⚠⚠ 第三十三笔之十四：**这一页有会自己往前走的读数块**，
+  //   所以清单必须**自报哪些块不可复现**，而不是假装量是稳的。
+  //
+  //   怎么发现的：M2c（还原后扫描应与基线同签名）判红，报 root 62 ↔ 61。
+  //   而那一轮**只改了 latent/index.html**，压根碰不到根页 ⇒ 先怀疑量本身。
+  //   同一份源码连跑 3 次实测：
+  //       真孤儿**总数恒为 61**（unmarked 213、加载后标记 254 全稳）
+  //       50 条固定；**另 7 条每轮换一批**（21 个不同身份各只出现 1/3 次）：
+  //       「connected ### steps」「step ### · ppl 1.00 · entropy 0.00」
+  //       「path length ####.#」「mean step ##.####」「direction reversals ###」
+  //       「### tokens」以及那道对数方程题。
+  //   ⇒ **总数一样 ≠ 量是稳的；变的是身份。** 任何按块内容对账的东西
+  //     （M2c 的同签名、逐条分诊）都会被这 7 条搅乱，而它报出来的现象
+  //     （「还原后多了一条缺口」）**长得完全像真回归**。
+  //
+  //   ⚠ 我第一版修法是「等页面静下来再统计」（轮询签名，连续 3 次不变）。
+  //     它**看起来对、实际是假的**：根页压根没有静止点，只有 tick 之间，
+  //     于是三次分别等了 4.6s / 10.1s / 18.3s，每次都报「已静下来」——
+  //     而步号照样从 224 走到 240。**一个会撒谎的自证比没有自证更糟**，
+  //     那个 `settled: true` 会让人以为身份可比。已删。
+  //
+  //   ⇒ 改成**直接量可复现性**：同一轮里隔 VOL_WAIT 再采一次清单，
+  //     逐块比对身份，把「会变的」标成 volatile 写进产物。
+  //     探针**不判决**（判决在 python 侧），但它必须**说清自己量到的东西
+  //     哪些不可复现** —— 否则用它的判据会拿一个假自证当保证。
+  //
+  //   ⚠⚠ `changed` 是**下界**，不是精确值：VOL_WAIT 比那段动画的周期短，
+  //     赶上一次 tick 才算抓到。实测同一个页面两次跑分别报 8 和 6 ——
+  //     **不是页面变了，是窗口没赶上**。
+  //   ⇒ 所以下游只能把它当「至少这么多块不可复现」，
+  //     **不能**拿它当一个精确划分去做集合相等的判决。
+  //     （mut_panel_coverage 的 M2e 第一版就是这么翻的：拿它分区比身份，
+  //       而分区本身带噪 ⇒ 报出一个长得像真回归的假红。）
+  const VOL_WAIT = 4000;
+  const takeCensus = async () => JSON.parse(await page.eval(CENSUS_EVAL()));
+  const unmarked = await takeCensus();
+  await sleep(VOL_WAIT);
+  const resample = await takeCensus();
+  // 身份 = tag + 自己那段话。**不拿 len 当身份的一部分**：步进块的长度
+  // 本身也随内容变，拿它当身份会把「同一块的不同步」算成两块。
+  const idOf = u => u.tag + '␟' + (u.ownHead || '').trim();
+  const idsB = new Set(resample.map(idOf));
+  const idsA = new Set(unmarked.map(idOf));
+  for (const u of unmarked) {
+    u.volatile = !idsB.has(idOf(u));
+  }
+  const vol = {
+    waitMs: VOL_WAIT,
+    nA: unmarked.length, nB: resample.length,
+    changed: unmarked.filter(u => u.volatile).length,
+    onlyInA: [...idsA].filter(x => !idsB.has(x)).length,
+    onlyInB: [...idsB].filter(x => !idsA.has(x)).length,
+  };
+  console.log('可复现性自测：隔 %d ms 再采一次 —— %d 块里 **%d 块会自己变**%s',
+              VOL_WAIT, vol.nA, vol.changed,
+              vol.onlyInA !== vol.changed
+                ? ('（⚠ 另有 %d 条第二次才出现/第一次才有，数量也对不上）'
+                   % Math.abs(vol.onlyInA - vol.changed))
+                : '');
+  // ⚠ 必须是 **函数声明**而不是 const：它在下面才定义，而上面
+  //   takeCensus() 已经要用它。const 是 TDZ ⇒ 运行到那一行直接
+  //   ReferenceError「Cannot access 'CENSUS_EVAL' before initialization」，
+  //   而症状是「探针没跑出产物」—— 看起来像环境问题，不像装置故障。
+  //   函数声明会被提升，所以位置无所谓。
+  function CENSUS_EVAL() { return `(() => {
     const hasData = e => Array.from(e.attributes).some(a => a.name.startsWith('data-'));
     const hasDataDesc = e => [].concat(...Array.from(e.querySelectorAll('*')))
       .some(c => Array.from(c.attributes).some(a => a.name.startsWith('data-')));
@@ -292,12 +356,47 @@ try {
       // ⚠ 祖先链为空时**不要**给它编一个面板名（如 '?'）：
       //   那会让 C6 的分组把「真孤儿」混进普通面板里数。
       const pn = (chain[0] || [])[0] || '（祖先链为空）';
+      // ⚠⚠ 第三十三笔之十三：**这个块自己还剩多少字**。
+      //   上面的「纯包裹元素去重」只认「文本与某个候选后代**完全相同**」，
+      //   而大量容器是**多个后代文字的拼接**（root 的
+      //   「LAYER 14 — MEASURED ‖h‖ ↔ entropy r=-0.145 no coupling …」
+      //   = h2 + 5 个子 div 的和），它们**一个字都不少**只是换个拼法 ⇒ 溜过去了。
+      //   ⚠⚠ 第三十三笔之十三：**这个块自己还剩多少字**。
+      //   上面的「纯包裹元素去重」只认「文本与某个候选后代**完全相同**」，
+      //   而大量容器是**多个后代文字的拼接**（root 的
+      //   「LAYER 14 — MEASURED ‖h‖ ↔ entropy r=-0.145 no coupling …」
+      //   = h2 + 5 个子 div 的和），它们**一个字都不少**只是换个拼法 ⇒ 溜过去了。
+      //   量法：给**每个候选后代**打一个临时标记，克隆本块，删掉克隆里
+      //   带这个标记的后代，再读剩下的文字。剩 0 ⇒ 本块**没有承载任何
+      //   自己的主张**，它只是个壳 —— 而「壳」被 C6 算成「没人读的真孤儿」
+      //   是**夸大**。
+      //   ⚠⚠ 第一版写的是 cands.includes(d) —— 而 d 是从**克隆体**上
+      //     querySelectorAll 出来的节点，cands 装的是**原树**的节点，
+      //     includes 用对象同一性比对 ⇒ **永远匹配不上** ⇒ 一个都没删
+      //     ⇒ own 恒等于原文 ⇒ 实测「213 条里 0 个壳」。
+      //     那个 0 看起来完全合理，所以我差点直接采信。
+      //     ⇒ 跨树比较必须靠**标记**，不能靠对象同一性。
+      //     （同族：差异比对器必须先证明它读到了东西。）
+      //   ⚠ 这个量只是**证据**，判决仍在 python 侧 —— 探针不做判决。
+      for (const d of p.querySelectorAll(SEL)) {
+        if (cands.indexOf(d) >= 0) d.setAttribute('data-probe-keep', '0');
+      }
+      const cl = p.cloneNode(true);
+      for (const d of Array.from(cl.querySelectorAll('[data-probe-keep]'))) {
+        if (d.parentNode) d.parentNode.removeChild(d);
+      }
+      for (const d of p.querySelectorAll('[data-probe-keep]')) {
+        d.removeAttribute('data-probe-keep');
+      }
+      const own = (cl.innerText || '').replace(/\\s+/g, ' ').trim();
       out.push({ tag: p.tagName.toLowerCase(), panel: pn, len: t.length,
                  head: t.slice(0, 70),
+                 ownLen: own.length, ownHead: own.slice(0, 70),
+                 shell: own.length === 0,
                  ancestors: chain, orphan: chain.length === 0 });
     }
     return JSON.stringify(out);
-  })()`));
+  })()`; }
 
   for (const d of Object.keys(B).map(Number).sort((a, b) => a - b)) {
     console.log('\n=== data 树深度 ' + d + '，共 ' + B[d].length + ' 个 ===');
@@ -334,6 +433,7 @@ try {
   fs.writeFileSync(OUT, JSON.stringify({
     page: IS_LATENT ? 'latent' : 'root', url: URL,
     byDepth: B, unmarked, census: CENSUS, thresh: THRESH,
+    vol: vol,
     beforeNames, afterNames, appeared, clicked: clickSweep.length,
     webgl: WEBGL, webglRequested: WEBGL_FLAGS.length > 0,
   }, null, 2));
@@ -341,7 +441,11 @@ try {
     + ' 字，' + CENSUS.sel + '，共 ' + unmarked.length + ' 个）===');
   for (const u of unmarked) {
     console.log('  <' + String(u.tag).padEnd(4) + '> [' + u.panel + '] '
-      + String(u.len).padStart(4) + ' 字  ' + u.head);
+      + String(u.len).padStart(4) + ' 字'
+      // ⚠ own 是「本块自己的话」：去掉也在清单里的后代之后剩多少。
+      //   own=0 ⇒ 它只是壳，不承载主张。⊘ 标出来，免得把壳算成缺口。
+      + '　own=' + String(u.ownLen === undefined ? '?' : u.ownLen).padStart(4)
+      + (u.shell ? '　⊘壳' : '　') + u.head);
   }
   console.log('已写出 %s（page=%s，加载后 %d 个标记 / 交互后 %d 个）',
               OUT, IS_LATENT ? 'latent' : 'root', beforeNames.length, afterNames.length);

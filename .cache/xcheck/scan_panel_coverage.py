@@ -442,6 +442,29 @@ def main():
     unmarked = [it for pg in sorted(unmarked_by_page) for it in unmarked_by_page[pg]]
     flat = [it for items in Bs[BLOCKS].values() for it in items]
     has_all = all("all_data" in it for it in flat)
+    # ⚠⚠ 第三十三笔之十三：C0 现在**要求** ownLen/shell 也在产物里。
+    #   这两个字段是「本块自己还剩多少字」/「它是不是纯壳」，
+    #   C6 排除壳时要**用它们**。旧产物没有 ⇒ C0 红 ⇒ 逼人重跑探针。
+    #   ⚠ 刻意**不做**「旧字段缺失就当 0」那种兼容 ——
+    #     兼容等于让壳悄悄混回缺口里，而 C6 正是靠这个数在守。
+    has_own = all("ownLen" in it and "shell" in it for it in unmarked)
+    if not has_own:
+        print("       ⚠ 产物里没有 ownLen/shell 字段 ⇒ 这是**旧版探针**的产物，")
+        print("         C0 会红。重跑两页 probe_panels.mjs（第三十三笔之十三起才有）。")
+    # ⚠⚠ 第三十三笔之十四：还要 `volatile`（这一块**自己会不会变**）。
+    #   根页有一条会自己往前走的轨迹读数：同一份源码连跑 3 次，
+    #   真孤儿**总数恒为 61**，但其中 **8~11 条每轮换一批身份**
+    #   （connected ### steps / step ### · ppl / path length / ### tokens …）。
+    #   ⇒ 「总数一样」会让人以为量是稳的，**而变的是身份**；
+    #     任何按块内容对账的东西都会被它搅乱，报出来的现象
+    #     （「还原后多了一条缺口」）**长得完全像真回归**。
+    #   ⇒ 探针现在隔 4s 再采一次清单自己标出来，python 侧据此分层。
+    #   ⚠ 同样**不做**「缺字段就当 False」那种兼容 —— 那等于让不可复现的块
+    #     冒充可复现的，正是这个字段要防的那件事。
+    has_vol = all("volatile" in it for it in unmarked)
+    if not has_vol:
+        print("       ⚠ 产物里没有 volatile 字段 ⇒ 旧版探针的产物，C0 会红。")
+        print("         重跑两页 probe_panels.mjs（第三十三笔之十四起才有）。")
     # ⚠⚠ 第三十三笔之六：unmarked 的**口径**也变了（元素集 + 阈值），
     #   产物里必须自报这次用的门槛 —— 否则「清单里的数」与「阈值」会各说各话。
     thresh_by_page = {pages[p.name]: (raws[p].get("thresh") if isinstance(raws[p], dict) else None)
@@ -459,10 +482,12 @@ def main():
     # ⚠ 用两份里**更旧**的那份比：只要有一份比源码旧，那一页的数字就不可信。
     newer_than_src = (src_mt == 0.0) or (blocks_mt > src_mt)
     check("C0 两页探针产物新鲜、字段完整、且各自自报是哪一页",
-          has_all and page_ok and max(ages.values()) < 7200 and newer_than_src,
-          "根页 %d 秒前 / latent %d 秒前；根页 %d 个元素，all_data 齐全=%s；"
+          has_all and has_own and has_vol and page_ok
+          and max(ages.values()) < 7200 and newer_than_src,
+          "根页 %d 秒前 / latent %d 秒前；根页 %d 个元素，all_data 齐全=%s，"
+          "ownLen/shell 齐全=%s，volatile 齐全=%s；"
           "page 字段 根=%s latent=%s；产物比最新源码（%s）新=%s（取两份里更旧的比）"
-          % (ages[BLOCKS], ages[LATENT_BLOCKS], len(flat), has_all,
+          % (ages[BLOCKS], ages[LATENT_BLOCKS], len(flat), has_all, has_own, has_vol,
              pages[BLOCKS.name], pages[LATENT_BLOCKS.name],
              src_which or "（无源文件）", newer_than_src))
     if not page_ok:
@@ -807,7 +832,12 @@ def main():
               % ("、".join(unmarked_missing) or "（有清单但只到一页）"))
     else:
         n_page = {pg: len(v) for pg, v in sorted(unmarked_by_page.items())}
-        n_orph = {pg: sum(1 for u in v if u.get("orphan")) for pg, v in sorted(unmarked_by_page.items())}
+        # ⚠⚠ 第三十三笔之十三：这里也**剔掉纯壳**，与 C6 同一口径 ——
+        #   两处各算各的 ⇒ 「C5 说 N 段、C6 说 M 段」而没人知道差在哪。
+        n_orph = {pg: sum(1 for u in v if u.get("orphan") and not u.get("shell"))
+                  for pg, v in sorted(unmarked_by_page.items())}
+        n_shell = {pg: sum(1 for u in v if u.get("orphan") and u.get("shell"))
+                   for pg, v in sorted(unmarked_by_page.items())}
         # ⚠ 以**新清单**回算旧口径（tag=p 且 ≥40 字），
         #   这样「口径放宽了多少」是当场算出来的数，不是记忆里的数。
         #   ⚠ 而且**按页分开**：26 + 1 = 27 里那个 1 是 latent 页的 `p.olead` ——
@@ -817,7 +847,13 @@ def main():
         old_pp = {pg: sum(1 for u in old_scope if u["page"] == pg) for pg in n_page}
         check("C5 「有实质文字、但自己没被登记」的块必须逐条列名并计数（两页合计）",
               len(unmarked) > 0 and len(unmarked_by_page) == 2,
-              "%d 段；分页 %s；其中真孤儿 %d 段（分页 %s）；"
+              "%d 段；分页 %s；其中真孤儿 %d 段（分页 %s）"
+              # ⚠⚠ 下面这段**必须留在同一个隐式拼接组里**：我用 `+ "；"` 切了一刀，
+              #   而 Python 的 `%` 比 `+` 紧 ⇒ `%` 只作用到最后一段字面量 ⇒
+              #   `TypeError: not all arguments converted during string formatting`。
+              #   **症状指向最后一行，凶手在第一行。**
+              "　⊘ 另有**纯壳** %d 段（分页 %s）：它们去掉子节点后一个字都不剩，"
+              "不承载自己的主张，不算缺口（第三十三笔之十三）；"
               "⚠ 旧口径（只扫 <p> 且 ≥40 字）回算只有 %d 段（分页 %s）"
               "—— 差出来的 %d 段旧工具**从来没量过**"
               "（含导读浮层那 11 条实测全部在内，"
@@ -826,6 +862,8 @@ def main():
                  "、".join("%s 页 %d 段" % (pg, n) for pg, n in n_page.items()),
                  sum(n_orph.values()),
                  "、".join("%s 页 %d 段" % (pg, n) for pg, n in n_orph.items()),
+                 sum(n_shell.values()),
+                 "、".join("%s 页 %d 段" % (pg, n) for pg, n in n_shell.items()),
                  len(old_scope),
                  "、".join("%s 页 %d 段" % (pg, n) for pg, n in sorted(old_pp.items())),
                  len(unmarked) - len(old_scope)))
@@ -886,10 +924,38 @@ def main():
                   "%d/%d 段缺 ancestors、%d 段缺 page —— 探针是旧版，重跑 probe_panels.mjs"
                   % (len(no_anc), len(unmarked), len(no_pg)))
         else:
-            orphans = [u for u in unmarked if u.get("orphan")]
+            # ⚠⚠ 第三十三笔之十三：把**纯壳**从真孤儿里剔出去。
+            #   壳 = 去掉「也在清单里的后代」之后**一个字都不剩**的块。
+            #   它不该叫「没人读」：它**没有承载任何自己的主张**，
+            #   而它的每一个字都出现在它某个子节点上 ——
+            #   而那些子节点**各自都在这份清单里**。
+            #   ⇒ 剔掉它不丢任何信息，只是不再**把壳算成缺口**（那是夸大）。
+            #   ⚠ 上一版还只认「文本与某个后代**完全相同**」的纯壳，
+            #     大量容器是**多个后代文字的拼接**，一个字都不少只是换个拼法
+            #     ⇒ 溜过去被算成缺口。实测 107 条里有 25 条是这种。
+            shells = [u for u in unmarked if u.get("orphan") and u.get("shell")]
+            orphans = [u for u in unmarked if u.get("orphan") and not u.get("shell")]
+            # ⚠ 剔壳**不是**让它悄悄消失：必须证明剔掉的确实是壳。
+            #   判据：ownLen 必须真的是 0，且 len 不能也是 0
+            #   （两者都 0 的话那是「本来就没文字」，不是壳，是另一回事）。
+            bad_shell = [u for u in shells
+                         if u.get("ownLen") != 0 or (u.get("len") or 0) == 0]
+            check("C6a 被剔出缺口的「纯壳」必须真的一个字都不剩"
+                  "（ownLen=0 且它本身 len>0；两者都 0 的不是壳，是空块）",
+                  not bad_shell,
+                  "壳 %d 条，冒充的有 %d 条" % (len(shells), len(bad_shell))
+                  + ("：%s" % "、".join("%s/%s" % (u["tag"], u.get("head", "")[:20])
+                                    for u in bad_shell[:4]) if bad_shell else ""))
             by_o = {}
             for u in orphans:
                 by_o[(u["page"], u["panel"])] = by_o.get((u["page"], u["panel"]), 0) + 1
+            # ⚠⚠ 第三十三笔之十四：会自己变的块**单独分层**，不混进「未分类」。
+            #   它们的 key（含步号、tokens 数…）每轮都不同 ⇒ 登记必然 stale，
+            #   而 stale 条目会被 stale_reg 报成「登记过但页面上没有」——
+            #   那是**登记簿自己造的假警报**，会让人去删一条本来该留的登记。
+            #   ⇒ 这类块的归属是**一个决定**（这类实时读数算不算覆盖缺口），
+            #     不是逐条能定的事，所以先分层印出来等人裁决。
+            orph_vol = [u for u in orphans if u.get("volatile")]
             ukeys = assign_keys(orphans)
             unclassified = sorted({k for k in ukeys
                                   if k not in ORPHAN_DECORATION
@@ -909,7 +975,7 @@ def main():
                   "　⚠ 第三十三笔之十一改过判据形状：判「未登记的 = 0」而非「总数 = 0」，"
                   "理由见上面那段注释",
                   len(unclassified) == 0,
-                  "真孤儿 %d 段 %s；已登记 装饰簿 %d + 欠账簿 %d，**新增未分类 %d** 段%s"
+                  "真孤儿 %d 段 %s；已登记 装饰簿 %d + 欠账簿 %d，**新增未分类 %d** 段%s%s"
                   % (len(orphans),
                      ("：" + "、".join("%s 页 %s=%d" % (pg, k, v)
                                       for (pg, k), v in sorted(by_o.items())))
@@ -917,7 +983,15 @@ def main():
                      len(orph_dec), len(orph_debt), len(unclassified),
                      ("：" + "、".join(k[1] for k in unclassified[:6])
                       + ("…" if len(unclassified) > 6 else ""))
-                     if unclassified else "（全部已逐条登记）"))
+                     if unclassified else "（全部已逐条登记）",
+                     ("；⊘ 其中 **%d 段会自己变**（%s）——它们的内容每轮都不同，"
+                      "**不能按 key 登记**（key 本身就是时间相关的，登记下来必然 stale），"
+                      "要处置得先定「这类块算不算缺口」"
+                      % (len(orph_vol),
+                         "、".join("%s 页 %d" % (pg, sum(1 for u in orph_vol
+                                                       if u["page"] == pg))
+                                   for pg in sorted({u["page"] for u in orph_vol}))))
+                     if orph_vol else ""))
             # ⚠ 逐条列名（这就是 C5 承诺的「只报数不列名 = 没有信息」）。
             for pg, v in sorted(unmarked_by_page.items()):
                 og = [u for u in v if u.get("orphan")]
@@ -929,8 +1003,10 @@ def main():
                       % (pg, len(og), len(un),
                          "，每页最多列 %d 条" % cap if len(un) > cap else ""))
                 for u in un[:cap]:
-                    print("         <%s> %3d 字  %s"
-                          % (u.get("tag", "?"), u.get("len", 0), u["head"][:60]))
+                    print("         <%s> %3d 字 %s %s"
+                          % (u.get("tag", "?"), u.get("len", 0),
+                             "⚠会变" if u.get("volatile") else "    ",
+                             u["head"][:60]))
                 if len(un) > cap:
                     print("         …… 该页其余 %d 条未分类见 probe_panels.mjs 的 stdout"
                           % (len(un) - cap))
