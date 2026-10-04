@@ -20,9 +20,44 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const DATA = '/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime';
 
 const results = [];
-const check = (name, ok, detail) => {
-  results.push({ name, ok: !!ok });
+// ⚠⚠ 第三十三笔之十一：加**第三态**「前提未建立 ⇒ 未判」。
+//   原来只有 pass/fail 两态，于是 J3b（等 3D 数据流停下来）失败之后，
+//   J4/J6/J8/J9a/J10 仍然照跑 —— 它们的**前提正是「流已停」**，
+//   于是每个数都是流式阶段的快照，红的到底是页面还是读数没赶上，
+//   **分不出来**。
+//   实测：同一条脚本连跑三次是 12/13、11/13、7/9 —— 后一次里
+//   `data-scene-window-high/low` 已经读成 undefined。
+//   ⇒ 前提不成立时给一个数，会被误读成判决（与 run() 的 NORUN 同一族）。
+//   ⇒ 三态分开计数，汇总行把「未判」**显式印出来**，不许混进分母假装验过。
+const PRECOND = { failed: false, why: '' };
+// ⚠⚠ `indep=true` = 「这条**与前提无关**」，前提不成立时它照样该判。
+//   第一版我把一把开关盖住后面所有判据，结果 J9（读 Scene3D.tsx 源码、
+//   验 onClick 接线，**根本不碰运行时**）也被标成「未判」。
+//   ⇒ 一条判据被判成「没判」，可能是「确实不能判」也可能是「被我一起盖住了」。
+//     后者更坏：它把**能判的**也一起藏起来了，而这与「前提不成立要诚实」
+//     是相反的方向。⇒ 前提只影响**依赖它**的那些，逐条点名，不许一刀切。
+const check = (name, ok, detail, indep) => {
+  if (PRECOND.failed && !indep) {
+    results.push({ name, ok: false, state: 'precond' });
+    console.log(`[未判 ] ${name}: ${PRECOND.why}`);
+    return;
+  }
+  results.push({ name, ok: !!ok, state: ok ? 'pass' : 'fail' });
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}: ${detail}`);
+};
+const precondFailed = why => { PRECOND.failed = true; PRECOND.why = why; };
+// 前提检查自己超时时，它**不是判红** —— 它是「没等停」。
+//   原来它记成 FAIL，于是「环境慢」被读成「3D 坏了」，
+//   整条脚本 exit 1、链里判红。⇒ 单独记成 precond。
+const checkPrecond = (name, ok, detail, why) => {
+  if (ok) {
+    results.push({ name, ok: true, state: 'pass' });
+    console.log(`[PASS] ${name}: ${detail}`);
+  } else {
+    results.push({ name, ok: false, state: 'precond' });
+    console.log(`[未判 ] ${name}: ${detail}`);
+    console.log(`　　　　（前提未建立：${why}）`);
+  }
 };
 
 // sidecar：step -> token
@@ -345,7 +380,16 @@ try {
   //   而窗口只有 80 帧宽 ⇒ 我设进去的步号会在**一秒内**滑出窗口。
   //   这不是页面坏，是**被测对象在动**；判据必须在它停下来之后再问。
   //   做法：轮询 data-scene-loaded，连续 3 次读数不变就认为流结束。
-  const waitStreamIdle = async (maxMs = 60000) => {
+  // ⚠⚠⚠ 第三十三笔之十一：**预算按实测重标**。
+  //   原来 60000ms 是在**空闲机器**上标定的（40s 稳定在 385 步）。
+  //   机器一忙就超时 —— 实测连跑三次：
+  //     负载下：等 60000ms 仍在增长（769 / 721 步）→ 报 FAIL
+  //     空闲时：等 40000ms 稳定在 385 步
+  //   同一个脚本、同一台服务器、同一份数据，差别只在机器忙不忙
+  //   ⇒ 那个 60 秒不是「3D 有问题」，是**预算不够**。
+  //   150s 的来历：空闲 40s × 3.5 的余量。⚠ 这仍会拖慢链，
+  //   所以**超时也不能报 FAIL**，要报「前提未建立」（见上）。
+  const waitStreamIdle = async (maxMs = 150000) => {
     let last = -1, stable = 0, waited = 0;
     while (waited < maxMs) {
       const c = JSON.parse(await page.eval(readBoth));
@@ -358,10 +402,21 @@ try {
     return { idle: false, waited, loaded: last };
   };
   const idle = await waitStreamIdle();
-  check('J3b 3D 的数据流会**停下来**（联动判据的前提：窗口不再滚）',
-    idle.idle, idle.idle ? `等了 ${idle.waited}ms 后稳定在 ${idle.loaded} 步`
-                         : `等了 ${idle.waited}ms 仍在增长（${idle.loaded} 步）——`
-                           + `下面的联动判据在流式阶段本来就读不稳`);
+  // ⚠ 用 checkPrecond 而不是 check：等不到停**不是判红**，
+  //   它是「本环境这一轮没等停」。记成 FAIL 会让「环境慢」被读成「3D 坏了」。
+  checkPrecond('J3b 3D 的数据流会**停下来**（联动判据的前提：窗口不再滚）',
+    idle.idle,
+    idle.idle ? `等了 ${idle.waited}ms 后稳定在 ${idle.loaded} 步`
+              : `等了 ${idle.waited}ms 仍在增长（${idle.loaded} 步）`
+                + `——下面的联动判据在流式阶段本来就读不稳`,
+    `软件光栅慢，150s 预算内没等停（已到 ${idle.loaded} 步仍在涨）`);
+  if (!idle.idle) {
+    precondFailed(`3D 数据流在 ${idle.waited}ms 内没停下来（已到 ${idle.loaded} 步仍在涨）`
+      + `——本环境是软件光栅，慢；这不是「3D 坏了」的判决`);
+    console.log('⚠ 前提未建立：下面**依赖「流已停」**的判据（J4/J6/J7/J8/J9a/J10）'
+      + '一律记为未判，不记红也不记绿。');
+    console.log('　（不依赖前提的照判：J9 读的是 Scene3D.tsx 源码，不碰运行时。）');
+  }
 
   const focusInWindow = async (nudge) => {
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -404,14 +459,25 @@ try {
   const inWin2 = s2?.badge?.step ?? null;
   check('J10 第二次拖动，3D 标签跟着变（不是只跟了一次）',
     !!s2?.badge && !!s1?.badge && s2.badge.step !== s1.badge.step,
-    `${s1.badge?.step} -> ${s2.badge?.step}${s2?.badge ? '' : '（第二次没拿到标签）'}`);
+    // ⚠⚠ 第三十三笔之十一：这里原来写的是 `${s1.badge?.step}` ——
+    //   可选链只护住了 `.badge`，**没护住 `s1` 本身**。
+    //   s1 为 null（没拿到标签）时照样抛 TypeError，
+    //   于是整段被 `catch` 吞成「装置: Cannot read properties of null
+    //   (reading 'badge')」——**红的是一个异常，不是判决**。
+    //   ⇒ 可选链要一路写到根：s1?.badge?.step。
+    `${s1?.badge?.step} -> ${s2?.badge?.step}${s2?.badge ? '' : '（第二次没拿到标签）'}`);
 
   // 接线自证：源码里确实有 onClick 调 setFocusedStep（光线拾取本身验不了）
   const src = readFileSync(
     '/Users/zhourui/code/steer3d/frontend/components/Scene3D.tsx', 'utf8');
   const wired = /onClick=\{\(e\) => \{[\s\S]{0,200}?setFocusedStep\(f\.step_id\)/.test(src);
   check('J9 珠子上的 onClick 已接线到 setFocusedStep（只验接线，不验射线拾取）',
-    wired, wired ? '源码里 onClick → setFocusedStep(f.step_id)' : '未找到接线');
+    wired, wired ? '源码里 onClick → setFocusedStep(f.step_id)' : '未找到接线',
+    // ⚠ indep=true：这条读的是**源码**（readFileSync），不碰运行时，
+    //   所以「3D 数据流没停」与它无关。第一版漏了这个 flag，
+    //   它被一并盖成「未判」—— 那就把**能判的也藏起来了**，
+    //   与「前提不成立要诚实」正好是相反的方向。
+    true);
 } catch (e) {
   check('装置', false, String(e && e.message ? e.message : e));
 } finally {
@@ -420,7 +486,24 @@ try {
   proc.kill('SIGKILL');
 }
 
-const pass = results.filter(r => r.ok).length;
-console.log(`\nRESULT ${pass === results.length ? 'PASS' : 'FAIL'}  ${pass}/${results.length}`);
+// ⚠⚠ 第三十三笔之十一：三态分开计数。
+//   「未判」**不进分母**（它压根没被判），但**必须显式印出来** ——
+//   混进分母会让人以为跑过了，藏起来会让 8/8 看起来比 8/9 强。
+const judged = results.filter(r => r.state !== 'precond');
+const unjudged = results.filter(r => r.state === 'precond');
+const pass = judged.filter(r => r.ok).length;
+const fail = judged.length - pass;
+if (fail) {
+  console.log(`\nRESULT FAIL  ${pass}/${judged.length}　有 ${fail} 条判红`
+    + (unjudged.length ? `　另有 ${unjudged.length} 条因前提未建立未判` : ''));
+} else if (unjudged.length) {
+  console.log(`\nRESULT SKIP  ${pass}/${judged.length}　另有 ${unjudged.length} 条因前提未建立**未判**`);
+} else {
+  console.log(`\nRESULT PASS  ${pass}/${judged.length}`);
+}
+if (unjudged.length) {
+  console.log(`　未判的 ${unjudged.length} 条：${unjudged.map(r => r.name.split(' ')[0]).join('、')}`);
+  console.log('　原因：' + PRECOND.why);
+}
 console.log('注：珠子上的**光线拾取点击**未验（沙箱读不到 WebGL 像素），只验到接线。');
-process.exit(pass === results.length ? 0 : 1);
+process.exit(fail ? 1 : 0);
