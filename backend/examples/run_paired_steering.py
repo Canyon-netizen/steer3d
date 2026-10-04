@@ -233,7 +233,20 @@ def analyze(control: dict, steered: dict, layers: List[int],
             # than incidental drift. 1.0 would mean "purely the steer".
             u = unit.astype(np.float32)
             u = u / max(float(np.linalg.norm(u)), 1e-8)
-            proj = d @ u
+            # ⚠⚠ 用 einsum，**不用 `d @ u`**。
+            #   numpy 2.0.2 / 这台机器上 `matmul` 会**乱报** FP 标志：
+            #   零矩阵 @ 零向量都报 "divide by zero / invalid value"，
+            #   而结果是正确的 0。实测一次运行吐 204 条这种告警。
+            #   ⇒ 在一个**专门用来发现隐状态 NaN** 的工具里，
+            #     200+ 条假 FP 告警比没有更糟：它训练人忽略告警，
+            #     真出 NaN 时反而看不见。einsum 逐点积与 matmul 数学等价。
+            #   ⚠⚠⚠ 但**不是逐位相同** —— 我第一版注释就是这么写的，
+            #     写完自己拿数据一比才发现是假的（BLAS 与 einsum 求和顺序不同）。
+            #     实测最大相对差 **2.05e-07**（L26 proj），cosine 绝对差
+            #     ≤7.2e-07；delta 全 0 的 L4/L12/L20 上 proj 差恰为 0。
+            #     ⇒ 对 proj_frac / cos 这类**印 3~4 位**的指标无影响，
+            #     但「等价」不能写成「相同」。
+            proj = np.einsum("ij,j->i", d, u)
             entry["proj_on_steer"] = proj.astype(np.float32).tolist()
             entry["proj_fraction"] = float(
                 (proj ** 2).sum() / max((d ** 2).sum(), 1e-8))
@@ -244,7 +257,9 @@ def analyze(control: dict, steered: dict, layers: List[int],
             entry["rel_shift"].append(dd / max(hc, 1e-6))
             entry["h_norm"].append(hc)
             den = hc * float(np.linalg.norm(s[i]))
-            entry["cosine"].append(float((c[i] @ s[i]) / den) if den > 1e-6 else 1.0)
+            # ⚠ 同上：内积走 einsum，不走 `@`（理由见 proj 那处注释）。
+            entry["cosine"].append(
+                float(np.einsum("j,j->", c[i], s[i]) / den) if den > 1e-6 else 1.0)
         out["per_layer"][str(L)] = entry
     return out
 
