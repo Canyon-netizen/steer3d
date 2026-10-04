@@ -2460,12 +2460,21 @@ function renderAnswerReadout(){
   // page chose to show. The leading marker matters just as much -- the tail
   // window began inside a LaTeX command ("dot 5^{2b}", i.e. "\\cdot"), which
   // looks like corruption rather than an excerpt.
-  const show = (text, win, total) => {
+  const show = (text, win, total, from) => {
     const n = (text || "").length;
+    // ⚠ `from` = 这段**实际显示的文本**在全文里的绝对起点，和 win.start 是两件事。
+    //   win.start 说的是「这个 excerpt 相对全文从哪开始」，
+    //   而调用方可能已经先用 hinge() 把前 split_char 个字切掉了 ——
+    //   那段文本的真实起点是 win.start + split_char，不是 win.start。
+    //   原来只按 win.start 算，于是「原文还有 N 字符」多算了整整一个
+    //   split_char：第 1 题印 7203，正确值 7623 − 60 − 420 = 7143。
+    //   ⚠ 这与本函数上方注释里记的 180 常量是同一族的毛病：
+    //     那一处只修了 head_chars 是不是真的 N 个，记账本身没核。
+    const start = (from != null) ? from : ((win && win.start) || 0);
     const head = (win && win.start > 0) ? '<span style="color:#5f6b80">…上文略…</span>\n' : '';
-    const tail = (win && total != null && win.start + n < total)
+    const tail = (total != null && start + n < total)
       ? '\n<span style="color:#5f6b80">…下文略，原文还有 '
-        + (total - win.start - n) + ' 字符…</span>' : '';
+        + (total - start - n) + ' 字符…</span>' : '';
     return head + esc2(text) + tail;
   };
   const armCard = (key, title, sub, arm, html, color, note) => `
@@ -2536,9 +2545,12 @@ function renderAnswerReadout(){
   h += `<div style="font-size:11.5px;font-weight:600;color:#e8edf5;margin:2px 0 4px">
     从这里开始，两边各写各的：</div>`;
   h += armCard("post:zero", "不加向量（对照）", `同一个问题，喂零向量（强度 ${T.zero_strength}）`,
-    it.zero, show(hinge(it.split.zero)[1], it.split.zero, it.zero.chars), "#7cc0ff", null);
+    it.zero, show(hinge(it.split.zero)[1], it.split.zero, it.zero.chars,
+                  (it.split.zero.start || 0) + (it.split_char || 0)),
+    "#7cc0ff", null);
   h += armCard("post:steered", `加向量 ${T.strength}`, `同一个问题，注入 ${T.direction}`,
-    it.steered, show(hinge(it.split.steered)[1], it.split.steered, it.steered.chars),
+    it.steered, show(hinge(it.split.steered)[1], it.split.steered, it.steered.chars,
+                      (it.split.steered.start || 0) + (it.split_char || 0)),
     "#ff8fa3", null);
 
   h += `<div class="note" style="font-size:10.5px;margin:5px 0 9px">
