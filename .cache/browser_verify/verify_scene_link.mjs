@@ -35,8 +35,25 @@ const tokenOf = (traj, step) => {
   return t ? t.token : null;
 };
 
+// ⚠ 第三十三笔之十：默认**不开**。设 `STEER3D_WEBGL=1` 才给 Chrome
+//   软件光栅那两个 flag（`cdp_client.mjs` 的 `extraArgs`，默认空 ⇒ 行为不变）。
+//
+//   为什么加这个开关：本脚本从第三十二笔起一直报 `SKIP 8/8`，
+//   理由写的是「本环境没有 WebGL，页面走 2D 降级」。
+//   而实测（`probe_webgl_flags.mjs`）：**只加两个 flag 就能拿到 WebGL 2.0**
+//   （renderer = ANGLE / SwiftShader driver，maxTex 8192）。
+//   ⇒ 那句理由只对「**没传 flag**」成立，不是环境事实。
+//
+//   ⚠ 打开它 ≠ 「3D 验过了」。软件光栅只保证能画，不保证画出来对；
+//     而且这一支的判据**从来没在 3D 分支上跑过**（全是 2D 下写的），
+//     所以第一次打开很可能报红 —— 那要分清是页面缺陷还是判据缺陷。
+const WEBGL_FLAGS = process.env.STEER3D_WEBGL === '1'
+  ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+  : [];
+
 const { proc, version } = await launch({
   port: 9485, userDataDir: PROFILE, windowSize: '1700,1100', url: 'about:blank',
+  extraArgs: WEBGL_FLAGS,
 });
 const cdp = await CDP.connect(version.webSocketDebuggerUrl);
 const page = await Page.create(cdp);
@@ -235,6 +252,13 @@ try {
     const badge = document.querySelector('[data-scene-focus]');
     const chain = document.querySelector('[data-derivation]');
     const scene = document.querySelector('[data-scene-loaded]');
+    // ⚠⚠ 第三十三笔之十：data-scene-focus-miss 挂在**内层 <span>** 上
+    //   （Scene3D.tsx:188），而 data-scene-focus-state 挂在外层 div（:171）。
+    //   我原来两个都用 scene.getAttribute 读 ⇒ miss 恒为 null
+    //   ⇒ J4 在**页面已经用可见文字明说「第 N 步不在 3D 窗口内」**的情况下
+    //   仍然报红。这与第三十三笔之七 V5 是**同一族**：
+    //   **判据读的是元素，不是属性** —— 属性在 A 上，判据却去 B 上读。
+    const miss = document.querySelector('[data-scene-focus-miss]');
     const br = badge && badge.getBoundingClientRect();
     const sr = scene && scene.getBoundingClientRect();
     const slider = chain && chain.querySelector('input[type=range]');
@@ -255,7 +279,8 @@ try {
         low: Number(scene.getAttribute('data-scene-window-low')),
         high: Number(scene.getAttribute('data-scene-window-high')),
         focusState: scene.getAttribute('data-scene-focus-state'),
-        focusMiss: scene.getAttribute('data-scene-focus-miss'),
+        focusMiss: miss ? miss.getAttribute('data-scene-focus-miss') : null,
+        missText: miss ? (miss.innerText||'').replace(/\\s+/g,' ').trim() : null,
         text: (scene.innerText||'').replace(/\\s+/g,' ').trim(),
         w: Math.round(sr.width), h: Math.round(sr.height),
       } : null,
@@ -314,35 +339,72 @@ try {
     sOut.badge ? `标签 step=${sOut.badge.step}` : '无标签（正确）');
 
   // ---- 分支 B：把链拖到 3D 窗口**内** ----
-  const inWin = Math.max(0, Math.min(s0.scene.high, s0.rangeMax));
-  await page.eval(setSlider.replace('${TARGET}', String(inWin)));
-  await sleep(1500);
-  const s1 = JSON.parse(await page.eval(readBoth));
+  // ⚠⚠ 第三十三笔之十：**先等数据流停下来，再测联动。**
+  //   实测这个 3D 场景是**边解码边画**的：J3 读到「已加载 208 步」，
+  //   几秒后 J4 读到「已加载 242 步」—— 每秒前进约 30 步，
+  //   而窗口只有 80 帧宽 ⇒ 我设进去的步号会在**一秒内**滑出窗口。
+  //   这不是页面坏，是**被测对象在动**；判据必须在它停下来之后再问。
+  //   做法：轮询 data-scene-loaded，连续 3 次读数不变就认为流结束。
+  const waitStreamIdle = async (maxMs = 60000) => {
+    let last = -1, stable = 0, waited = 0;
+    while (waited < maxMs) {
+      const c = JSON.parse(await page.eval(readBoth));
+      const n = c.scene ? c.scene.loaded : -1;
+      stable = (n === last && n > 0) ? stable + 1 : 0;
+      last = n;
+      if (stable >= 3) return { idle: true, waited, loaded: n };
+      await sleep(1000); waited += 1000;
+    }
+    return { idle: false, waited, loaded: last };
+  };
+  const idle = await waitStreamIdle();
+  check('J3b 3D 的数据流会**停下来**（联动判据的前提：窗口不再滚）',
+    idle.idle, idle.idle ? `等了 ${idle.waited}ms 后稳定在 ${idle.loaded} 步`
+                         : `等了 ${idle.waited}ms 仍在增长（${idle.loaded} 步）——`
+                           + `下面的联动判据在流式阶段本来就读不稳`);
+
+  const focusInWindow = async (nudge) => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const cur = JSON.parse(await page.eval(readBoth));
+      if (!cur.scene || !cur.scene.high) return null;
+      const target = Math.max(0, Math.min(cur.scene.high, cur.rangeMax) - nudge);
+      await page.eval(setSlider.replace('${TARGET}', String(target)));
+      for (let w = 0; w < 14; w++) {
+        await sleep(400);
+        const s = JSON.parse(await page.eval(readBoth));
+        if (s.badge) return s;
+      }
+    }
+    return null;
+  };
+  const s1 = await focusInWindow(1);
+  const inWin = s1?.badge?.step ?? s1?.chain?.step ?? null;
 
   check('J6 步号在 3D 窗口内时，珠子标签出现',
-    !!s1.badge,
-    s1.badge ? `step=${s1.badge.step} token=${JSON.stringify(s1.badge.token)} 「${s1.badge.text}」`
-            : '未出现 [data-scene-focus]');
-  if (s1.badge) {
+    !!s1?.badge,
+    s1?.badge ? `step=${s1.badge.step} token=${JSON.stringify(s1.badge.token)} 「${s1.badge.text}」`
+            : `流停后试了 3 轮（每轮重读窗口 + 轮询 5.6s）仍无 [data-scene-focus]；`
+              + `最后一次窗口 ${s1?.scene?.low}–${s1?.scene?.high}`);
+  if (s1?.badge) {
     check('J7 标签有非零包围盒（不是隐藏元素）',
       s1.badge.w > 0 && s1.badge.h > 0, `${s1.badge.w}x${s1.badge.h}px`);
     check('J8 3D 与链指向同一个步号（联动一致）',
       s1.badge.step === s1.chain?.step,
       `3D=${s1.badge.step} 链=${s1.chain?.step} 目标=${inWin}`);
     const want = s1.chain?.traj ? tokenOf(s1.chain.traj, Number(s1.badge.step)) : null;
-    check('J9 标签里的 token 与 sidecar 真值一致',
+    check('J9a 标签里的 token 与 sidecar 真值一致',
       want != null && s1.badge.token === want,
       `页面 ${JSON.stringify(s1.badge.token)} / sidecar ${JSON.stringify(want)}`);
   }
 
   // 再拖一次，验证「不是只跟了一次」
-  const inWin2 = Math.max(0, Math.min(s0.scene.high, s0.rangeMax) - 1);
-  await page.eval(setSlider.replace('${TARGET}', String(inWin2)));
-  await sleep(1400);
-  const s2 = JSON.parse(await page.eval(readBoth));
+  // ⚠ 与 J6 同一个坑：3D 窗口会滚，所以第二次也必须**重读窗口**再选步号，
+  //   且要与第一次选到**不同**的那个（靠 nudge 不同保证）。
+  const s2 = await focusInWindow(6);
+  const inWin2 = s2?.badge?.step ?? null;
   check('J10 第二次拖动，3D 标签跟着变（不是只跟了一次）',
-    !!s2.badge && !!s1.badge && s2.badge.step !== s1.badge.step,
-    `${s1.badge?.step} -> ${s2.badge?.step}（目标 ${inWin2}）`);
+    !!s2?.badge && !!s1?.badge && s2.badge.step !== s1.badge.step,
+    `${s1.badge?.step} -> ${s2.badge?.step}${s2?.badge ? '' : '（第二次没拿到标签）'}`);
 
   // 接线自证：源码里确实有 onClick 调 setFocusedStep（光线拾取本身验不了）
   const src = readFileSync(

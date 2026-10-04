@@ -89,6 +89,20 @@ export async function launch(opts = {}) {
     userDataDir,
     windowSize = '1600,1000',
     url = 'about:blank',
+    // ⚠ 第三十三笔之十新增。默认空数组 ⇒ 行为与从前**逐字节相同**。
+    //
+    // 为什么需要它：这里拉的是 Playwright 的 **chrome-headless-shell**，
+    // 它不带 GPU 栈 ⇒ canvas.getContext('webgl2') 返回 null
+    // ⇒ 页面走 2D 降级分支 ⇒ verify_scene_link 恒 SKIP。
+    //
+    // 而实测（probe_webgl_flags.mjs）：只要加
+    //   ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+    // 就能拿到 **WebGL 2.0**，renderer = ANGLE (SwiftShader driver)。
+    // ⇒ 「3D 在本环境验不了」这个前提**是错的**，它只对**没传这两个 flag** 成立。
+    //
+    // ⚠ 仍然不能据此宣称「3D 验过了」：软件光栅只保证能画，
+    //   不保证画出来对。像素与 3D 联动仍要单独验。
+    extraArgs = [],
   } = opts;
   // Chromium aborts at startup if the --user-data-dir parent is missing
   // ("Failed to create socket directory"), and there is no writable TMPDIR in
@@ -108,6 +122,7 @@ export async function launch(opts = {}) {
     '--disable-renderer-backgrounding',
     '--disable-backgrounding-occluded-windows',
     '--disable-features=Translate,BackForwardCache',
+    ...extraArgs,
     url,
   ];
   const proc = spawn(CHROME, args, { stdio: ['ignore', 'pipe', 'pipe'] });
