@@ -11,11 +11,28 @@
 
 ## 它**不能**证明什么（必须一起说，否则这张表会骗人）
 
-1. **3D 场景的全部标记在本环境验不了。** 沙箱 Chromium 没有 WebGL，
-   页面走的是 `data-testid="scene3d-fallback"` 2D 降级，
-   于是 `data-scene-*` / `data-bm*` 在 DOM 里**根本不存在**。
-   ⇒ 它们不算「死引用」，但**也不能算「验过了」**。
-   本守卫把它们单列成一类，并要求把这句话印出来。
+1. **3D 的「存在性与接线」本环境可验；「像素保真度」与「射线拾取点击」验不了。**
+   ⚠⚠ 第三十三笔之八**改写了这一条**，原话是「3D 场景的全部标记在本环境验不了」
+   ——它在第三十二笔当时是对的，但**已经过期**，而且它把三类不同的东西
+   混成了一类「无法验证」。实测（本轮，两页各测两次）：
+
+       页        不开 flag        开 swiftshader
+       根页      2/16             6/16   ← 2D 降级块 data-testid=scene3d-fallback 由 1 变 0
+       latent    4/16             4/16   ← 与 WebGL 无关
+
+   原来那份 16 条的 `CONDITIONAL_3D` 里：
+     - **只有 8 条 `data-scene-*` 真的是「WebGL 可用才渲染」的条件块**；
+     - **6 条一直在 DOM 里**（根页 `data-drawn`/`data-frac`；
+       latent 页 `data-bmroot`/`data-bmstep`/`data-bmgrid`/`data-bmgridn`）
+       ⇒ 白名单把它们挡在「死引用」统计之外，于是**从来没被核过**；
+     - **2 条**（`data-pfinal`/`data-ok`）在 `verify_derivation` 点 reset+run
+       之后才渲染，早已被它 26/26 验过。
+   ⇒ 那 12 条与 3D 无关，**不该挂在一句「本环境无法验证」下面**。
+     挂着的后果不是「说错话」，是**判据替自己的没看见背书**。
+
+   仍然验不了的那部分必须留着：**软件光栅只保证能画，不保证画得对** ——
+   3D 珠子的像素保真度、以及**用射线拾取点中珠子**这两件事，
+   本环境给不出判决，必须在真机 Chrome 上验。
 2. **「判据提到」≠「判据读对了」。** 这里只做**存在性**对账。
    一条判据读了一个块、但读错字段，那是变异台的事，不是这里的事。
 3. **它不看「看得见的文案」。** 判据主体必须包含直接读渲染文本的那条
@@ -219,6 +236,19 @@ DEAD_IN_SOURCE_EXEMPT = {
     "data-ta-gap-lo": "ArchivedExperiments 第 5 档（ExtractionTable）专属，"
                       "默认 idx=0 不渲染；Q0 逐档切过去核，Q1 用它交叉核对。",
     "data-ta-gap-hi": "同上。",
+    # ⚠⚠ 第三十三笔之八：这两个原本藏在 `CONDITIONAL_3D` 里，**理由是错的**
+    #   （它们与 3D 毫无关系，是 LayerDerivationPanel 的柱子属性）。
+    #   把它们移出白名单之后 C2 立刻报真红 —— 这正是白名单在替
+    #   「判据没在默认视图里触发它」背书。真实原因是：
+    #   `verify_derivation.mjs` 会先点 reset 再点 run（脚本 :68-69），
+    #   柱子才画出来 ⇒ 默认视图（idx=0、未播放）上它们不存在。
+    "data-ok": "LayerDerivationPanel 每根柱子的「这一层读对了没有」标志位，"
+               "默认视图未播放时不渲染；verify_derivation 先点 reset+run 再读它，"
+               "26/26 逐根核过。",
+    "data-pfinal": "同上（柱子最终投影概率）。⚠ verify_derivation 刻意**同时**"
+                   "读 rect.height：data-pfinal 是面板拿到的数字，读者看到的是"
+                   "绘制高度，变异 D1 把 height 全改成常数而 data-pfinal 不变时"
+                   "只查它的判据会假绿。",
 }
 
 
@@ -244,14 +274,26 @@ FRAMEWORK_INTERNAL = {
     "data-nscript": "Next.js 标记脚本已就绪",
 }
 
-# 只在 WebGL 可用时才渲染的标记 ⇒ 本环境**无法验证**，既不算死引用，
-# 也不能算验过。必须连同这句话一起印出来。
+# 只在 WebGL 可用时才渲染的标记 ⇒ 本环境**默认**验不了。
+# ⚠⚠ 第三十三笔之八：**这份名单是实测标定的，不是凭印象写的。**
+#   原名单 16 条里混了三类不同的东西：
+#     ① 真·3D 条件块（下面这 8 条）—— 不开 WebGL 时根页走
+#        `data-testid="scene3d-fallback"` 2D 降级，它们**根本不渲染**；
+#     ② 一直在 DOM 里、却被白名单挡住**从来没被核过**的 6 条
+#        （根页 data-drawn / data-frac，latent 页 data-bm* 四条）；
+#     ③ 交互之后才渲染、且早已被 verify_derivation 26/26 验过的 2 条
+#        （data-pfinal / data-ok）。
+#   ②③ 与 3D 无关，**必须移出白名单**，让它们回到正常的对账里去。
+#   ⚠ 移出去之前逐条查过「谁读过它」，8 条**全部有判据读过**：
+#     data-drawn  ← verify_derivation / verify_structure
+#     data-frac   ← verify_structure
+#     data-bm*    ← verify_backmap / verify_delta_still_works
+#     data-pfinal / data-ok ← verify_derivation
+#   ⇒ 缩小名单**不会**让 C2 / C4 变红（实测）。
 CONDITIONAL_3D = {
     "data-scene-loaded", "data-scene-focus", "data-scene-focus-miss",
     "data-scene-focus-state", "data-scene-focus-step", "data-scene-focus-token",
     "data-scene-window-high", "data-scene-window-low",
-    "data-bmroot", "data-bmstep", "data-bmgrid", "data-bmgridn",
-    "data-drawn", "data-frac", "data-pfinal", "data-ok",
 }
 
 results = []
@@ -575,12 +617,47 @@ def main():
         print("       ○ %-16s %s" % (k, DEAD_IN_SOURCE_EXEMPT[k]))
 
     cond = sorted(set(k for v in per_page.values() for k in v[1]))
-    check("C3 WebGL 条件块必须被显式标注为「本环境无法验证」",
-          not cond or set(cond) <= CONDITIONAL_3D,
-          "%d 个条件标记在本环境不可验（页面走 2D 降级）：%s"
-          % (len(cond), ", ".join(cond) or "无"))
+    # ⚠⚠⚠ 第三十三笔之八：**C3 原来是一条永远不可能失败的判据。**
+    #   原式 `not cond or set(cond) <= CONDITIONAL_3D` —— 而 `cond` 在
+    #   上游第 554 行已经被筛成 `[k for k in real if k in CONDITIONAL_3D]`
+    #   ⇒ `set(cond) <= CONDITIONAL_3D` **恒为真**。
+    #   实测证法：把 `CONDITIONAL_3D` 整个清空（其余一字不改），
+    #   **C3 依然 PASS**，而 C2 正确转红。
+    #   ⇒ 它占着一个绿位，而它宣称检查的那件事**从未被检查过**。
+    #   （与 `None == None`、M2b 同族：恒真比假绿更坏。）
+    #
+    #   新形状：**两个方向都要能红**。
+    #   方向一（藏）：名单里的某条这一轮**已经在 DOM 里** ⇒ 它此刻不是条件块。
+    #     要么它被核过（可以留下），要么它该从名单里删掉（不许挂白名单）。
+    #     两样都不做 = 判据在替自己的没看见背书。
+    #   方向二（空转）：名单里的某条**从来没有判据读过** ⇒ 白名单是纯掩护。
+    #     名单存在的唯一理由是「有判据想读它，本轮渲染不出来」。
+    #   方向三（过期）：这一轮 DOM 里已经出现 `data-scene-*` ⇒ WebGL 本轮可用，
+    #     不许再印「本环境无法验证」——那句话在这一轮是假的。
+    hiding = sorted(k for k in CONDITIONAL_3D
+                    if k in dom and k not in read)
+    idle = sorted(k for k in CONDITIONAL_3D if k not in read)
+    scene_live = sorted(k for k in dom if k.startswith("data-scene-"))
+    check("C3 「3D 条件块白名单」必须只装**这一轮真的渲染不出来、"
+          "却有判据想读**的标记（⚠ 恒真判据已修：原式被上游筛成恒真，"
+          "清空整份名单它也 PASS）",
+          not hiding and not idle,
+          "名单 %d 条：藏了 %d 条（在 DOM 里却没人读：%s）、"
+          "没有任何判据想读 %d 条（%s）"
+          % (len(CONDITIONAL_3D), len(hiding), ", ".join(hiding) or "无",
+             len(idle), ", ".join(idle) or "无")
+          + ("　⚠ 这 %d 条此刻不是条件块：要么核它，要么从名单里删它"
+             % len(hiding) if hiding else ""))
     print("       ⚠ 这 %d 个**不是死引用**，但也**不算验过**。" % len(cond))
-    print("         3D 联动与 3D 像素必须在能跑 WebGL 的浏览器里验。")
+    if scene_live:
+        print("       ✓ **本轮 WebGL 可用**（DOM 里已出现 %d 个 data-scene-*：%s）"
+              % (len(scene_live), ", ".join(scene_live)))
+        print("         ⇒ 3D 的**存在性与接线**这一轮已进对账；")
+        print("           但**像素保真度**与**射线拾取点击**软件光栅给不出判决，")
+        print("           仍必须在真机 Chrome 上验。")
+    else:
+        print("         本轮 DOM 里没有 data-scene-* ⇒ WebGL 不可用（页面走 2D 降级），")
+        print("         3D 联动与 3D 像素必须在能跑 WebGL 的浏览器里验。")
 
     unread = sorted(k for k in dom if k not in read)
     # ⚠⚠ 第三十二笔：这一条原来是 `isinstance(unread, list)` ——
