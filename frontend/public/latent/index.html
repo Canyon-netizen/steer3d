@@ -180,7 +180,18 @@
   .ex>div{margin:3px 0}
   .ex b{font-family:var(--mono);color:var(--acc)}
   /* 术语的第一次出现必须就地跟着白话解释：判据就是下面这条渲染出来的样式。
-     verify 脚本找的是"某术语首次可见处所在的块里有没有 .inline-gloss"。 */
+
+     ⚠⚠ 这段注释原先写的是「verify 脚本找的是某术语首次可见处所在的块里有没有
+     .inline-gloss」—— **那句话从来没为真过**：`inline-gloss` 在整个 git 历史里
+     只出现在 c9ee868（就是加这一层的那个提交，也就是本文件自己），
+     没有任何判据脚本提过它。第三十三笔之五才第一次真的写了这个判据。
+
+     判据是 T1（在 verify_latent_prose.mjs 的 T 组），它的判法比上面那句严格：
+       · 不只看「同块里有没有 gloss」，还要那个 gloss **自己在讲这个词**
+         （否则上一轮加的「参与比」gloss 会把 干预/对照、logit 假合格）；
+       · 术语表本身就是某词的首次出现时，算「空真满足」，不算违规
+         （实测：隐空间、范数、位移 三个属于这一类）。
+     规则正文在下面第三节上方那段注释里。 */
   .inline-gloss{font-style:normal;color:var(--acc2)}
   .gitem{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}
   .gitem:last-child{border-bottom:0}
@@ -272,7 +283,7 @@
 
    <h2>三 · 你会在这页上遇到的词</h2>
    <div class="gitem" data-term="隐空间"><div class="gterm">隐空间<br>隐状态</div><div class="gdef"><span class="plain">模型脑子里那份"笔记"本身。它不是文字，是一串数字。</span><span class="where">在哪儿看：页面大标题、左侧「怎么读」那段、右侧「这一层在做什么」。</span></div></div>
-   <div class="gitem" data-term="token"><div class="gterm">token</div><div class="gdef"><span class="plain">模型一次写的一个词的碎片，不是完整的词。</span><span class="where">在哪儿看：左边「当前 token」滑块；中间图上方那行「1983_I_1 · 's · 共 <span id="walkTok">—</span> 步」。</span></div></div>
+   <div class="gitem" data-term="token"><div class="gterm">token</div><div class="gdef"><span class="plain">模型一次写的一个词的碎片，不是完整的词。</span><span class="where">在哪儿看：左边「当前 token」滑块。这道题一共 <span id="walkTok">—</span> 步，滑块拨到第几步，下方那行 readout 就报第几步。</span></div></div>
    <div class="gitem" data-term="候选词"><div class="gterm">候选词</div><div class="gdef"><span class="plain">模型此刻心里排队的字，按分数从高到低排成一张表。</span><span class="where">在哪儿看：右上「top-64 候选词」表。</span></div></div>
    <div class="gitem" data-term="维度"><div class="gterm">维度</div><div class="gdef"><span class="plain">一份状态里有几个数字，这里是 <span data-f="d">2048</span>。</span><span class="where">在哪儿看：左边「原始向量维度」。</span></div></div>
    <div class="gitem" data-term="投影"><div class="gterm">投影</div><div class="gdef"><span class="plain">把 <span data-f="d">2048</span> 个数字压成 2 个数字，好画在纸上。</span><span class="where">在哪儿看：中间图标题「隐空间 2D 投影 · L14」。</span></div></div>
@@ -283,12 +294,12 @@
    <div class="gitem" data-term="熵"><div class="gterm">熵 / top1 概率</div><div class="gdef"><span class="plain">熵 = 有多犹豫（0 是铁了心）；top1 概率 = 排第一的那个词有多大概率被选中。</span><span class="where">在哪儿看：左边「熵 / top1 概率」那一行。</span></div></div>
    <div class="gitem" data-term="范数"><div class="gterm">范数 ‖h‖</div><div class="gdef"><span class="plain">那份草稿有多长，用一个数字表示：数字越大，那一层的状态被改得越多。</span><span class="where">在哪儿看：左边「‖h‖ 当前层」。</span></div></div>
    <div class="gitem" data-term="干预 对照"><div class="gterm">干预 / 对照</div><div class="gdef"><span class="plain">干预 = 人为往草稿里推一把；对照 = 同一道题什么都不做地跑一遍，用来和它比。两个词必须合在一起看，只有一个没有意义。</span><span class="where">在哪儿看：左边第 4 个按钮「干预 vs 对照」，绿色那条线是干预，灰色那条是对照。</span></div></div>
-   <div class="gitem" data-term="位移"><div class="gterm">位移 Δ</div><div class="gdef"><span class="plain">被推了多远、朝哪个方向。</span><span class="where">在哪儿看：「干预 vs 对照」下面那张图，以及图例里的「每一步的位移 Δ」。</span></div></div>
+   <div class="gitem" data-term="位移"><div class="gterm">位移 Δ</div><div class="gdef"><span class="plain">被推了多远、朝哪个方向。</span><span class="where">在哪儿看：「干预 vs 对照」下面那张图，图内左上角画着的那行小字（它在 canvas 上，所以没有图例色块可点）。</span></div></div>
    <div class="gitem" data-term="logit"><div class="gterm">logit</div><div class="gdef"><span class="plain">候选词还没归一化的原始打分，只有相对大小有意义。</span><span class="where">在哪儿看：右边「这一层在做什么」那段（把 token 滑块拖过第 1 步就会出现）。</span></div></div>
 
    <h2>四 · 本页不主张的 4 种说法</h2>
    <p data-latent-not-claimed="lead">下面这些是新手最自然会形成的理解。它们在这个页面上<i class="inline-gloss">曾经被当成结论写出来过，后来被实测数据否掉了</i>，所以现在不主张。</p>
-   <div class="noitem"><span class="claim">「干预把候选词的分数重新排了一遍，所以能解释模型为什么选这个词。」</span>否掉的依据：改口时真正变了的 logit，只占整份状态被推动量的 <b data-f="ret">0.0%–20.7%</b>；这份推动量摊在 <b data-f="neff">587–831</b> 个维度上（这个模型一共 <span data-f="d">2048</span> 个）。<i class="inline-gloss">这叫「参与比」：把这次推动平均分给这么多个维度，能得到同样大的净效果——是个数，不是「第几号到第几号」。</i>两个量级不是一回事，解释不成立。</div>
+   <div class="noitem"><span class="claim">「干预把候选词的分数重新排了一遍，所以能解释模型为什么选这个词。」</span><i class="inline-gloss">干预 = 人为往残差流里推一把；对照 = 同一道题什么都不做地跑一遍，用来和它比。两个词必须合起来看</i>否掉的依据：改口时真正变了的 logit<i class="inline-gloss">（logit = 候选词还没归一化的原始打分，只有相对大小有意义）</i>，只占整份状态被推动量的 <b data-f="ret">0.0%–20.7%</b>；这份推动量摊在 <b data-f="neff">587–831</b> 个维度上（这个模型一共 <span data-f="d">2048</span> 个）。<i class="inline-gloss">这叫「参与比」：把这次推动平均分给这么多个维度，能得到同样大的净效果——是个数，不是「第几号到第几号」。</i>两个量级不是一回事，解释不成立。</div>
    <div class="noitem"><span class="claim">「换一个词，是因为草稿被挪了位置。」</span>否掉的依据：逐个词拆开看，位移与改口的关系不是这样，而且方向还写反了。</div>
    <div class="noitem"><span class="claim">「状态已经被压到少数几个方向上，其余维度都清零了。」</span>否掉的依据：页面上那个"收拢程度"的数字来自 2D 散点的形状，从 2 个数推不出 <span data-f="d">2048</span> 个数被压成了几个。</div>
    <div class="noitem"><span class="claim">「干预是把答案推向某个方向。」</span>否掉的依据：逐个词拆开有三种机制——两头一起发力、只压低败者、只抬高胜者，没有单一机制。</div>
@@ -297,7 +308,7 @@
    <ul class="lim">
     <li>只有 <b>6</b> 道题做过"干预 vs 对照"（题号 1983 到 1988 连续 6 道），而且全是同一族的美式数学竞赛题。</li>
     <li>本页是 <b data-f="label">Qwen3-1.7B</b>；两个尺寸都收录了（层数相同、只差宽度），换模型家族没测过。</li>
-    <li>只有 <b>1</b> 个干预方向（第 20 层往残差流里推"推高自信"，强度 0.2），换别的方向没测过。</li>
+    <li>只有 <b>1</b> 个干预方向（第 20 层往<i class="inline-gloss">残差流 = 模型每一道工序都往同一份草稿上加东西，那份草稿就叫残差流</i>里推"推高自信"，强度 0.2），换别的方向没测过。</li>
     <li>所以这些是"在这一小块地方看到了什么"，不是"对所有模型、所有题都成立"。</li>
    </ul>
 
