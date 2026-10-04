@@ -33,6 +33,14 @@ run() {
     printf '  [NORUN] %-22s exit=%d  <没有汇总行>\n' "$label" "$rc"
     return
   fi
+  # ⚠⚠ 第三十三笔之九：下面这段「探针也算一条判决」是**故意不加**的。
+  #   两支 probe_panels 是**装置**，不是判决 —— 它们只回答
+  #   「页面上有哪些块」，判「覆盖够不够」的是 scan_panel_coverage。
+  #   逼装置印一行 `N/N passed` 就能把它塞进 N 里，但那是**恒真判决**
+  #   （与第三十三笔之八修掉的 C3 同一族）：它给出一个自信的绿，
+  #   而它判的东西根本不存在。
+  #   ⇒ 装置走 stage()：只判「跑成了没有、产物在不在、产物自报的是哪一页」，
+  #     装置坏了就 exit 5，与判决红绿**分开计数**。
   # 判决**只**看通过数，不看关键词 —— 两种汇总行用**同一条**规则。
   # ⚠ 第二版用「汇总行里有没有 RED/FAIL/PASS/GREEN/SKIP」来判，
   #   而「=== 54/54 passed ===」里是小写 passed ⇒ 五个全被判成 CRASH。
@@ -85,7 +93,63 @@ run() {
   fi
 }
 
+stage() {
+  # 装置闸：跑完必须「产物存在 + 产物自报了它是哪一页 + 本轮 WebGL 实况已记」。
+  # ⚠ 不计入 N —— 装置不是判决。装置坏了整条链的数据都不可信，直接 exit 5。
+  local label="$1" out="$2" page="$3" cmd="$4"
+  ( eval "$cmd" ) > "$ONE" 2>&1
+  local rc=$?
+  if [ $rc -ne 0 ]; then
+    printf '  [装置崩] %-18s exit=%d\n' "$label" "$rc"
+    tail -4 "$ONE" | sed 's/^/           /'
+    echo "⇒ 装置崩了，下面所有判决的数据都不可信 ⇒ 停。"; exit 5
+  fi
+  if [ ! -f "$out" ]; then
+    printf '  [装置崩] %-18s 没有写出 %s\n' "$label" "$out"; exit 5
+  fi
+  local got
+  got=$(python3 -c "import json,io,sys;d=json.load(io.open(sys.argv[1],encoding='utf-8'));print('%s|%s|%s'%(d.get('page'),d.get('webglRequested'),(d.get('webgl') or {}).get('available')))" "$out" 2>/dev/null)
+  if [ "${got%%|*}" != "$page" ]; then
+    printf '  [装置崩] %-18s 产物自报 page=%s，预期 %s\n' "$label" "${got%%|*}" "$page"
+    echo "          ⚠ 两页探针跑第二遍时**忘了换 PROBE_OUT** 就会这样："
+    echo "            根页那份被 latent 覆盖，于是根页看起来也覆盖了 latent 页。"; exit 5
+  fi
+  printf '  [装置  ] %-18s ok　page=%s　本轮请求WebGL=%s 实得=%s\n' \
+    "$label" "${got%%|*}" "$(echo "$got" | cut -d'|' -f2)" "$(echo "$got" | cut -d'|' -f3)"
+}
+
 echo "端口 = $U"
+# ⚠⚠ 第三十三笔之九：**先把两页探针跑掉，再让 panel_coverage 读它们。**
+#   原先这 21 条里**没有一条**会重跑 probe_panels ——
+#   panel_coverage 读的是上一次手工跑完留在磁盘上的 JSON。
+#   只有 C0 的「产物 < 7200 秒」兜着，那是**时间**闸不是**因果**闸：
+#   有人 1 小时前手工跑过一次，链就照着那份旧数据判绿。
+#   ⇒ 覆盖矩阵与它依赖的那份产物之间，必须有**因果**，不能只有时序。
+#   ⚠ 两页都要开 WebGL flag，与 verify_scene_link 同一套 swiftshader：
+#     否则 scan 看到的根页 DOM 走 2D 降级，8 个 data-scene-* 永远不在。
+#   ⚠ 两页都要跑，第二遍**必须换 PROBE_OUT**：忘了换，根页那份会被覆盖，
+#     于是根页看起来也覆盖了 latent 页，而其实根页一个标记都没量。
+#   ⚠⚠ **探针不开 WebGL，判据侧只有 verify_scene_link 开** —— 这不是疏忽，
+#     是实测逼出来的（第三十三笔之九）：
+#       根页有**两条渲染路径**，而且它们发出的标记**不重叠**：
+#         2D 降级（WebGL 不可用时，data-testid="scene3d-fallback"）
+#           → data-painted / data-rendered-points / data-on-screen-points /
+#             data-layer / data-has-entropy / data-extent-maxabs /
+#             data-extent-fraction　**只有** Scene3DFallback.tsx 设这 7 个
+#         真 3D（WebGL 可用时）
+#           → data-scene-loaded / -focus-state / -window-high / -window-low
+#             以及点击后才有的 -focus / -focus-miss / -focus-step / -focus-token
+#       而 21 条里有 **19 条不开 WebGL**（走降级），只有 verify_scene_link 开。
+#     覆盖扫描只有**一份** DOM 快照 ⇒ 它必须跟**多数派**那条路径对齐，
+#     否则 C2 会拿「3D 路径的 DOM」去核「降级路径的判据」，报 7 个假死引用
+#     （实测确实报了这 7 个）。
+#     ⇒ 每条判据在**它自己需要**的浏览器环境里跑；扫描读降级那份；
+#       3D 那份由 verify_scene_link 13/13 负责。
+#       **「两条路径的覆盖要分开记账」是下一笔的活**，不是这一笔能顺手带过的。
+stage probe_root   "$ROOT/.cache/browser_verify/panel_blocks.json"       root \
+  "BV_URL=$U PROBE_OUT=$ROOT/.cache/browser_verify/panel_blocks.json node .cache/browser_verify/probe_panels.mjs"
+stage probe_latent "$ROOT/.cache/browser_verify/panel_blocks_latent.json" latent \
+  "BV_URL=${U%/}/latent/index.html PROBE_OUT=$ROOT/.cache/browser_verify/panel_blocks_latent.json node .cache/browser_verify/probe_panels.mjs"
 run verify_outcome        "T3D_URL=$U node .cache/browser_verify/verify_outcome.mjs"
 run verify_law            "T3D_URL=$U node .cache/browser_verify/verify_law.mjs"
 run verify_ladder         "T3D_URL=$U node .cache/browser_verify/verify_ladder.mjs"
@@ -94,7 +158,7 @@ run verify_derivation     "T3D_URL=$U node .cache/browser_verify/verify_derivati
 run verify_subspace       "BV_URL=$U  node .cache/browser_verify/verify_subspace.mjs"
 run verify_axis_readout   "BV_URL=$U  node .cache/browser_verify/verify_axis_readout.mjs"
 run verify_heldout        "BV_URL=$U  node .cache/browser_verify/verify_heldout.mjs"
-run verify_scene_link     "BV_URL=$U  node .cache/browser_verify/verify_scene_link.mjs"
+run verify_scene_link     "STEER3D_WEBGL=1 BV_URL=$U  node .cache/browser_verify/verify_scene_link.mjs"
 # ⚠ verify_backmap 读的是 **LAT_URL**，不是 T3D_URL / BV_URL。
 #   这一点本身就是个坑：我第一次跑它时给的是 T3D_URL，于是它带着自己的
 #   默认端口去访问一个没人监听的地址，回来一个 0/8 的假红，
@@ -131,7 +195,7 @@ run artifact_consumers    "python3 .cache/xcheck/scan_artifact_consumers.py"
 run dedup_rendered        "BV_URL=$U node .cache/browser_verify/probe_dedup_rendered.mjs"
 
 echo
-echo "跑了 $N 条：判红 $RED ／ 环境不可验而跳过 $SKIP ／ 一条都没跑 $NORUN ／ 装置崩 $CRASH ／ **认不出判决 $UNJUDGED**"
+echo "跑了 $N 条判决（另加 2 道装置闸）：判红 $RED ／ 环境不可验而跳过 $SKIP ／ 一条都没跑 $NORUN ／ 装置崩 $CRASH ／ **认不出判决 $UNJUDGED**"
 echo "（跳过与「一条都没跑」都不是绿，但也都不是指控 —— 它们各自印着自己的原因。）"
 if [ "$N" -ne 21 ]; then
   echo "⚠ 预期 21 条，实际 $N 条 ⇒ **串联器自己漏了分支**（不是被测物的问题）"

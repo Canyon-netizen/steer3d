@@ -26,6 +26,9 @@ const OUT = process.env.PROBE_OUT
 // 就绪信号分页：根页等干预结果面板 ready（它要 fetch 五份 JSON）；
 // latent 静态页没有 data-outcome，等候选词读出块（data-dvblock）出现。
 const IS_LATENT = /\/latent\//.test(URL);
+// ⚠ 第三十三笔之九：见下面 launch() 的 extraArgs 注释。
+const WEBGL_FLAGS = process.env.BV_PROBE_WEBGL === '1'
+  ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [];
 const READY_SEL = IS_LATENT ? '[data-dvblock]' : '[data-outcome="ready"]';
 const READY_ATTR = IS_LATENT ? null : 'data-outcome';
 const PROFILE = '/Users/zhourui/code/steer3d/.cache/browser_verify/profile_cov_' + process.pid;
@@ -35,6 +38,15 @@ const { proc, version } = await launch({
   // 端口按 pid 派生：两页要各跑一次，固定端口会撞上上一次没退干净的 Chromium。
   port: 9600 + (process.pid % 240), userDataDir: PROFILE,
   windowSize: '1900,3200', url: 'about:blank',
+  // ⚠⚠ 第三十三笔之九：默认**不开**。设 `BV_PROBE_WEBGL=1` 才给
+  //   swiftshader 两个 flag（与 verify_scene_link.mjs 的 STEER3D_WEBGL 同一套）。
+  //   为什么以前不需要：scan_panel_coverage.py 把 16 个标记一律列进
+  //   「本环境无法验证」的白名单，于是**探针看不见 3D 块也算通过**。
+  //   第三十三笔之八把白名单缩到 8 条真 3D 条件块之后，
+  //   探针还看不见它们 ⇒ 覆盖矩阵里这 8 条永远是「条件块」而不是「已覆盖」。
+  //   ⇒ **两支探针必须开同一个开关**，否则它们对「3D 在不在 DOM 里」各说各话。
+  //   ⚠ 默认关 ⇒ 行为逐字节不变（老产物仍能跑）。
+  extraArgs: WEBGL_FLAGS,
 });
 const cdp = await CDP.connect(version.webSocketDebuggerUrl);
 const page = await Page.create(cdp);
@@ -303,10 +315,27 @@ try {
   //   「阈值是怎么选出来的」那张表，靠的就是这份 census；
   //   而 thresh 记下**这次实际用的门槛**，免得 C5 印的数
   //   与产物里的清单来自两个不同口径（换过一次而没人知道）。
+  // ⚠⚠ 第三十三笔之九：**自报本轮 WebGL 到底能不能用**。
+  //   「探针必须能自证跑过」——这次自证的不只是「我跑过了」，
+  //   还有「我这一轮是在**有 WebGL**还是**没 WebGL**的浏览器里跑的」。
+  //   缺了它，python 侧看到 `data-scene-*` 不在 DOM 里时，
+  //   分不清是「产品没渲染」还是「这台浏览器根本没有 WebGL」——
+  //   而这两件事的判决完全相反。
+  const WEBGL = JSON.parse(await page.eval(`(() => {
+    const c = document.createElement('canvas');
+    const g = c.getContext('webgl2') || c.getContext('webgl');
+    if (!g) return JSON.stringify({ available: false, renderer: null });
+    const d = g.getExtension('WEBGL_debug_renderer_info');
+    return JSON.stringify({ available: true, renderer: d
+      ? String(g.getParameter(d.UNMASKED_RENDERER_WEBGL))
+      : String(g.getParameter(g.RENDERER)) });
+  })()`));
+
   fs.writeFileSync(OUT, JSON.stringify({
     page: IS_LATENT ? 'latent' : 'root', url: URL,
     byDepth: B, unmarked, census: CENSUS, thresh: THRESH,
     beforeNames, afterNames, appeared, clicked: clickSweep.length,
+    webgl: WEBGL, webglRequested: WEBGL_FLAGS.length > 0,
   }, null, 2));
   console.log('\n=== 有实质文字、但**自己不带任何 data-\\* 的块**（>= ' + THRESH
     + ' 字，' + CENSUS.sel + '，共 ' + unmarked.length + ' 个）===');
@@ -316,6 +345,10 @@ try {
   }
   console.log('已写出 %s（page=%s，加载后 %d 个标记 / 交互后 %d 个）',
               OUT, IS_LATENT ? 'latent' : 'root', beforeNames.length, afterNames.length);
+  console.log('　本轮 WebGL：请求=%s 实得=%s%s',
+              WEBGL_FLAGS.length ? '开' : '关（默认）',
+              WEBGL.available ? '可用' : '**不可用**',
+              WEBGL.renderer ? '　' + WEBGL.renderer : '');
 } finally {
   try { await cdp.send('Browser.close'); } catch {}
   try { proc.kill(); } catch {}
