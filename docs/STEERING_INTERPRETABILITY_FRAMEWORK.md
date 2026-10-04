@@ -7246,10 +7246,24 @@ artifact_consumers 4/4、dedup_rendered 24/24。
 | `data-f` | 20 块 | 内联数字（`2048` / `0.0%–20.7%` / `587–831`） |
 
 ⚠ 核实过：`verify_latent_prose` 的 X 组 `host = document.getElementById('extras')`，
-只读 `[data-aroot]` / `[data-cotblock]` / `[data-problemset]`
+只按**三个选择器**取值：`[data-aroot]` / `[data-cotblock]` / `[data-problemset]`
 （第二十三/二十四笔搬进 `#extras` 的那三块）。
-⇒ `data-rolesroot` 与 `data-arm*` **根本不在它的范围里**，
-是「连容器都不进」，不是「读了但没点名」。
+
+⚠⚠ **更正**：我第一版在这里写的是「`data-rolesroot` 与 `data-arm*`
+**根本不在它的范围里，连容器都不进」** —— **这句是错的**，
+已写进本笔的提交信息里，这里逐字更正。
+查 `renderExtras()`（`index.html:1718`）的调用链可知：
+`renderVectorRoles()`（行 2239）返回的 HTML **正是被 `renderExtras()`
+拼进 `#extras` 的**（行 1723 `h += renderVectorRoles();`）。
+⇒ 所以 `data-rolesroot` **就在 X 组那个 host 里面**，
+缺的只是它的 `norm()` 里没列 `[data-rolesroot]` 这个选择器。
+
+⇒ 这已经是**「写死名单」的第三例**：
+  ① `probe_panels.mjs` 的 `roots`（第三十一笔，8 个面板 vs 15 个组件）
+  ② `C4` 的 `read` 口径（第三十二笔）
+  ③ `verify_latent_prose` 的 `norm()` 选择器列表（本段）
+⇒ 一般形态：**「我读了这一块」与「我读的是这一块里所有块」是两件事**，
+而三例的成因都是**名单写死**。
 
 ⚠ `data-f` 值得单独点出：它**不是**纯装饰 ——
 那 20 个块是页面上真正在印的数（维度 2048、改口时被推动的占比 0.0%–20.7%、
@@ -7305,3 +7319,45 @@ artifact_consumers 4/4、dedup_rendered 24/24。
    按规矩不 force-add，只能留本地并说明。
    ⇒ 这已经是连续第二笔出现同一个结构性问题（第三十一笔亦然），
      值得单独决定：要么让这两个守卫进仓库，要么承认「覆盖判据不属于本仓库」。
+
+##### ⑦ 追加：第三十三笔的侦察（先记在此处，判据未写）
+
+为了还 `data-rolesroot` 这笔账，先把它的来源查清 —— 结果比预想的好：
+
+    index.html:1718  renderExtras()  ← #extras 的渲染入口
+    index.html:1723    h += renderVectorRoles();
+    index.html:2239  function renderVectorRoles()   ← data-rolesroot 在这里（行 2251）
+    数据源             S.roles = vector_roles.json 的 roles（行 990 fetch）
+
+⇒ 那一块**在 `#extras` 里**，所以 `verify_latent_prose` 的 X 组
+只需在 `norm()` 里补一个 `[data-rolesroot]` 就能读到它。
+
+⚠ 顺带把「手抄数字」这件事核完了：该渲染块共 139 行，
+里面出现的数字字面量**全部**是 `font-size` 样式值或**注释里的判据设计说明**
+（`600` / `16 个随机方向` / `26 倍` 都在注释里），
+**没有一个手抄的测量值**。
+实际印出的数全部派生自：
+
+    N.heldout_non_circular.folds[dir].scores[k]
+        .auc_within_traj / .rho / .n_steps_scored / .n_positive_steps / .passes_gate
+    N.random_direction_control.L14[dir]
+        .empirical_floor_max_random / .random_sd
+    N.random_direction_control.L20[dir]
+        .n_random_directions / .random_min / .random_max
+        /.naive_floor_1_over_sqrt_n_minus_3
+    N.in_sample_circular.L14[dir].passes_gate
+    R.sufficiency.cells / R.specificity
+
+⚠ 值得记的是那段注释本身：`random_direction_control` 是**两层嵌套**
+（`[layer][direction]`），而代码第一版写的是 `rc["L20"]` ——
+那会拿到「方向 → 值」的映射，其中**没有** `n_random_directions`，
+于是 `if(one && one.n_random_directions)` 整段**静默不渲染**，
+「这一段为什么不见了」查了很久。
+⇒ 这与「形状对不上时静默降级」同族：
+   **一条读错层级的取值不会报错，只会让一整段解释凭空消失。**
+   现在的写法是 `rc["L20"] || rc[Object.keys(rc)[0]] || {}`，
+   并且判据要核「这段文字**在页面上**」而不只是核「产物里有这个字段」。
+
+⚠ 这一笔**还没写判据**。下一步：`verify_latent_prose` 的 `norm()` 补
+`[data-rolesroot]`，加一组判据核上列那些字段逐个来自
+`vector_roles.json`，并把 `data-rolesroot` 从 `KNOWN_UNREAD` 里删一条。
