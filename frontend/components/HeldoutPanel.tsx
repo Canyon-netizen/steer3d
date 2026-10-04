@@ -204,6 +204,13 @@ export default function HeldoutPanel() {
   // ⇒ 从 control_self_check 按 V1/V2/V3 顺序取，不再手写。
   const CSC = rc.control_self_check;
 
+  // ⚠ 第三十笔：那句「读出方向的余量是 X×」原来写死 2.05。
+  //   「读出方向」= 表里 verdict 为 new_clean 的那一行，实测**唯一**。
+  //   ⚠ 它与 rc.best_margin（配方自己的余量，1.68）**不是同一个量**，
+  //     而两个数都会出现在页面上 —— 混读会得出错误的对比，所以这里按
+  //     verdict 定位而不是写死数字。
+  const cleanRows = d.rows.filter((r) => r.verdict === "new_clean");
+
   return (
     <div className={box} data-heldout="ready"
          data-heldout-total={h.heldout_total}
@@ -360,7 +367,13 @@ export default function HeldoutPanel() {
           </span>）
           ⇒ <b className="text-emerald-300">配方写得出来，而且跨轨迹站得住</b>。
         </p>
-        <p className="text-[8.5px] text-gray-400 leading-snug mt-0.5">
+        {/* ⚠ data-readout-para 让判据能直接读**这一段**的渲染文本。
+            第二十九/三十笔教训：J0 一开始去读 data-marg-para，
+            而那个标记落在下面「最好 1.68×」那**另一段**上 ——
+            两段都在同一张卡里，读错段 ⇒ 断言恒红（而人眼看着是对的）。
+            ⇒ 「判据读哪层/哪段」必须与它声称防的那句话**逐字对得上**。 */}
+        <p className="text-[8.5px] text-gray-400 leading-snug mt-0.5"
+           data-readout-para="true">
           瓶颈在<b>专一性</b>：同一份配方预测 <code>entropy</code> 有{" "}
           <span className="font-mono text-amber-300" data-recipe-cell="entropy">
             {rc.recipe_loo_on_entropy.toFixed(4)}
@@ -369,7 +382,33 @@ export default function HeldoutPanel() {
           <span className="font-mono text-red-300" data-recipe-cell="margin">
             {rc.specificity_margin.toFixed(2)}×
           </span>
-          —— 而上面那条读出方向的余量是 2.05×。
+          —— 而上面那条读出方向的余量是{" "}
+          {/* ⚠⚠ 第三十笔：原来这里是手写的「2.05×」。
+              值恰好等于 heldout_readability.json 里 rows[emitted_is_upper].margin
+              = 2.0460 的 toFixed(2) —— 又是「恰好为真的无源常数」那一族。
+              而那个数**上面那张表已经印过了**（每行都印 余量 {r.margin}），
+              所以这是一份同页第三副本。
+              ⚠ 它与 rc.best_margin（配方自己的余量，1.68）**不是同一个量**：
+                best_margin 是配方的，而 2.05 是读出方向那一行的
+                （verdict = new_clean，全表**唯一**一行）。
+                这两个数在页面上都出现，混起来读会得出错误的对比。
+              ⇒ 按 verdict === 'new_clean' 定位那一行（可派生，不是点名），
+                并在**不唯一**时报出来而不是挑一格
+                （与 verify_outcome 的 E 组「唯一一格」纪律同源）。 */}
+          {cleanRows.length === 1 ? (
+            <span className="font-mono text-amber-300"
+                  data-readout-margin={cleanRows[0].margin}
+                  data-readout-key={cleanRows[0].key}>
+              {cleanRows[0].margin.toFixed(2)}×
+            </span>
+          ) : (
+            <span className="font-mono text-amber-300" data-readout-margin="">
+              {cleanRows.length === 0
+                ? "（没有 new_clean 行）"
+                : `${cleanRows.length} 行都是 new_clean，指代不唯一`}
+            </span>
+          )}
+          。
         </p>
         <p className="text-[8.5px] text-gray-500 leading-snug mt-0.5">
           顺带查清一个容易误读的数：配方与 caution <b>注入轴</b>的 cos 是{" "}

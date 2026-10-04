@@ -1221,6 +1221,59 @@ try {
       && bestCut.plus_v.n_eligible === bestCut.minus_v.n_eligible,
       CTRL ? CTRL.slice(0, 240) : '缺 [data-rep-item="controlled"]');
 
+  /* ---------------------------------------------------------------- */
+  // ⚠⚠ 第三十笔：K2 原来只核「三个 n_strong 与 p 都印出来了」，
+  //   而那句话里还有一个手写的「量级 **4 倍**」—— 它的分子分母
+  //   就在 K2 核的那两个数里（8/23 与 2/23）。
+  //   而 bestCut 是「同题窗口里 p 最小的那条」：换个窗口那两个数会变，
+  //   这个 4 不会 ⇒ 页面会一边印 8 与 2、一边说「4 倍」而与自己的数矛盾。
+  // ⚠ 同样**没有**反向断言：现算值恰好就是 4.0（8/2），
+  //   输出逐字相同 ⇒ 防回流只能去源码层（本组已有 K 组源级先例可照）。
+  const wantRatio = bestCut.zero.n_strong > 0
+    ? bestCut.plus_v.n_strong / bestCut.zero.n_strong : NaN;
+  const ratioTxt = (CTRL.match(/量级\s*([\d.]+)\s*倍/)
+                || CTRL.match(/量级\s*（[^）]*）\s*倍/))?.[1];
+  rec('K2b 「量级 N 倍」必须等于 +v 强重复数 ÷ 对照强重复数（不许写死 4）',
+      bestCut.zero.n_strong > 0
+      && ratioTxt != null
+      && Number(ratioTxt) === Number(wantRatio.toFixed(1)),
+      `产物 bestCut(words=${bestCut.words}) +v=${bestCut.plus_v.n_strong} `
+      + `zero=${bestCut.zero.n_strong} ⇒ 比值=${wantRatio.toFixed(1)}  `
+      + `页面「量级 … 倍」抓到 ${ratioTxt ?? '（无）'}  `
+      + `（⚠ 防回流原本在源码层缺失——K2b 诊断里那句话是许诺不是事实；见 K2c）`);
+
+  // ⚠⚠ 第三十笔：K2b 只判**可见文案**，而现算值恰好就是 4.0 ⇒
+  //   「写死 4」与「现算 8/2」输出逐字相同，K2b 全绿。
+  //   而 K2b 自己的诊断里写着「防回流在源码层」——**那句话当时是假的**，
+  //   源码层那条判据根本不存在。（同 J1：判据宣称防的东西必须在它声称的层上）
+  //   判法与 J1 同族：取「印值那个标签的 `>` 到 `</span>` 之间」那截文本，
+  //   问它是否引用 plus_v.n_strong；同时要求 data-strong-ratio 的属性
+  //   表达式逐字是那个比值（防止只改属性不改文案或反过来）。
+  //   离线测过 6 种写法：正常 / {4} / 4.0 / {(4).toFixed(1)} /
+  //   属性与文案一起写死 / 换成 minus_v —— 6/6 判对。
+  rec('K2c 源级：「量级 N 倍」不许退回手写 4（可见值与现算值逐字相同，防回流只能在源码层）',
+      (() => {
+        const code = readFileSync('/Users/zhourui/code/steer3d/frontend/components/'
+                                  + 'InterventionOutcomePanel.tsx', 'utf8')
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+        const i2 = code.indexOf('方向一致、量级');
+        if (i2 < 0) return false;
+        const a2 = code.indexOf('data-strong-ratio={', i2);
+        if (a2 < 0) return false;
+        const gt = code.indexOf('>', a2);
+        const end = code.indexOf('</span>', gt);
+        if (gt < 0 || end < 0) return false;
+        const attr = code.slice(a2, gt);
+        const printed = code.slice(gt, end);
+        // 属性值里没有 `>`（是 a / b 表达式）⇒ 第一个 `>` 必是属性收尾
+        return /best\.plus_v\.n_strong\s*\/\s*best\.zero\.n_strong/.test(attr)
+            && /plus_v\.n_strong/.test(printed);
+      })(),
+      '「量级 … 倍」那处印值必须由 best.plus_v.n_strong / best.zero.n_strong 派生，'
+      + '且 data-strong-ratio 的属性表达式须是同一个比值；'
+      + '⚠ 分母为 0 的分支（data-strong-ratio=""）是另一条路径，不在此断言内');
+
   // ⚠ 本组最容易犯的错：把 3200 词那档的 p=0.016 印成结论。
   //   那一档三臂入选的题集不同（按长度筛题），是**选择效应**。
   const CF = R2.items.confounded || '';

@@ -444,7 +444,7 @@ try {
     // ⚠ 缺失分支也必须给 cells / verdict 一个空对象：
     //   否则下面的 rc.cells['caution-axis'] 抛 TypeError，被外层 catch 记成
     //   「装置错」，I3/I4/I5 一条都跑不到 —— 看着像「只有 3 条红」。
-    if (!el) return JSON.stringify({missing: true, cells: {}, verdict: '', text: '', margPara: '', swapPara: '', variants: {missing: true, text: ''}});
+    if (!el) return JSON.stringify({missing: true, cells: {}, verdict: '', text: '', margPara: '', swapPara: '', readoutPara: '', readout: {margin: null, key: null}, variants: {missing: true, text: ''}});
     const box = el.getBoundingClientRect();
     const cells = [...el.querySelectorAll('[data-recipe-cell]')];
     return JSON.stringify({
@@ -464,6 +464,15 @@ try {
       //   正确做法是把选择器并进**这一次** eval。
       margPara: (el.querySelector('[data-marg-para]')?.innerText || '').trim(),
       swapPara: (el.querySelector('[data-swap-para]')?.innerText || '').trim(),
+      // ⚠ 第三十笔：readoutPara 是「瓶颈在专一性……余量是 N×」**那一段**。
+      //   别和 margPara 混：那个落在下面「最好 rc.best_margin×」段上，
+      //   是**配方的余量（1.68）**，而这里要核的是读出方向那一行（2.05）。
+      //   两段同在一张卡里 ⇒ 读错段时人眼看着句句正确，判据却恒红。
+      readoutPara: (el.querySelector('[data-readout-para]')?.innerText || '').trim(),
+      readout: {
+        margin: el.querySelector('[data-readout-margin]')?.getAttribute('data-readout-margin') ?? null,
+        key: el.querySelector('[data-readout-margin]')?.getAttribute('data-readout-key') ?? null,
+      },
       variants: (() => {
         const v = el.querySelector('[data-recipe-variants]');
         if (!v) return { missing: true, text: '', rows: [] };
@@ -590,6 +599,92 @@ try {
   // I8 涨幅归因：页面印的「N% 来自竞争者」必须等于产物，且自身涨幅也要印。
   //    不印这个分解，读者会把 1.15×→1.68× 的功劳记在配方结构上，
   //    而它几乎全是竞争者被压下去造成的。
+
+  /* ---------------------------------------------------------------- */
+  // ⚠⚠ 第三十笔：那句「上面那条读出方向的余量是 2.05×」原来写死 2.05。
+  //   值恰好等于 rows[emitted_is_upper].margin 的 toFixed(2) ——
+  //   而那一行的 margin **上面那张表已经逐行印过**（每行都印 余量 {r.margin}）
+  //   ⇒ 这是一份同页第三副本，且与 rc.best_margin（配方自己的 1.68）
+  //     **不是同一个量**。两个数都在页面上，混读会得出错误的对比。
+  //   判据现算那一行（verdict === 'new_clean'，实测唯一），并核页面印的是它。
+  // ⚠ 与第二十八笔 K7 同款：**没有**「2.05 不许出现」那条反向断言 ——
+  //   现算值恰好就是 2.05，两种写法输出逐字相同 ⇒ 只能去源码层判（下面 J1）。
+  const cleanRows = truth.rows.filter(r => r.verdict === 'new_clean');
+  // ⚠ 读**正确的那一段**（readoutPara）。第一版去读 margPara，
+  //   而那个标记落在下面「最好 1.68×」那另一段上 ⇒ 这条恒红。
+  //   两段同在一张卡里、句句读着正确，判据却红 —— 判红先怀疑判据。
+  const rp = rc.readoutPara || '';
+  // ⚠ 不能用「段里 includes('2.05×')」这种弱断言：
+  //   段内任何位置出现那个数就算过，与「**这句**里的数是手写的」无关。
+  //   锚定整句字面串（与 J1 同一串，两层对齐），只取紧跟其后的数。
+  const mm = /读出方向的余量是\s*([0-9]+(?:\.[0-9]+)?)\s*×/.exec(rp);
+  const printed = mm ? mm[1] : null;
+  const want = cleanRows.length === 1 ? Number(cleanRows[0].margin).toFixed(2) : null;
+  // 双向：唯一 ⇒ 必须印现算值；不唯一/为 0 ⇒ 必须**没有**印任何数并说明指代不唯一。
+  //   单向断言下，「唯一性被破坏却仍挑一格印出来」是全绿的。
+  const j0ok = cleanRows.length === 1
+    ? printed === want
+    : (printed === null && /指代不唯一|没有 new_clean 行/.test(rp));
+  check('J0 「读出方向的余量是 N×」须取自唯一 new_clean 行；该行不唯一时须明说不唯一',
+    j0ok,
+    `new_clean 行数=${cleanRows.length}`
+    + `　该行=${cleanRows.map(r => `${r.key}=${Number(r.margin).toFixed(2)}`).join(',') || '（无）'}`
+    + `　页面那句印的是=${printed ?? '（没印数字）'}　现算应为=${want ?? '（不该印数字）'}`
+    + `　页面是否声明不唯一=${/指代不唯一|没有 new_clean 行/.test(rp)}`
+    + `　⚠ 同卡另一段 rc.best_margin=${R.best_margin.toFixed(2)}（**配方**的余量，`
+    + `与读出方向那行不是同一个量，段段不同别读混）`
+    + `　⚠ 读的是 [data-readout-para] 那段，不是 [data-marg-para]`);
+
+  // J0b 判**输入**：页面取的到底是哪一行。
+  //   只判上面那句的可见数字时，key 取错但 margin 恰好相同会全绿（第六笔型）。
+  check('J0b 输入：页面取的 key 与 margin 必须逐字等于产物里那一行唯一 new_clean',
+    cleanRows.length === 1
+    && rc.readout.key === cleanRows[0].key
+    && rc.readout.margin != null
+    && Number(rc.readout.margin) === Number(cleanRows[0].margin),
+    `产物 key=${cleanRows[0]?.key} margin=${cleanRows[0]?.margin}`
+    + `　页面 data-readout-key=${rc.readout.key} data-readout-margin=${rc.readout.margin}`
+    + `　（data-* 只作交叉核对；主体断言在 J0 的可见文案上）`);
+
+  check('J1 源级：「读出方向的余量是 N×」不许退回手写数字',
+    (() => {
+      const raw = readFileSync('/Users/zhourui/code/steer3d/frontend/components/'
+                               + 'HeldoutPanel.tsx', 'utf8');
+      // 与 I9/L13 同一把刀：先剥块注释再剥行注释，否则扫到的是解释。
+      const code = raw.replace(/\/\*[\s\S]*?\*\//g, '')
+                       .split('\n').map(l => l.replace(/\/\/.*$/, '')).join('\n');
+      const i = code.indexOf('读出方向的余量是');
+      if (i < 0) return false;
+      const seg = code.slice(i, i + 700);
+      // 防真空通过：取数形状必须**精确**在场。
+      //   原来只查 /cleanRows/ —— 段里任何地方提到它就算数。
+      const hasDerivation = /cleanRows\[0\]\.margin/.test(seg);
+      // ⚠⚠ 变异台 M-A 抓到的**判据自己的洞**，连续两版都漏：
+      //   v1 `/余量是\s*\{?\s*\d/`  在 JSX 的 `{" "}` 空格表达式处就断了；
+      //   v2「挖洞后找 数字×」      漏了 `{2.05}×` / `{(2.05).toFixed(2)}×`
+      //     —— 字面量与 `×` 之间隔着 `}`，「紧邻」这个形状假设不成立。
+      //   ⇒ **靠「形状相邻」判手写回流不可靠**（同族：测量函数自己窄一格
+      //     ⇒「全绿」与「确实没有」读起来完全一样）。
+      //   改成无歧义判法：取段内**最后一个** `>` 与 `×` 之间那截
+      //   「实际被印出来的文本」，问它是否引用 cleanRows[0].margin。
+      //   `</span>` 里没有 `>` ⇒ 那个 `>` 唯一，正是印值那个标签的收尾。
+      //   离线测过 6 种写法：正常派生 / 裸 2.05× / {2.05}× / {(2.05).toFixed(2)}×
+      //   / 整段退化 / 换成别的量 rc.loo_rho —— 6/6 判对。
+      let last = null, m, re = />([\s\S]{0,80}?)×/g;
+      while ((m = re.exec(seg))) last = m;
+      const printedSrc = last ? last[1] : null;
+      // last === null ⇒ 这句话的形状变了（`>`…`×` 之间取不到可印的片段）
+      //   ⇒ 按**红**处理：不能因为解析不到就当通过。
+      const hasLiteral = last === null
+        ? true
+        : !/cleanRows\[0\]\.margin/.test(printedSrc);
+      return hasDerivation && !hasLiteral;
+    })(),
+    '「读出方向的余量是」之后必须接现算（按 verdict=new_clean 定位那一行），'
+    + '不许写死 2.05 这类字面量；'
+    + '⚠ 这条的前两版都漏（`{" "}` 处断掉 / 漏 `{2.05}×`），是变异台 M-A 抓出来的'
+    + '——判据自己的形状假设比产品的写法窄');
+
   const A = R.margin_gain_attribution;
   const ownTxt = (V.text || '').match(/只涨\s*([\d.]+)%/)?.[1];
   const shareTxt = (V.text || '').match(/的\s*(\d+)%\s*来自竞争者/)?.[1];

@@ -955,7 +955,24 @@ export default function InterventionOutcomePanel() {
                 <b className="text-emerald-300">已过 0.05</b>
               ) : (
                 <b className="text-amber-300">
-                  没到 0.05 —— 方向一致、量级 4 倍，但只是弱证据
+                  {/* ⚠⚠ 第三十笔：原来这里是手写的「量级 4 倍」。
+                      分子分母**就在上面两行印着**（8/23 与 2/23），
+                      而 best 是「同题窗口里 p 最小的那条」——
+                      换个窗口那两个数会变，这个 4 不会。
+                      ⇒ 现算，且在分母为 0 时明说而不是印 NaN/Infinity。 */}
+                  没到 0.05 —— 方向一致、量级{" "}
+                  {best.zero.n_strong > 0 ? (
+                    <span className="font-mono"
+                          data-strong-ratio={
+                            best.plus_v.n_strong / best.zero.n_strong}>
+                      {(best.plus_v.n_strong / best.zero.n_strong).toFixed(1)}
+                    </span>
+                  ) : (
+                    <span className="font-mono" data-strong-ratio="">
+                      （对照 0 题，比值无定义）
+                    </span>
+                  )}{" "}
+                  倍，但只是弱证据
                 </b>
               )}
               。这条修的是同一片混淆（§8.3 ⑧），方向和量级都对，
