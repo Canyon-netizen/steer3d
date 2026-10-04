@@ -263,22 +263,26 @@
    <h2>一 · 这台机器在做什么</h2>
    <!-- ⚠ 第三十一笔：探针去掉「写死的 8 面板名单」之后，latent 页这两段
         也被算成「祖先链为空」。给它们标记，让「按标记读」这条路也通。
+        ⚠ 第三十三笔之六：这 10 段（`data-lead-seg`）原先**连标记都没有**，
+        上面这条注释也只登记了「两段」⇒ 既没标记、也没被判据读。
+        U0 按标记读它们（不是按位置 —— `.ex > div` 是位置依赖，
+        别人改一次 DOM 顺序就会误伤或漏伤）。
         下面这段是纯导读（不含可核数字）；「本页不主张的 4 种说法」那段是
         **判决性的**（它声明本页否掉了哪 4 种理解），更该有人读。 -->
    <p data-latent-lead="what">它读一道数学竞赛题，一个字一个字地把答案写出来。写每个字之前，它都要在内部先算一遍"下一个字最可能是哪个"。这个页面把那份内部计算的结果画出来给你看，并且让你自己拨着看。</p>
 
    <h2>二 · 用页面上真实的数字走一遍</h2>
    <div class="ex">
-    <div>页面刚打开时，左边「当前 <i class="inline-gloss">token</i>」是 <b>0</b>，模型正准备写 <b>&lt;think&gt;</b>。同名的<i class="inline-gloss">token = 模型一次写的一个词的碎片</i>，页面上所有 `'s`、`.` 这样的小片段都是它。</div>
-    <div>此时左边有一行，写着「<i class="inline-gloss">熵 = 模型有多犹豫，0 是铁了心，越大越拿不定主意</i>」。</div>
-    <div>同一行后面是「<i class="inline-gloss">top1 概率 = 排名第一的那个词有多大概率被选中</i>」。</div>
-    <div>这一行现在显示 <b id="walkEnt0">—</b>。意思是：它 100% 确定要写这个词。</div>
-    <div>把「当前 token」滑块拖到第 <b>5</b> 步：它正在写 <b>'s</b>，同一行变成 <b id="walkEnt5">—</b>。意思是十个机会里它选 's 七次半，剩下几次它在犹豫。</div>
-    <div>这一刻右上角「top-64 <i class="inline-gloss">候选词 = 模型此刻心里排队的字，按分数从高到低</i>」表里，第 1 名是 <b>'s</b>，第 2 名是 <b>me</b>。</div>
-    <div>中间那张图上每一个点，是"这一<i class="inline-gloss">层 = 一次加工工序，共 28 道（L0 到 L27）</i>所有 token 的状态"被压成平面坐标画出来的位置。</div>
-    <div>那份状态是 <b data-f="d">2048</b> 个数字<i class="inline-gloss">（维度 = 一份状态里数字的个数）</i>，画到纸上时<i class="inline-gloss">（投影 = 压成 2 个数字，好落在纸上）</i>只留 2 个。所以图上挨得近，不代表内部状态一样。</div>
-    <div>那 2 个数字是用 <i class="inline-gloss">PCA = 找"最能解释差异的方向"的算法</i>挑的，<i class="inline-gloss">PC1 / PC2 = 它找到的前两根轴</i>，也就是图上那两根红箭头。</div>
-    <div>拖左边「当前层」的滑块，能看这份状态在 28 道工序里怎么一步步变形。L0 是每个词的出厂编号，<i class="inline-gloss">embedding = 查表把词变成一串数字</i>，越往后越不一样。</div>
+    <div data-lead-seg="1">页面刚打开时，左边「当前 <i class="inline-gloss">token</i>」是 <b>0</b>，模型正准备写 <b>&lt;think&gt;</b>。同名的<i class="inline-gloss">token = 模型一次写的一个词的碎片</i>，页面上所有 `'s`、`.` 这样的小片段都是它。</div>
+    <div data-lead-seg="2">此时左边有一行，写着「<i class="inline-gloss">熵 = 模型有多犹豫，0 是铁了心，越大越拿不定主意</i>」。</div>
+    <div data-lead-seg="3">同一行后面是「<i class="inline-gloss">top1 概率 = 排名第一的那个词有多大概率被选中</i>」。</div>
+    <div data-lead-seg="4">这一行现在显示 <b id="walkEnt0">—</b>。意思是：它 100% 确定要写这个词。</div>
+    <div data-lead-seg="5">把「当前 token」滑块拖到第 <b>5</b> 步：它正在写 <b>'s</b>，同一行变成 <b id="walkEnt5">—</b>。意思是：它最有把握写 's，但远没到确定——同一行第二个数就是这个把握。</div>
+    <div data-lead-seg="6">这一刻右上角「top-64 <i class="inline-gloss">候选词 = 模型此刻心里排队的字，按分数从高到低</i>」表里，第 1 名是 <b>'s</b>，第 2 名是 <b>me</b>。</div>
+    <div data-lead-seg="7">中间那张图上每一个点，是"这一<i class="inline-gloss">层 = 一次加工工序，共 28 道（L0 到 L27）</i>所有 token 的状态"被压成平面坐标画出来的位置。</div>
+    <div data-lead-seg="8">那份状态是 <b data-f="d">2048</b> 个数字<i class="inline-gloss">（维度 = 一份状态里数字的个数）</i>，画到纸上时<i class="inline-gloss">（投影 = 压成 2 个数字，好落在纸上）</i>只留 2 个。所以图上挨得近，不代表内部状态一样。</div>
+    <div data-lead-seg="9">那 2 个数字是用 <i class="inline-gloss">PCA = 找"最能解释差异的方向"的算法</i>挑的，<i class="inline-gloss">PC1 / PC2 = 它找到的前两根轴</i>，也就是图上那两根红箭头。</div>
+    <div data-lead-seg="10">拖左边「当前层」的滑块，能看这份状态在 28 道工序里怎么一步步变形。L0 是每个词的出厂编号，<i class="inline-gloss">embedding = 查表把词变成一串数字</i>，越往后越不一样。</div>
    </div>
 
    <h2>三 · 你会在这页上遇到的词</h2>
