@@ -19,6 +19,56 @@
   0.0065
  ],
  "threshold_paired": 0.0065,
+ "per_problem_caveat": {
+  "what": "判决用的是跨 3 题的**中位**；逐题看零分布上界差得很远。",
+  "per_problem_null_max": {
+   "1983_I_1": 0.0113,
+   "2000_I_1": -0.0059,
+   "2012_I_1": 0.0088
+  },
+  "why_matters": "高基线那道题（2000_I_1）上 9 个随机方向**全部**比无注入对照更低，上界是负数 ⇒ 在那道题上「超过上界」是道矮门，而判决规则根本没看单题。",
+  "axes_exceeding_on_some_problem": {
+   "confidence": [
+    {
+     "member": "confidence_up",
+     "problem": "1983_I_1",
+     "paired": 0.4493,
+     "null_max": 0.0113
+    },
+    {
+     "member": "confidence_up",
+     "problem": "2000_I_1",
+     "paired": 0.3697,
+     "null_max": -0.0059
+    },
+    {
+     "member": "confidence_up",
+     "problem": "2012_I_1",
+     "paired": 0.4445,
+     "null_max": 0.0088
+    }
+   ],
+   "reasoning": [
+    {
+     "member": "reasoning_deep",
+     "problem": "2000_I_1",
+     "paired": 0.072,
+     "null_max": -0.0059
+    }
+   ],
+   "creativity": [
+    {
+     "member": "creativity",
+     "problem": "2012_I_1",
+     "paired": 0.032,
+     "null_max": 0.0088
+    }
+   ]
+  },
+  "n_axes_exceeding": 3,
+  "n_axes": 4,
+  "not_a_refutation": "n=3，单题越界完全可能是运气；这**不推翻** OUTSIDE/INSIDE 的判决，只说明那句话**不能**被读成「逐题也成立」。"
+ },
  "caliber": "主口径 = 逐题配对差（每题减自己的无注入对照）",
  "superseded_caliber": {
   "what": "跨题中位（不减每题自身基线）",
@@ -91,7 +141,7 @@
    "caveat": ""
   }
  ],
- "verdict": "「重复退化」**不是**语义轴的通性 —— 只有 1/4 条轴可区分。能站住的更窄版本是：**只有 confidence +v 这一条轴**在同范数随机方向之外产生重复退化；其余 3 条轴的配对差都落在随机分布内或为负。",
+ "verdict": "「重复退化」**不是**语义轴的通性 —— 只有 1/4 条轴可区分。能站住的更窄版本是：**只有 confidence +v 这一条轴**在同范数随机方向之外产生重复退化。其余 3 条轴的**跨题中位**配对差都落在随机分布内或为负；但**逐题**看不是全干净 —— 见 per_problem_caveat。",
  "per_arm_per_problem": {
   "caution": {
    "1983_I_1": 0.0062,

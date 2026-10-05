@@ -17,6 +17,11 @@ type AX = {
   threshold_paired?: number;
   axes: Array<{ axis: string; axis_value: number; grade: string }>;
   verdict: string;
+  per_problem_caveat?: {
+    per_problem_null_max: Record<string, number>;
+    n_axes_exceeding: number;
+    n_axes: number;
+  };
 };
 
 const F = "/latent/data";
@@ -121,6 +126,30 @@ function runChecks(
     const s = el?.textContent ?? "";
     push(!!el && s.includes(must),
          `[data-rc="${mark}"] 在页面上且含「${must}」= ${!!el && s.includes(must)}`);
+  }
+
+  // ⑩ **逐题反例必须印在页面上**（第三十五笔）。
+  //    产物里那句「其余轴落在随机分布内」只在跨题中位层面成立；
+  //    逐题看有 3/4 条轴在个别题上越过了该题零分布上界。
+  //    ⇒ 产物记了、页面不印，等于对读者不存在。
+  //    这一条查的是**页面上有没有那句限定**，不是查数对不对。
+  const pp = a.per_problem_caveat;
+  if (pp && pp.n_axes_exceeding > 0) {
+    const el = document.querySelector('[data-rc="axes-pp-caveat"]');
+    const s = el?.textContent ?? "";
+    const elTok = !!el && s.includes("逐题看不是全干净");
+    push(elTok,
+         `[data-rc="axes-pp-caveat"] 印出了逐题反例限定 = ${elTok}`);
+    // 三个上界数必须逐个印出来，否则读者仍看不到那三道题的门不一样高
+    const miss = Object.entries(pp.per_problem_null_max)
+      .filter(([p, v]) => !s.includes(p) || !s.includes(String(v)));
+    push(miss.length === 0,
+         `逐题零分布上界 ${pp.n_axes_exceeding}/${pp.n_axes} 都在页面上，`
+         + `缺 ${miss.length} 个 ${JSON.stringify(miss.map(([p]) => p))}`);
+    // 还要印「这不推翻判决」—— 否则读者会把 caveat 读成翻案
+    push(s.includes("不推翻") || s.includes("可能是运气"),
+         `caveat 同时印了「不推翻判决」= `
+         + `${s.includes("不推翻") || s.includes("可能是运气")}`);
   }
 
   return out;

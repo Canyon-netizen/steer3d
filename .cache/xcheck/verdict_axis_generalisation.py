@@ -115,12 +115,42 @@ for n in sorted(per, key=lambda k: -st.median(
 
 # 阈值必须同口径：用 9 个随机方向的**配对差**中位最大值
 rnd = {i: load(NINE / f"random_{i:02d}") for i in range(9)}
-rand_paired = sorted(st.median([rep_rate(rnd[i][p]["steered"]["text"]) - ctl[p]
-                                for p in TOP3]) for i in range(9))
+rand_paired_by_arm = {i: {p: rep_rate(rnd[i][p]["steered"]["text"]) - ctl[p]
+                         for p in TOP3} for i in range(9)}
+rand_paired = sorted(st.median(list(v.values())) for v in rand_paired_by_arm.values())
 TH = rand_paired[-1]
 print(f"\n  9 随机方向配对差中位: min {rand_paired[0]:+.4f}  中位 "
       f"{st.median(rand_paired):+.4f}  max {TH:+.4f}")
 print(f"  判决阈值（同口径，配对差）= {TH:+.4f}")
+
+# ⚠⚠ 逐题对照（第三十五笔补）。
+#   判决规则本身是**跨 3 题的中位**比阈值。而逐题看，每道题的零分布上界
+#   差得很远（`per_problem_null_max`）—— 高基线那道题上**全部 9 个随机方向
+#   都比无注入对照更低**（上界是负数），于是「超过它」在那道题上是道矮门。
+#   ⇒ 「其余轴落在随机分布内」这句话**只在跨题中位层面成立**；
+#     逐题看有几条轴在个别题上越过了该题的零分布上界。
+#   这不是推翻判决（n=3，单题越界完全可能是运气），但**必须印出来**：
+#   已知有反例却只印正面那句话，等于把「中位层面的结论」
+#   升格成「逐题层面的结论」。
+per_problem_null_max = {p: max(v[p] for v in rand_paired_by_arm.values()) for p in TOP3}
+print(f"\n  逐题零分布上界（9 臂配对差该题最大）: "
+      f"{ {p: round(v,4) for p, v in per_problem_null_max.items()} }")
+axis_pp_exceed = {}
+for axis, members in AXES.items():
+    hits = []
+    for mm in members:
+        if mm not in paired_median:
+            continue
+        for p in TOP3:
+            d = per[mm][p] - ctl[p]
+            if d > per_problem_null_max[p]:
+                hits.append({"member": mm, "problem": p,
+                             "paired": round(d, 4),
+                             "null_max": round(per_problem_null_max[p], 4)})
+    axis_pp_exceed[axis] = hits
+n_axes_pp = sum(1 for h in axis_pp_exceed.values() if h)
+print(f"  逐题越过该题零分布上界的轴: {n_axes_pp}/{len(AXES)} 条 "
+      f"{ {k: len(v) for k, v in axis_pp_exceed.items() if v} }")
 
 print()
 print("按「轴」判决（反平行的一对算一条轴，不是两条；规则先定）")
@@ -143,10 +173,35 @@ print()
 print(f"  4 条独立轴中 {n_out} 条 OUTSIDE / {4-n_out} 条 INSIDE")
 verdict = ("「重复退化」是**语义轴的通性**（4 条轴全部可区分于同范数随机方向）"
            if n_out == 4 else
-           f"「重复退化」**不是**语义轴的通性 —— 只有 {n_out}/4 条轴可区分。"
-           + ("能站住的更窄版本是：**只有 confidence +v 这一条轴**在同范数随机方向"
-              "之外产生重复退化；其余 3 条轴的配对差都落在随机分布内或为负。"
-              if n_out == 1 else "该现象是这些轴各自特有的。"))
+           f"「重复退化」**不是**语义轴的通性 —— 只有 {n_out}/4 条轴可区分。")
+if n_out == 1:
+    verdict += ("能站住的更窄版本是：**只有 confidence +v 这一条轴**在同范数随机方向"
+                "之外产生重复退化。")
+    if n_axes_pp == 0:
+        verdict += "其余 3 条轴的配对差都落在随机分布内或为负。"
+    else:
+        # ⚠⚠ 第三十五笔：**原措辞在这里被自己的检验推翻过**。
+        #   原来写的是「其余 3 条轴的配对差都落在随机分布内或为负」——
+        #   那只在**跨题中位**层面成立。逐题看，有轴在个别题上越过了
+        #   该题的零分布上界（高基线那道题的上界是负数，门很矮）。
+        #   ⇒ 改成把两件事分开说，并点名是哪些、哪道题。
+        verdict += ("其余 3 条轴的**跨题中位**配对差都落在随机分布内或为负；"
+                    "但**逐题**看不是全干净 —— 见 per_problem_caveat。")
+else:
+    verdict += "该现象是这些轴各自特有的。"
+
+per_problem_caveat = {
+    "what": "判决用的是跨 3 题的**中位**；逐题看零分布上界差得很远。",
+    "per_problem_null_max": {p: round(v, 4) for p, v in per_problem_null_max.items()},
+    "why_matters": "高基线那道题（2000_I_1）上 9 个随机方向**全部**比无注入对照更低，"
+                   "上界是负数 ⇒ 在那道题上「超过上界」是道矮门，"
+                   "而判决规则根本没看单题。",
+    "axes_exceeding_on_some_problem": {k: v for k, v in axis_pp_exceed.items() if v},
+    "n_axes_exceeding": n_axes_pp,
+    "n_axes": len(AXES),
+    "not_a_refutation": "n=3，单题越界完全可能是运气；这**不推翻** OUTSIDE/INSIDE "
+                        "的判决，只说明那句话**不能**被读成「逐题也成立」。",
+}
 print(f"\n  ⇒ {verdict}")
 
 out = {
@@ -157,6 +212,7 @@ out = {
     "n_independent_axes": len(AXES),
     "null_paired_median_sorted": [round(x, 4) for x in rand_paired],
     "threshold_paired": round(TH, 4),
+    "per_problem_caveat": per_problem_caveat,
     "caliber": "主口径 = 逐题配对差（每题减自己的无注入对照）",
     "superseded_caliber": {
         "what": "跨题中位（不减每题自身基线）",

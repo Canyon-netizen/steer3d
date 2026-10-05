@@ -11,7 +11,7 @@ import { launch, CDP, Page } from './cdp_client.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const URL = process.env.T3D_URL || 'http://127.0.0.1:22212/';
+const URL = process.env.T3D_URL || 'http://127.0.0.1:22210/';
 const PROFILE = '/Users/zhourui/code/steer3d/.cache/browser_verify/profile_diag_verdict';
 mkdirSync(PROFILE, { recursive: true });
 

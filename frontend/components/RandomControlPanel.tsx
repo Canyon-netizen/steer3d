@@ -45,6 +45,13 @@ type Axis = {
   n_independent_axes?: number;
   axes_note?: string;
   threshold_paired?: number;
+  per_problem_caveat?: {
+    per_problem_null_max: Record<string, number>;
+    axes_exceeding_on_some_problem?: Record<string, unknown[]>;
+    n_axes_exceeding: number;
+    n_axes: number;
+    not_a_refutation?: string;
+  };
   axes: Array<{
     axis: string;
     members: string[];
@@ -130,6 +137,7 @@ export default function RandomControlPanel() {
   const b32 = c.batches.find((b) => /32k/.test(b.batch));
   const bF = c.batches.find((b) => /AF32|本次/.test(b.batch));
   const outside = a.axes.filter((x) => x.grade === "OUTSIDE");
+  const pp = a.per_problem_caveat;
 
   return (
     <div className={BOX} data-rc="ok">
@@ -223,6 +231,23 @@ export default function RandomControlPanel() {
           只有 <b className="text-fg">{outside.map((x) => x.axis).join("、") || "无"}</b>{" "}
           越过了它 ⇒ 「重复退化」<b className="text-fg">不是</b>语义轴的通性。
         </p>
+        {/* ⚠⚠ 第三十五笔：判决用的是**跨 3 题的中位**。
+            逐题看零分布上界差得很远 —— 高基线那道题上 9 个随机方向
+            **全部**比无注入对照更低（上界是负数），「超过它」在那道题上是矮门。
+            ⇒ 「其余轴都在随机分布内」这句话**不能**被读成「逐题也成立」。
+            这不是推翻判决（n=3，单题越界可能是运气），但不印出来就是隐瞒反例。 */}
+        {pp && pp.n_axes_exceeding > 0 && (
+          <p className="text-[9px] text-amber-500/90 leading-relaxed mt-1"
+             data-rc="axes-pp-caveat">
+            ⚠ 逐题看不是全干净：{pp.n_axes_exceeding}/{pp.n_axes} 条轴在**个别题**上
+            越过了该题的零分布上界（
+            {Object.keys(pp.per_problem_null_max)
+              .map((k) => `${k} 上界 ${pp.per_problem_null_max[k]}`)
+              .join("，")}
+            ）。判决用的是**跨题中位**，n=3 时单题越界可能是运气 ——
+            这不推翻 OUTSIDE/INSIDE，但那句话不能被读成「逐题也成立」。
+          </p>
+        )}
       </div>
 
       {/* ── 限制：必须印出来，不能只留在 JSON 里 ── */}
