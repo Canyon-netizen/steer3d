@@ -10,7 +10,7 @@ mkdirSync(PROFILE, { recursive: true });
 const { proc, version } = await launch({ port: 9453, userDataDir: PROFILE, windowSize: '1600,1000', url: 'about:blank' });
 const cdp = await CDP.connect(version.webSocketDebuggerUrl);
 const page = await Page.create(cdp);
-await page.send('Page.navigate', { url: 'http://127.0.0.1:22211/' });
+await page.send('Page.navigate', { url: process.env.T3D_URL || 'http://127.0.0.1:22210/' });
 await page.waitForEvent('Page.loadEventFired', 40000).catch(() => {});
 
 let ready = false;
@@ -27,6 +27,8 @@ const out = await page.eval(`(() => {
     rcAttr: rc ? rc.getAttribute('data-rc') : 'ABSENT',
     nulldist: nd ? nd.innerText : 'ABSENT',
     allMarks: [...document.querySelectorAll('[data-rc]')].map(n => n.getAttribute('data-rc')),
+    occ: (document.querySelector('[data-rc="occurrence"]') || {}).innerText || 'ABSENT',
+    occCx: (document.querySelector('[data-rc="occurrence-counterexample"]') || {}).innerText || 'ABSENT',
   });
 })()`);
 const d = JSON.parse(out);
@@ -34,4 +36,8 @@ console.log('面板 data-rc =', d.rcAttr);
 console.log('面板里的 data-rc 块 =', JSON.stringify(d.allMarks));
 console.log('--- [data-rc=nulldist] innerText ---');
 console.log(d.nulldist);
+console.log('--- [data-rc=occurrence] innerText ---');
+console.log(d.occ);
+console.log('--- [data-rc=occurrence-counterexample] innerText ---');
+console.log(d.occCx);
 proc.kill(); process.exit(0);

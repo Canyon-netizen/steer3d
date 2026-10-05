@@ -26,6 +26,18 @@ type AX = {
 
 const F = "/latent/data";
 
+/** occurrence_23.json：confidence +v 的发生率。 */
+type OCC = {
+  n_problems: number;
+  prefix_words: number;
+  full_text: { pos: number; p_two_sided: number; median_diff: number };
+  fixed_prefix: {
+    pos: number; p_two_sided: number; median_diff: number;
+    wilson95: [number, number];
+  };
+  per_problem: Array<{ problem: string; d_pre: number }>;
+};
+
 /** 从页面可见文案里取数字。 */
 function num(s: string | null | undefined): number | null {
   if (!s) return null;
@@ -52,6 +64,7 @@ function runChecks(
   lim: string[],
   c: RC,
   a: AX,
+  o: OCC | null,
 ): string[] {
   const out: string[] = [];
   const push = (ok: boolean, m: string) => out.push(`${ok ? "ok" : "BAD"} ${m}`);
@@ -152,6 +165,63 @@ function runChecks(
          + `${s.includes("不推翻") || s.includes("可能是运气")}`);
   }
 
+  // ⑪ **发生率**：产物里有、面板没印 = 对读者不存在。
+  //    而且这里只查**页面上找得到这些数**，不重算 —— 重算是第三层的事。
+  // ⚠ `querySelector` 返回 `Element`，而 `innerText` 在 `HTMLElement` 上
+  //   （第一版没写这个断言，tsc 判死 TS2339 —— 又一次是 tsc 在守边界）。
+  const oEl = document.querySelector('[data-rc="occurrence"]') as HTMLElement | null;
+  const oT = oEl?.innerText ?? "";
+  // ⚠ 与 ⑫ 同一个洞：这一整块也可能被折起来或压根没渲染，
+  //   而 `textContent` 仍是空串 ⇒ 下面的 includes 全 false ⇒ 会判红。
+  //   但反过来，「DOM 里有块」也不能当「读者看得见」。
+  //   ⇒ 先判**块本身可见**，再判内容。
+  const oVis = !!oEl && oEl.getBoundingClientRect().height > 0;
+  if (o) {
+    push(oVis, `[data-rc="occurrence"] 块**可见**（高度>0）= ${oVis}`);
+    const nd = oT.match(new RegExp(`${o.n_problems}`));
+    push(!!nd && oT.includes(`${o.fixed_prefix.pos}/${o.n_problems}`),
+         `发生率 定长前缀 ${o.fixed_prefix.pos}/${o.n_problems} 在页面上 = `
+         + `${!!nd && oT.includes(`${o.fixed_prefix.pos}/${o.n_problems}`)}`);
+    // ⚠ 两个口径都要印。只印全长那个 = 把「多长」说成「更重复」。
+    push(oT.includes(String(o.full_text.median_diff))
+         && oT.includes(String(o.fixed_prefix.median_diff)),
+         `全长中位差 ${o.full_text.median_diff} 与定长 ${o.fixed_prefix.median_diff} 都印出 = `
+         + `${oT.includes(String(o.full_text.median_diff)) && oT.includes(String(o.fixed_prefix.median_diff))}`);
+    // 区间也要印：22/23 单看像「几乎必然」，区间才说得出「不排除偶然」
+    const w = o.fixed_prefix.wilson95;
+    push(oT.includes(String(w[0])) && oT.includes(String(w[1])),
+         `Wilson 95% [${w[0]}, ${w[1]}] 印出 = `
+         + `${oT.includes(String(w[0])) && oT.includes(String(w[1]))}`);
+    // 逐题 n=1 这件事必须跟着数字一起出现
+    push(oT.includes("n=1"),
+         `「逐题 n=1（无重复测量）」跟着印出来了 = ${oT.includes("n=1")}`);
+  } else {
+    push(false, "occurrence_23.json 没取到 ⇒ 发生率那一块是空的");
+  }
+
+  // ⑫ 反例必须**真的看得见**，印出来。
+  //    ⚠⚠ 第一版用 `textContent` 查它 ⇒ 判绿了。而那版把反例塞在
+  //    **折叠的 `<details>`** 里：`textContent` 读得到、`innerText` 读不到，
+  //    读者看到的是后者 ⇒ 22/23 的那 1 道反例对多数人是不可见的。
+  //    「DOM 里有」不等于「印出来了」——
+  //    与 latent 页「搬进 #extras 后默认视图里从来没渲染过」同源。
+  //    ⇒ 查**可见性**（渲染高度 > 0），并用 innerText（读者读到的那个）。
+  // ⚠ `as` 断言**必须和表达式同一行**。写成换行续写时 TSX 解析器会在
+  //   `const cEl = document.querySelector(…)` 之后断句，把下一行的 `as`
+  //   当成新语句的开头 ⇒ TS1434。第一次就踩了。
+  const cEl: HTMLElement | null =
+    document.querySelector('[data-rc="occurrence-counterexample"]');
+  const cS = cEl?.innerText ?? "";
+  const cVis = !!cEl && cEl.getBoundingClientRect().height > 0;
+  if (o && o.per_problem.some((r) => r.d_pre <= 0)) {
+    const miss = o.per_problem.filter((r) => r.d_pre <= 0)
+      .filter((r) => !cS.includes(r.problem));
+    push(cVis && miss.length === 0,
+         `没出现的那道题**可见地**印在页面上 = ${cVis && miss.length === 0}`
+         + (miss.length ? `，缺 ${JSON.stringify(miss.map((r) => r.problem))}` : "")
+         + `（可见=${cVis}）`);
+  }
+
   return out;
 }
 
@@ -190,6 +260,7 @@ export default function VerifyRandomControl(): JSX.Element | null {
 
     let cc: RC | null = null;
     let aa: AX | null = null;
+    let oo: OCC | null = null;
     let waited = 0;
     let judged = false;
 
@@ -200,11 +271,11 @@ export default function VerifyRandomControl(): JSX.Element | null {
     //   「等不到」与「等到了但内容不对」是两种红，混成一条就把
     //   **时序**说成**页面有问题**。
     const tryJudge = () => {
-      if (judged || !alive || !cc || !aa || !panelText) return;
+      if (judged || !alive || !cc || !aa || !oo || !panelText) return;
       judged = true;
       window.clearInterval(iv);
       try {
-        setResults(runChecks(panelText, limTexts, cc as RC, aa as AX));
+        setResults(runChecks(panelText, limTexts, cc as RC, aa as AX, oo));
       } catch (e) {
         // ⚠ 判据自己抛了要说成**装置故障**，不能算页面的问题。
         setResults([`BAD 判据自己抛了（装置故障，不是页面有问题）: ${String(e)}`]);
@@ -215,8 +286,9 @@ export default function VerifyRandomControl(): JSX.Element | null {
       if (judged || !alive) return;
       judged = true;
       window.clearInterval(iv);
-      if (!cc || !aa) {
-        setResults([`BAD 前提未建立：20 s 内产物没取到（c=${!!cc} a=${!!aa}）`]);
+      if (!cc || !aa || !oo) {
+        setResults([`BAD 前提未建立：20 s 内产物没取到`
+          + `（c=${!!cc} a=${!!aa} occ=${!!oo}）`]);
       } else if (!panelText) {
         setResults(["BAD 前提未建立：20 s 内面板没渲染出 [data-rc=ok]"]);
       }
@@ -233,10 +305,15 @@ export default function VerifyRandomControl(): JSX.Element | null {
     Promise.all([
       fetch(`${F}/repetition_collapse.json`).then((r) => r.json() as Promise<RC>),
       fetch(`${F}/axis_generalisation.json`).then((r) => r.json() as Promise<AX>),
-    ]).then(([c, a]) => {
+      // ⚠ 发生率这一份**也算前提**。它带着本面板最强的数（22/23），
+      //   缺了它而其余照常显示，读者会以为「发生率没估」——
+      //   实际是「估了但没送到」。⇒ 不取到就不判，不给「半份判决」。
+      fetch(`${F}/occurrence_23.json`).then((r) => r.json() as Promise<OCC>),
+    ]).then(([c, a, o]) => {
       if (!alive) return;
       cc = c;
       aa = a;
+      oo = o;
       tryJudge();
     }).catch((e) => {
       if (alive && !judged) {

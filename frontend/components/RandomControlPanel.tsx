@@ -65,6 +65,25 @@ type Axis = {
 
 const BOX = "rounded bg-bg/40 border border-border p-3";
 
+/** occurrence_23.json：confidence +v 的发生率（逐题配对，长度无关口径）。 */
+type Occ = {
+  n_problems: number;
+  prefix_words: number;
+  full_text: { pos: number; p_two_sided: number; median_diff: number };
+  fixed_prefix: {
+    pos: number; p_two_sided: number; median_diff: number;
+    wilson95: [number, number];
+  };
+  length_confound: {
+    n_steps_up_median: number; n_steps_zero_median: number;
+    problems_where_up_shorter_than_zero: number;
+  };
+  per_problem: Array<{
+    problem: string; d_pre: number; rep_pre_up: number; rep_pre_zero: number;
+    n_steps_up: number; n_steps_zero: number;
+  }>;
+};
+
 function Head() {
   return (
     <div className="flex items-baseline gap-2">
@@ -95,6 +114,7 @@ function Curve({ up, zero }: { up: number[]; zero: number[] }) {
 export default function RandomControlPanel() {
   const [c, setC] = useState<Collapse | null>(null);
   const [a, setA] = useState<Axis | null>(null);
+  const [occ, setOcc] = useState<Occ | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -108,6 +128,10 @@ export default function RandomControlPanel() {
         });
     get("/latent/data/repetition_collapse.json").then((j) => j && setC(j as Collapse));
     get("/latent/data/axis_generalisation.json").then((j) => j && setA(j as Axis));
+    // ⚠ 发生率这一份**取不到不许静默**：它带着本面板最强的那个数（22/23）。
+    //   缺了它而页面照常显示其余内容，读者会以为「发生率没估」——
+    //   而实际是「估了但没送到」。
+    get("/latent/data/occurrence_23.json").then((j) => j && setOcc(j as Occ));
     return () => {
       alive = false;
     };
@@ -249,6 +273,64 @@ export default function RandomControlPanel() {
           </p>
         )}
       </div>
+
+      {/* ── 发生率：confidence +v 在 23 道题上多常发生 ── */}
+      {occ && (
+        <div className="mt-3" data-rc="occurrence">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[10px] text-fg">
+              发生率：confidence +v 在 {occ.n_problems} 道题上
+            </span>
+            <span className="text-[9px] text-gray-500">
+              逐题配对（零臂已复核逐字相同）
+            </span>
+          </div>
+          {/* ⚠⚠ 必须同时印两个口径。只印全长那个会把「多长」说成「更重复」——
+              +v 步数中位 32000 vs 零臂 7944，长度本身就是机制的一部分。 */}
+          <p className="text-[9px] text-gray-400 mt-1 leading-relaxed">
+            全长：<b className="text-fg">{occ.full_text.pos}/{occ.n_problems}</b> 题更重复
+            （p={occ.full_text.p_two_sided.toExponential(2)}，中位差{" "}
+            {occ.full_text.median_diff}）
+            ｜ 定长前 {occ.prefix_words} 词：<b className="text-fg">
+              {occ.fixed_prefix.pos}/{occ.n_problems}</b> 题
+            （p={occ.fixed_prefix.p_two_sided.toExponential(2)}，中位差{" "}
+            {occ.fixed_prefix.median_diff}）
+            ｜ Wilson 95% [{occ.fixed_prefix.wilson95[0]}, {occ.fixed_prefix.wilson95[1]}]
+          </p>
+          <p className="text-[9px] text-amber-500/90 leading-relaxed mt-1"
+             data-rc="occurrence-caveat">
+            ⚠ 两个口径中位差差 {Math.round(occ.full_text.median_diff /
+              Math.max(occ.fixed_prefix.median_diff, 1e-9))} 倍
+            ⇒ 塌缩发生在文本**靠后**处，不是开头就重复。
+            长度也不对称：+v 步数中位 {occ.length_confound.n_steps_up_median} vs 零臂{" "}
+            {occ.length_confound.n_steps_zero_median}，
+            另有 {occ.length_confound.problems_where_up_shorter_than_zero} 题 +v 反而更短。
+            逐题 n=1（无重复测量）⇒ 报的是「多少题出现」，不是「出现得多稳」。
+          </p>
+          {/* ⚠⚠ 反例**不许折叠**。第一版把它塞进 `<details>`，
+              于是 `textContent` 读得到、`innerText` 读不到 ——
+              而读者看到的是后者 ⇒ 22/23 的那 1 道反例对多数人是不可见的。
+              配套判据第一版用 `textContent` 查它，于是**判绿了**：
+              「DOM 里有」被当成了「印出来了」。
+              ⇒ 判据改查**可见性**（getBoundingClientRect().height > 0），
+                文案也从 `<details>` 挪成直接可见的段落。
+              与 latent 页「搬进 #extras 后默认视图里从来没渲染过」同源。 */}
+          <p className="text-[9px] text-gray-400 mt-1 leading-relaxed"
+             data-rc="occurrence-counterexample">
+            唯一那 1 道没出现的题（不藏反例）：{" "}
+            {(() => {
+              const bad = occ.per_problem
+                .filter((r) => r.d_pre <= 0)
+                .sort((a, b) => a.d_pre - b.d_pre);
+              return bad.length
+                ? bad.map((r) => `${r.problem}：前缀 ${r.rep_pre_up} vs 零臂 ` +
+                    `${r.rep_pre_zero} = ${r.d_pre}` +
+                    `（步数 +v ${r.n_steps_up} / 零 ${r.n_steps_zero}）`).join("；")
+                : "（本批无反例）";
+            })()}
+          </p>
+        </div>
+      )}
 
       {/* ── 限制：必须印出来，不能只留在 JSON 里 ── */}
       <details className="mt-3" data-rc="limits">
