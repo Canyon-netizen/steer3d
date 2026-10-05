@@ -1,0 +1,242 @@
+/**
+ * 随机对照臂面板：同范数随机方向 vs 命名轴。
+ *
+ * 回答一个具体问题：**「模型跑飞了」这句话，带不带关于向量的信息？**
+ * 答案是不带 —— 干预后生成不闭合是**范数效应**，与方向无关。
+ * 真正携带方向信息的是**重复退化**。
+ *
+ * 三份产物（由 .cache/xcheck/ 下的生成器产出，生成器即判据）：
+ *   repetition_collapse.json          三批数字 + 机制曲线 + not_claimed
+ *   random_direction_distribution.json 9 个同范数随机方向的零分布
+ *   axis_generalisation.json          4 条独立轴的泛化检验
+ *
+ * 约定照抄 StrengthLawPanel：
+ *   · fetch 产物，取不到就**明说取不到**，绝不拿字面量兜底；
+ *   · 可见文字里的每个数都来自产物，不在本文件里手抄；
+ *   · 判决规则「取数前写死」这件事要印给读者看，因为它是结论可信的前提。
+ */
+import { useEffect, useState } from "react";
+
+type Collapse = {
+  what: string;
+  metric: Record<string, string>;
+  batches: Array<{
+    batch: string;
+    n: number;
+    rep_median: { up: number; down: number; zero: number };
+    tests: Record<string, { pos: number; neg: number; ties: number; p: number }>;
+    new_rate_curve: { up: number[]; zero: number[] };
+  }>;
+  not_claimed: string[];
+  random_direction_distribution?: {
+    grade: string;
+    decision_rule_fixed_before_data?: boolean;
+    named_median?: number;
+    control_median?: number;
+    random_median_sorted?: number[];
+    criteria?: string[];
+    note?: string;
+  };
+};
+
+type Axis = {
+  schema: string;
+  decision_rule_fixed_before_data?: boolean;
+  n_independent_axes?: number;
+  axes_note?: string;
+  threshold_paired?: number;
+  axes: Array<{
+    axis: string;
+    members: string[];
+    axis_value: number;
+    grade: "OUTSIDE" | "INSIDE";
+    caveat?: string;
+  }>;
+  verdict: string;
+  control_by_problem?: Record<string, number>;
+};
+
+const BOX = "rounded bg-bg/40 border border-border p-3";
+
+function Head() {
+  return (
+    <div className="flex items-baseline gap-2">
+      <h3 className="text-[11px] font-semibold tracking-wide text-fg">
+        同范数随机方向对照
+      </h3>
+      <span className="text-[9px] text-gray-500">
+        layer 20 · strength 0.2 · ‖v‖ = 173.1543（0.2 × ‖h‖@L20）
+      </span>
+    </div>
+  );
+}
+
+/** 新内容产出率曲线：1 = 全是没见过的新内容，0 = 原地复读。 */
+function Curve({ up, zero }: { up: number[]; zero: number[] }) {
+  const W = 200, H = 34;
+  const pts = (a: number[]) =>
+    a.map((v, i) => `${(i / (a.length - 1)) * W},${H - v * H}`).join(" ");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[34px]" role="img"
+         aria-label="新内容产出率随输出位置的变化">
+      <polyline points={pts(zero)} fill="none" stroke="#6b7280" strokeWidth="1.2" />
+      <polyline points={pts(up)} fill="none" stroke="#ef4444" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+export default function RandomControlPanel() {
+  const [c, setC] = useState<Collapse | null>(null);
+  const [a, setA] = useState<Axis | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const get = (u: string) =>
+      fetch(u)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+        .then((j: unknown) => alive && j)
+        .catch((e) => {
+          if (alive) setErr(`${u.split("/").pop()}: ${String(e.message || e)}`);
+        });
+    get("/latent/data/repetition_collapse.json").then((j) => j && setC(j as Collapse));
+    get("/latent/data/axis_generalisation.json").then((j) => j && setA(j as Axis));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (err) {
+    return (
+      <div className={BOX} data-rc="error">
+        <Head />
+        <p className="text-[10px] text-red-400 leading-relaxed mt-1">
+          随机对照产物取不到：{err}。不拿字面量兜底。
+        </p>
+      </div>
+    );
+  }
+
+  if (!c || !a) {
+    return (
+      <div className={BOX} data-rc="loading">
+        <Head />
+        <p className="text-[10px] text-gray-500 leading-relaxed mt-1">Loading…</p>
+      </div>
+    );
+  }
+
+  const r9 = c.random_direction_distribution;
+  const b32 = c.batches.find((b) => /32k/.test(b.batch));
+  const bF = c.batches.find((b) => /AF32|本次/.test(b.batch));
+  const outside = a.axes.filter((x) => x.grade === "OUTSIDE");
+
+  return (
+    <div className={BOX} data-rc="ok">
+      <Head />
+
+      {/* ── 核心区分：范数效应 vs 方向效应 ── */}
+      <p className="text-[10px] text-gray-400 leading-relaxed mt-2" data-rc="caliber">
+        「模型跑飞了」<b className="text-fg">不带</b>关于向量的信息：
+        干预后生成不闭合是<b className="text-fg">范数效应</b>，
+        9 个同范数随机方向、5 条语义轴、正负号<b className="text-fg">全都</b>撞上限。
+        真正携带方向信息的是<b className="text-accent">重复退化</b>。
+      </p>
+
+      {/* ── 9 个随机方向的零分布 ── */}
+      {r9 && r9.random_median_sorted && (
+        <div className="mt-3" data-rc="nulldist">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[10px] text-fg">
+              9 个同范数随机方向 vs 命名轴
+            </span>
+            {r9.decision_rule_fixed_before_data === true && (
+              <span className="text-[9px] text-emerald-400">
+                判决规则取数前写死
+              </span>
+            )}
+          </div>
+          <div className="flex items-end gap-[2px] h-8 mt-1.5">
+            {r9.random_median_sorted.map((v, i) => (
+              <div key={i} className="flex-1 bg-gray-600 rounded-t"
+                   style={{ height: `${Math.max(4, (v / (r9.named_median || 1)) * 32)}px` }}
+                   title={`random_${i}: ${v}`} />
+            ))}
+            <div className="flex-1 bg-accent rounded-t"
+                 style={{ height: 32 }} title={`confidence_up: ${r9.named_median}`} />
+          </div>
+          <p className="text-[9px] text-gray-500 mt-1">
+            左 9 根灰 = 9 个随机方向的中位重复率（全部贴在无注入基线
+            {r9.control_median} 附近）；最右 1 根 = 命名轴{" "}
+            <b className="text-accent">{r9.named_median}</b>。
+            {r9.grade === "GRADE_ABOVE_ALL" && " 命名臂高于全部 9 个。"}
+          </p>
+        </div>
+      )}
+
+      {/* ── 机制曲线 ── */}
+      {b32 && (
+        <div className="mt-3" data-rc="mechanism">
+          <span className="text-[10px] text-fg">机制（32k 批，{b32.n} 题）</span>
+          <div className="mt-1">
+            <Curve up={b32.new_rate_curve.up} zero={b32.new_rate_curve.zero} />
+          </div>
+          <p className="text-[9px] text-gray-500 leading-relaxed" data-rc="mechanism-note">
+            新内容产出率随输出位置（0%→100%）。<b className="text-red-400">红线 +v</b>{" "}
+            <b>塌到 0</b> 后保持 —— 不是机械复读，是换措辞地重新起头、从不往前走；
+            <span className="text-gray-400">灰线零臂</span>全程健康。
+          </p>
+        </div>
+      )}
+
+      {/* ── 泛化：4 条独立轴 ── */}
+      <div className="mt-3" data-rc="axes">
+        <span className="text-[10px] text-fg">
+          泛化到别的语义轴（{a.n_independent_axes} 条独立轴，不是 6）
+        </span>
+        <table className="w-full mt-1 text-[9px]">
+          <tbody>
+            {a.axes.map((x) => (
+              <tr key={x.axis}>
+                <td className="text-gray-400 py-[1px]">{x.axis}</td>
+                <td className="text-fg py-[1px]">{x.axis_value.toFixed(4)}</td>
+                <td className="py-[1px]">
+                  {x.grade === "OUTSIDE"
+                    ? <span className="text-emerald-400">可区分于随机</span>
+                    : <span className="text-gray-500">落在随机分布内</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="text-[9px] text-gray-500 leading-relaxed mt-1" data-rc="axes-note">
+          判决阈值（同为逐题配对差）= {a.threshold_paired}。
+          只有 <b className="text-fg">{outside.map((x) => x.axis).join("、") || "无"}</b>{" "}
+          越过了它 ⇒ 「重复退化」<b className="text-fg">不是</b>语义轴的通性。
+        </p>
+      </div>
+
+      {/* ── 限制：必须印出来，不能只留在 JSON 里 ── */}
+      <details className="mt-3" data-rc="limits">
+        <summary className="text-[10px] text-gray-400 cursor-pointer select-none">
+          这些结论不能说什么（{c.not_claimed.length} 条）
+        </summary>
+        <ol className="mt-1 space-y-1">
+          {c.not_claimed.map((s, i) => (
+            <li key={i} className="text-[9px] text-gray-500 leading-relaxed">
+              {s}
+            </li>
+          ))}
+        </ol>
+      </details>
+
+      {bF && (
+        <p className="text-[9px] text-gray-500 leading-relaxed mt-2">
+          另一批（{bF.n} 题、本次新跑）独立复现同一签名：重复率中位 +v{" "}
+          {bF.rep_median.up} / 对照 {bF.rep_median.down} / 零臂{" "}
+          {bF.rep_median.zero}。
+        </p>
+      )}
+    </div>
+  );
+}

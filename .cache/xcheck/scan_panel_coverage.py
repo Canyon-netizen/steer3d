@@ -101,6 +101,42 @@ SRC_GLOBS = [
 # ⚠ 为什么不按「哪个判据文件在哪个目录」分：两页的判据都放在同一个 .cache 目录里。
 LATENT_TARGET = re.compile(r"process\.env\.LAT_URL|127\.0\.0\.1:\d+/latent/")
 
+# ⚠⚠⚠ 页面内判据（TSX）：第三十四笔新增。
+#   背景：`RandomControlPanel` 的配套判据 `verifyRandomControl.tsx` **住进了页面**
+#   （挂载在 `app/page.tsx`），不是 `.cache/browser_verify/verify*.mjs`。
+#   而 read 集合只从那两个 glob 来 ⇒ 那个判据**真的读过** `data-rc*`，
+#   扫描器却完全不知道有它 ⇒ C4 报 6 条「新增未分类」。
+#
+#   ⚠⚠⚠ **为什么不把那 6 条登记进装饰簿**：
+#   登记簿是**分类**，不是**证据**。C4 自己的注释写着「那等于用登记簿把缺口藏起来」。
+#   面板确实被一个判据读着 —— 缺的是扫描器的**文件口径**，不是缺口的分类。
+#   把「有人读」记成「纯装饰」，等于把一条真覆盖说成没有覆盖。
+#
+#   ⚠⚠⚠ 关键守卫：**必须证明那个判据组件真的挂在 page.tsx 上**。
+#   一个写好但没挂载的判据会把它的标记算成「被读过」——
+#   那是**假绿**，比现在这条红坏得多：页面上那些标记从此再没人核，
+#   而 C4 还会报绿。⇒ C4a 专抓这一条。
+TSX_DIR = ROOT / "frontend/components"
+PAGE_TSX = ROOT / "frontend/app/page.tsx"
+
+
+def tsx_judgments():
+    """页面内判据：[(路径, 组件名, 是否真的挂在 page.tsx 上)]。"""
+    if not PAGE_TSX.is_file():
+        return []
+    page_txt = io.open(str(PAGE_TSX), encoding="utf-8").read()
+    out = []
+    for f in sorted(TSX_DIR.glob("verify*.tsx")):
+        raw = io.open(str(f), encoding="utf-8").read()
+        m = re.search(r"export\s+default\s+function\s+(\w+)", raw) \
+            or re.search(r"export\s+default\s+(\w+)", raw)
+        name = m.group(1) if m else None
+        mounted = bool(name) and re.search(
+            r"<\s*%s\b" % re.escape(name), page_txt) is not None
+        out.append((f, name, mounted))
+    return out
+
+
 # ⚠⚠ C7 的例外登记簿。
 #   C7 问的是「源码里写了这个标记，两遍 DOM（加载后 / 点遍控件后）里都没有」——
 #   那通常是一段**死代码**：读代码的人以为它在页面上，读者永远看不到。
@@ -534,23 +570,38 @@ def main():
     #   ⇒ read 带上「这条判据打哪一页」，C2 按页各自对账。
     read = {}
     read_by_page = {"root": {}, "latent": {}}
+    # ⚠⚠⚠ 第三十四笔的**顺序**闸：页面内判据清单必须在这里先算出来。
+    #   第一版把它写在「收集 read 集合」那段（靠后），
+    #   而 C2a（靠前）已经要用它 ⇒ 跑起来 UnboundLocalError。
+    #   ⚠ 这条错误 **`ast.parse` 查不出来** —— 语法完全合法，
+    #   只是名字在使用点还没绑定。
+    #   ⇒ 「过了 ast.parse」只证明**能解析**，不证明**能跑**。
+    #     与「拿 round(median,4) 比未舍入中位数」同族：装置自己通过了自己的检查。
+    tsx_all = tsx_judgments()
     # ⚠⚠ 负控：剥注释之后，**任何出现在方括号选择器里的标记都必须在**。
     #   剥注释器要处理字符串字面量（`page.eval(\`[data-x]\`)`）与
     #   `http://` 这类假注释头，两处都可能整段吃掉内容 ——
     #   而「少提取标记」的方向恰好是**假绿**（缺口被藏起来）。
     #   ⇒ 这条不是装饰：它一红就说明提取器坏了，后面每一个数字都不可信。
     lost = []
-    for f in list(BVDIR.glob("verify*.mjs")) + list(BVDIR.glob("shot*.mjs")):
+    # ⚠ 第三十四笔：把页面内判据（TSX）也纳入这个负控。
+    #   否则新加的那一路提取器**没人验**：它少提取标记时 C4 照样绿。
+    c2a_files = list(BVDIR.glob("verify*.mjs")) + list(BVDIR.glob("shot*.mjs")) \
+        + [f for f, _, ok in tsx_all if ok]
+    for f in c2a_files:
         raw = io.open(str(f), encoding="utf-8").read()
         got = set(markers_in(raw))
-        for m in re.findall(r"\[(data-[a-z0-9-]+)[\]\s'\",]", raw):
+        # ⚠ `=` 进字符类：TSX/JS 常写 `[data-rc="ok"]`（带值），
+        #   而原式只认裸选择器 `[data-rc]` ⇒ 带值的那种**根本不会被要求存在**，
+        #   于是「提取器把它整段吃掉」也照样绿。方向是少提取 = 假绿，必须堵。
+        for m in re.findall(r"\[(data-[a-z0-9-]+)[\]\s'\",=]", raw):
             if m not in got:
                 lost.append("%s: %s" % (f.name, m))
     check("C2a 剥注释不许吃掉任何方括号选择器里的标记（少提取 = 假绿）",
           not lost,
           "被剥掉 %d 个：%s" % (len(lost), ", ".join(lost[:6]))
-          if lost else "全部 %d 个 verify/shot 文件的选择器都保住了"
-          % len(list(BVDIR.glob("verify*.mjs")) + list(BVDIR.glob("shot*.mjs"))))
+          if lost else "全部 %d 个判据文件的选择器都保住了（含页面内 TSX 判据）"
+          % len(c2a_files))
 
     # ---- C2b（第二十六笔）：注释写在 `page.eval(\`...\`)` 模板串内部 --------
     # ⚠⚠ 这条是被本轮自己的一个错误逼出来的，而且 11 个判据文件都有这个形状。
@@ -602,6 +653,27 @@ def main():
         for m in markers_in(text):
             read[m] = read.get(m, 0) + 1
             read_by_page[page][m] = read_by_page[page].get(m, 0) + 1
+
+    # ---- 页面内判据（TSX）：只认**真的挂在 page.tsx 上**的那些 -------------
+    # ⚠ 不挂载的不许进 read：那会让「写了没接上」的判据把缺口说成已覆盖。
+    # ⚠ tsx_all 已在 read 初始化处算好（见那里的顺序闸）。
+    tsx_live = [(f, n) for f, n, ok in tsx_all if ok]
+    for f, name in tsx_live:
+        text = io.open(str(f), encoding="utf-8").read()
+        # TSX 判据一律打在**根页**（它们挂在 app/page.tsx 上）。
+        # ⚠ 别用 LATENT_TARGET 判：那是给 .mjs 判据用的（看它们读哪个 URL），
+        #   而 TSX 判据不读 URL，它读的是同一份 DOM —— 就是根页。
+        for m in markers_in(text):
+            read[m] = read.get(m, 0) + 1
+            read_by_page["root"][m] = read_by_page["root"].get(m, 0) + 1
+
+    check("C4a 页面内判据（verify*.tsx）必须真的挂在 page.tsx 上"
+          "（没挂载的判据若被算成「读过」，那是假绿：那些标记从此没人核）",
+          all(ok for _, _, ok in tsx_all) and bool(tsx_all),
+          "共 %d 个页面内判据，已挂载 %d 个：%s"
+          % (len(tsx_all), len(tsx_live),
+             ", ".join("%s→%s" % (f.name, n) for f, n, ok in tsx_all))
+          if tsx_all else "（frontend/components/ 下没有 verify*.tsx）")
 
     check("C1 框架内部属性已被识别并剔除（不是产品块）",
           fw_present == ["data-precedence"],

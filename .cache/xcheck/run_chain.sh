@@ -96,8 +96,26 @@ run() {
   fi
   passed=${ratio%%/*}
   total=${ratio##*/}
-  # SKIP 是第三态，必须先于 RED 判 —— `RESULT SKIP 6/6` 长得像通过。
-  if echo "$res" | grep -q "SKIP"; then
+  # ⚠⚠⚠ 第三十四笔：SKIP 的判法从「整行 grep」改成「只认状态词」。
+  #
+  #   原式：`if echo "$res" | grep -q "SKIP"; then ... SKIP ... fi`
+  #   它在**任何位置**找那三个字母。而 verify_scene_link 这一轮印的是
+  #     RESULT FAIL  6/8　有 2 条判红，不能用 SKIP 解释
+  #   —— 脚本**自己明说**这条不能算 SKIP，链却 grep 到了那句解释里的 SKIP，
+  #   于是把一条 FAIL 归成 SKIP，**RED 计数少 1**，整链 exit 0。
+  #   实测：真值是 RED 3，链报 RED 2 —— 汇总行自己也不诚实。
+  #
+  #   与第四版那个洞同族：用「行里有没有这个词」代替「数说的是不是判决」。
+  #   第四版给 N/M 解析修过，**SKIP 这一刀没跟着改** ——
+  #   同一个错误只修了一半，于是它躲过了所有已有的自检。
+  #   ⚠ 这也说明：修过的判据**不等于**被审过的判据。
+  #
+  #   ⇒ 只认 `RESULT` 后面那个状态词，且必须**恰好**是 SKIP。
+  #   判据式判据：`grep -oE '^RESULT [A-Z]+'` 取第二个词。
+  #   先例（`.cache/xcheck/classifier_selftest.sh`）：
+  #   旧规则在 4 种真实汇总行里错 1 格，新规则 4/4 —— 那 1 格是**证红**出来的。
+  status=$(echo "$res" | grep -oE '^RESULT [A-Z]+' | head -1 | awk '{print $2}')
+  if [ "$status" = "SKIP" ]; then
     SKIP=$((SKIP+1)); verdict=SKIP
     printf '  [SKIP ] %-22s exit=%d  %s\n' "$label" "$rc" "$res"
     return

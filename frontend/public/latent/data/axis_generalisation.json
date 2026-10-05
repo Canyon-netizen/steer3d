@@ -1,0 +1,165 @@
+{
+ "schema": "axis_generalisation/1",
+ "decision_rule_fixed_before_data": true,
+ "criteria": [
+  "OUTSIDE: 该轴**逐题配对差**中位 > 9 个随机方向配对差的最大值 ⇒ 与同范数随机方向**可区分**",
+  "INSIDE: ≤ 该最大值 ⇒ 落在随机分布内，「语义轴特有」对这条轴**不成立**"
+ ],
+ "null_max_cross_problem_superseded": 0.0218,
+ "n_independent_axes": 4,
+ "null_paired_median_sorted": [
+  -0.013,
+  -0.013,
+  -0.0101,
+  -0.0088,
+  -0.0075,
+  -0.0072,
+  -0.0072,
+  -0.0059,
+  0.0065
+ ],
+ "threshold_paired": 0.0065,
+ "caliber": "主口径 = 逐题配对差（每题减自己的无注入对照）",
+ "superseded_caliber": {
+  "what": "跨题中位（不减每题自身基线）",
+  "why_superseded": "这 3 道题的无注入对照重复率差 17.7 倍，跨题聚合测的是题目难度方差。creativity 因此被误报为 OUTSIDE。",
+  "cross_problem_median_by_member": {
+   "caution": 0.0081,
+   "creativity": 0.045,
+   "reasoning_deep": 0.0,
+   "reasoning_shallow": 0.0089,
+   "confidence_down": 0.0167,
+   "confidence_up": 0.4574
+  },
+  "would_have_given": "2/4 OUTSIDE（错）",
+  "kept_for": "审计。不参与判决。"
+ },
+ "axes_note": "6 个命名向量只张成 4 个独立方向（两对精确反平行）；这是 frontend/components/VectorStructurePanel.tsx:39-48 已写明的，本文件只是把它对齐到行为口径。",
+ "n_problems": 3,
+ "note": "只在这 3 道（效应最易显形的）题上量；发生率未在 24 题上估计。",
+ "axes": [
+  {
+   "axis": "confidence",
+   "members": [
+    "confidence_up",
+    "confidence_down"
+   ],
+   "paired_median_by_member": {
+    "confidence_up": 0.4445,
+    "confidence_down": -0.004
+   },
+   "axis_value": 0.4445,
+   "grade": "OUTSIDE",
+   "caveat": ""
+  },
+  {
+   "axis": "reasoning",
+   "members": [
+    "reasoning_deep",
+    "reasoning_shallow"
+   ],
+   "paired_median_by_member": {
+    "reasoning_deep": -0.0072,
+    "reasoning_shallow": -0.0041
+   },
+   "axis_value": -0.0041,
+   "grade": "INSIDE",
+   "caveat": ""
+  },
+  {
+   "axis": "caution",
+   "members": [
+    "caution"
+   ],
+   "paired_median_by_member": {
+    "caution": -0.0049
+   },
+   "axis_value": -0.0049,
+   "grade": "INSIDE",
+   "caveat": "正样本 379 vs confidence 的 20930，估计量弱 55 倍"
+  },
+  {
+   "axis": "creativity",
+   "members": [
+    "creativity"
+   ],
+   "paired_median_by_member": {
+    "creativity": -0.0072
+   },
+   "axis_value": -0.0072,
+   "grade": "INSIDE",
+   "caveat": ""
+  }
+ ],
+ "verdict": "「重复退化」**不是**语义轴的通性 —— 只有 1/4 条轴可区分。能站住的更窄版本是：**只有 confidence +v 这一条轴**在同范数随机方向之外产生重复退化；其余 3 条轴的配对差都落在随机分布内或为负。",
+ "per_arm_per_problem": {
+  "caution": {
+   "1983_I_1": 0.0062,
+   "2000_I_1": 0.0243,
+   "2012_I_1": 0.0081
+  },
+  "creativity": {
+   "1983_I_1": 0.0,
+   "2000_I_1": 0.0864,
+   "2012_I_1": 0.045
+  },
+  "reasoning_deep": {
+   "1983_I_1": 0.0,
+   "2000_I_1": 0.1988,
+   "2012_I_1": 0.0
+  },
+  "reasoning_shallow": {
+   "1983_I_1": 0.0063,
+   "2000_I_1": 0.0279,
+   "2012_I_1": 0.0089
+  },
+  "confidence_down": {
+   "1983_I_1": 0.0031,
+   "2000_I_1": 0.0517,
+   "2012_I_1": 0.0167
+  },
+  "confidence_up": {
+   "1983_I_1": 0.4564,
+   "2000_I_1": 0.4965,
+   "2012_I_1": 0.4574
+  }
+ },
+ "per_arm_paired_vs_own_control": {
+  "caution": {
+   "1983_I_1": -0.0009,
+   "2000_I_1": -0.1025,
+   "2012_I_1": -0.0049
+  },
+  "creativity": {
+   "1983_I_1": -0.0072,
+   "2000_I_1": -0.0404,
+   "2012_I_1": 0.032
+  },
+  "reasoning_deep": {
+   "1983_I_1": -0.0072,
+   "2000_I_1": 0.072,
+   "2012_I_1": -0.013
+  },
+  "reasoning_shallow": {
+   "1983_I_1": -0.0008,
+   "2000_I_1": -0.0989,
+   "2012_I_1": -0.0041
+  },
+  "confidence_down": {
+   "1983_I_1": -0.004,
+   "2000_I_1": -0.0751,
+   "2012_I_1": 0.0037
+  },
+  "confidence_up": {
+   "1983_I_1": 0.4493,
+   "2000_I_1": 0.3697,
+   "2012_I_1": 0.4445
+  }
+ },
+ "control_by_problem": {
+  "1983_I_1": 0.0072,
+  "2000_I_1": 0.1268,
+  "2012_I_1": 0.013
+ },
+ "control_median": 0.013
+}

@@ -15,6 +15,8 @@ import SubspacePanel from "@/components/SubspacePanel";
 import HeldoutPanel from "@/components/HeldoutPanel";
 import EvidenceLadderPanel from "@/components/EvidenceLadderPanel";
 import StrengthLawPanel from "@/components/StrengthLawPanel";
+import RandomControlPanel from "@/components/RandomControlPanel";
+import VerifyRandomControl from "@/components/verifyRandomControl";
 import LayerDerivationPanel from "@/components/LayerDerivationPanel";
 import TokenStreamPanel from "@/components/TokenStreamPanel";
 import InterpretationPanel from "@/components/InterpretationPanel";
@@ -155,6 +157,14 @@ export default function Page() {
           <HeldoutPanel />
           <EvidenceLadderPanel />
           <StrengthLawPanel />
+          {/* 紧跟在 StrengthLawPanel 之后：它读 steer_directions.json，
+              这个面板讲的是那个面板的「跑飞」口径为什么不够用
+              （干预后不闭合是范数效应，与方向无关）。 */}
+          <RandomControlPanel />
+          {/* 判据组件：读上面那个面板的**可见文案**与产物对账。
+              挂在页面里（而不是测试里）才能被 scan_panel_coverage 算作
+              「被读过的标记」—— 否则新面板自己就成了覆盖缺口。 */}
+          <VerifyRandomControl />
           <ArchivedExperiments />
           <InterpretationPanel />
           <TokenStreamPanel />
