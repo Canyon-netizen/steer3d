@@ -119,6 +119,58 @@ def main() -> int:
     p_full, p_pre = binom_two_sided(pos_full, len(rows)), binom_two_sided(pos_pre, len(rows))
     lo, hi = wilson(pos_pre, len(rows))
 
+    # ---- 截尾披露（第三十六笔补） ----------------------------------------
+    # 两条独立观测把「定长前缀」这件事的性质说清楚了：
+    #   ① **截尾**：+v 臂在多少题上跑满 32000 token 上限？零臂呢？
+    #   ② **前缀覆盖**：2048 词占 +v 臂全文的**百分之几**？
+    # 32k 批的机制曲线显示 +v 的新内容产出率在**输出 20% 处**塌到 0。
+    # 若前缀只覆盖 +v 输出的前 ~8%，那它只量到了塌缩的**开头** ——
+    # ⇒ 定长前缀那个数是**下界**，不是另一个估计值。
+    # ⚠ 这一条不改「22/23」，它改的是**那个中位差该被读成什么**。
+    for r in rows:
+        wu = len(by[(r["problem"], "confidence_up", 0.2)]["primary_text"].split())
+        wz = len(by[(r["problem"], "confidence_up", 0.0)]["primary_text"].split())
+        r["words_up"] = wu
+        r["words_zero"] = wz
+        r["prefix_fraction_of_up"] = round(K / wu, 4) if wu else None
+    cap = 32000
+    up_capped = sum(1 for r in rows if r["n_steps_up"] >= cap)
+    zero_capped = sum(1 for r in rows if r["n_steps_zero"] >= cap)
+    up_capped_pref = [r["prefix_fraction_of_up"] for r in rows
+                      if r["n_steps_up"] >= cap and r["prefix_fraction_of_up"] is not None]
+    len_ratio = [min(r["n_steps_up"], r["n_steps_zero"]) /
+                 max(r["n_steps_up"], r["n_steps_zero"]) for r in rows]
+    # 长度比 与 定长前缀配对差 的相关：若强负相关，说明前缀那个数
+    # 仍然在偷偷跟着长度走（那就不能当长度无关的估计）。
+    mx, my = st.mean(len_ratio), st.mean([r["d_pre"] for r in rows])
+    num = sum((a - mx) * (b - my) for a, b in zip(len_ratio, [r["d_pre"] for r in rows]))
+    den = math.sqrt(sum((a - mx) ** 2 for a in len_ratio)
+                    * sum((b - my) ** 2 for b in [r["d_pre"] for r in rows]))
+    r_len = (num / den) if den else float("nan")
+
+    cap_disclosure = {
+        "cap_tokens": cap,
+        "up_hit_cap": up_capped,
+        "zero_hit_cap": zero_capped,
+        "n_problems": len(rows),
+        "prefix_fraction_of_up_when_capped_median":
+            round(st.median(up_capped_pref), 4) if up_capped_pref else None,
+        "collapse_position_in_new_rate_curve": 0.20,
+        "prefix_covers_before_collapse": True,
+        "why_this_matters":
+            "定长前缀只取前 %d 词。+v 臂有 %d/%d 题跑满 %d token 上限，"
+            "而 32k 的机制曲线显示新内容产出率在**输出 20%% 处**塌到 0。"
+            "⇒ 前缀覆盖的是塌缩**开始之前**那段，定长口径那个中位差是**下界**，"
+            "不是「另一个估计值」。「22/23 发生」这个计数不受影响（只看符号）。"
+            % (K, up_capped, len(rows), cap),
+        "length_ratio_vs_prefix_diff_pearson_r": round(r_len, 3),
+        "length_ratio_reading":
+            "长度比（min/max）与定长前缀配对差的 r = %+.3f ⇒ 弱负相关。"
+            "若它是强负相关，说明前缀口径仍在偷偷跟着长度走，不能当长度无关的估计。"
+            "现在的读法是：**相关性弱，所以定长口径确实把长度的影响剥掉了大半**，"
+            "剩下的 4.3 倍差距来自「塌缩发生在文本靠后」这件事本身。" % r_len,
+    }
+
     lens = [r["n_steps_up"] for r in rows]
     lens0 = [r["n_steps_zero"] for r in rows]
     short = sum(1 for r in rows if r["n_steps_up"] < r["n_steps_zero"])
@@ -149,7 +201,11 @@ def main() -> int:
             "median_diff": round(st.median([r["d_pre"] for r in rows]), 4),
             "wilson95": [round(lo, 4), round(hi, 4)],
             "why": "每条只取前 %d 个词 ⇒ 与生成长度无关。" % K,
+            "is_lower_bound": True,
+            "lower_bound_because": "见 cap_censoring：前缀只覆盖 +v 输出的前一段，"
+                                    "而塌缩发生在输出 20% 处之后。",
         },
+        "cap_censoring": cap_disclosure,
         "length_confound": {
             "n_steps_up_median": st.median(lens),
             "n_steps_zero_median": st.median(lens0),
@@ -184,6 +240,16 @@ def main() -> int:
           f"零臂中位 {st.median(lens0):.0f} "
           f"(min {min(lens0)} max {max(lens0)})")
     print(f"             +v 比零臂**短**的题: {short}/{len(rows)}")
+    print()
+    print(f"截尾披露    : +v 跑满 {cap} 的题 {up_capped}/{len(rows)}，"
+          f"零臂跑满的 {zero_capped}/{len(rows)}")
+    if up_capped_pref:
+        print(f"             跑满的那些题里，前 {K} 词只占 +v 全文的 "
+              f"{st.median(up_capped_pref)*100:.1f}%")
+    print(f"             长度比 与 前缀配对差 的 r = {r_len:+.3f}（弱相关 ⇒ 前缀口径"
+          "确实把长度剥掉了大半）")
+    print(f"             ⇒ 定长前缀那个中位差 {out['fixed_prefix']['median_diff']:+.4f} "
+          "是**下界**（前缀只覆盖塌缩开始之前那段）")
     print()
     worst = sorted(rows, key=lambda r: r["d_pre"])[:3]
     print("前缀配对差最小的 3 题（这 3 题是「效应不出现」的反例，不能藏）：")

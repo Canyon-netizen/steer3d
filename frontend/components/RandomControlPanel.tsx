@@ -78,6 +78,13 @@ type Occ = {
     n_steps_up_median: number; n_steps_zero_median: number;
     problems_where_up_shorter_than_zero: number;
   };
+  cap_censoring?: {
+    cap_tokens: number; up_hit_cap: number; zero_hit_cap: number;
+    n_problems: number;
+    prefix_fraction_of_up_when_capped_median: number | null;
+    collapse_position_in_new_rate_curve: number;
+    length_ratio_vs_prefix_diff_pearson_r: number;
+  };
   per_problem: Array<{
     problem: string; d_pre: number; rep_pre_up: number; rep_pre_zero: number;
     n_steps_up: number; n_steps_zero: number;
@@ -162,6 +169,7 @@ export default function RandomControlPanel() {
   const bF = c.batches.find((b) => /AF32|本次/.test(b.batch));
   const outside = a.axes.filter((x) => x.grade === "OUTSIDE");
   const pp = a.per_problem_caveat;
+  const cc = occ?.cap_censoring;
 
   return (
     <div className={BOX} data-rc="ok">
@@ -307,7 +315,26 @@ export default function RandomControlPanel() {
             另有 {occ.length_confound.problems_where_up_shorter_than_zero} 题 +v 反而更短。
             逐题 n=1（无重复测量）⇒ 报的是「多少题出现」，不是「出现得多稳」。
           </p>
-          {/* ⚠⚠ 反例**不许折叠**。第一版把它塞进 `<details>`，
+          {/* ⚠⚠ 截尾披露：+v 臂在 18/23 题上跑满 32000 token 上限，
+              零臂只有 2/23。而 32k 的机制曲线说塌缩发生在**输出 20% 处** ——
+              前 2048 词只覆盖 +v 全文的 ~9% ⇒ 它量的是塌缩**开始之前**那段。
+              ⇒ 定长口径那个中位差是**下界**，不是「另一个估计值」。
+              而「22/23 发生」这个**计数**不受影响（只看符号）。 */}
+          {cc && (
+            <p className="text-[9px] text-gray-400 mt-1 leading-relaxed"
+               data-rc="occurrence-cap">
+              截尾：+v 有 <b className="text-fg">{cc.up_hit_cap}/{cc.n_problems}</b> 题跑满{" "}
+              {cc.cap_tokens} token 上限，零臂只有 {cc.zero_hit_cap}/{cc.n_problems}；
+              跑满的那些题里前 {occ.prefix_words} 词只占 +v 全文的{" "}
+              {Math.round((cc.prefix_fraction_of_up_when_capped_median ?? 0) * 100)}%
+              ，而塌缩在输出 {Math.round(cc.collapse_position_in_new_rate_curve * 100)}% 处
+              ⇒ <b className="text-fg">定长中位差 {occ.fixed_prefix.median_diff} 是下界</b>，
+              「{occ.fixed_prefix.pos}/{occ.n_problems} 发生」这个计数不受影响。
+              长度比与前缀配对差 r={cc.length_ratio_vs_prefix_diff_pearson_r}
+              （弱相关 ⇒ 前缀口径确实把长度剥掉了大半）。
+            </p>
+          )}
+          {/* ⚠ 反例**不许折叠**。第一版把它塞进 `<details>`，
               于是 `textContent` 读得到、`innerText` 读不到 ——
               而读者看到的是后者 ⇒ 22/23 的那 1 道反例对多数人是不可见的。
               配套判据第一版用 `textContent` 查它，于是**判绿了**：

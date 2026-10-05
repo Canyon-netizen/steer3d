@@ -30,7 +30,21 @@
    0.7901,
    0.9923
   ],
-  "why": "每条只取前 2048 个词 ⇒ 与生成长度无关。"
+  "why": "每条只取前 2048 个词 ⇒ 与生成长度无关。",
+  "is_lower_bound": true,
+  "lower_bound_because": "见 cap_censoring：前缀只覆盖 +v 输出的前一段，而塌缩发生在输出 20% 处之后。"
+ },
+ "cap_censoring": {
+  "cap_tokens": 32000,
+  "up_hit_cap": 18,
+  "zero_hit_cap": 2,
+  "n_problems": 23,
+  "prefix_fraction_of_up_when_capped_median": 0.0897,
+  "collapse_position_in_new_rate_curve": 0.2,
+  "prefix_covers_before_collapse": true,
+  "why_this_matters": "定长前缀只取前 2048 词。+v 臂有 18/23 题跑满 32000 token 上限，而 32k 的机制曲线显示新内容产出率在**输出 20% 处**塌到 0。⇒ 前缀覆盖的是塌缩**开始之前**那段，定长口径那个中位差是**下界**，不是「另一个估计值」。「22/23 发生」这个计数不受影响（只看符号）。",
+  "length_ratio_vs_prefix_diff_pearson_r": -0.16,
+  "length_ratio_reading": "长度比（min/max）与定长前缀配对差的 r = -0.160 ⇒ 弱负相关。若它是强负相关，说明前缀口径仍在偷偷跟着长度走，不能当长度无关的估计。现在的读法是：**相关性弱，所以定长口径确实把长度的影响剥掉了大半**，剩下的 4.3 倍差距来自「塌缩发生在文本靠后」这件事本身。"
  },
  "length_confound": {
   "n_steps_up_median": 32000,
@@ -54,7 +68,10 @@
    "rep_pre_zero": 0.0114,
    "rep_pre_down": 0.0323,
    "d_full": 0.0413,
-   "d_pre": 0.0454
+   "d_pre": 0.0454,
+   "words_up": 2245,
+   "words_zero": 1760,
+   "prefix_fraction_of_up": 0.9122
   },
   {
    "problem": "1984_I_1",
@@ -67,7 +84,10 @@
    "rep_pre_zero": 0.0514,
    "rep_pre_down": 0.0578,
    "d_full": 0.7477,
-   "d_pre": 0.077
+   "d_pre": 0.077,
+   "words_up": 24874,
+   "words_zero": 4251,
+   "prefix_fraction_of_up": 0.0823
   },
   {
    "problem": "1985_I_1",
@@ -80,7 +100,10 @@
    "rep_pre_zero": 0.1475,
    "rep_pre_down": 0.1254,
    "d_full": 0.1439,
-   "d_pre": 0.0803
+   "d_pre": 0.0803,
+   "words_up": 23762,
+   "words_zero": 18745,
+   "prefix_fraction_of_up": 0.0862
   },
   {
    "problem": "1986_I_1",
@@ -93,7 +116,10 @@
    "rep_pre_zero": 0.098,
    "rep_pre_down": 0.0524,
    "d_full": 0.8147,
-   "d_pre": 0.0696
+   "d_pre": 0.0696,
+   "words_up": 18247,
+   "words_zero": 2351,
+   "prefix_fraction_of_up": 0.1122
   },
   {
    "problem": "1987_I_1",
@@ -106,7 +132,10 @@
    "rep_pre_zero": 0.0671,
    "rep_pre_down": 0.1117,
    "d_full": 0.3644,
-   "d_pre": 0.1406
+   "d_pre": 0.1406,
+   "words_up": 14205,
+   "words_zero": 14379,
+   "prefix_fraction_of_up": 0.1442
   },
   {
    "problem": "1988_I_1",
@@ -119,7 +148,10 @@
    "rep_pre_zero": 0.2518,
    "rep_pre_down": 0.0431,
    "d_full": 0.5832,
-   "d_pre": 0.1377
+   "d_pre": 0.1377,
+   "words_up": 16380,
+   "words_zero": 7303,
+   "prefix_fraction_of_up": 0.125
   },
   {
    "problem": "1989_I_1",
@@ -132,7 +164,10 @@
    "rep_pre_zero": 0.0043,
    "rep_pre_down": 0.0194,
    "d_full": 0.0033,
-   "d_pre": 0.0033
+   "d_pre": 0.0033,
+   "words_up": 1054,
+   "words_zero": 1392,
+   "prefix_fraction_of_up": 1.9431
   },
   {
    "problem": "1990_I_1",
@@ -145,7 +180,10 @@
    "rep_pre_zero": 0.1989,
    "rep_pre_down": 0.1308,
    "d_full": 0.6299,
-   "d_pre": 0.1627
+   "d_pre": 0.1627,
+   "words_up": 24749,
+   "words_zero": 10064,
+   "prefix_fraction_of_up": 0.0828
   },
   {
    "problem": "1991_I_1",
@@ -158,7 +196,10 @@
    "rep_pre_zero": 0.2087,
    "rep_pre_down": 0.1921,
    "d_full": 0.6735,
-   "d_pre": 0.6232
+   "d_pre": 0.6232,
+   "words_up": 23691,
+   "words_zero": 13464,
+   "prefix_fraction_of_up": 0.0864
   },
   {
    "problem": "1992_I_1",
@@ -171,7 +212,10 @@
    "rep_pre_zero": 0.0088,
    "rep_pre_down": 0.0152,
    "d_full": 0.7769,
-   "d_pre": 0.1259
+   "d_pre": 0.1259,
+   "words_up": 11667,
+   "words_zero": 3473,
+   "prefix_fraction_of_up": 0.1755
   },
   {
    "problem": "1994_I_1",
@@ -184,7 +228,10 @@
    "rep_pre_zero": 0.1014,
    "rep_pre_down": 0.0853,
    "d_full": 0.6922,
-   "d_pre": 0.0172
+   "d_pre": 0.0172,
+   "words_up": 23745,
+   "words_zero": 9800,
+   "prefix_fraction_of_up": 0.0862
   },
   {
    "problem": "2000_I_1",
@@ -197,7 +244,10 @@
    "rep_pre_zero": 0.1769,
    "rep_pre_down": 0.1205,
    "d_full": 0.5468,
-   "d_pre": 0.0872
+   "d_pre": 0.0872,
+   "words_up": 25540,
+   "words_zero": 8408,
+   "prefix_fraction_of_up": 0.0802
   },
   {
    "problem": "2002_I_1",
@@ -210,7 +260,10 @@
    "rep_pre_zero": 0.0622,
    "rep_pre_down": 0.0358,
    "d_full": 0.7157,
-   "d_pre": 0.2514
+   "d_pre": 0.2514,
+   "words_up": 25857,
+   "words_zero": 4867,
+   "prefix_fraction_of_up": 0.0792
   },
   {
    "problem": "2004_I_1",
@@ -223,7 +276,10 @@
    "rep_pre_zero": 0.246,
    "rep_pre_down": 0.2141,
    "d_full": 0.4811,
-   "d_pre": 0.1587
+   "d_pre": 0.1587,
+   "words_up": 22000,
+   "words_zero": 5367,
+   "prefix_fraction_of_up": 0.0931
   },
   {
    "problem": "2010_I_1",
@@ -236,7 +292,10 @@
    "rep_pre_zero": 0.0836,
    "rep_pre_down": 0.0125,
    "d_full": -0.0491,
-   "d_pre": -0.0491
+   "d_pre": -0.0491,
+   "words_up": 876,
+   "words_zero": 1311,
+   "prefix_fraction_of_up": 2.3379
   },
   {
    "problem": "2012_I_1",
@@ -249,7 +308,10 @@
    "rep_pre_zero": 0.0022,
    "rep_pre_down": 0.0186,
    "d_full": 0.9831,
-   "d_pre": 0.8974
+   "d_pre": 0.8974,
+   "words_up": 14068,
+   "words_zero": 914,
+   "prefix_fraction_of_up": 0.1456
   },
   {
    "problem": "2014_I_1",
@@ -262,7 +324,10 @@
    "rep_pre_zero": 0.173,
    "rep_pre_down": 0.1244,
    "d_full": 0.4112,
-   "d_pre": 0.2562
+   "d_pre": 0.2562,
+   "words_up": 20590,
+   "words_zero": 10810,
+   "prefix_fraction_of_up": 0.0995
   },
   {
    "problem": "2016_I_1",
@@ -275,7 +340,10 @@
    "rep_pre_zero": 0.122,
    "rep_pre_down": 0.123,
    "d_full": 0.7638,
-   "d_pre": 0.2117
+   "d_pre": 0.2117,
+   "words_up": 23762,
+   "words_zero": 3542,
+   "prefix_fraction_of_up": 0.0862
   },
   {
    "problem": "2020_I_1",
@@ -288,7 +356,10 @@
    "rep_pre_zero": 0.0152,
    "rep_pre_down": 0.0274,
    "d_full": 0.0388,
-   "d_pre": 0.0388
+   "d_pre": 0.0388,
+   "words_up": 1823,
+   "words_zero": 1524,
+   "prefix_fraction_of_up": 1.1234
   },
   {
    "problem": "2021_I_1",
@@ -301,7 +372,10 @@
    "rep_pre_zero": 0.0735,
    "rep_pre_down": 0.0769,
    "d_full": 0.2323,
-   "d_pre": 0.6923
+   "d_pre": 0.6923,
+   "words_up": 12195,
+   "words_zero": 13107,
+   "prefix_fraction_of_up": 0.1679
   },
   {
    "problem": "2022_I_1",
@@ -314,7 +388,10 @@
    "rep_pre_zero": 0.1553,
    "rep_pre_down": 0.0465,
    "d_full": 0.0756,
-   "d_pre": 0.0809
+   "d_pre": 0.0809,
+   "words_up": 2750,
+   "words_zero": 3836,
+   "prefix_fraction_of_up": 0.7447
   },
   {
    "problem": "2023_I_1",
@@ -327,7 +404,10 @@
    "rep_pre_zero": 0.3557,
    "rep_pre_down": 0.4488,
    "d_full": 0.5445,
-   "d_pre": 0.1769
+   "d_pre": 0.1769,
+   "words_up": 17965,
+   "words_zero": 3141,
+   "prefix_fraction_of_up": 0.114
   },
   {
    "problem": "2025_I_1",
@@ -340,7 +420,10 @@
    "rep_pre_zero": 0.1357,
    "rep_pre_down": 0.1357,
    "d_full": 0.6559,
-   "d_pre": 0.1196
+   "d_pre": 0.1196,
+   "words_up": 23764,
+   "words_zero": 8746,
+   "prefix_fraction_of_up": 0.0862
   }
  ],
  "not_claimed": [

@@ -35,6 +35,13 @@ type OCC = {
     pos: number; p_two_sided: number; median_diff: number;
     wilson95: [number, number];
   };
+  cap_censoring?: {
+    cap_tokens: number; up_hit_cap: number; zero_hit_cap: number;
+    n_problems: number;
+    prefix_fraction_of_up_when_capped_median: number | null;
+    collapse_position_in_new_rate_curve: number;
+    length_ratio_vs_prefix_diff_pearson_r: number;
+  };
   per_problem: Array<{ problem: string; d_pre: number }>;
 };
 
@@ -220,6 +227,28 @@ function runChecks(
          `没出现的那道题**可见地**印在页面上 = ${cVis && miss.length === 0}`
          + (miss.length ? `，缺 ${JSON.stringify(miss.map((r) => r.problem))}` : "")
          + `（可见=${cVis}）`);
+  }
+
+  // ⑬ 截尾披露必须印出来。定长前缀那个中位差是**下界**，
+  //    而「下界」这件事只存在于产物里、页面上没写 ⇒ 读者会当它是另一个估计值。
+  const capEl = document.querySelector('[data-rc="occurrence-cap"]') as HTMLElement | null;
+  const capS = capEl?.innerText ?? "";
+  if (o?.cap_censoring) {
+    const cc = o.cap_censoring;
+    push(!!capEl && capEl.getBoundingClientRect().height > 0,
+         `[data-rc="occurrence-cap"] 截尾披露可见 = `
+         + `${!!capEl && capEl.getBoundingClientRect().height > 0}`);
+    push(capS.includes(`${cc.up_hit_cap}/${cc.n_problems}`)
+         && capS.includes(String(cc.zero_hit_cap)),
+         `截尾计数 +v ${cc.up_hit_cap}/${cc.n_problems} 与零臂 ${cc.zero_hit_cap} 都印出 = `
+         + `${capS.includes(`${cc.up_hit_cap}/${cc.n_problems}`) && capS.includes(String(cc.zero_hit_cap))}`);
+    // ⚠「是下界」这三个字必须在页面上。只印数字不给定性，
+    //   等于让读者自己猜那个数该怎么读 —— 而他多半会当成「另一个口径的值」。
+    push(capS.includes("是下界"),
+         `「是下界」这一定性印在页面上 = ${capS.includes("是下界")}`);
+    push(capS.includes(String(cc.length_ratio_vs_prefix_diff_pearson_r)),
+         `长度比与前缀配对差的 r=${cc.length_ratio_vs_prefix_diff_pearson_r} 印出 = `
+         + `${capS.includes(String(cc.length_ratio_vs_prefix_diff_pearson_r))}`);
   }
 
   return out;
