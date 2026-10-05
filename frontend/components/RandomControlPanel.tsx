@@ -171,6 +171,15 @@ export default function RandomControlPanel() {
             <b className="text-accent">{r9.named_median}</b>。
             {r9.grade === "GRADE_ABOVE_ALL" && " 命名臂高于全部 9 个。"}
           </p>
+          {/* ⚠ 这 9 个数原先只写在每根柱子的 `title=` 里。
+              那是**悬停提示**，不是可见文案 —— 页面上读不到，读代码才看得到。
+              配套判据 `verifyRandomControl.tsx` 逐个核「产物里的 9 个中位数
+              都能在面板文本里找到」，实测缺 8 个 ⇒ 自己把自己的红抓出来了。
+              ⇒ 结论要读者能核，数字就得印在读者看得到的地方，
+              不能只印在鼠标悬停时才出现的地方。 */}
+          <p className="text-[9px] text-gray-400 mt-1 font-mono leading-relaxed">
+            9 个随机中位（升序）：{r9.random_median_sorted.join("  ")}
+          </p>
         </div>
       )}
 
