@@ -280,6 +280,16 @@ run verify_path           "LAT_URL=${U%/}/latent/index.html node .cache/browser_
 #      第一版把 null 当成被盖，报了个假红。现在先 scrollIntoView 再探多点，
 #      null 的探点单独剔除计数。
 run verify_thresh         "LAT_URL=${U%/}/latent/index.html node .cache/browser_verify/verify_thresh.mjs"
+# 第 7 屏「因果修补」。这一屏专治一种病：**判否的门被藏起来**。
+#   ① 唯一结论字段 data-verdict 必须与产物 gates[].verdict 逐字相同。
+#      上一轮产物自己「stable=true」与判决「不稳」并存，读者只能挑一个信；
+#      本屏 P2 把「页面不许自己另判」变成一条会红的判决。
+#   ② na（没测）与 fail（不成立）必须在页面上分开且都带理由。
+#      没测说成不成立是伪造结论 —— 这两种红长得几乎一样，后果完全不同。
+#   ③ 主量（transfer）与次量（excess）都判过，只印一组等于偷换结论。P9 查这个。
+run verify_patch         "LAT_URL=${U%/}/latent/index.html node .cache/browser_verify/verify_patch.mjs"
+# 产物层的独立重算：不复用探针的任何计算，只从原始行重算。
+run verify_patching      "python3 .cache/xcheck/verify_path_patching.py"
 run assertion_guard       "python3 .cache/xcheck/assertion_guard.py"
 run panel_coverage        "python3 .cache/xcheck/scan_panel_coverage.py"
 run dead_url              "python3 .cache/xcheck/dead_url_sweep.py && python3 .cache/xcheck/check_dead_url.py"

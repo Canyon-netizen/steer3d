@@ -311,6 +311,36 @@ DEAD_IN_SOURCE_EXEMPT = {
     "data-dr": "第六屏那张剂量-反应小 canvas，条件渲染。只作**交叉核对**用"
                "（证明曲线节点在）；T2 的单调性由判据从 JSON 独立重算，"
                "不信 canvas，也不信页面上的数。",
+    # ⚠ 第三十八笔：第 7 屏「因果修补」的标记，同样是**条件渲染**，
+    #   理由与上面第 5/6 屏完全一致 —— 覆盖扫描的探针只点前几个标签，
+    #   不点 #tabPatch，测的是默认视图。verify_patch.mjs 会点开第 7 屏逐条读。
+    "data-patchblock": "第七屏「因果修补」容器，条件渲染（只有点了 #tabPatch 才渲染）。"
+                       "它同时承载 data-patchstate 三态：ok / no-data，"
+                       "产物缺失时页面必须**明说缺什么**，不能静默消失。",
+    "data-patchstate": "同上，与产物是否载入对应。",
+    "data-patch-ask": "第七屏顶部的问句块，条件渲染。它的文字必须与产物 "
+                      "what_it_asks 逐字相同 —— 读者第一眼看到的是它。",
+    "data-patch-fails": "第七屏的「N/M 道门没有通过」块，条件渲染。"
+                        "verify_patch 要求判否与没测的门都出现在这里，"
+                        "不许把不成立的门折叠掉或藏进详情。",
+    "data-patch-gates": "第七屏判决表的 tbody，条件渲染。每行一个门，"
+                        "verify_patch P1 逐行核对 data-verdict 与产物 gates[].verdict"
+                        "**逐字相同**（唯一结论字段，不许页面自己另判一次）。",
+    "data-gate": "判决表每行的门名，与同行 data-verdict 配对。",
+    "data-verdict": "判决表每行的结论，取值 pass/fail/na 三者之一。"
+                    "verify_patch P2 要求三态**都**可能出现在页面上，"
+                    "并要求 na 行同时给出 why_na —— 没测说成不成立是伪造结论。",
+    "data-patch-problems": "第七屏逐题表，条件渲染。每行一题，"
+                           "verify_patch P3 逐题与产物 problems[] 对账"
+                           "（题号、被解释 token、两臂改口与否）。",
+    "data-patch-pid": "逐题表的题号，verify_patch P3 拿它与产物 pid 配对。",
+    "data-patch-chart": "第七屏描述/因果对照图的容器，条件渲染。",
+    "data-svg": "第七屏那张 SVG，条件渲染。只作**交叉核对**用（证明曲线在）；"
+                "三条线的数值由判据从 JSON 独立重算，不信页面上的数。",
+    "data-lines": "同上，记这张图画了几条线，跨屏可比的固定口径。",
+    "data-patch-limits": "第七屏「这一屏不能回答的」诚实边界块，条件渲染。"
+                         "verify_patch P4 要求它存在且非空 —— "
+                         "只印成立那半就红。",
     # ⚠ 第三十一笔：这两个只在下拉框切到第 5 档（extraction_layer_effect.json）
     #   时才渲染，而默认 idx=0 ⇒ 覆盖扫描看到的根页 DOM 上没有它们。
     #   它们**不是**死引用：Q0 会逐档切过去，Q1 用它们做交叉核对。

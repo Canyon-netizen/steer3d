@@ -350,6 +350,7 @@
         <button id="tabDelta">干预 vs 对照</button>
         <button id="tabPath">逐步路径</button>
         <button id="tabThresh">干预阈值</button>
+        <button id="tabPatch">因果修补</button>
       </div>
       <div class="row">
         <label>当前层 <span class="val" id="valLayer">L14</span></label>
@@ -416,6 +417,13 @@
              画到 canvas 上就既不能选中、也不能被读屏软件读到。
              剂量-反应曲线用一张小 canvas 画，它确实是图形。 -->
         <div id="threshWrap" style="display:none;flex:1;min-height:0;overflow-y:auto;
+             overflow-x:hidden;border:1px solid #1e2637;border-radius:5px;
+             background:#0d1220;padding:10px 12px"></div>
+
+        <!-- 第 7 屏「因果修补」。这一屏要回答的是「描述」升不升级得到「机制」：
+             把第 L 层在决策位置上的残差换掉，看这个 token 还解不解得出来。
+             主体是七道门的判决表和描述/因果两条曲线，都是文字 + 一张小 canvas。 -->
+        <div id="patchWrap" style="display:none;flex:1;min-height:0;overflow-y:auto;
              overflow-x:hidden;border:1px solid #1e2637;border-radius:5px;
              background:#0d1220;padding:10px 12px"></div>
       </div>
@@ -3730,9 +3738,248 @@ function renderThreshPanel(){
   </div>`;
 }
 
-/* ---- 第 6 屏的标签 --------------------------------------------
-   这一屏的数据是一份独立产物（intervention_threshold_law.json），
-   与配对数据无关，所以不进 loadPairMeta()；缺了就如实说缺。 */
+/* ---- 第 7 屏：因果修补 ------------------------------------------
+   这一屏故意把**判否的门放在最显眼的位置**。上一次教训是产物自己
+   「stable=true」和判决「不稳」并存，读者只能挑一个信；这一屏每个门
+   只有**一个** verdict 字段，na 和 fail 都必须显示出来，不许折叠。 */
+const VERDICT_STYLE = {
+  pass: ["#4ade80", "#08160e", "#1e4a2e", "成立"],
+  fail: ["#ff6b81", "#1a0d10", "#5a2028", "不成立"],
+  na:   ["#8891a4", "#12151c", "#2a3348", "没测"],
+};
+
+function renderPatchPanel(){
+  const esc3 = s => esc(s == null ? "" : String(s));
+  const A = S.patch;
+  if(!A){
+    return `<div data-patchblock="1" data-patchstate="no-data" style="padding:14px 4px">
+      <b style="color:#ffd479">因果修补数据未载入，这一屏解释缺失</b>
+      <div style="font-size:11.5px;color:#8891a4;margin-top:6px">
+      缺的是 <code>path_patching.json</code>${S.patchMissing
+        ? `（取的时候报的是 <code>${esc3(S.patchMissing)}</code）` : ""}。
+      它由 <code>probe_path_patching.py</code> 真跑前向 + 打补丁生成。
+      没有它，下面 1~6 屏的数一个都不受影响。</div></div>`;
+  }
+
+  const gates = A.gates || {};
+  // 门序**从产物读**，不在页面里硬编码一份。硬编码的第二份必然与产物漂移，
+  // 而漂移的方向永远是「页面显示的条数比产物少」—— 那正是最该看见的那几条。
+  const order = (A.gate_order || Object.keys(gates))
+    .filter(k => gates[k]);
+  // 判决表：判否的排在最前。判据不过不是「数据缺失」，是结论。
+  const gsorted = order.map(k => Object.assign({key: k}, gates[k]));
+  const failed = gsorted.filter(g => g.verdict === "fail");
+  const nas    = gsorted.filter(g => g.verdict === "na");
+  const passed = gsorted.filter(g => g.verdict === "pass");
+
+  const gRow = g => {
+    const [fg, bg, bd, lab] = VERDICT_STYLE[g.verdict] || VERDICT_STYLE.na;
+    const who = [g.arm ? "["+g.arm+"]" : "", g.measure ? "["+g.measure+"]" : ""].join("");
+    return `<tr data-gate="${esc3(g.name||"")}" data-verdict="${g.verdict}"
+              data-key="${esc3(g.key||"")}">
+      <td><code>${esc3(who + (g.claim||""))}</code>
+        <div style="font-size:10px;color:#6b7689;margin-top:2px">${esc3(g.role||"")}
+        ${g.measure_note?esc3(g.measure_note):""}</div></td>
+      <td style="color:${fg};background:${bg};border:1px solid ${bd};border-radius:3px;
+                 text-align:center;white-space:nowrap;font-weight:700">${esc3(lab)}</td>
+      <td>${g.verdict==="na"
+            ? `<span style="color:#8891a4">${esc3(g.why_na||"")}</span>`
+            : esc3(evOneLine(g))}</td>
+    </tr>`;
+  };
+
+  // 描述 vs 因果：两条曲线 + 预登记的描述承诺窗
+  const lens = A.node_lens_agree || {};
+  const nodes = Object.keys(lens).map(Number).sort((a,b)=>a-b);
+  const meanOf = (key) => {
+    const src = A[key];
+    return src ? nodes.map(n => (src[String(n)] != null ? src[String(n)] : 0)) : null;
+  };
+  // 主量：与幅度配平随机对照比。次量：与换题臂比（陌生度失配，如实标注）。
+  const mNum = meanOf("node_excessm_num"), mWord = meanOf("node_excessm_word");
+  const tNum = meanOf("node_transfer_num"), tWord = meanOf("node_transfer_word");
+  const W = 660, H = 210, PL = 58, PR = 14, PT = 18, PB = 32;
+  const allv = [...(mNum||[]), ...(mWord||[]), ...(tNum||[]), ...(tWord||[]),
+                 ...nodes.map(n=>lens[n])];
+  const vmax = Math.max(1e-6, ...allv), vmin = Math.min(0, ...allv);
+  const px = n => PL + ((n-1)/Math.max(1,(nodes.length-1))) * (W-PL-PR);
+  const py = v => H-PB - ((v-vmin)/Math.max(1e-9,(vmax-vmin))) * (H-PT-PB);
+  let svg = "";
+  for(let i=0;i<=4;i++){
+    const v = vmin + (vmax-vmin)*i/4, y = py(v);
+    svg += `<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W-PR}" y2="${y.toFixed(1)}" stroke="#1e2637"/>`;
+    svg += `<text x="${PL-6}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="9"
+      fill="#6b7689" font-family="monospace">${v.toFixed(1)}</text>`;
+  }
+  // 预登记的描述承诺窗：把「网站此前说的话」摆在图上，不藏
+  const win = (gates["G5[num]"]&&gates["G5[num]"].evidence)||{};
+  const dw = win.descriptive_window || [];
+  if(dw.length){
+    svg += `<rect x="${px(Math.min(...dw)).toFixed(1)}" y="${PT}"
+      width="${(px(Math.max(...dw))-px(Math.min(...dw))).toFixed(1)}"
+      height="${(H-PT-PB).toFixed(1)}" fill="#5cc8ff" opacity="0.08"/>`;
+    svg += `<text x="${((px(Math.min(...dw))+px(Math.max(...dw)))/2).toFixed(1)}" y="${PT-5}"
+      text-anchor="middle" font-size="9" fill="#5cc8ff">预登记描述承诺窗</text>`;
+  }
+  const zeroY = py(0);
+  svg += `<line x1="${PL}" y1="${zeroY.toFixed(1)}" x2="${W-PR}" y2="${zeroY.toFixed(1)}"
+    stroke="#3a4459" stroke-dasharray="3 3"/>`;
+  const line = (ys, color, label) =>
+    `<polyline fill="none" stroke="${color}" stroke-width="1.7" points="`
+    + nodes.map((n,i)=>`${px(n).toFixed(1)},${py(ys[i]).toFixed(1)}`).join(" ")
+    + `"/><text x="${W-PR}" y="${PT-5}" text-anchor="end" font-size="9"
+       fill="${color}">${label}</text>`;
+  const lensY = nodes.map(n=>lens[n]);
+  svg += line(lensY, "#5cc8ff", "描述：lens 命中率");
+  svg += line(mWord, "#4ade80", "主量：换说法 − 配平随机对照");
+  svg += line(mNum, "#ffb454", "主量：换数字 − 配平随机对照");
+  if (tWord || tNum) {
+    svg += line(tWord, "#7bd88f", "次量：换说法 − 换题臂");
+    svg += line(tNum, "#d9a05b", "次量：换数字 − 换题臂");
+  }
+  for(let i=0;i<nodes.length;i+=4){
+    svg += `<text x="${px(nodes[i]).toFixed(1)}" y="${H-PB+13}" text-anchor="middle"
+      font-size="9" fill="#6b7689" font-family="monospace">${nodes[i]}</text>`;
+  }
+  svg += `<text x="${PL}" y="${H-4}" font-size="9" fill="#8891a4">节点 i = 第 i-1 层的输出（横轴）</text>`;
+
+  const prows = (A.problems||[]).map(p => {
+    const bn = p.nodes.map(n => n.excess_num).filter(v=>v!=null);
+    const bw = p.nodes.map(n => n.excess_word).filter(v=>v!=null);
+    const av = a => a.length ? (a.reduce((x,y)=>x+y,0)/a.length) : NaN;
+    return `<tr data-patch-pid="${esc3(p.pid)}">
+      <td class="num">${esc3(p.pid)}</td>
+      <td><code style="white-space:pre-wrap">${esc3(p.token_text)}</code></td>
+      <td><code>${esc3(p.clean_top1_text)}</code> → <code>${esc3(p.num_top1_text||"—")}</code></td>
+      <td><code>${esc3(p.clean_top1_text)}</code> → <code>${esc3(p.word_top1_text||"—")}</code></td>
+      <td class="num">${p.num_differs?"改口":"没改"}</td>
+      <td class="num">${p.word_differs?"改口":"没改"}</td>
+      <td class="num">${isNaN(av(bn))?"—":av(bn).toFixed(2)}</td>
+      <td class="num">${isNaN(av(bw))?"—":av(bw).toFixed(2)}</td>
+    </tr>`;
+  }).join("");
+
+  const limits = (A.honest_limits||[]).map(t =>
+    `<li style="margin:3px 0">${esc3(t)}</li>`).join("");
+
+  return `<div data-patchblock="1" data-patchstate="ok" style="font-size:12px;line-height:1.65">
+  <div data-patch-ask="1" style="border:1px solid #1e2637;border-radius:5px;padding:9px 11px;
+       background:#0f1523">
+    <b>${esc3(A.what_it_asks||"")}</b>
+    <div style="font-size:11.5px;color:#9aa6bb;margin-top:6px">
+      靶子：${esc3(A.target||"")}
+      <div style="margin-top:5px">节点约定：<code>${esc3(A.node_convention||"")}</code>
+      ｜ 产物 schema <code>${esc3(A.schema||"")}</code>
+      ｜ 预登记表 <code>${esc3(A.prereg||"")}</code></div>
+    </div>
+  </div>
+
+  <div data-patch-fails="1" style="margin-top:9px;border:1px solid #5a2028;border-radius:5px;
+       padding:9px 11px;background:#140a0d">
+    <b style="color:#ff6b81">${failed.length+nas.length} / ${gsorted.length} 道门没有通过</b>
+    <div style="font-size:11.5px;color:#c9a3a9;margin-top:5px">
+      ${failed.length?`<b>不成立</b>：${failed.map(g=>esc3("["+(g.arm||"")+"]"+g.name)).join("、")}`:"（无）"}
+      ${nas.length?`　｜　<b>没测</b>：${nas.map(g=>esc3("["+(g.arm||"")+"]"+g.name)).join("、")}`:""}
+      <div style="margin-top:5px;color:#a98d92">
+      「没测」不是「测了没过」：上一道门没过 ⇒ 这一臂没有可用的反事实，
+      把没测说成不成立是伪造结论。</div>
+    </div>
+  </div>
+
+  <table data-patch-gates="1" style="width:100%;border-collapse:collapse;margin-top:9px">
+    <thead><tr style="color:#8891a4;font-size:11px;text-align:left">
+      <th style="padding:4px 6px">预登记的声称</th><th style="padding:4px 6px">判决</th>
+      <th style="padding:4px 6px">实测</th></tr></thead>
+    <tbody>${[...failed, ...nas, ...passed].map(gRow).join("")}</tbody>
+  </table>
+
+  <div style="margin-top:11px;font-size:11.5px;color:#9aa6bb">
+    描述与因果摆在一起读：<b style="color:#5cc8ff">蓝线</b>是 logit lens 说这一层的残差
+    「看起来已经能读出这个 token」，<b style="color:#4ade80">绿线</b>与
+    <b style="color:#ffb454">橙线</b>是把这一层换掉之后真正丢掉多少原 token 的概率。
+    三条线形状不同，就说明「描述」与「机制」不是同一句话。
+    <div style="margin-top:6px;color:#8d97ab">
+    <b>主量</b>是该臂补丁与<b>幅度配平随机对照</b>之差 —— 对照与该臂补丁偏离干净臂的
+    范数<b>逐节点相等</b>，所以差别只可能来自方向。
+    <b>次量</b>是与换题臂之差；换题臂天生破坏更大，那条曲线<b>混着陌生度</b>，
+    画出来是为了让这个失配看得见，不是拿它下结论。</div>
+  </div>
+  <!-- 这一屏的曲线只用 SVG，不叠 canvas。
+       叠 canvas 的做法在本页第 6 屏用过：SVG 进 innerHTML 供读屏与选中，
+       canvas 再用 2D API 重画一遍取高分屏锐度。代价是**同一段数学写了两遍**，
+       两边可以悄悄不一致。这里只有三条线、一次渲染，SVG 本身就是矢量的，
+       缩放不糊，所以不叠 canvas —— 少一个可能与表格数字对不上的副本。 -->
+  <div data-patch-chart="1" style="margin-top:5px;background:#0b101c;border-radius:4px;
+       width:100%;max-width:${W}px">
+  <svg id="svgPatch" viewBox="0 0 ${W} ${H}" width="100%" height="${H}"
+    style="display:block" data-svg="1" data-lines="3">${svg}</svg>
+  </div>
+
+  <table data-patch-problems="1" style="width:100%;border-collapse:collapse;margin-top:11px;
+         font-size:11.5px">
+    <thead><tr style="color:#8891a4;text-align:left">
+      <th style="padding:4px 6px">题</th><th style="padding:4px 6px">被解释 token</th>
+      <th style="padding:4px 6px">改数字臂</th><th style="padding:4px 6px">改说法臂</th>
+      <th style="padding:4px 6px">数字臂</th><th style="padding:4px 6px">说法臂</th>
+      <th style="padding:4px 6px">excess 数字</th><th style="padding:4px 6px">excess 说法</th>
+    </tr></thead>
+    <tbody>${prows}</tbody>
+  </table>
+  <div style="font-size:10.5px;color:#6b7689;margin-top:4px">
+    「改口」= 该臂不打补丁时 top1 就与干净臂不同，也就是这一臂有反事实；
+    没改口的题不参与该臂的因果统计。</div>
+
+  <div data-patch-limits="1" style="margin-top:11px;font-size:11px;color:#8d97ab">
+    <b>这一屏不能回答的：</b>
+    <ul style="margin:5px 0 0 16px;padding:0">${limits}</ul>
+  </div>
+</div>`;
+}
+
+/* 把一个门的证据压成一行短句。只取能放进表格的数，不重新判一次——判决归 gates.verdict。 */
+function evOneLine(g){
+  const e = g.evidence || {};
+  switch(g.name){
+    case "恒等自证": return `${e.kept}/${e.total} 层-题对输出不变`;
+    case "幅度配平自证": return e.n_bad
+      ? `${e.n_bad} 处偏离量不相等` : `${e.n_ok} 个节点-臂全部相等`;
+    case "与录制数据一致": return `${e.agree}/${e.steps} = ${e.ratio}`;
+    case "反事实存在": return `${e.n_counterfactual}/${e.n_problems} 题改口`;
+    case "存在方向性层": return `${e.n_layer_problem_pairs} 个层-题对（对照：${e.control||"—"}）`
+      + (e.nodes&&e.nodes.length?`，节点 ${e.nodes.slice(0,8).join("、")}`:"");
+    case "内容窗可定位": return e.nodes&&e.nodes.length
+      ? `节点 ${e.nodes.join("、")}（|W|=${e.width}，跨度 ${e.span} 层）`
+      : "没有任何节点的该量 > 0";
+    case "描述-因果重叠": return `因果前 6 = ${(e.causal_top6||[]).join("、")}`
+      + `，与描述窗交集 ${(e.overlap||[]).length} 层`;
+    case "对照不等价": return `中位 ${e.median}（正 ${e.n_pos} / 负 ${e.n_neg} / 共 ${e.n}）`
+      + `，对照：${e.control||"—"}`;
+    default: return JSON.stringify(e).slice(0,90);
+  }
+}
+
+/* 把 SVG 曲线画到 canvas 上。SVG 已经在 DOM 里（可被读屏软件读到），
+   canvas 只是像素版；画不出来不影响表格里的数。 */
+function drawPatchChart(){
+  /* 本屏不用 canvas，曲线就是上面的 SVG。留一个空函数是为了让 layout()
+     里的调用点与第 6 屏写法一致，将来真要叠 canvas 时有地方放。
+     真的什么都不做比调一个不存在的画布函数好——后者会在控制台留红。 */
+}
+
+/* ---- 第 7 屏的标签 --------------------------------------------
+   数据是一份独立产物（path_patching.json），与配对数据无关，
+   缺了就如实说缺，不静默退回空屏。 */
+$("#tabPatch").onclick = async () => {
+  S.view = "PATCH"; syncTabs();
+  if(!S.patch){
+    try{
+      const r = await fetch(dataBase()+"path_patching.json");
+      S.patch = r.ok ? await r.json() : null;
+      S.patchMissing = r.ok ? null : ("HTTP " + r.status);
+    }catch(e){ S.patch = null; S.patchMissing = String(e); }
+  }
+  layout();
+};
 $("#tabThresh").onclick = async () => {
   S.view = "THRESH"; syncTabs();
   if(!S.thresh){
@@ -3792,6 +4039,7 @@ function layout(){
     // 配对题目下拉在 DELTA 屏是显示的，这里沿用同一套 chrome，不新造控件。
     $("#pairRow").style.display = "flex";
     $("#trajPanel").style.display = "none";
+    $("#patchWrap").style.display = "none";
     const wrap = $("#pathWrap");
     wrap.style.display = "block";
     wrap.innerHTML = renderPathPanel();
@@ -3811,6 +4059,7 @@ function layout(){
     $("#legendDelta2").style.display = "none";
     $("#pairRow").style.display = "none";
     $("#trajPanel").style.display = "none";
+    $("#patchWrap").style.display = "none";
     const w = $("#threshWrap");
     w.style.display = "block";
     w.innerHTML = renderThreshPanel();
@@ -3821,6 +4070,25 @@ function layout(){
     return;
   }
   $("#threshWrap").style.display = "none";
+  /* 第 7 屏「因果修补」：同样是文字 + 一张 SVG。
+     主体是判决表与描述/因果对照，画到 canvas 上就既不能选中、
+     也不能被读屏软件读到。 */
+  if(S.view === "PATCH"){
+    $("#cv").style.display = "none";
+    $("#cvD").style.display = "none";
+    $("#legendDelta").style.display = "none";
+    $("#legendDelta2").style.display = "none";
+    $("#pairRow").style.display = "none";
+    $("#trajPanel").style.display = "none";
+    const w = $("#patchWrap");
+    w.style.display = "block";
+    w.innerHTML = renderPatchPanel();
+    $("#mainTitle").textContent = "因果修补 · 描述能不能升级成机制";
+    $("#mainSub").textContent =
+      "把第 L 层残差换掉，看这个 token 还解不解得出来；判否的门也照样列出";
+    return;
+  }
+  $("#patchWrap").style.display = "none";
   const delt = S.view === "DELTA";
   for(const [id, on] of [["#cv", true], ["#cvD", delt]]){
     const cv = $(id);
@@ -4627,6 +4895,7 @@ function syncTabs(){
   $("#tabDelta").classList.toggle("on", S.view==="DELTA");
   $("#tabPath").classList.toggle("on", S.view==="PATH");
   $("#tabThresh").classList.toggle("on", S.view==="THRESH");
+  $("#tabPatch").classList.toggle("on", S.view==="PATCH");
 }
 $("#btnPlay").onclick = () => {
   S.playing = !S.playing;
