@@ -105,6 +105,9 @@ export default function LayerDerivationPanel() {
   const focusedStep = useApp((s) => s.focusedStep);
   const setFocusedStep = useApp((s) => s.setFocusedStep);
   const latest = useApp((s) => s.latest);
+  const ready = useApp((s) => s.ready);
+  const connected = useApp((s) => s.connected);
+  const frameCount = useApp((s) => s.frames.length);
 
   const [lens, setLens] = useState<LensArtifact | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -130,13 +133,42 @@ export default function LayerDerivationPanel() {
     };
   }, []);
 
+  // ⚠⚠ 没有实时回放这件事本身要能被看见。
+  //   后端从未 ready、从未连上、一个帧都没来 —— 那不是「还在等第一个帧」，
+  //   是**永远不会有帧**。这两种情况下给同一句「Waiting for the first frame…」
+  //   会让读者一直等一个不存在的东西。
+  const noLiveStream = !ready && !connected && frameCount === 0;
+
+  // Which recording to read. `currentTrajectory` is the store's value, and it
+  // is only set when the live backend names its recordings (ControlPanel's
+  // picker only appears then). With the backend down it stays null, and this
+  // panel used to sit on `no-traj` forever — telling the reader to "pick a
+  // recording" **when the page contains no recording picker at all** (measured:
+  // the only two <select> on the root page are the layer slider and the
+  // archive-step dropdown), while 48 recordings sat in logit_lens.json.
+  //
+  // So: fall back to the artifact's own first recording, and say out loud that
+  // the panel chose it. The store's value still wins whenever it exists, so
+  // this changes nothing on the live path.
+  const artifactFirstId = lens?.trajectories?.[0]?.id ?? null;
+  const effTrajId = currentTrajectory || artifactFirstId;
+  const openedByDefault = !currentTrajectory && !!artifactFirstId;
+
   const traj = useMemo(() => {
-    if (!lens?.trajectories || !currentTrajectory) return null;
-    return lens.trajectories.find((t) => t.id === currentTrajectory) ?? null;
-  }, [lens, currentTrajectory]);
+    if (!lens?.trajectories || !effTrajId) return null;
+    return lens.trajectories.find((t) => t.id === effTrajId) ?? null;
+  }, [lens, effTrajId]);
 
   // Follow the newest frame unless the reader picked a step.
-  const stepId = focusedStep ?? latest?.step_id ?? null;
+  //
+  // ⚠ The win[0] fallback is gated on `noLiveStream` on purpose. Falling back
+  // to the window start while a replay is *running* would draw a chain for a
+  // step the model has not reached yet — the dishonesty F3/F3b exist to
+  // prevent. With no stream at all there is nothing to wait for, and the step
+  // slider's handle already reads win[0], so the body was contradicting the
+  // control sitting directly above it.
+  const fallbackStep = noLiveStream ? (traj?.window?.[0] ?? null) : null;
+  const stepId = focusedStep ?? latest?.step_id ?? fallbackStep;
 
   // A step number only indexes a step *within one record*. After switching
   // records, a remembered step usually points into the previous trace, so
@@ -249,13 +281,21 @@ export default function LayerDerivationPanel() {
     );
   }
 
-  if (!currentTrajectory) {
+  // ⚠⚠ 这里的旧文案是「Pick a recording to see how each layer builds up to
+  //   its tokens.」—— **本页没有录制选择器**。那个下拉只在实时后端报出录制名时
+  //   才出现（ControlPanel 的 pickList），后端不在跑时它根本不渲染。
+  //   读者被要求做一件做不到的事，而产物里 48 条录制就在手边。
+  //   ⇒ 现在只在产物**真的**一条录制都没有时才走到这里，文案也改成说实话的版本。
+  if (!effTrajId) {
     return (
       <div className="rounded bg-bg/40 border border-border p-3" data-derivation="no-traj">
         {header}
         {stepPicker}
-        <p className="text-[10px] text-gray-500 leading-relaxed mt-1">
-          Pick a recording to see how each layer builds up to its tokens.
+        <p className="text-[10px] text-amber-400/90 leading-relaxed mt-1">
+          The readout artifact carries no recordings, so there is nothing to
+          draw. Picking one is not possible here either: the recording picker
+          only appears when the live backend is connected and names its
+          recordings.
         </p>
       </div>
     );
@@ -281,7 +321,7 @@ export default function LayerDerivationPanel() {
           This recording has no per-layer readout. The artifact covers{" "}
           {(lens.trajectories?.length ?? 0).toLocaleString()} recordings; this one
           ({" "}
-          <span className="font-mono">{currentTrajectory}</span>) is not among
+          <span className="font-mono">{effTrajId}</span>) is not among
           them, so nothing is drawn.
         </p>
       </div>
@@ -352,6 +392,24 @@ export default function LayerDerivationPanel() {
     <div className="rounded bg-bg/40 border border-border p-3" data-derivation="ready" data-traj={trajId ?? ""} data-step-id={stepId ?? ""} data-n-layers={N_LAYERS}>
       {header}
       {stepPicker}
+
+      {/* ⚠ 这条只在面板**自己**挑了录制时出现。读者必须知道两件事：
+          ① 他现在看的是哪一条录制；② 不是他选的。
+          少了 ②，一个默认打开的读数会被当成「当前正在回放的那条」——
+          而回放根本没在跑（后端不在，端口 9503 无人监听）。 */}
+      {openedByDefault && (
+        <p
+          className="text-[10px] text-gray-500 leading-relaxed mt-1 mb-1"
+          data-deriv-default="1"
+        >
+          No live replay is connected, so this panel opened recording{" "}
+          <span className="font-mono text-gray-400">{effTrajId}</span> on its
+          own — it is 1 of{" "}
+          {(lens.trajectories?.length ?? 0).toLocaleString()} in the readout
+          artifact, not the one you are streaming. The recording picker only
+          appears while the backend is connected.
+        </p>
+      )}
 
       <div className="text-[10.5px] text-gray-300 leading-snug mt-1 mb-1">
         Step <span className="font-mono text-gray-400">{step.t}</span> — the

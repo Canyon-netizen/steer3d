@@ -59,6 +59,11 @@ export default function Page() {
 
   useEffect(() => {
     if (!wsUrl) return;
+    // ⚠⚠ 第四个参数把 socket 自己的 open/close 接到 store 上。
+    //   原来这里是无条件 `setConnected(true)`，紧跟在 connect() 后面 ——
+    //   而 connect() 只是 new WebSocket(url)，握手都还没开始。
+    //   后端不在时页面照样显示绿点 + "connected"，
+    //   「前置没建立」被报成「前置已建立」。
     const client = new SteeringWSClient(wsUrl, (msg) => {
       const k = (msg as { kind?: string }).kind;
       if (k === "ready") {
@@ -80,13 +85,13 @@ export default function Page() {
       } else {
         ingestFrame(msg as Parameters<typeof ingestFrame>[0]);
       }
-    });
+    // ⚠ autoStart 是第 3 个参数、onStatus 是第 4 个 —— 原来只传了 2 个参数，
+    //   所以这里必须显式补上 autoStart，否则 setConnected 会被当成 autoStart。
+    }, true, setConnected);
     client.connect();
-    setConnected(true);
     clientRef.current = client;
     return () => {
       client.close();
-      setConnected(false);
     };
   }, [
     wsUrl,

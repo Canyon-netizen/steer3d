@@ -43,6 +43,27 @@ const rec = (n, p, d) => {
   console.log(`[${p ? 'PASS' : 'FAIL'}] ${n}\n       ${d}`);
 };
 
+/* ⚠⚠ 第四态：前置未建立（NOT-ESTABLISHED）。
+ *
+ * 这一支有 13 条检查，其中 5 条问的是「**实时回放进行中**面板怎么表现」。
+ * 那 5 条的前提是后端在跑（ws://host:9503/ws 有东西应答）。
+ * 后端不在时：
+ *   · 旧写法把它们记成 FAIL —— 而 FAIL 的意思是「**验过了，不合格**」，
+ *     它明明一次都没验过；
+ *   · 更糟的是 F3b 在旧面板上**蒙对过**：面板卡在 no-traj 时 0 根柱子，
+ *     「窗口外不许画柱子」这条恰好成立，于是它拿到了一个假的绿。
+ * 「没验过」和「验过但不合格」在 RED 计数里长得一模一样 ——
+ * 与 run_chain 第四版那个「UNJUDGED 提前 return」的洞同族。
+ *
+ * ⇒ 单独一态，不进 pass 也不进 fail，且**在汇总行里显式报出条数**。
+ *   判据自己也不许在「大部分没验过」时报通过。
+ */
+const NA = [];
+const recNA = (n, why) => {
+  NA.push(n);
+  console.log(`[  NA ] ${n}\n       前置未建立：${why}`);
+};
+
 const { proc, version } = await launch({ port: 9440, userDataDir: PROFILE,
   windowSize: '1600,1000', url: 'about:blank' });
 const cdp = await CDP.connect(version.webSocketDebuggerUrl);
@@ -160,7 +181,29 @@ try {
     if (ready) break;
     await sleep(1200);
   }
-  rec('F0 轨迹选择器与逐层面板都已挂载', ready, ready ? '' : '等了 ~18s 仍未出现');
+  /* ⚠⚠ F0 原来是一条**复合断言**：「轨迹选择器**与**逐层面板都已挂载」。
+   *   两半的前置完全不同 ——
+   *     · 面板挂载：只依赖 logit_lens.json 取到，与后端无关；
+   *     · 选择器：只在实时后端报出录制名时才出现（ControlPanel 的 pickList）。
+   *   合在一起时，后端不在 ⇒ 整条判红 ⇒ 「面板没挂载」这个**错误的推论**
+   *   会被读者读出来。旧面板停在 no-traj 时它红，读者会以为面板坏了；
+   *   而它的真实原因是选择器不在。
+   *   ⇒ 拆成两条：能验的照验，验不了的单列。
+   */
+  const panelMounted = await page.eval(`(() => {
+    const el = document.querySelector('[data-derivation]');
+    return !!el && el.getAttribute('data-derivation') !== 'loading';
+  })()`);
+  rec('F0a 逐层面板已挂载（不是 loading）', panelMounted,
+      `state=${(await readPanel()).state}`);
+  const pickerPresent = await page.eval(`!!([...document.querySelectorAll('select')]
+      .find(x => [...x.options].some(o => /^aime__/.test(o.value))))`);
+  if (pickerPresent) {
+    rec('F0b 轨迹选择器已挂载', true, '');
+  } else {
+    recNA('F0b 轨迹选择器已挂载',
+      '选择器只在实时后端报出录制名时渲染（ControlPanel 的 pickList），后端不在时它不是「坏了」而是「还没出现」');
+  }
 
   // logit_lens.json 从 3D 页面真的取到了
   const lensState = await page.eval(`(async () => {
@@ -186,36 +229,80 @@ try {
   })()`);
 
   /* ---------------------------------------------------------------- */
+  // 「实时回放在场吗」这一条，是后面 5 条的**共同前提**。
+  //
+  // 判据用面板自己印的那个标记（`data-deriv-default`）而不是去猜：
+  // 面板在没有实时流时会自己打开一条录制并**声明**这是它自己挑的。
+  // 有这个声明 ⇒ 面板不在跟踪任何实时帧 ⇒ 播放期的断言无法建立。
+  const panelLive = await page.eval(`(() => {
+    const el = document.querySelector('[data-derivation]');
+    return {
+      present: !!el,
+      selfOpened: !!(el && el.querySelector('[data-deriv-default]')),
+      state: el ? el.getAttribute('data-derivation') : null,
+      traj: el ? el.getAttribute('data-traj') : null,
+    };
+  })()`);
+  const livePrecondition = panelLive.present && !panelLive.selfOpened;
+  const naWhy = livePrecondition ? ''
+    : `面板声明它自己打开了录制（data-deriv-default），说明没有实时帧在流；`
+      + `后端 ws://…:9503/ws 无应答时这是常态`;
+
   // 选一条记录并播放。
-  const recId = await pickAndStart('/__think$/.test(o.value)');
-  rec('F2 选中一条 think 记录', !!recId && BY_ID.has(recId), `id=${recId}`);
+  let recId = null;
+  if (livePrecondition) {
+    recId = await pickAndStart('/__think$/.test(o.value)');
+    rec('F2 选中一条 think 记录', !!recId && BY_ID.has(recId), `id=${recId}`);
+  } else {
+    recNA('F2 选中一条 think 记录', naWhy);
+    // 没有选择器时也要有 recId，否则下面 `BY_ID.get(recId).window` 会崩 ——
+    // 崩掉的后果是 F3c 之后**七条**检查全部连带不跑，而汇总行只印一句
+    // 「X 脚本崩了」。用面板当前展示的那条记录顶上。
+    recId = panelLive.traj;
+  }
 
   // 先证明帧真的在流，否则后面每一条都是空断言 —— 上一版就是死在这：
   // reset 之后没点 Run，latest 恒为 null，6 条连带全红，而页面是好的。
-  const sp = await setSpeedMax();
-  let moving = false;
-  for (let i = 0; i < 20; i++) {
-    await sleep(1200);
-    const n = await page.eval(`(() => {
-      const m = (document.body.innerText || '').match(/(\\d+)\\s+tokens/);
-      return m ? parseInt(m[1], 10) : 0;
-    })()`);
-    if (n >= 3) { moving = true; break; }
+  //
+  // ⚠ 没有实时流时**不要**在这里空等 24 秒再记 FAIL：等的是一个不会来的帧。
+  //   那是 F2b 自己的前提不成立，记 FAIL 等于说「验过、不合格」。
+  let moving = false, sp = null;
+  if (livePrecondition) {
+    sp = await setSpeedMax();
+    for (let i = 0; i < 20; i++) {
+      await sleep(1200);
+      const n = await page.eval(`(() => {
+        const m = (document.body.innerText || '').match(/(\\d+)\\s+tokens/);
+        return m ? parseInt(m[1], 10) : 0;
+      })()`);
+      if (n >= 3) { moving = true; break; }
+    }
+    rec('F2b 选记录并 Run 之后帧真的在流（speed=' + sp + '）', moving,
+        moving ? '' : '等了 ~24s 面板上仍是 0 tokens');
+  } else {
+    recNA('F2b 选记录并 Run 之后帧真的在流', naWhy);
   }
-  rec('F2b 选记录并 Run 之后帧真的在流（speed=' + sp + '）', moving,
-      moving ? '' : '等了 ~24s 面板上仍是 0 tokens');
 
   let early = null;
-  for (let i = 0; i < 20; i++) {
-    await sleep(1200);
+  if (!livePrecondition) {
+    recNA('F3 播放初期面板诚实说"在窗口外"，不画空链', naWhy);
+    recNA('F3b 窗口外时一根柱子都没画', naWhy);
+    // early 仍要读：它给 F3c 之前的诊断留一份当前状态，
+    // 而且下面那句「不画空链」在这里仍然**可判**——只是对象换了：
+    // 面板在自己挑的录制上，不许画出该步在产物里没有的层。
     early = await readPanel();
-    if (early.state === 'out-of-window' || early.state === 'ready') break;
+  } else {
+    for (let i = 0; i < 20; i++) {
+      await sleep(1200);
+      early = await readPanel();
+      if (early.state === 'out-of-window' || early.state === 'ready') break;
+    }
+    rec('F3 播放初期面板诚实说"在窗口外"，不画空链',
+        early.state === 'out-of-window',
+        `state=${early.state} | ${String(early.head).slice(0, 120)}`);
+    rec('F3b 窗口外时一根柱子都没画',
+        early.bars.length === 0, `bars=${early.bars.length}`);
   }
-  rec('F3 播放初期面板诚实说"在窗口外"，不画空链',
-      early.state === 'out-of-window',
-      `state=${early.state} | ${String(early.head).slice(0, 120)}`);
-  rec('F3b 窗口外时一根柱子都没画',
-      early.bars.length === 0, `bars=${early.bars.length}`);
 
   /* ---------------------------------------------------------------- */
   // 拖步滑块直接定位到窗口内。
@@ -226,6 +313,22 @@ try {
   //
   // 滑块是面板自己的控件，所以这条判据顺带证明了"任何一步都能直接看"。
   const traj = BY_ID.get(recId);
+  // ⚠⚠ 旧写法直接 `traj.window`：recId 取不到时抛 TypeError，
+  //   而它在 try 块里 ⇒ catch 收成一条「X 脚本崩了」，
+  //   **F3c 之后七条检查一条都没跑**，汇总行却只印得出这一句。
+  //   一个装置故障把七条判决一起吞掉，而读者看到的是「脚本崩了」不是「没验」。
+  //   ⇒ 取不到就明说，并把这七条记成前置未建立。
+  if (!traj) {
+    recNA('F3c 步滑块存在且可拖到窗口内任一步', `产物里没有记录 ${recId}`);
+    recNA('F4b 面板落地的这一步就是滑块指定的那一步（没读错步）', `产物里没有记录 ${recId}`);
+    recNA('F5 每根柱子的 p_final、correct 与实际绘制高度都与 JSON 一致', `产物里没有记录 ${recId}`);
+    recNA('F5b 面板自称的层数 == 产物层数', `产物里没有记录 ${recId}`);
+    recNA('F6 首个说对的层与 JSON 的 first_layer_correct 一致', `产物里没有记录 ${recId}`);
+    recNA('F6b 跨 8 步扫描：绿柱逐层等于 JSON 的 correct[]', `产物里没有记录 ${recId}`);
+    recNA('F7 文案诚实标注这是 probe 而非 forward pass', `产物里没有记录 ${recId}`);
+    recNA('F9 换记录后链条跟着换成新记录的数据', `产物里没有记录 ${recId}`);
+    throw new Error('__NA_ONLY__');   // 交给 finally 收尾，不再往下走
+  }
   const win = traj.window;
   const targetT = win[0] + 2;
   const target = traj.steps.find((s) => s.t === targetT);
@@ -371,7 +474,10 @@ try {
   // 这一条专门防"链画的是上一条记录" —— 那种错在存在性判据下 100% 绿。
   const other = LENS.trajectories.find(
     (t) => t.id !== recId && t.mode === 'think' && t.window[0] === win[0]);
-  if (other) {
+  // ⚠ 必须连 pickerPresent 一起判：旧写法只看 `other`，找不到选择器时
+  //   pickAndStart() 里的 `[...x.options]` 会在 undefined 上抛 TypeError，
+  //   整段被 catch 收成「X 脚本崩了」—— 一条装置故障盖掉 F9 的真实判决。
+  if (other && pickerPresent) {
     await pickAndStart(
       `/^${other.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$/.test(o.value)`);
     const otherT = other.window[0] + 2;
@@ -444,6 +550,13 @@ try {
       why += ` (JSON 里没有 t=${otherT})`;
     }
     rec('F9 换记录后链条跟着换成新记录的数据', ok, why);
+  } else if (!pickerPresent) {
+    // 「换记录」这个动作本身要有一个选择器才能做。没有选择器时
+    // 旧写法记 FAIL，而 FAIL 说的是「验过、不合格」——它一次都没验。
+    // 更糟的是它会把「没有选择器」误报成「没有可对照的记录」。
+    recNA('F9 换记录后链条跟着换成新记录的数据',
+      '没有录制选择器（后端不在），这个动作做不了；'
+      + '注意这与「产物里没有对照记录」是两回事，不要混');
   } else {
     rec('F9 换记录后链条跟着换成新记录的数据', false, '找不到对照记录');
   }
@@ -469,7 +582,13 @@ try {
     const disjoint = (x, y) => y.window[0] >= x.window[1] || y.window[1] <= x.window[0];
     const B = LENS.trajectories.find(
       (t) => t.id !== A.id && t.mode === 'think' && disjoint(A, t));
-    if (!B) {
+    // ⚠ 没有选择器 ⇒ 「切记录」这个动作做不了 ⇒ 后面那串
+    //   `[...x.options]` 会在 undefined 上抛 TypeError，整段被 catch 收成
+    //   「X 脚本崩了」。那不是判决，是装置在半路摔了一跤。
+    if (!pickerPresent) {
+      recNA('F11 切记录时清掉上一条记录的步号（不经 reset）',
+        '没有录制选择器（后端不在），切记录这个动作做不了');
+    } else if (!B) {
       rec('F11 切记录时清掉上一条记录的步号（不经 reset）', false,
           '找不到窗口与 A 不相交的记录');
     } else {
@@ -558,7 +677,10 @@ try {
     const overlap = (x, y) => y.window[0] < x.window[1] && y.window[1] > x.window[0];
     const B2 = LENS.trajectories.find(
       (t) => t.id !== A2.id && t.mode === 'think' && overlap(A2, t));
-    if (!B2) {
+    if (!pickerPresent) {
+      recNA('F12 窗口重叠时保留在新记录里仍合法的步号',
+        '没有录制选择器（后端不在），切记录这个动作做不了');
+    } else if (!B2) {
       rec('F12 窗口重叠时保留在新记录里仍合法的步号', false,
           '找不到窗口与 A 重叠的记录');
     } else {
@@ -701,12 +823,25 @@ try {
     '层跨度上界写成字面量 0–27 时与现算的真值相同，渲染层在构造上无解；'
   + '第二十七笔已把它改成现算，本条守的是「那个字面量不许回来」');
 } catch (e) {
-  rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
+  // `__NA_ONLY__` 是上面那条「产物里没有这条记录」的**主动退出**，
+  // 不是装置故障 —— 它已经把该记的 NA 都记完了。
+  if (String((e && e.message) || e) !== '__NA_ONLY__')
+    rec('X 脚本崩了', false, String((e && e.stack) || e).slice(0, 300));
 } finally {
   cdp.close(); proc.kill('SIGKILL');
 }
 
 const pass = R.filter((x) => x.p).length;
-console.log(`\n=== ${pass}/${R.length} passed ===`);
+const red = R.length - pass;
+console.log('');
 R.filter((x) => !x.p).forEach((x) => console.log('FAIL: ' + x.n));
-process.exit(pass === R.length ? 0 : 1);
+if (NA.length) {
+  console.log(`前置未建立 ${NA.length} 条（不是红，也不是绿 —— 它们一次都没验）：`);
+  NA.forEach((n) => console.log('  NA: ' + n));
+}
+/* ⚠ 汇总行必须同时说清三件事，run_chain 只认 N/M 与 RESULT <状态>。
+ *   状态取 NOT-ESTABLISHED 的条件是「一条都没验过」——
+ *   判据全 NA 报成 OK，比全红更坏：它会让门禁在一块根本没跑的东西上变绿。 */
+const status = red > 0 ? 'FAIL' : (pass === 0 && NA.length > 0 ? 'NOT-ESTABLISHED' : 'PASS');
+console.log(`RESULT ${status} ${pass}/${R.length}`);
+process.exit(red > 0 ? 1 : 0);

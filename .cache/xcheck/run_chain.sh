@@ -40,7 +40,12 @@ ONE=$ROOT/.cache/chain_one.$$.out       # 每次运行**独有**（下面有为�
 # ⇒ 代价是 `.cache/chain_one.*.out` 会按运行次数累积，需要时手工清。
 # ⚠ 别再留一个「打算用来控制它」的变量：上一版留了 `ONE_KEEP=0` 却从没用上，
 #   那就是一个只占位、没人读、看着像开关的死变量。
-N=0; RED=0; SKIP=0; NORUN=0; CRASH=0; UNJUDGED=0
+N=0; RED=0; SKIP=0; NORUN=0; CRASH=0; UNJUDGED=0; NOT=0
+# ⚠ NOT = 「前置未建立」的条数。它既不是红也不是绿 —— 那些检查**一次都没跑**。
+#   混进 RED 会说「验过、不合格」（假指控）；混进 ok 会让门禁在一块根本没跑
+#   的东西上变绿。第三十六笔起 verify_derivation 就会印这一栏。
+#   ⚠ 不进退出码：未验不是失败。但**必须印出来** —— 一条没跑的检查和
+#   一条跑过的检查，在只读 N/M 的汇总里长得一模一样。
 
 run() {
   local label="$1"; shift
@@ -114,6 +119,15 @@ run() {
   #   判据式判据：`grep -oE '^RESULT [A-Z]+'` 取第二个词。
   #   先例（`.cache/xcheck/classifier_selftest.sh`）：
   #   旧规则在 4 种真实汇总行里错 1 格，新规则 4/4 —— 那 1 格是**证红**出来的。
+  # 前置未建立条数：判据自己印的，格式「前置未建立 N 条（…）」。
+  # 只认行首且认状态词，与 SKIP 同一刀法 —— 不在行里 grep 任意子串。
+  local na
+  na=$(grep -oE '^前置未建立 [0-9]+ 条' "$ONE" | head -1 | grep -oE '[0-9]+' | head -1)
+  if [ -n "$na" ] && [ "$na" -gt 0 ] 2>/dev/null; then
+    NOT=$((NOT + na))
+    printf '         · 其中 %s 条**前置未建立**（没跑，不是红也不是绿）：\n' "$na"
+    grep -E '^  NA: ' "$ONE" | head -8 | sed 's/^/           /'
+  fi
   status=$(echo "$res" | grep -oE '^RESULT [A-Z]+' | head -1 | awk '{print $2}')
   if [ "$status" = "SKIP" ]; then
     SKIP=$((SKIP+1)); verdict=SKIP
@@ -268,7 +282,7 @@ run artifact_consumers    "python3 .cache/xcheck/scan_artifact_consumers.py"
 run dedup_rendered        "BV_URL=$U node .cache/browser_verify/probe_dedup_rendered.mjs"
 
 echo
-echo "跑了 $N 条判决（另加 2 道装置闸；第三十六笔起是 22 条）：判红 $RED ／ 环境不可验而跳过 $SKIP ／ 一条都没跑 $NORUN ／ 装置崩 $CRASH ／ **认不出判决 $UNJUDGED**"
+echo "跑了 $N 条判决（另加 2 道装置闸；第三十六笔起是 22 条）：判红 $RED ／ 环境不可验而跳过 $SKIP ／ **前置未建立（没跑）$NOT** ／ 一条都没跑 $NORUN ／ 装置崩 $CRASH ／ **认不出判决 $UNJUDGED**"
 echo "（跳过与「一条都没跑」都不是绿，但也都不是指控 —— 它们各自印着自己的原因。）"
 if [ "$N" -ne 22 ]; then
   echo "⚠ 预期 22 条，实际 $N 条 ⇒ **串联器自己漏了分支**（不是被测物的问题）"
