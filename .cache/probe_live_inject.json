@@ -1,0 +1,945 @@
+{
+  "model": "/Users/zhourui/code/steer3d/datasets/models/Qwen3-1.7B",
+  "layer": 14,
+  "steps": 6,
+  "direction": "reasoning_deep",
+  "vec_source": "steering registry 的「reasoning_deep」经 scaled() （与页面同一个来源）",
+  "resid_scale": 49.42911911010742,
+  "use_chat": true,
+  "ctrl_generation": "<think>\nOkay, so there",
+  "scans": [
+    {
+      "mult": 0.05,
+      "injected_norm": 2.4714550971984863,
+      "rows": [
+        {
+          "step": 0,
+          "token_ctrl": "<think>",
+          "token_inj": "<think>",
+          "flipped": false,
+          "max_abs_dlogit": 0.234375,
+          "kl": 2.456208676449023e-07,
+          "margin_ctrl": 12.0,
+          "margin_inj": 12.125,
+          "inj_top5": [
+            [
+              "<think>",
+              29.875
+            ],
+            [
+              "</think>",
+              17.75
+            ]
+          ]
+        },
+        {
+          "step": 1,
+          "token_ctrl": "\n",
+          "token_inj": "\n",
+          "flipped": false,
+          "max_abs_dlogit": 0.375,
+          "kl": 1.754016842880901e-08,
+          "margin_ctrl": 13.875,
+          "margin_inj": 14.125,
+          "inj_top5": [
+            [
+              "\n",
+              36.25
+            ],
+            [
+              "<think>",
+              22.125
+            ]
+          ]
+        },
+        {
+          "step": 2,
+          "token_ctrl": "Okay",
+          "token_inj": "Okay",
+          "flipped": false,
+          "max_abs_dlogit": 0.578125,
+          "kl": -3.757807931492607e-08,
+          "margin_ctrl": 8.875,
+          "margin_inj": 8.875,
+          "inj_top5": [
+            [
+              "Okay",
+              36.75
+            ],
+            [
+              "Alright",
+              27.875
+            ]
+          ]
+        },
+        {
+          "step": 3,
+          "token_ctrl": ",",
+          "token_inj": ",",
+          "flipped": false,
+          "max_abs_dlogit": 0.40625,
+          "kl": 6.69147652843094e-08,
+          "margin_ctrl": 14.875,
+          "margin_inj": 14.875,
+          "inj_top5": [
+            [
+              ",",
+              32.75
+            ],
+            [
+              "...",
+              17.875
+            ]
+          ]
+        },
+        {
+          "step": 4,
+          "token_ctrl": " so",
+          "token_inj": " so",
+          "flipped": false,
+          "max_abs_dlogit": 0.328125,
+          "kl": 1.8430601045338335e-08,
+          "margin_ctrl": 0.5,
+          "margin_inj": 0.5,
+          "inj_top5": [
+            [
+              " so",
+              38.25
+            ],
+            [
+              " let",
+              37.75
+            ]
+          ]
+        },
+        {
+          "step": 5,
+          "token_ctrl": " there",
+          "token_inj": " there",
+          "flipped": false,
+          "max_abs_dlogit": 0.375,
+          "kl": 0.00012165639054728672,
+          "margin_ctrl": 5.75,
+          "margin_inj": 5.5,
+          "inj_top5": [
+            [
+              " there",
+              42.5
+            ],
+            [
+              " I",
+              37.0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "mult": 0.1,
+      "injected_norm": 4.942910194396973,
+      "rows": [
+        {
+          "step": 0,
+          "token_ctrl": "<think>",
+          "token_inj": "<think>",
+          "flipped": false,
+          "max_abs_dlogit": 0.375,
+          "kl": 3.276426809861732e-07,
+          "margin_ctrl": 12.0,
+          "margin_inj": 12.0,
+          "inj_top5": [
+            [
+              "<think>",
+              29.75
+            ],
+            [
+              "</think>",
+              17.75
+            ]
+          ]
+        },
+        {
+          "step": 1,
+          "token_ctrl": "\n",
+          "token_inj": "\n",
+          "flipped": false,
+          "max_abs_dlogit": 0.5078125,
+          "kl": -8.99117225117152e-09,
+          "margin_ctrl": 13.875,
+          "margin_inj": 13.875,
+          "inj_top5": [
+            [
+              "\n",
+              36.0
+            ],
+            [
+              "<think>",
+              22.125
+            ]
+          ]
+        },
+        {
+          "step": 2,
+          "token_ctrl": "Okay",
+          "token_inj": "Okay",
+          "flipped": false,
+          "max_abs_dlogit": 1.03125,
+          "kl": 4.0234281186712906e-06,
+          "margin_ctrl": 8.875,
+          "margin_inj": 9.125,
+          "inj_top5": [
+            [
+              "Okay",
+              36.75
+            ],
+            [
+              "Alright",
+              27.625
+            ]
+          ]
+        },
+        {
+          "step": 3,
+          "token_ctrl": ",",
+          "token_inj": ",",
+          "flipped": false,
+          "max_abs_dlogit": 0.625,
+          "kl": 6.648972572520506e-08,
+          "margin_ctrl": 14.875,
+          "margin_inj": 14.875,
+          "inj_top5": [
+            [
+              ",",
+              32.75
+            ],
+            [
+              "...",
+              17.875
+            ]
+          ]
+        },
+        {
+          "step": 4,
+          "token_ctrl": " so",
+          "token_inj": " so",
+          "flipped": false,
+          "max_abs_dlogit": 0.4375,
+          "kl": 8.399375417411648e-09,
+          "margin_ctrl": 0.5,
+          "margin_inj": 0.5,
+          "inj_top5": [
+            [
+              " so",
+              38.25
+            ],
+            [
+              " let",
+              37.75
+            ]
+          ]
+        },
+        {
+          "step": 5,
+          "token_ctrl": " there",
+          "token_inj": " there",
+          "flipped": false,
+          "max_abs_dlogit": 0.5625,
+          "kl": 0.00012171359412604943,
+          "margin_ctrl": 5.75,
+          "margin_inj": 5.5,
+          "inj_top5": [
+            [
+              " there",
+              42.5
+            ],
+            [
+              " I",
+              37.0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "mult": 0.2,
+      "injected_norm": 9.885820388793945,
+      "rows": [
+        {
+          "step": 0,
+          "token_ctrl": "<think>",
+          "token_inj": "<think>",
+          "flipped": false,
+          "max_abs_dlogit": 0.515625,
+          "kl": 5.557707254411071e-07,
+          "margin_ctrl": 12.0,
+          "margin_inj": 12.125,
+          "inj_top5": [
+            [
+              "<think>",
+              29.875
+            ],
+            [
+              "</think>",
+              17.75
+            ]
+          ]
+        },
+        {
+          "step": 1,
+          "token_ctrl": "\n",
+          "token_inj": "\n",
+          "flipped": false,
+          "max_abs_dlogit": 0.828125,
+          "kl": -1.131943694332449e-08,
+          "margin_ctrl": 13.875,
+          "margin_inj": 14.0,
+          "inj_top5": [
+            [
+              "\n",
+              36.0
+            ],
+            [
+              "<think>",
+              22.0
+            ]
+          ]
+        },
+        {
+          "step": 2,
+          "token_ctrl": "Okay",
+          "token_inj": "Okay",
+          "flipped": false,
+          "max_abs_dlogit": 1.609375,
+          "kl": 1.1006320619344478e-06,
+          "margin_ctrl": 8.875,
+          "margin_inj": 9.0,
+          "inj_top5": [
+            [
+              "Okay",
+              36.25
+            ],
+            [
+              "Alright",
+              27.25
+            ]
+          ]
+        },
+        {
+          "step": 3,
+          "token_ctrl": ",",
+          "token_inj": ",",
+          "flipped": false,
+          "max_abs_dlogit": 1.1953125,
+          "kl": -7.1173498206178465e-09,
+          "margin_ctrl": 14.875,
+          "margin_inj": 14.75,
+          "inj_top5": [
+            [
+              ",",
+              32.5
+            ],
+            [
+              "...",
+              17.75
+            ]
+          ]
+        },
+        {
+          "step": 4,
+          "token_ctrl": " so",
+          "token_inj": " so",
+          "flipped": false,
+          "max_abs_dlogit": 0.625,
+          "kl": 0.007477256003767252,
+          "margin_ctrl": 0.5,
+          "margin_inj": 0.25,
+          "inj_top5": [
+            [
+              " so",
+              38.25
+            ],
+            [
+              " let",
+              38.0
+            ]
+          ]
+        },
+        {
+          "step": 5,
+          "token_ctrl": " there",
+          "token_inj": " there",
+          "flipped": false,
+          "max_abs_dlogit": 0.78125,
+          "kl": 0.0005382325616665184,
+          "margin_ctrl": 5.75,
+          "margin_inj": 5.25,
+          "inj_top5": [
+            [
+              " there",
+              42.25
+            ],
+            [
+              " I",
+              37.0
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "mult": 0.35,
+      "injected_norm": 17.300188064575195,
+      "rows": [
+        {
+          "step": 0,
+          "token_ctrl": "<think>",
+          "token_inj": "<think>",
+          "flipped": false,
+          "max_abs_dlogit": 0.8125,
+          "kl": 7.700392643528176e-07,
+          "margin_ctrl": 12.0,
+          "margin_inj": 12.125,
+          "inj_top5": [
+            [
+              "<think>",
+              29.75
+            ],
+            [
+              "</think>",
+              17.625
+            ]
+          ]
+        },
+        {
+          "step": 1,
+          "token_ctrl": "\n",
+          "token_inj": "\n",
+          "flipped": false,
+          "max_abs_dlogit": 1.390625,
+          "kl": -1.253937065293087e-09,
+          "margin_ctrl": 13.875,
+          "margin_inj": 14.125,
+          "inj_top5": [
+            [
+              "\n",
+              36.0
+            ],
+            [
+              "<think>",
+              21.875
+            ]
+          ]
+        },
+        {
+          "step": 2,
+          "token_ctrl": "Okay",
+          "token_inj": "Okay",
+          "flipped": false,
+          "max_abs_dlogit": 3.2421875,
+          "kl": 1.3559046010414022e-06,
+          "margin_ctrl": 8.875,
+          "margin_inj": 9.0,
+          "inj_top5": [
+            [
+              "Okay",
+              36.0
+            ],
+            [
+              "Alright",
+              27.0
+            ]
+          ]
+        },
+        {
+          "step": 3,
+          "token_ctrl": ",",
+          "token_inj": ",",
+          "flipped": false,
+          "max_abs_dlogit": 1.96875,
+          "kl": 2.4821881439152094e-08,
+          "margin_ctrl": 14.875,
+          "margin_inj": 15.0,
+          "inj_top5": [
+            [
+              ",",
+              32.75
+            ],
+            [
+              "...",
+              17.75
+            ]
+          ]
+        },
+        {
+          "step": 4,
+          "token_ctrl": " so",
+          "token_inj": " let",
+          "flipped": true,
+          "max_abs_dlogit": 1.25,
+          "kl": 0.030299881473183632,
+          "margin_ctrl": 0.5,
+          "margin_inj": 0.0,
+          "inj_top5": [
+            [
+              " let",
+              38.25
+            ],
+            [
+              " so",
+              38.25
+            ]
+          ]
+        },
+        {
+          "step": 5,
+          "token_ctrl": " there",
+          "token_inj": " there",
+          "flipped": false,
+          "max_abs_dlogit": 1.375,
+          "kl": 0.004091549664735794,
+          "margin_ctrl": 5.75,
+          "margin_inj": 4.5,
+          "inj_top5": [
+            [
+              " there",
+              41.75
+            ],
+            [
+              " I",
+              37.25
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "mult": 0.5,
+      "injected_norm": 24.714555740356445,
+      "rows": [
+        {
+          "step": 0,
+          "token_ctrl": "<think>",
+          "token_inj": "<think>",
+          "flipped": false,
+          "max_abs_dlogit": 1.125,
+          "kl": 1.4580689366994193e-06,
+          "margin_ctrl": 12.0,
+          "margin_inj": 12.125,
+          "inj_top5": [
+            [
+              "<think>",
+              29.625
+            ],
+            [
+              "</think>",
+              17.5
+            ]
+          ]
+        },
+        {
+          "step": 1,
+          "token_ctrl": "\n",
+          "token_inj": "\n",
+          "flipped": false,
+          "max_abs_dlogit": 1.796875,
+          "kl": 1.1000291522123007e-07,
+          "margin_ctrl": 13.875,
+          "margin_inj": 14.375,
+          "inj_top5": [
+            [
+              "\n",
+              36.0
+            ],
+            [
+              "<think>",
+              21.625
+            ]
+          ]
+        },
+        {
+          "step": 2,
+          "token_ctrl": "Okay",
+          "token_inj": "Okay",
+          "flipped": false,
+          "max_abs_dlogit": 5.0625,
+          "kl": 9.09557684281026e-07,
+          "margin_ctrl": 8.875,
+          "margin_inj": 8.875,
+          "inj_top5": [
+            [
+              "Okay",
+              35.75
+            ],
+            [
+              "Alright",
+              26.875
+            ]
+          ]
+        },
+        {
+          "step": 3,
+          "token_ctrl": ",",
+          "token_inj": ",",
+          "flipped": false,
+          "max_abs_dlogit": 2.8125,
+          "kl": 7.623351194752104e-08,
+          "margin_ctrl": 14.875,
+          "margin_inj": 15.375,
+          "inj_top5": [
+            [
+              ",",
+              33.5
+            ],
+            [
+              "...",
+              18.125
+            ]
+          ]
+        },
+        {
+          "step": 4,
+          "token_ctrl": " so",
+          "token_inj": " let",
+          "flipped": true,
+          "max_abs_dlogit": 1.625,
+          "kl": 0.06870690733194351,
+          "margin_ctrl": 0.5,
+          "margin_inj": 0.25,
+          "inj_top5": [
+            [
+              " let",
+              38.5
+            ],
+            [
+              " so",
+              38.25
+            ]
+          ]
+        },
+        {
+          "step": 5,
+          "token_ctrl": " there",
+          "token_inj": " there",
+          "flipped": false,
+          "max_abs_dlogit": 2.125,
+          "kl": 0.010004842653870583,
+          "margin_ctrl": 5.75,
+          "margin_inj": 4.0,
+          "inj_top5": [
+            [
+              " there",
+              41.25
+            ],
+            [
+              " I",
+              37.25
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "mult": 1.0,
+      "injected_norm": 49.42911148071289,
+      "rows": [
+        {
+          "step": 0,
+          "token_ctrl": "<think>",
+          "token_inj": "<think>",
+          "flipped": false,
+          "max_abs_dlogit": 3.0625,
+          "kl": 8.733201866562013e-06,
+          "margin_ctrl": 12.0,
+          "margin_inj": 12.125,
+          "inj_top5": [
+            [
+              "<think>",
+              29.125
+            ],
+            [
+              "</think>",
+              17.0
+            ]
+          ]
+        },
+        {
+          "step": 1,
+          "token_ctrl": "\n",
+          "token_inj": "\n",
+          "flipped": false,
+          "max_abs_dlogit": 3.53125,
+          "kl": 1.4495455502583354e-07,
+          "margin_ctrl": 13.875,
+          "margin_inj": 14.375,
+          "inj_top5": [
+            [
+              "\n",
+              36.75
+            ],
+            [
+              "<think>",
+              22.375
+            ]
+          ]
+        },
+        {
+          "step": 2,
+          "token_ctrl": "Okay",
+          "token_inj": "Okay",
+          "flipped": false,
+          "max_abs_dlogit": 9.765625,
+          "kl": 7.024619662843179e-06,
+          "margin_ctrl": 8.875,
+          "margin_inj": 8.625,
+          "inj_top5": [
+            [
+              "Okay",
+              35.25
+            ],
+            [
+              "Alright",
+              26.625
+            ]
+          ]
+        },
+        {
+          "step": 3,
+          "token_ctrl": ",",
+          "token_inj": ",",
+          "flipped": false,
+          "max_abs_dlogit": 6.4609375,
+          "kl": 8.612263968643674e-07,
+          "margin_ctrl": 14.875,
+          "margin_inj": 16.25,
+          "inj_top5": [
+            [
+              ",",
+              38.0
+            ],
+            [
+              "...",
+              21.75
+            ]
+          ]
+        },
+        {
+          "step": 4,
+          "token_ctrl": " so",
+          "token_inj": " let",
+          "flipped": true,
+          "max_abs_dlogit": 4.140625,
+          "kl": 0.27287372946739197,
+          "margin_ctrl": 0.5,
+          "margin_inj": 1.0,
+          "inj_top5": [
+            [
+              " let",
+              38.75
+            ],
+            [
+              " so",
+              37.75
+            ]
+          ]
+        },
+        {
+          "step": 5,
+          "token_ctrl": " there",
+          "token_inj": " there",
+          "flipped": false,
+          "max_abs_dlogit": 5.0,
+          "kl": 0.1483495831489563,
+          "margin_ctrl": 5.75,
+          "margin_inj": 1.75,
+          "inj_top5": [
+            [
+              " there",
+              39.5
+            ],
+            [
+              " I",
+              37.75
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "mult": 2.0,
+      "injected_norm": 98.85822296142578,
+      "rows": [
+        {
+          "step": 0,
+          "token_ctrl": "<think>",
+          "token_inj": "<think>",
+          "flipped": false,
+          "max_abs_dlogit": 8.44384765625,
+          "kl": 0.00032607026514597237,
+          "margin_ctrl": 12.0,
+          "margin_inj": 10.75,
+          "inj_top5": [
+            [
+              "<think>",
+              27.75
+            ],
+            [
+              "<|im_end|>",
+              17.0
+            ]
+          ]
+        },
+        {
+          "step": 1,
+          "token_ctrl": "\n",
+          "token_inj": "\n",
+          "flipped": false,
+          "max_abs_dlogit": 8.6875,
+          "kl": 3.842951912247372e-08,
+          "margin_ctrl": 13.875,
+          "margin_inj": 13.75,
+          "inj_top5": [
+            [
+              "\n",
+              37.25
+            ],
+            [
+              "<think>",
+              23.5
+            ]
+          ]
+        },
+        {
+          "step": 2,
+          "token_ctrl": "Okay",
+          "token_inj": "</think>",
+          "flipped": true,
+          "max_abs_dlogit": 15.46875,
+          "kl": 0.9002865552902222,
+          "margin_ctrl": 8.875,
+          "margin_inj": 0.375,
+          "inj_top5": [
+            [
+              "</think>",
+              24.125
+            ],
+            [
+              "Okay",
+              23.75
+            ]
+          ]
+        },
+        {
+          "step": 3,
+          "token_ctrl": ",",
+          "token_inj": ",",
+          "flipped": false,
+          "max_abs_dlogit": 20.5,
+          "kl": 0.0009223786764778197,
+          "margin_ctrl": 14.875,
+          "margin_inj": 7.875,
+          "inj_top5": [
+            [
+              ",",
+              38.75
+            ],
+            [
+              "...",
+              30.875
+            ]
+          ]
+        },
+        {
+          "step": 4,
+          "token_ctrl": " so",
+          "token_inj": " let",
+          "flipped": true,
+          "max_abs_dlogit": 10.96875,
+          "kl": 0.06871511787176132,
+          "margin_ctrl": 0.5,
+          "margin_inj": 0.25,
+          "inj_top5": [
+            [
+              " let",
+              37.5
+            ],
+            [
+              " so",
+              37.25
+            ]
+          ]
+        },
+        {
+          "step": 5,
+          "token_ctrl": " there",
+          "token_inj": " I",
+          "flipped": true,
+          "max_abs_dlogit": 12.25,
+          "kl": 4.725303649902344,
+          "margin_ctrl": 5.75,
+          "margin_inj": 4.75,
+          "inj_top5": [
+            [
+              " I",
+              37.75
+            ],
+            [
+              " there",
+              33.0
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "grid": [
+    0.05,
+    0.1,
+    0.2,
+    0.35,
+    0.5,
+    1.0,
+    2.0
+  ],
+  "per_step_threshold_bracket": [
+    {
+      "step": 0,
+      "flips_at": null,
+      "lo": 2.0,
+      "hi": null
+    },
+    {
+      "step": 1,
+      "flips_at": null,
+      "lo": 2.0,
+      "hi": null
+    },
+    {
+      "step": 2,
+      "flips_at": 2.0,
+      "lo": 1.0,
+      "hi": 2.0
+    },
+    {
+      "step": 3,
+      "flips_at": null,
+      "lo": 2.0,
+      "hi": null
+    },
+    {
+      "step": 4,
+      "flips_at": 0.35,
+      "lo": 0.2,
+      "hi": 0.35
+    },
+    {
+      "step": 5,
+      "flips_at": 2.0,
+      "lo": 1.0,
+      "hi": 2.0
+    }
+  ],
+  "n_steps": 6,
+  "n_flips": 6,
+  "max_abs_dlogit": 20.5,
+  "max_kl": 4.725303649902344
+}

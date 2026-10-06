@@ -1,0 +1,259 @@
+{
+  "question": "把一个 steering 向量注入残差流，模型输出的 token 会不会变？",
+  "headline": "会变，但不是「有效/无效」：需要多大推力，取决于模型当时离改口有多近。",
+  "setting": {
+    "model": "/Users/zhourui/code/steer3d/datasets/models/Qwen3-1.7B",
+    "layer": 14,
+    "direction": "reasoning_deep",
+    "vector_source": "steering registry 的「reasoning_deep」经 scaled() （与页面同一个来源）",
+    "resid_scale": 49.429,
+    "unit": "注入范数 ÷ 该层残差流 std（无量纲，跨层可比）",
+    "use_chat_template": true,
+    "n_steps": 6,
+    "grid": [
+      0.05,
+      0.1,
+      0.2,
+      0.35,
+      0.5,
+      1.0,
+      2.0
+    ]
+  },
+  "dose_response": [
+    {
+      "mult": 0.05,
+      "injected_norm": 2.47,
+      "max_abs_dlogit": 0.5781,
+      "n_flipped": 0
+    },
+    {
+      "mult": 0.1,
+      "injected_norm": 4.94,
+      "max_abs_dlogit": 1.0312,
+      "n_flipped": 0
+    },
+    {
+      "mult": 0.2,
+      "injected_norm": 9.89,
+      "max_abs_dlogit": 1.6094,
+      "n_flipped": 0
+    },
+    {
+      "mult": 0.35,
+      "injected_norm": 17.3,
+      "max_abs_dlogit": 3.2422,
+      "n_flipped": 1
+    },
+    {
+      "mult": 0.5,
+      "injected_norm": 24.71,
+      "max_abs_dlogit": 5.0625,
+      "n_flipped": 1
+    },
+    {
+      "mult": 1.0,
+      "injected_norm": 49.43,
+      "max_abs_dlogit": 9.7656,
+      "n_flipped": 1
+    },
+    {
+      "mult": 2.0,
+      "injected_norm": 98.86,
+      "max_abs_dlogit": 20.5,
+      "n_flipped": 3
+    }
+  ],
+  "per_step": [
+    {
+      "step": 0,
+      "token_ctrl": "<think>",
+      "token_at_lowest": "<think>",
+      "decision_margin": 12.0,
+      "threshold_lo": 2.0,
+      "threshold_hi": null,
+      "bracket": "right_censored"
+    },
+    {
+      "step": 1,
+      "token_ctrl": "\n",
+      "token_at_lowest": "\n",
+      "decision_margin": 13.875,
+      "threshold_lo": 2.0,
+      "threshold_hi": null,
+      "bracket": "right_censored"
+    },
+    {
+      "step": 2,
+      "token_ctrl": "Okay",
+      "token_at_lowest": "Okay",
+      "decision_margin": 8.875,
+      "threshold_lo": 1.0,
+      "threshold_hi": 2.0,
+      "bracket": "bracketed"
+    },
+    {
+      "step": 3,
+      "token_ctrl": ",",
+      "token_at_lowest": ",",
+      "decision_margin": 14.875,
+      "threshold_lo": 2.0,
+      "threshold_hi": null,
+      "bracket": "right_censored"
+    },
+    {
+      "step": 4,
+      "token_ctrl": " so",
+      "token_at_lowest": " so",
+      "decision_margin": 0.5,
+      "threshold_lo": 0.2,
+      "threshold_hi": 0.35,
+      "bracket": "bracketed"
+    },
+    {
+      "step": 5,
+      "token_ctrl": " there",
+      "token_at_lowest": " there",
+      "decision_margin": 5.75,
+      "threshold_lo": 1.0,
+      "threshold_hi": 2.0,
+      "bracket": "bracketed"
+    }
+  ],
+  "mechanism": {
+    "claim": "阈值随该步的决胜间距单调不减",
+    "stable": true,
+    "violations": [],
+    "how_to_read": "间距小的那一步，注入没多大就改口；间距大的那一步，推到 2× 残差 std 也不改。所以「这个向量有没有用」这个问题问错了 —— 有用的是推力大小和它落在哪个决策点上。"
+  },
+  "generality": {
+    "note": "同一判据在别的方向/层上复测，检验这条说法能不能迁移",
+    "n_cells": 9,
+    "cells": [
+      {
+        "direction": "reasoning_deep",
+        "layer": 6,
+        "median_threshold": 3.0,
+        "n_flipped_steps": 3,
+        "n_steps": 4,
+        "unbracketed_steps": [
+          1
+        ]
+      },
+      {
+        "direction": "reasoning_deep",
+        "layer": 14,
+        "median_threshold": 3.0,
+        "n_flipped_steps": 2,
+        "n_steps": 4,
+        "unbracketed_steps": [
+          0,
+          1
+        ]
+      },
+      {
+        "direction": "reasoning_deep",
+        "layer": 22,
+        "median_threshold": null,
+        "n_flipped_steps": 0,
+        "n_steps": 4,
+        "unbracketed_steps": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "direction": "confidence_up",
+        "layer": 6,
+        "median_threshold": 1.5,
+        "n_flipped_steps": 2,
+        "n_steps": 4,
+        "unbracketed_steps": [
+          0,
+          1
+        ]
+      },
+      {
+        "direction": "confidence_up",
+        "layer": 14,
+        "median_threshold": 3.0,
+        "n_flipped_steps": 2,
+        "n_steps": 4,
+        "unbracketed_steps": [
+          0,
+          1
+        ]
+      },
+      {
+        "direction": "confidence_up",
+        "layer": 22,
+        "median_threshold": null,
+        "n_flipped_steps": 0,
+        "n_steps": 4,
+        "unbracketed_steps": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "direction": "creativity",
+        "layer": 6,
+        "median_threshold": 3.0,
+        "n_flipped_steps": 2,
+        "n_steps": 4,
+        "unbracketed_steps": [
+          1,
+          3
+        ]
+      },
+      {
+        "direction": "creativity",
+        "layer": 14,
+        "median_threshold": 3.0,
+        "n_flipped_steps": 2,
+        "n_steps": 4,
+        "unbracketed_steps": [
+          1,
+          3
+        ]
+      },
+      {
+        "direction": "creativity",
+        "layer": 22,
+        "median_threshold": null,
+        "n_flipped_steps": 0,
+        "n_steps": 4,
+        "unbracketed_steps": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    ],
+    "verdict": "not_general",
+    "verdict_reason": "23/36 个 (方向,层,步) 组合到网格上限 3.0× 仍不翻盘，其中 3 个格**一步都没翻**：confidence_up@L22, creativity@L22, reasoning_deep@L22。阈值在这些格上根本没被测到，拿没测到的格子去说『稳』是拿缺本当证据。",
+    "evidence": {
+      "gate_A_ratio_within_limit": true,
+      "median_ratio": 2.0,
+      "ratio_gate": 2.0,
+      "gate_B_all_bracketed": false,
+      "n_unbracketed_pairs": 23,
+      "n_pairs": 36,
+      "cells_that_never_flipped": [
+        "confidence_up@L22",
+        "creativity@L22",
+        "reasoning_deep@L22"
+      ]
+    }
+  },
+  "contrast_with_replay": {
+    "claim": "回放模式下注入**永远**不改 token",
+    "why": "token 在注入前就由录制的 token_ids 定死；要让 token 跟着干预变，得从该层起把剩余 block 前向一遍",
+    "checked_by": "verify_real_replay.mjs 的 D13（注入生效的帧与无注入基线逐字相同）"
+  }
+}
