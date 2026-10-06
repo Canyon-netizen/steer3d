@@ -349,6 +349,7 @@
         <button id="tabDim">维度解读</button>
         <button id="tabDelta">干预 vs 对照</button>
         <button id="tabPath">逐步路径</button>
+        <button id="tabThresh">干预阈值</button>
       </div>
       <div class="row">
         <label>当前层 <span class="val" id="valLayer">L14</span></label>
@@ -409,6 +410,14 @@
         <div id="pathWrap" style="display:none;flex:1;min-height:0;overflow-y:auto;
              overflow-x:hidden;border:1px solid #1e2637;border-radius:5px;
              background:#0d1220;padding:8px 10px"></div>
+
+        <!-- 第 6 屏「干预阈值」。同样不用 canvas：这一屏的主体是
+             「逐步阈值区间」和「否定结论」，两者都是文字；
+             画到 canvas 上就既不能选中、也不能被读屏软件读到。
+             剂量-反应曲线用一张小 canvas 画，它确实是图形。 -->
+        <div id="threshWrap" style="display:none;flex:1;min-height:0;overflow-y:auto;
+             overflow-x:hidden;border:1px solid #1e2637;border-radius:5px;
+             background:#0d1220;padding:10px 12px"></div>
       </div>
       <div class="legend">
         <span><i style="background:#5cc8ff"></i>当前 token</span>
@@ -519,6 +528,10 @@ const S = {
   // 用 Set 而不是数组：139 行 × 每次点击都 filter 数组会明显卡。
   path: null, pathOpen: new Set(), pathFork: true,
   pMeta: null, pStrideComp: 0,
+
+  // 第 6 屏的干预阈值产物。threshMissing 单独存：null 数据有「还没取」
+  // 和「取到了但 404」两种，后者要说出来，不能都印成「未载入」。
+  thresh: null, threshMissing: null,
 
   // 分叉步的候选词读出。页面原来只给出两条流各自吐出的那个词（两个标签），
   // 那是「变了什么」，不是「为什么变这个」。这份数据给出那一刻模型给每个
@@ -3519,6 +3532,253 @@ function embedDist(tok, layer){
 }
 
 /* ================= 画布 ================= */
+/* ---- 第 6 屏「干预阈值」：把「推多大才改口」摊开 ------------------
+   这一屏回答的是干预里最容易被问错的那个问题：「这个向量有没有用？」
+
+   下面是四个问题的答案，按顺序读：
+     · ① 注入改的每一档都真改了打分，|Δlogit| 随强度严格递增（0.58 → 20.50）
+     · 但**会不会改口，取决于那一步的决胜间距**：间距 0.5 的那步推 0.35 倍就翻，
+       间距 14.9 的那步推到 2 倍还差一口气
+   所以「有没有用」要拆成两问：分数动了没有（总动）、够不够跨过决胜线（看间距）。
+
+   下面那张表逐行印的是**区间**不是单点。右删失（到网格上限仍不翻）的行标
+   ">"，不假装阈值被定位了 —— 印一个没有下界的数当阈值，是把「没测到」
+   说成「测到了」。
+
+   最后一节印的是**否定结论**：这个说法在别的方向/层上不成立（L22 三个方向
+   一步都没翻）。半截结论比没有结论更危险，所以否定那半也必须让人看见。 */
+function renderThreshPanel(){
+  const esc2 = s => esc(s == null ? "" : String(s));
+  const L = S.thresh;
+
+  if(!L){
+    return `<div data-threshblock="1" data-threshstate="no-data" style="padding:14px 4px">
+      <b style="color:#ffd479">干预阈值数据未载入，这一屏解释缺失</b>
+      <div style="font-size:11.5px;color:#8891a4;margin-top:6px">
+      缺的是 <code>intervention_threshold_law.json</code>${S.threshMissing
+        ? `（取的时候报的是 <code>${esc2(S.threshMissing)}</code>）` : ""}。
+      它由 <code>build_threshold_law.py</code> 从真前向注入的扫描结果生成；
+      没有它，下面 1~5 屏的数一个都不受影响。</div></div>`;
+  }
+
+  const st = L.setting || {};
+  const dr = L.dose_response || [];
+  const per = L.per_step || [];
+  const me = L.mechanism || {};
+  const ge = L.generality;
+
+  // 剂量-反应：小 canvas。7 个点，标出每档翻了几个步。
+  const W = 640, H = 190, PL = 54, PR = 16, PT = 16, PB = 34;
+  const gmax = Math.max(1e-6, ...dr.map(d => d.max_abs_dlogit));
+  const xmax = Math.max(1e-6, ...dr.map(d => d.mult));
+  const px = m => PL + (m / xmax) * (W - PL - PR);
+  const py = v => H - PB - (v / gmax) * (H - PT - PB);
+  let svg = "";
+  for(let i = 0; i <= 3; i++){
+    const v = gmax * i / 3, y = py(v);
+    svg += `<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W-PR}" y2="${y.toFixed(1)}"
+      stroke="#1e2637" stroke-width="1"/>`;
+    svg += `<text x="${PL-6}" y="${(y+3.5).toFixed(1)}" text-anchor="end"
+      font-size="9" fill="#6b7689" font-family="monospace">${v.toFixed(1)}</text>`;
+  }
+  svg += `<polyline fill="none" stroke="#5cc8ff" stroke-width="1.6" points="`
+       + dr.map(d => `${px(d.mult).toFixed(1)},${py(d.max_abs_dlogit).toFixed(1)}`).join(" ")
+       + `"/>`;
+  for(const d of dr){
+    const hit = d.n_flipped > 0;
+    svg += `<circle cx="${px(d.mult).toFixed(1)}" cy="${py(d.max_abs_dlogit).toFixed(1)}"
+      r="3" fill="${hit ? "#4ade80" : "#3a4459"}"/>`;
+    svg += `<text x="${px(d.mult).toFixed(1)}" y="${(H-PB+13).toFixed(1)}"
+      text-anchor="middle" font-size="9" fill="#6b7689" font-family="monospace">${d.mult}×</text>`;
+  }
+  svg += `<text x="${PL}" y="${PT-3}" font-size="9.5" fill="#8891a4">最大 |Δlogit|</text>`;
+  svg += `<text x="${(W-PR).toFixed(0)}" y="${(PT-3).toFixed(0)}" text-anchor="end"
+    font-size="9.5" fill="#8891a4">注入强度 ÷ 该层残差 std</text>`;
+
+  const drRows = dr.map(d =>
+    `<tr data-dr-mult="${d.mult}">
+       <td class="num">${d.mult}×</td>
+       <td class="num">${d.injected_norm.toFixed(1)}</td>
+       <td class="num">${d.max_abs_dlogit.toFixed(2)}</td>
+       <td class="num">${d.n_flipped} / ${st.n_steps}</td>
+     </tr>`).join("");
+
+  const stepRows = per.map(p => {
+    const brk = p.bracket === "right_censored" ? null
+      : (p.bracket === "left_censored"
+          ? `&lt; ${p.threshold_hi}×`
+          : `(${p.threshold_lo}, ${p.threshold_hi}]×`);
+    return `<tr data-thresh-step="${p.step}" data-thresh-bracket="${p.bracket}">
+      <td class="num">${p.step}</td>
+      <td><code>${esc2(p.token_ctrl)}</code></td>
+      <td class="num">${p.decision_margin.toFixed(3)}</td>
+      <td class="num">${brk == null ? `&gt; ${p.threshold_lo}×` : brk}</td>
+    </tr>`;
+  }).join("");
+
+  const gen = !ge ? "" : (
+    ge.verdict === "not_general"
+      ? `<div data-threshgen="not_general"
+           style="border:1px solid #5a3a1e;background:#1a1208;border-radius:5px;
+                  padding:9px 11px;margin-top:8px">
+         <b style="color:#ffb454">这条说法**不能**当通则</b>
+         <div style="font-size:11.5px;color:#c9b79a;margin-top:5px;line-height:1.6">
+         ${esc2(ge.verdict_reason)}</div>
+         <div style="font-size:10.5px;color:#8d7f6b;margin-top:6px">
+         复测了 ${ge.n_cells} 格（${(ge.cells||[]).map(c=>`${esc2(c.direction)}@L${c.layer}`).join("、")}）。
+         已夹住的格之间比值 ${ge.evidence && ge.evidence.median_ratio != null
+             ? ge.evidence.median_ratio.toFixed(2)+"×" : "—"}
+         （判稳的门是 ≤${ge.evidence ? ge.evidence.ratio_gate : "—"}×），
+         但 ${ge.evidence ? ge.evidence.n_unbracketed_pairs : "—"}/${ge.evidence ? ge.evidence.n_pairs : "—"}
+         个 (方向,层,步) 到网格上限仍不翻。
+         <b>结论字段是 <code>verdict=${esc2(ge.verdict)}</code>，两个门分别记在
+         <code>evidence</code> 里</b>，别只读单个门。</div>
+       </div>`
+      : `<div data-threshgen="candidate_law"
+           style="border:1px solid #1e4a2e;background:#08160e;border-radius:5px;
+                  padding:9px 11px;margin-top:8px">
+         <b style="color:#4ade80">两个门都过，可当候选通则</b>
+         <div style="font-size:11.5px;color:#a8c9b4;margin-top:5px">${esc2(ge.verdict_reason)}</div>
+       </div>`);
+
+  return `
+  <div data-threshblock="1" data-threshstate="ready">
+    <div style="font-size:13px;line-height:1.75;color:#d7dde8">
+      <b>问「这个向量有没有用」之前，先把它拆成两问。</b>
+      <b style="color:#4ade80">① 打分动了吗</b> —— 每一档都真动了，
+      下面 |Δlogit| 随强度严格递增，0 步是 0。
+      <b style="color:#ffb454">② 够不够跨过决胜线</b> —— 这一问要看那一步当时
+      离改口有多近，不看向量本身。
+    </div>
+
+    <div style="margin-top:10px;font-size:10.5px;color:#8891a4;line-height:1.7">
+      实测设置：<code>${esc2(st.model||"")}</code> 注入层 <b>L${esc2(st.layer)}</b>，
+      方向 <b>${esc2(st.direction||"")}</b>，向量取自页面同一份 steering registry
+      （<code>${esc2(st.vector_source||"")}</code>）。
+      强度单位是<b>注入范数 ÷ 该层残差流 std</b>（该层 std = ${esc2(st.resid_scale)}），
+      无量纲，所以不同层的数字可以放在一起比。
+      <b>用 chat 模板</b>：${st.use_chat_template ? "是" : "否"}
+      ${st.use_chat_template ? "" : "—— 否意味着阈值是在离分布上下文下测的，不能当行为阈值用"}
+    </div>
+
+    <div style="margin-top:10px">
+      <div style="font-size:10px;color:#5cc8ff;text-transform:uppercase;
+                  letter-spacing:.08em;margin-bottom:4px">1 · 剂量-反应</div>
+      <canvas id="cvDr" data-dr="1" width="${W}" height="${H}"
+        style="width:100%;max-width:${W}px;background:#0a0f1a;border:1px solid #1e2637;
+               border-radius:5px"></canvas>
+      <table style="width:100%;max-width:${W}px;margin-top:6px;font-size:11px;
+                    border-collapse:collapse">
+        <tr style="color:#6b7689;text-align:left">
+          <th style="padding:2px 6px">强度</th><th>‖δ‖</th>
+          <th>最大 |Δlogit|</th><th>改口的步数</th></tr>
+        ${drRows}
+      </table>
+      <div style="font-size:10.5px;color:#8891a4;margin-top:4px">
+        绿点 = 那一档真的有步改口了；灰点 = 打分动了但一步都没改口。
+        两者的差别不是「有没有效」，是<b>够不够狠</b>。</div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div style="font-size:10px;color:#5cc8ff;text-transform:uppercase;
+                  letter-spacing:.08em;margin-bottom:4px">
+        2 · 逐步阈值：推多大才改口</div>
+      <table style="width:100%;font-size:11.5px;border-collapse:collapse">
+        <tr style="color:#6b7689;text-align:left">
+          <th style="padding:3px 8px">步</th><th>对照选的词</th>
+          <th>决胜间距</th><th>阈值区间</th></tr>
+        ${stepRows}
+      </table>
+      <div style="font-size:10.5px;color:#8891a4;margin-top:5px;line-height:1.7">
+        区间读作「(不翻盘的最高档, 翻盘的最低档]」。标 <code>&gt; 2.0×</code> 的行是
+        <b>右删失</b>：到网格上限 2.0× 仍然一步没翻，所以只知道阈值在 2.0× 之上，
+        <b>没有定位</b>。这里不印单点，因为印一个没有下界的数当阈值，
+        等于把「没测到」说成「测到了」。
+        <br>
+        把这张表按决胜间距排一遍就会看到：<b>间距越小，阈值越低</b>。
+        ${me.stable
+          ? `<b style="color:#4ade80">本轮实测这个顺序无反例</b>（间距大的那步，
+             阈值下界没有更低的）。`
+          : `<b style="color:#ff6b81">本轮实测这个顺序有反例</b>，见 mechanism.violations。`}
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div style="font-size:10px;color:#5cc8ff;text-transform:uppercase;
+                  letter-spacing:.08em;margin-bottom:4px">3 · 这句话是什么意思</div>
+      <div style="font-size:11.5px;color:#c9b79a;line-height:1.75;
+                  border-left:2px solid #5cc8ff;padding-left:9px">
+        ${esc2(me.how_to_read || "")}
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div style="font-size:10px;color:#5cc8ff;text-transform:uppercase;
+                  letter-spacing:.08em;margin-bottom:4px">4 · 能不能迁移到别的方向和层</div>
+      ${gen}
+    </div>
+
+    <div style="margin-top:12px;border-top:1px solid #1e2637;padding-top:9px;
+                font-size:11px;color:#8891a4;line-height:1.75">
+      <b style="color:#d7dde8">和「逐步路径」那一屏的关系：</b>
+      那一屏的 token 是<b>录下来的</b>，回放时注入向量<b>永远</b>改不了它
+      （token 在注入之前就定死了）。这一屏是<b>真跑一遍模型</b>测出来的：
+      同一台模型、同一组权重、同一段前缀，只把注入开关翻一下。
+      两边摆在一起，读者才能分清「这段录像里没变」和「推得不够」——
+      它们长得像，结论完全相反。
+    </div>
+  </div>`;
+}
+
+/* ---- 第 6 屏的标签 --------------------------------------------
+   这一屏的数据是一份独立产物（intervention_threshold_law.json），
+   与配对数据无关，所以不进 loadPairMeta()；缺了就如实说缺。 */
+$("#tabThresh").onclick = async () => {
+  S.view = "THRESH"; syncTabs();
+  if(!S.thresh){
+    try{
+      const r = await fetch(dataBase()+"intervention_threshold_law.json");
+      S.thresh = r.ok ? await r.json() : null;
+      S.threshMissing = r.ok ? null : ("HTTP " + r.status);
+    }catch(e){ S.thresh = null; S.threshMissing = String(e); }
+  }
+  layout();
+};
+
+/* 剂量-反应那张小图。SVG 路径已经由 renderThreshPanel 写进 innerHTML，
+   这里只做一件事：按 devicePixelRatio 重画一遍，否则高分屏上会糊。
+   画不出来不报红也不假装 —— 表格里的数已经全在 DOM 里，曲线只是辅助。 */
+function drawDrChart(){
+  const cv = document.getElementById("cvDr");
+  const L = S.thresh;
+  if(!cv || !L || !(L.dose_response||[]).length) return;
+  const dr = L.dose_response;
+  const W = cv.width, H = cv.height;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  const PL = 54, PR = 16, PT = 16, PB = 34;
+  const gmax = Math.max(1e-6, ...dr.map(d => d.max_abs_dlogit));
+  const xmax = Math.max(1e-6, ...dr.map(d => d.mult));
+  const px = m => PL + (m / xmax) * (W - PL - PR);
+  const py = v => H - PB - (v / gmax) * (H - PT - PB);
+  g.strokeStyle = "#5cc8ff"; g.lineWidth = 1.6;
+  g.beginPath();
+  dr.forEach((d, i) => {
+    const X = px(d.mult), Y = py(d.max_abs_dlogit);
+    i ? g.lineTo(X, Y) : g.moveTo(X, Y);
+  });
+  g.stroke();
+  for(const d of dr){
+    g.fillStyle = d.n_flipped > 0 ? "#4ade80" : "#3a4459";
+    g.beginPath();
+    g.arc(px(d.mult), py(d.max_abs_dlogit), 3, 0, Math.PI * 2);
+    g.fill();
+  }
+}
+
 function layout(){
   S.dpr = window.devicePixelRatio || 1;
   // 第 5 屏不用 canvas：整屏是一张 139 行的文字表格，画在 canvas 上既不能选中、
@@ -3541,6 +3801,26 @@ function layout(){
     return;
   }
   $("#pathWrap").style.display = "none";
+  /* 第 6 屏同样是纯文字 + 一张小 canvas。理由与第 5 屏一样：
+     主体是逐步阈值区间和否定结论，都是可核对的文字，画到 canvas 上
+     就既不能选中也不能被读屏软件读到。 */
+  if(S.view === "THRESH"){
+    $("#cv").style.display = "none";
+    $("#cvD").style.display = "none";
+    $("#legendDelta").style.display = "none";
+    $("#legendDelta2").style.display = "none";
+    $("#pairRow").style.display = "none";
+    $("#trajPanel").style.display = "none";
+    const w = $("#threshWrap");
+    w.style.display = "block";
+    w.innerHTML = renderThreshPanel();
+    drawDrChart();
+    $("#mainTitle").textContent = "干预阈值 · 推多大才改口";
+    $("#mainSub").textContent =
+      "真前向注入实测：打分一定被改，但改不改口取决于那一步的决胜间距";
+    return;
+  }
+  $("#threshWrap").style.display = "none";
   const delt = S.view === "DELTA";
   for(const [id, on] of [["#cv", true], ["#cvD", delt]]){
     const cv = $(id);
@@ -4099,6 +4379,18 @@ function render(){
     $("#mainTitle").textContent = "逐步路径 · " + (pp ? pp.id : "未选题目");
     return;
   }
+  /* 第 6 屏：同 PATH 的道理，就地重画然后返回，不进任何 canvas 分支。 */
+  if(S.view === "THRESH"){
+    const w = $("#threshWrap");
+    $("#pairRow").style.display = "none";
+    $("#trajPanel").style.display = "none";
+    if(w.style.display !== "none"){
+      w.innerHTML = renderThreshPanel();
+      drawDrChart();
+    }
+    $("#mainTitle").textContent = "干预阈值 · 推多大才改口";
+    return;
+  }
   const delta = S.view === "DELTA";
   if(delta){
     if(!S.pBusy && S.pm) drawDelta();
@@ -4334,6 +4626,7 @@ function syncTabs(){
   $("#tabDim").classList.toggle("on", S.view==="DIM");
   $("#tabDelta").classList.toggle("on", S.view==="DELTA");
   $("#tabPath").classList.toggle("on", S.view==="PATH");
+  $("#tabThresh").classList.toggle("on", S.view==="THRESH");
 }
 $("#btnPlay").onclick = () => {
   S.playing = !S.playing;

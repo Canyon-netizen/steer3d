@@ -285,6 +285,32 @@ DEAD_IN_SOURCE_EXEMPT = {
     "data-pathfork": "同上，标出哪一行是分叉步。verify_path C2 查「恰好一行且 t=k」。",
     "data-pathbtn": "同上，两个视图切换按钮（只看分叉前后 ±5 步 / 看全部）。"
                     "verify_path D2 点「看全部」查行数变成 k+1。",
+    # ⚠ 第六屏「干预阈值」：整屏只在点了 #tabThresh 之后才渲染，而覆盖扫描
+    #   逐页探针不会点那个标签 ⇒ 两遍 DOM（加载后 / 点遍控件后）都看不到它们。
+    #   它们**不是**死代码：verify_thresh.mjs 点标签进去，逐条读了
+    #   data-thresh-step / data-thresh-bracket / data-threshgen / data-threshstate
+    #   / data-dr-mult，并与 intervention_threshold_law.json 逐格对账。
+    #   登记理由是「**条件渲染**」，不是「判据没触发」——这两者不能混，
+    #   混了就等于让白名单替真死代码背书（见下面 data-ta-* 那段的前车之鉴）。
+    "data-threshblock": "第六屏「干预阈值」容器，条件渲染（只有点了 #tabThresh "
+                        "才进 DOM）。verify_thresh T1/T2 靠它判「本屏已就绪」，"
+                        "数据没载入时它落成 data-threshstate=no-data。",
+    "data-threshstate": "同上，区分 ready / no-data —— 产物缺失与屏幕没渲染"
+                        "是两件事，判红前要先分清。",
+    "data-thresh-step": "第六屏逐步阈值表的行号，条件渲染。verify_thresh T4/T5 "
+                        "逐行与产物 per_step[].step 对账，并强制右删失行印成 "
+                        "\">\"（变异：去掉 > 前缀 ⇒ T5 红）。",
+    "data-thresh-bracket": "同上，该行区间是 bracketed / left_censored / "
+                           "right_censored。verify_thresh T5 按它分别要求 "
+                           "区间 / \"<\" / \">\"，不许三者混用。",
+    "data-threshgen": "第六屏「能不能迁移」那一节的判决标记，条件渲染。"
+                      "verify_thresh T6/T7 要求它与产物 generality.verdict "
+                      "**逐字相同**，且理由段落可见——判否时只印成立那半就红。",
+    "data-dr-mult": "第六屏剂量-反应表的强度档，条件渲染。verify_thresh T3 "
+                    "逐档与产物 dose_response[] 对账（档数、‖δ‖、|Δlogit|、翻盘数）。",
+    "data-dr": "第六屏那张剂量-反应小 canvas，条件渲染。只作**交叉核对**用"
+               "（证明曲线节点在）；T2 的单调性由判据从 JSON 独立重算，"
+               "不信 canvas，也不信页面上的数。",
     # ⚠ 第三十一笔：这两个只在下拉框切到第 5 档（extraction_layer_effect.json）
     #   时才渲染，而默认 idx=0 ⇒ 覆盖扫描看到的根页 DOM 上没有它们。
     #   它们**不是**死引用：Q0 会逐档切过去，Q1 用它们做交叉核对。

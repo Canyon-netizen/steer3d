@@ -273,6 +273,13 @@ run verify_logit_lens      "LAT_URL=${U%/}/latent/index.html node .cache/browser
 #     ② 切题后 pid/k 是不是真的跟着换。第一版拿 select 的**索引**去和
 #        data-pathpid 的**题号**比口径，恒为真，探针打印 before==after 就算过。
 run verify_path           "LAT_URL=${U%/}/latent/index.html node .cache/browser_verify/verify_path.mjs"
+# 第 6 屏「干预阈值」。两条容易踩的坑都封在本脚本报里，不靠人记得：
+#   ① 页面加载时导读浮层 #orientation（position:fixed）会自动弹出并盖住整屏。
+#      不先关掉就量可见性，量到的是浮层 —— T0b 会先把「关掉了没有」变成一条判决。
+#   ② elementFromPoint 对**视口外**的点返回 null。null 不等于「被盖住」；
+#      第一版把 null 当成被盖，报了个假红。现在先 scrollIntoView 再探多点，
+#      null 的探点单独剔除计数。
+run verify_thresh         "LAT_URL=${U%/}/latent/index.html node .cache/browser_verify/verify_thresh.mjs"
 run assertion_guard       "python3 .cache/xcheck/assertion_guard.py"
 run panel_coverage        "python3 .cache/xcheck/scan_panel_coverage.py"
 run dead_url              "python3 .cache/xcheck/dead_url_sweep.py && python3 .cache/xcheck/check_dead_url.py"
