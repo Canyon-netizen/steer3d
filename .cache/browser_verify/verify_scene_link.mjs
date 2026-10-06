@@ -374,45 +374,109 @@ try {
     sOut.badge ? `标签 step=${sOut.badge.step}` : '无标签（正确）');
 
   // ---- 分支 B：把链拖到 3D 窗口**内** ----
-  // ⚠⚠ 第三十三笔之十：**先等数据流停下来，再测联动。**
-  //   实测这个 3D 场景是**边解码边画**的：J3 读到「已加载 208 步」，
-  //   几秒后 J4 读到「已加载 242 步」—— 每秒前进约 30 步，
-  //   而窗口只有 80 帧宽 ⇒ 我设进去的步号会在**一秒内**滑出窗口。
-  //   这不是页面坏，是**被测对象在动**；判据必须在它停下来之后再问。
-  //   做法：轮询 data-scene-loaded，连续 3 次读数不变就认为流结束。
-  // ⚠⚠⚠ 第三十三笔之十一：**预算按实测重标**。
-  //   原来 60000ms 是在**空闲机器**上标定的（40s 稳定在 385 步）。
-  //   机器一忙就超时 —— 实测连跑三次：
-  //     负载下：等 60000ms 仍在增长（769 / 721 步）→ 报 FAIL
-  //     空闲时：等 40000ms 稳定在 385 步
-  //   同一个脚本、同一台服务器、同一份数据，差别只在机器忙不忙
-  //   ⇒ 那个 60 秒不是「3D 有问题」，是**预算不够**。
-  //   150s 的来历：空闲 40s × 3.5 的余量。⚠ 这仍会拖慢链，
-  //   所以**超时也不能报 FAIL**，要报「前提未建立」（见上）。
-  const waitStreamIdle = async (maxMs = 150000) => {
-    let last = -1, stable = 0, waited = 0;
+  // ⚠⚠ 这个 3D 场景是**边解码边画**的，窗口只有末 80 帧。
+  //   ⇒ 判据必须在数据流停下来之后再问联动，否则设进去的步号会**一秒内滑出窗口**。
+  //   这不是页面坏，是**被测对象在动**。
+  //
+  // ⚠⚠⚠「停下来」这件事本身，第一版判错了，而且错的方向让红指向了错的对象。
+  //   第一版的判据是「`loaded` 连续 3 次读数不变（≈4 秒无增长）」。
+  //   这在软件光栅下会**假停**：数据流按块灌，块与块之间可以停 >4 秒。
+  //   实测（.cache/diag_j6.mjs，2026-10-06）：`loaded` 停在 193 时被判「流已停」，
+  //   几秒后继续涨到 **289**，而这条轨迹的 sidecar 写着 **784 tokens**
+  //   ⇒ 所谓「停」的时候还不到一半。
+  //
+  //   假停的后果不是「慢」，是**红得指错了对象**：
+  //   3D 的窗口（末 80 帧）与推导链的窗口（752–783）**根本不相交**，
+  //   于是 J6 去把滑杆设成一个落在 3D 窗内、却落在滑杆 `[752,783]` **之外**的值
+  //   —— `<input type=range>` 会把它**钳回 min**，滑杆纹丝不动，
+  //   「珠子标签不出现」就这么被判成「3D 坏了」。
+  //   （原始诊断输出：`set→{"t":"287","v":"752"}` —— 设 287，读回 752。）
+  //
+  //   ⇒ 改成**先看真值**：这条轨迹一共有多少步，sidecar 里有。
+  //     到了总数才算停；拿不到总数才退回「无增长」，且必须把退化理由印出来。
+  //   ⇒ 预算也随之重标：原来 150s 是按「空闲时 40s × 3.5」估的，
+  //     而那个 40s 本身就是**假停**测出来的 ⇒ 估小了。
+  const totalStepsOf = traj => {
+    if (!traj) return null;
+    const f = sidecars.find(s => s.startsWith(traj));
+    if (!f) return null;
+    try {
+      const j = JSON.parse(readFileSync(`${DATA}/${f}`, 'utf8'));
+      return (j.tokens || []).length;
+    } catch { return null; }
+  };
+  // 退化判据的「无增长」秒数。第一版是 3（≈4 秒），短到能撞上块间停顿。
+  const STABLE_NEEDED = 12;
+  const waitStreamIdle = async (maxMs, expectTotal) => {
+    let last = -1, stable = 0, waited = 0, stalls = 0;
     while (waited < maxMs) {
       const c = JSON.parse(await page.eval(readBoth));
       const n = c.scene ? c.scene.loaded : -1;
+      if (expectTotal != null && n >= expectTotal) {
+        return { idle: true, waited, loaded: n,
+                 why: `已达该轨迹总步数 ${expectTotal}` };
+      }
       stable = (n === last && n > 0) ? stable + 1 : 0;
       last = n;
-      if (stable >= 3) return { idle: true, waited, loaded: n };
+      if (stable >= STABLE_NEEDED) {
+        // ⚠⚠⚠ 这里第一版写成 `idle: true`，而下面那句理由写的是「这不算真停」——
+        //   **消息说一套、布尔值做另一套**。于是 J3b 在 209/784 步时判 PASS，
+        //   而它自己的 detail 明写着那不是真停。J3b 的 pass 是这个布尔值给的，
+        //   不是那句理由给的 ⇒ 门禁读到的是一个**自己都不承认的绿**。
+        //   ⇒ 语义定死：**真值存在时，只有到达真值才算停。**
+        //     「无增长」只在拿不到总步数（expectTotal == null）时才可以当停。
+        if (expectTotal != null && n < expectTotal) {
+          // ⚠⚠⚠ 第二版在这里**直接 return**，理由里却写着「已按未停继续等到预算耗尽」
+          //   —— 又是一次**消息说一套、代码做另一套**：实测只等了 38s 就放弃，
+          //   而预算是 600s。⇒ 真的继续等：把稳定计数清零，记一次「假停」，
+          //     让它自己跑到预算耗尽或到达真值为止。
+          stalls++;
+          stable = 0;
+          await sleep(1000); waited += 1000;
+          continue;
+        }
+        return { idle: true, waited, loaded: n,
+                 why: expectTotal == null
+                   ? `连续 ${STABLE_NEEDED}s 无增长（**退化判据**：拿不到总步数）`
+                   : `已达该轨迹总步数 ${expectTotal}` };
+      }
       await sleep(1000); waited += 1000;
     }
-    return { idle: false, waited, loaded: last };
+    return { idle: false, waited, loaded: last, stalls,
+             why: `预算 ${maxMs}ms 内既没停也没到总步数`
+                  + (expectTotal == null ? '' : `（最后 ${last}/${expectTotal} 步）`)
+                  + (stalls ? `；期间有 ${stalls} 次「连续 ${STABLE_NEEDED}s 无增长」的假停，`
+                               + `每次都按未停继续等` : '') };
   };
-  const idle = await waitStreamIdle();
+  // 预算：软件光栅下 784 步要灌好几分钟。第一版 150s 是按「空闲时 40s × 3.5」
+  //   估的，而那个 40s 本身就是**假停**测出来的 ⇒ 估小了。
+  const curTraj = (JSON.parse(await page.eval(readBoth)).chain || {}).traj;
+  const expectTotal = totalStepsOf(curTraj);
+  // ⚠ 预算按**实测速率**重标，不是拍脑袋。
+  //   实测（软件光栅，2026-10-06）：600s 走到 465/784 ⇒ 约 0.78 步/s，
+  //   期间有 34 次「连续 12s 无增长」的块间停顿（每次都按未停继续等）。
+  //   ⇒ 灌满这条轨迹要 ~1010s。1500s 留约 1.5 倍余量。
+  //   可用 STEER3D_IDLE_BUDGET_MS 覆盖；**不许为了快而调小** ——
+  //   调小得到的是「前提未建立」，不是「验过了」。
+  const IDLE_BUDGET_MS = parseInt(process.env.STEER3D_IDLE_BUDGET_MS || '1500000', 10);
+  const idle = await waitStreamIdle(IDLE_BUDGET_MS, expectTotal);
   // ⚠ 用 checkPrecond 而不是 check：等不到停**不是判红**，
   //   它是「本环境这一轮没等停」。记成 FAIL 会让「环境慢」被读成「3D 坏了」。
+  // ⚠⚠ 这里的理由**不许再写死「150s」**：预算早已从 150s 改成 600s，
+  //   而那句话还印着 150s ⇒ 读者按它去判断「等了多久」会得到错的数。
+  //   与上面那两处同一个病根：**消息与代码各说各的**。⇒ 一律从 idle 里取。
+  const notIdleWhy = expectTotal == null
+    ? `拿不到该轨迹的总步数，${idle.waited}ms 内没等到「连续 ${STABLE_NEEDED}s 无增长」`
+    : `软件光栅慢，${idle.waited}ms 预算内没到总步数`
+      + `（已到 ${idle.loaded}/${expectTotal} 步）`;
   checkPrecond('J3b 3D 的数据流会**停下来**（联动判据的前提：窗口不再滚）',
     idle.idle,
-    idle.idle ? `等了 ${idle.waited}ms 后稳定在 ${idle.loaded} 步`
-              : `等了 ${idle.waited}ms 仍在增长（${idle.loaded} 步）`
+    idle.idle ? `等了 ${idle.waited}ms 后停在 ${idle.loaded} 步：${idle.why}`
+              : `等了 ${idle.waited}ms 仍在增长（${idle.loaded} 步）：${idle.why}`
                 + `——下面的联动判据在流式阶段本来就读不稳`,
-    `软件光栅慢，150s 预算内没等停（已到 ${idle.loaded} 步仍在涨）`);
+    notIdleWhy);
   if (!idle.idle) {
-    precondFailed(`3D 数据流在 ${idle.waited}ms 内没停下来（已到 ${idle.loaded} 步仍在涨）`
-      + `——本环境是软件光栅，慢；这不是「3D 坏了」的判决`);
+    precondFailed(notIdleWhy + `——这不是「3D 坏了」的判决`);
     console.log('⚠ 前提未建立：下面**依赖「流已停」**的判据（J4/J6/J7/J8/J9a/J10）'
       + '一律记为未判，不记红也不记绿。');
     console.log('　（不依赖前提的照判：J9 读的是 Scene3D.tsx 源码，不碰运行时。）');
@@ -436,6 +500,25 @@ try {
       const cur = JSON.parse(await page.eval(readBoth));
       if (!cur.scene || !cur.scene.high) return null;
       const target = Math.max(0, Math.min(cur.scene.high, cur.rangeMax) - nudge);
+      // ⚠⚠⚠ 这一条是「J6 判红指错对象」的第二半（第一半在上面的假停）。
+      //   target 必须**同时**落在 3D 窗口与滑杆范围里。
+      //   实测：`min(scene.high=288, rangeMax=783) - 1 = 287`，
+      //   而滑杆的 `[lo,hi]` 是 **[752, 783]** ⇒ 287 在滑杆**之外**，
+      //   `<input type=range>` 把它**钳回 min=752**，滑杆纹丝不动，
+      //   于是「标签不出现」——可那是**判据自己把步号设到了够不着的地方**。
+      //   ⇒ 这里必须先验 `rangeMin <= target <= rangeMax`。
+      //     不在范围内就**明说两个窗口不相交**，而不是报「标签没出现」：
+      //     前者是装置前提，后者会被读成「3D 联动坏了」。
+      //   ⚠ rangeMin/rangeMax 是**字符串**（来自 el.min/el.max），
+      //   拿它做算术要显式 Number()，且 null 不能当 0 参与比较 ——
+      //   `287 > null` 是 true，会把「读不到滑杆」误报成「两窗不相交」。
+      const lo = Number(cur.rangeMin), hiR = Number(cur.rangeMax);
+      if (!Number.isFinite(lo) || !Number.isFinite(hiR)) return null;
+      if (target < lo || target > hiR) {
+        return { ...cur, target: null, stale, sliderMoved: null,
+                 disjoint: `目标 ${target} 落在滑杆 [${lo},${hiR}] 之外`
+                           + `（3D 窗 ${cur.scene.low}–${cur.scene.high}）` };
+      }
       const set = JSON.parse(await page.eval(setSlider.replace('${TARGET}', String(target))));
       if (set && set.missing) return null;
       for (let w = 0; w < 14; w++) {
@@ -454,11 +537,20 @@ try {
   const s1 = await focusInWindow(1);
   const inWin = s1?.badge?.step ?? s1?.chain?.step ?? null;
 
-  check('J6 步号在 3D 窗口内时，珠子标签出现',
-    !!s1?.badge,
-    s1?.badge ? `step=${s1.badge.step} token=${JSON.stringify(s1.badge.token)} 「${s1.badge.text}」`
-            : `流停后试了 3 轮（每轮重读窗口 + 轮询 5.6s）仍无 [data-scene-focus]；`
-              + `最后一次窗口 ${s1?.scene?.low}–${s1?.scene?.high}`);
+  // ⚠⚠ 两个窗口不相交时这条**不适用**，不是红。
+  //   报红的含义是「3D 联动坏了」，而真相是「这条轨迹的 3D 窗与链窗没有交集，
+  //   前提不成立」。与 J3b 同处理：单独记成 precond，不进红绿分母。
+  if (s1?.disjoint) {
+    checkPrecond('J6 步号在 3D 窗口内时，珠子标签出现',
+      false, `两个窗口不相交，本条不适用：${s1.disjoint}`,
+      '3D 窗口与推导链滑杆范围没有交集 —— 前提未建立，不是「标签没出现」');
+  } else {
+    check('J6 步号在 3D 窗口内时，珠子标签出现',
+      !!s1?.badge,
+      s1?.badge ? `step=${s1.badge.step} token=${JSON.stringify(s1.badge.token)} 「${s1.badge.text}」`
+                : `流停后试了 3 轮（每轮重读窗口 + 轮询 5.6s）仍无 [data-scene-focus]；`
+                  + `最后一次窗口 ${s1?.scene?.low}–${s1?.scene?.high}`);
+  }
   if (s1?.badge) {
     check('J7 标签有非零包围盒（不是隐藏元素）',
       s1.badge.w > 0 && s1.badge.h > 0, `${s1.badge.w}x${s1.badge.h}px`);
@@ -474,21 +566,34 @@ try {
   // 再拖一次，验证「不是只跟了一次」
   // ⚠ 与 J6 同一个坑：3D 窗口会滚，所以第二次也必须**重读窗口**再选步号，
   //   且要与第一次选到**不同**的那个（靠 nudge 不同保证）。
-  const s2 = await focusInWindow(6);
+  const s2 = s1?.disjoint ? null : await focusInWindow(6);
   const inWin2 = s2?.badge?.step ?? null;
-  check('J10 第二次拖动，3D 标签跟着变（不是只跟了一次）',
-    !!s2?.badge && !!s1?.badge && s2.badge.step !== s1.badge.step,
-    // ⚠⚠ 第三十三笔之十一：这里原来写的是 `${s1.badge?.step}` ——
-    //   可选链只护住了 `.badge`，**没护住 `s1` 本身**。
-    //   s1 为 null（没拿到标签）时照样抛 TypeError，
-    //   于是整段被 `catch` 吞成「装置: Cannot read properties of null
-    //   (reading 'badge')」——**红的是一个异常，不是判决**。
-    //   ⇒ 可选链要一路写到根：s1?.badge?.step。
-    `${s1?.badge?.step} -> ${s2?.badge?.step}`
-    + `　目标 ${s1?.target} / ${s2?.target}`
-    + `　陈旧读数 ${s1?.stale} / ${s2?.stale} 次`
-    + `　滑杆真的动了吗 ${s1?.sliderMoved} / ${s2?.sliderMoved}`
-    + `${s2?.badge ? '' : '（第二次没拿到标签）'}`);
+  // ⚠ J10 的前提是「第一次拿到了标签」。第一次没拿到（J6 没过或两窗不相交），
+  //   J10 的 `!!s1?.badge` 必然为 false ⇒ 那时红的是**前提**，不是「标签没跟着变」。
+  //   第一版把它照判，于是同一个前提问题在汇总里出现两次、都写成产品坏了。
+  if (s1?.disjoint) {
+    checkPrecond('J10 第二次拖动，3D 标签跟着变（不是只跟了一次）',
+      false, '两次都因「两窗不相交」而不适用',
+      '第一次就没能选到一个同时落在两个窗口里的步号 ⇒ 第二次也无从谈起');
+  } else if (!s1?.badge) {
+    checkPrecond('J10 第二次拖动，3D 标签跟着变（不是只跟了一次）',
+      false, '第一次没拿到标签，第二次无从对比',
+      'J6 未通过 ⇒ 「标签会不会跟着变」这个问题的前提不成立');
+  } else {
+    check('J10 第二次拖动，3D 标签跟着变（不是只跟了一次）',
+      !!s2?.badge && s2.badge.step !== s1.badge.step,
+      // ⚠⚠ 第三十三笔之十一：这里原来写的是 `${s1.badge?.step}` ——
+      //   可选链只护住了 `.badge`，**没护住 `s1` 本身**。
+      //   s1 为 null（没拿到标签）时照样抛 TypeError，
+      //   于是整段被 `catch` 吞成「装置: Cannot read properties of null
+      //   (reading 'badge')」——**红的是一个异常，不是判决**。
+      //   ⇒ 可选链要一路写到根：s1?.badge?.step。
+      `${s1.badge.step} -> ${s2?.badge?.step}`
+      + `　目标 ${s1.target} / ${s2?.target}`
+      + `　陈旧读数 ${s1.stale} / ${s2?.stale} 次`
+      + `　滑杆真的动了吗 ${s1.sliderMoved} / ${s2?.sliderMoved}`
+      + `${s2?.badge ? '' : '（第二次没拿到标签）'}`);
+  }
 
   // 接线自证：源码里确实有 onClick 调 setFocusedStep（光线拾取本身验不了）
   const src = readFileSync(

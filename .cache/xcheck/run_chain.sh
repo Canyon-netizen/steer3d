@@ -213,29 +213,65 @@ run verify_derivation     "T3D_URL=$U node .cache/browser_verify/verify_derivati
 run verify_subspace       "BV_URL=$U  node .cache/browser_verify/verify_subspace.mjs"
 run verify_axis_readout   "BV_URL=$U  node .cache/browser_verify/verify_axis_readout.mjs"
 run verify_heldout        "BV_URL=$U  node .cache/browser_verify/verify_heldout.mjs"
-run verify_scene_link     "BV_URL=$U  node .cache/browser_verify/verify_scene_link.mjs"
-# ⚠⚠⚠ 第三十三笔之十一：**这里默认不开 WebGL，是第三十三笔之九之后改回来的。**
-#   那一笔我把它改成了 `STEER3D_WEBGL=1`，链里报 PASS 13/13，
-#   我据此说「3D 进链了」—— **那句话是错的，本笔更正。**
-#   同一份脚本、同一台服务器、不开任何别的负载，连跑三次：
+#     ⇒ 每条判据在**它自己需要**的浏览器环境里跑；扫描读降级那份；
+#       3D 那份由 verify_scene_link 13/13 负责。
+#       **「两条路径的覆盖要分开记账」是下一笔的活**，不是这一笔能顺手带过的。
+#
+# ⚠⚠⚠ 2026-10-06：**verify_scene_link 必须在链里开 WebGL**，不是可选项。
+#   它以前长期印 `RESULT SKIP 8/8`，理由是「本浏览器没有 WebGL」。
+#   而实测（probe_webgl_flags.mjs）**加两个 swiftshader flag 就有 WebGL 2.0** ——
+#   flag 一直在 `verify_scene_link.mjs` 里，只是被 `STEER3D_WEBGL=1` 门控，
+#   而链从不设它。⇒ **3D 联动从来没被机器验过，却一直占着链里一条。**
+#   打开之后实测 `RESULT PASS 13/13`（等 489s 把 784 步灌满）：
+#     J6  珠子标签出现 step=782 token="$$"
+#     J8  3D 与链指向同一步号 782　J9a token 与 sidecar 真值一致
+#     J10 第二次拖动 782→777，标签跟着变
+#   ⇒ 代价是这一条要 ~8 分钟（软件光栅 0.78 步/s）。值得：它是目标里
+#     「3D 展示 hidden states 如何推导出 token」唯一那条机器判决。
+#   ⚠ 若某轮机器太慢灌不完，它会印「前提未建立（465/784）」并记 **SKIP**，
+#     不是 FAIL —— 那是「没等停」，不是「3D 坏了」。
+run verify_scene_link     "STEER3D_WEBGL=1 BV_URL=$U  node .cache/browser_verify/verify_scene_link.mjs"
+# ⚠⚠⚠ 第三十三笔之十一的结论**已被 2026-10-06 这一笔推翻**，理由逐条列在下面。
+#   当时观察到的现象是真的：
 #
 #       第 1 次  RESULT FAIL 12/13   J3b 等 60000ms 仍在增长（769 步）
 #       第 2 次  RESULT FAIL 11/13   J3b 等 60000ms 仍在增长（721 步）、J10 752->752
 #       第 3 次  RESULT FAIL  7/9    J3b 40s 稳定在 385 步，但 J6 仍红
 #                                     + 装置异常 Cannot read properties of null
 #
-#   ⇒ **13/13 是撞对的**，不是常态。两种失败要分开看：
-#     · J3b 是**负载敏感**：软件光栅慢，机器一忙 60 秒预算就不够。
-#     · J6 是**前提不成立**：`data-scene-focus` 那 4 个标记要射线拾取点击
-#       之后才出现，而「软件光栅能不能拾取」这件事本环境给不出判决
-#       （详见 05cc462 的记录：J6 只验了源码接线）。
-#       它连带的 `reading 'badge'` 是**判据自己抛的**，不是页面坏了。
-#   ⇒ 门禁**随机红**比诚实的「本环境验不了」更糟：前者会让人不再相信它。
-#     所以默认退回 SKIP，并在 `verify_scene_link.mjs` 自己的输出里印原因。
-#   ⇒ 要在链里真验 3D，需要先做两件事（都还没做）：
-#     ① J3b 的预算按实测重标（空闲 40s / 负载 >60s），且**超预算要报独立态**，
-#        不能报 FAIL —— 与 run() 的 NORUN 同一族；
-#     ② J6 必须在**真机 Chrome** 上验射线拾取，软件光栅下它只能 SKIP。
+#   但当时下的结论是「13/13 是撞对的，默认退回 SKIP」——**这个结论本身是错的**，
+#   因为那几个红**不是负载敏感，是判据写错了**。逐条：
+#
+#   ① J3b 的「等停」判据是「`loaded` 连续 3 次不变（≈4s 无增长）」。
+#      软件光栅下数据流按块灌、块间可停 >4s ⇒ **假停**。
+#      实测：停在 193 时判「已停」，几秒后继续涨到 **289**，而这条轨迹共 **784 步**。
+#      ⇒ 判据没问「这条轨迹一共几步」，所以它根本不知道「停」意味着什么。
+#      ⇒ 已改成**用 sidecar 的总步数当真值**：到 784 才算停；
+#        拿不到总数才退回「无增长」，且理由必须印出来。
+#      ⇒ 预算也随之从 60s→150s→600s→1500s 重标（实测速率 0.78 步/s）。
+#
+#   ② J6 的目标步号可能落在滑杆范围**之外**。
+#      `min(scene.high=288, rangeMax=783) - 1 = 287`，而滑杆是 **[752,783]**
+#      ⇒ `<input type=range>` 把它**钳回 min=752**，滑杆纹丝不动，
+#      「标签不出现」于是被判成产品坏了。（原始读数：`set→{"t":"287","v":"752"}`）
+#      ⇒ 现在先验 `rangeMin <= target <= rangeMax`；不相交就记**未判**，不记红。
+#
+#   ③ 「两个窗口不相交」是**前提未建立**，不是红。J10 同理：第一次没拿到标签，
+#      J10 的前提就不成立，照判会让同一个前提问题在汇总里出现两次、都写成产品坏了。
+#
+#   ④ `precondFailed` 的理由里**写死了「150s 预算」**，而预算早已不是 150s
+#      ⇒ 消息与代码各说各话。三处同类问题的共同病根就是这个。
+#
+#   ⇒ 修完后实测（2026-10-06，等 489s 才把 784 步灌满）：
+#       `RESULT PASS 13/13`
+#       J6  step=782 token="$$"　J7 66x15px　J8 3D=782 链=782　J9a 页面 "$$" = sidecar "$$"
+#       J10 782 -> 777　陈旧读数 0/0 次　滑杆真的动了吗 true/true
+#   ⇒ **代价是这一条要 ~8 分钟。** 值得：它是目标里
+#     「3D 展示 hidden states 如何推导出 token」唯一那条机器判决，
+#     而它以前**从来没被机器验过**，只是一条常驻的 SKIP。
+#
+#   ⚠ 仍未验的只有一件事：**珠子上的光线拾取点击**（J9 只验了源码接线）。
+#     软件光栅读不到 WebGL 像素，这一条仍要真机 Chrome。
 
 # ⚠ verify_backmap 读的是 **LAT_URL**，不是 T3D_URL / BV_URL。
 #   这一点本身就是个坑：我第一次跑它时给的是 T3D_URL，于是它带着自己的
