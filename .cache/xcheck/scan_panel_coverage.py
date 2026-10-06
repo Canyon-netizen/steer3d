@@ -370,6 +370,26 @@ DEAD_IN_SOURCE_EXEMPT = {
                    "读 rect.height：data-pfinal 是面板拿到的数字，读者看到的是"
                    "绘制高度，变异 D1 把 height 全改成常数而 data-pfinal 不变时"
                    "只查它的判据会假绿。",
+    # ⚠⚠ C2 长期唯一剩下的红：根页死引用 `data-deriv-default`。
+    #   它**不是**死代码，条件在 `openedByDefault`（LayerDerivationPanel.tsx:155）：
+    #       openedByDefault = !currentTrajectory && !!artifactFirstId
+    #   也就是「**后端没连上**，面板只好自己挑一条录制」时才渲染。
+    #   本轮实测后端 9503 **在跑**（Python PID 23703 LISTEN）
+    #   ⇒ currentTrajectory 被设上 ⇒ openedByDefault 为假 ⇒ 探针的 DOM 快照里没有它。
+    #   ⇒ 扫描器把「这一轮没出现」当成了「从来没有过」——
+    #   它没有条件渲染的概念，而**条件渲染与死代码在输出上完全同形**。
+    #
+    #   它是被读着的，而且是**当前提**读：`verify_derivation.mjs:263` 用
+    #   `selfOpened` 判「播放期的断言能不能建立」，并且把「后端确实没连上」
+    #   与「后端在线但还没开始播」分成两句不同的理由印出来
+    #   （:274-279）。本轮它报 PASS 27/27，正是走了 selfOpened=false 那一支。
+    "data-deriv-default": "LayerDerivationPanel 的「这条录制是面板自己挑的」声明块，"
+                          "条件渲染于 openedByDefault = !currentTrajectory "
+                          "&& !!artifactFirstId，即**后端没连上**时才出现。"
+                          "verify_derivation :263 拿它当「播放期断言能否建立」的前提，"
+                          "并把「后端确实没连上」与「后端在线但没开始播」"
+                          "分成两句不同的理由印出来（:274-279）。"
+                          "本轮后端在跑 ⇒ 不渲染 ⇒ 扫描器误当死引用。",
 }
 
 
