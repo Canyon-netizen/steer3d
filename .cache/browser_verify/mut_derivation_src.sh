@@ -17,8 +17,21 @@ BAK="$ROOT/.cache/mutderiv/LayerDerivationPanel.$WHICH.bak"
 mkdir -p "$ROOT/.cache/mutderiv"
 PORT="${PORT:-22301}"
 
+# ⚠⚠⚠ 还原**必须包含重建**，否则机器会一直发着变异版。
+#   `npx next build` 写的是 .next/，而**所有** `next start` 进程共享它 ——
+#   还原源码不会动 .next/。于是：
+#     · 变异侧那个 next start 还在发变异版（那是对的，本轮要用）
+#     · 但之后**任何**端口、**任何**一次测量读到的都是变异版
+#   实测后果：变异跑完后的第一次全链门禁，8 条判红
+#   （verify_outcome 45/104、verify_law 2/7 …），我一度以为改坏了根页。
+#   真相是根页 bodyLen=0 —— React 整个没渲染，因为发的是注入变异后的构建。
+#   ⇒ trap 里重建，且**用新端口**验，避免旧进程继续持有旧 .next 的映射。
 restore() {
-  [ -f "$BAK" ] && cp "$BAK" "$SRC" && echo "已还原 $SRC"
+  [ -f "$BAK" ] || return 0
+  cp "$BAK" "$SRC" && echo "已还原 $SRC"
+  ( cd "$ROOT/frontend" && npx next build >/dev/null 2>&1 ) \
+    && echo "已重建（.next/ 回到未变异状态）" \
+    || echo "!! 重建失败 —— .next/ 仍是变异版，别在这台机器上测任何东西"
 }
 trap restore EXIT INT TERM
 

@@ -196,13 +196,35 @@ try {
   })()`);
   rec('F0a 逐层面板已挂载（不是 loading）', panelMounted,
       `state=${(await readPanel()).state}`);
+
+  /* 连接状态读**读者能看见的那行字**，不读 store。
+   * page.tsx:136 渲染的就是 "connected" / "disconnected" 两个字。
+   * 判据主体必须是可见文案 —— 读 store 的话，判据和产品共用一份真相，
+   * store 错了两边一起错，假绿。 */
+  const conn = await page.eval(`(() => {
+    const hit = [...document.querySelectorAll('span,div')]
+      .map(e => (e.textContent || '').trim())
+      .find(t => t === 'connected' || t === 'disconnected');
+    return hit || 'absent';
+  })()`);
+
   const pickerPresent = await page.eval(`!!([...document.querySelectorAll('select')]
       .find(x => [...x.options].some(o => /^aime__/.test(o.value))))`);
   if (pickerPresent) {
-    rec('F0b 轨迹选择器已挂载', true, '');
-  } else {
+    rec('F0b 轨迹选择器已挂载', true, `conn=${conn}`);
+  } else if (conn === 'disconnected') {
+    /* 后端真的不在 ⇒ 选择器「还没出现」是事实，不是缺陷。 */
     recNA('F0b 轨迹选择器已挂载',
-      '选择器只在实时后端报出录制名时渲染（ControlPanel 的 pickList），后端不在时它不是「坏了」而是「还没出现」');
+      '页面显示 disconnected，后端确实不在；选择器只在实时后端报出录制名时渲染');
+  } else {
+    /* ⚠⚠ 这一支是补上的：后端**在线**却没给出 `aime__` 开头的录制名，
+     *   那是后端报错了东西，是红，不是「前置没建立」。
+     *   原来这两种都报 NA，于是一个坏掉的后端可以让整套判据安静地
+     *   全部退回 NA —— 不产生任何红，却看上去只是「环境不可用」。
+     *   判据不吭声的时候和判绿一样危险。 */
+    rec('F0b 轨迹选择器已挂载', false,
+      `页面显示 ${conn}（后端在线），却没有含 aime__ 选项的选择器 `
+      + '⇒ 后端报出的录制名与产物 logit_lens.json 对不上，这是错不是缺');
   }
 
   // logit_lens.json 从 3D 页面真的取到了
@@ -244,9 +266,17 @@ try {
     };
   })()`);
   const livePrecondition = panelLive.present && !panelLive.selfOpened;
+  /* 这一支**不能**照 F0b 那样直接判红：页面显示 connected 但还没点 Run，
+   * 帧确实一帧都没来，这是正常的时序，不是缺陷。所以仍然报 NA ——
+   * 但必须把连接状态**印出来**，否则「后端不在」和「后端在线但没开始播」
+   * 这两种完全不同的局面在账上长得一模一样，而后者是需要人去查的。
+   * 少一个红没关系，把两种局面混成同一条账才是问题。 */
   const naWhy = livePrecondition ? ''
     : `面板声明它自己打开了录制（data-deriv-default），说明没有实时帧在流；`
-      + `后端 ws://…:9503/ws 无应答时这是常态`;
+      + `页面此刻显示 conn=${conn}`
+      + (conn === 'connected'
+          ? '（后端已连上 ⇒ 是还没开始播/帧没到，不是环境缺失）'
+          : '（后端确实没连上 ⇒ 这是环境不可验，不是产品缺陷）');
 
   // 选一条记录并播放。
   let recId = null;

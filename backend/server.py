@@ -12,12 +12,21 @@ Control messages from the browser can change prompt / layer /
 playback speed, or pause / resume / reset.
 
 Run with:
-    uvicorn server:app --reload --host 0.0.0.0 --port 8000
+    uvicorn server:app --host 0.0.0.0 --port 9503
+
+The port was hard-coded to 8000 here while the frontend probed 9503
+(`frontend/lib/ws-endpoint.ts`), so the two could never meet: 8000 was
+abandoned on the frontend side precisely because a stray `python
+http.server` had squatted it, and nobody moved the backend. A process
+listening on 8000 therefore said nothing about whether the UI could
+connect. The port is now read from `REASONING3D_PORT` and defaults to
+the one the frontend actually probes.
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
 from typing import Callable, Optional
 
@@ -34,6 +43,13 @@ from core import (
 )
 from core.protocol import ReadyMessage
 from core.steering import get_registry, InterventionController
+
+
+# The port the frontend probes. Duplicated in `frontend/lib/ws-endpoint.ts`
+# as DEFAULT_WS_PORT_CANDIDATES; the two must agree or the UI silently sits
+# at "disconnected" with no error. `GET /health` reports this value so a
+# mismatch is something you can read rather than something you infer.
+WS_PORT = int(os.environ.get("REASONING3D_PORT", "9503"))
 
 
 # ---------------------------------------------------------------------------
@@ -444,7 +460,35 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"ok": True}
+    """Liveness, plus the two facts a green `ok` used to hide.
+
+    `ok: true` here only means "this process is serving HTTP". It said
+    nothing about whether `/ws` could actually be upgraded, and that is
+    the only thing the UI needs. It could not: uvicorn ships no
+    WebSocket implementation of its own, and with neither `websockets`
+    nor `wsproto` installed it answers an upgrade request with a plain
+    **404** — not a 501, not an error. The socket never opened and the
+    page sat at "disconnected" looking like a frontend problem.
+
+    So report the two things that actually decide whether the page can
+    connect, and let a caller notice the mismatch without reading code.
+    """
+    ws_impl = None
+    for mod in ("websockets", "wsproto"):
+        try:
+            __import__(mod)
+            ws_impl = mod
+            break
+        except Exception:
+            continue
+    return {
+        "ok": True,
+        "port": WS_PORT,
+        "frontend_expects": 9503,
+        "port_matches_frontend": WS_PORT == 9503,
+        "ws_upgrade_possible": ws_impl is not None,
+        "ws_impl": ws_impl,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -455,4 +499,4 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=WS_PORT)

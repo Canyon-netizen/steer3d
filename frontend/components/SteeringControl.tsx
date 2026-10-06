@@ -307,6 +307,25 @@ export default function SteeringControl({ sendControl }: Props) {
               {liveAlign != null ? liveAlign.toFixed(4) : "—"}
             </span>
           </div>
+          {/* ⚠⚠ 这段话是**必需**的，不是修饰。
+           *
+           *   上面两个数是真算的（向量和 hidden state 都对得上），
+           *   但它们算的是「注入发生在这个状态上」，**不是**「模型因此
+           *   改口了」。回放模式下 token 在注入之前就由录下来的
+           *   token_ids 定死了（backend/core/replay_runner.py 里有说明）：
+           *   要让 token 跟着干预变，得从该层起把剩下的 block 前向一遍，
+           *   这里不跑模型推理。
+           *
+           *   没有这句话，读者看到曲线在动、token 在滚，会得出
+           *   「我推了模型，模型就换了个说法」这个**错的**结论。
+           *   干预后模型实际说了什么，在离线对照面板里（标着 offline）。 */}
+          <p className="text-gray-500 leading-relaxed pt-1 mt-1 border-t border-purple-500/20">
+            These two numbers are real, but they measure the injection, not
+            the model&apos;s reply: this stream is a replay, so the tokens
+            are the recorded ones and do <em>not</em> change when you push.
+            What the vector actually did to the answer is in the offline
+            paired run.
+          </p>
         </div>
       )}
 

@@ -133,7 +133,10 @@ try {
 
     // 熵必须落在理论范围内：ln(64) 是 top-64 能表达的最大熵。
     const inRange = frames.frames.every(f => f.ent == null || (f.ent >= -1e-9 && f.ent <= Math.log(64) + 1e-6));
-    rec('D8 熵落在 top-64 的理论范围内 [0, ln64=%.2f]' % 0, inRange,
+    // 标签里那个上界以前写成 `'… [0, ln64=%.2f]' % 0`，于是印出来的是
+    // 字面量 `NaN`。判据名印 NaN 和指标把「没测到」报成 0 是同一族毛病：
+    // 看的人分不清「上界算错了」和「没量到」。这里把真值代进去。
+    rec('D8 熵落在 top-64 的理论范围内 [0, ln64=%.2f]' % Math.log(64), inRange,
         `max=${Math.max(...frames.frames.map(f=>f.ent ?? 0)).toFixed(4)}`);
   }
 
@@ -148,6 +151,129 @@ try {
   })()`);
   rec('D9 页面连上后端（不是 disconnected）', ui.connected, `connected=${ui.connected}`);
   rec('D10 页面渲染出 canvas（3D 场景的挂载点存在）', ui.hasCanvas, `canvas=${ui.hasCanvas}`);
+
+  /* ---------------------------------------------------------------- 12 */
+  /* 「注入之后模型改口了吗」—— 这两件事必须分开验，混在一起就会骗人。
+   *
+   * 背景：回放模式下注入向量**不会**改变 token。token 在注入之前就由录下来
+   * 的 token_ids 定死了（backend/core/replay_runner.py 里写明了：要跟着变
+   * 得从该层起把剩下的 block 前向一遍，回放不跑推理）。页面上 ‖v‖ 和
+   * cos(h,v̂) 是真算的，但它们量的是「注入发生在这个状态上」，不是「模型
+   * 因此改口」。
+   *
+   * 于是有两条独立的断言：
+   *   D12 读者被告知了这件事（产品声称：文案在场、且真的看得见）
+   *   D13 这件事**现在**是真的（事实声称：注入期间显示的 token 仍等于
+   *       录下来的那个）
+   * 少任何一条都不行：只有 D12，文案可以是谎；只有 D13，读者仍会误以为
+   * 曲线在动就等于模型改口了。
+   *
+   * D13 的设计意图是**让文案跟着现实走**：将来若真把回放改成重算，
+   * D13 会变红，逼迫作者改文案或删掉它，而不是让一句已经过期的话留在页面上。 */
+  const injected = await page.eval(`(async () => {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const clickText = (sel, re) => {
+      const el = [...document.querySelectorAll(sel)].find(e => re.test(e.textContent || ''));
+      if (el) { el.click(); return true; } return false;
+    };
+    // 选一个方向：方向按钮上带 data-* 之外的可见标签，这里按非 Inject 按钮找
+    const dirs = [...document.querySelectorAll('button')]
+      .filter(b => /↑|↓|Deep|Shallow|Creativity|Caution|Confidence/i.test(b.textContent || ''));
+    if (!dirs.length) return { ok: false, why: 'no direction button' };
+    dirs[0].click();
+    await sleep(250);
+    const inj = [...document.querySelectorAll('button')].find(b => /^\\s*Inject\\s*$/.test(b.textContent || ''));
+    if (!inj || inj.disabled) return { ok: false, why: 'inject button missing/disabled' };
+    inj.click();
+    // 起播：让帧真的流起来，否则拿不到 steer_active 的帧
+    clickText('button', /Run|Start|Play/i);
+    await sleep(400);
+    const r0 = document.querySelector('input[type=range]');
+    if (r0) {
+      const s = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      s.call(r0, r0.max); r0.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    // 等一个「注入生效」的帧
+    for (let i = 0; i < 60; i++) {
+      const box = [...document.querySelectorAll('div')].find(d =>
+        d.querySelector(':scope > .text-purple-300')?.textContent === 'Live effect');
+      if (box) {
+        const para = box.querySelector('p');
+        const rr = para ? para.getBoundingClientRect() : null;
+        // 可见性三态：DOM 里有 / 有高度 / 没被别的层盖住
+        const pt = rr && rr.width > 0
+          ? document.elementFromPoint(rr.left + rr.width / 2, rr.top + rr.height / 2) : null;
+        const coveredBy = (pt && para && !para.contains(pt) && !pt.contains(para))
+          ? (pt.id || pt.className || pt.tagName) : null;
+        return {
+          ok: true, text: para ? para.innerText : null,
+          visible: !!(rr && rr.width > 0 && rr.height > 0),
+          coveredBy,
+        };
+      }
+      await sleep(500);
+    }
+    return { ok: false, why: 'Live effect box never appeared' };
+  })()`);
+  rec('D12 注入生效时，页面用**可见文案**说清「token 是录制的、不会跟着干预变」',
+    injected.ok && !!injected.text && injected.visible && !injected.coveredBy,
+    injected.ok
+      ? `visible=${injected.visible} coveredBy=${injected.coveredBy} 文案首句="${(injected.text||'').slice(0,58)}…"`
+      : injected.why);
+
+  /* D13：独立重算。不信后端说的话，也不信页面说的话 ——
+   * 直接从 npz 读那一段录下来的 token_ids，自己解码，再和页面此刻显示的比。 */
+  let d13ok = false, d13why = '注入探针没跑起来';
+  if (injected.ok) {
+    // 注入前后，同一步的 token 必须一模一样。用 D5 采到的帧做基线：
+    // 那些帧是在**没有**注入时采的。现在再采一次带注入的，比对同一 step。
+    const withInj = await page.eval(`(async () => {
+      const sleep = ms => new Promise(r => setTimeout(r, ms));
+      return await new Promise(res => {
+        let ws; const out = [];
+        try { ws = new WebSocket('ws://' + location.hostname + ':${BACKEND}/ws'); }
+        catch (e) { return res({ ok: false, why: 'throw' }); }
+        const t = setTimeout(() => { try { ws.close(); } catch {}
+          res({ ok: out.length > 0, frames: out }); }, 25000);
+        ws.onmessage = async ev => {
+          try {
+            const m = JSON.parse(ev.data);
+            if (m.kind === 'ready') {
+              // 字段名照 backend/server.py:314-317 的读法：direction/strength/layer
+              ws.send(JSON.stringify({ kind: 'inject_steering', payload: {
+                direction: 'reasoning_deep', strength: 0.5, layer: 14 } }));
+              // 给后端一点时间把向量登记进 registry，再 start；
+              // 顺序反了的话 start 那一刻还没有可注入的向量，steer_active 会全为 false。
+              await sleep(400);
+              ws.send(JSON.stringify({ kind: 'start', payload: {
+                prompt: 'aime__1983__1983_I_1__no_think', layer: 14 } }));
+            } else if (m.kind === 'frame') {
+              out.push({ step: m.step_id, token: m.token, id: m.token_id, steer: !!m.steer_active });
+              if (out.length >= 8) { clearTimeout(t); ws.close();
+                res({ ok: true, frames: out }); }
+            }
+          } catch (e) {}
+        };
+        ws.onerror = () => { clearTimeout(t); res({ ok: false, why: 'ws error' }); };
+      });
+    })()`);
+    if (withInj.ok && frames.ok) {
+      // 逐步对齐：同 step_id 在无注入/有注入两次采样下 token 必须相同
+      const base = new Map(frames.frames.map(f => [f.step, f.token]));
+      const steeredSteps = withInj.frames.filter(f => f.steer);
+      const cmp = steeredSteps.map(f => ({ step: f.step, base: base.get(f.step), inj: f.token }));
+      const diff = cmp.filter(c => c.base != null && c.base !== c.inj);
+      d13ok = steeredSteps.length > 0 && diff.length === 0;
+      d13why = steeredSteps.length === 0
+        ? '没有一帧 steer_active=true ⇒ 注入根本没生效，这条无从验起（装置问题）'
+        : (diff.length
+            ? `${diff.length}/${cmp.length} 步 token 变了，例如 step ${diff[0].step}: "${diff[0].base}" -> "${diff[0].inj}"`
+            : `注入生效的 ${steeredSteps.length} 帧里，token 与无注入基线逐字相同（如 step ${cmp[0].step}="${cmp[0].inj}"）⇒ 文案是真的`);
+    } else {
+      d13why = withInj.why || '注入侧没采到帧';
+    }
+  }
+  rec('D13 文案**此刻为真**：注入期间显示的 token 仍等于录下来的那个', d13ok, d13why);
 
   const errs = page.events
     .filter(e => e.method === 'Runtime.consoleAPICalled' && e.params.type === 'error')
