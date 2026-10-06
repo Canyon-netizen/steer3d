@@ -326,6 +326,17 @@ run verify_thresh         "LAT_URL=${U%/}/latent/index.html node .cache/browser_
 run verify_patch         "LAT_URL=${U%/}/latent/index.html node .cache/browser_verify/verify_patch.mjs"
 # 产物层的独立重算：不复用探针的任何计算，只从原始行重算。
 run verify_patching      "python3 .cache/xcheck/verify_path_patching.py"
+# ⚠ LTV（阈值可读向量）—— 目标里「能不能提取一套通用的可解释性理论」那一条的判决。
+#   预登记表 `LTV_PREREG.md` 写于取数之前；判决的唯一权威是 `build_ltv.py`，
+#   这一条是**独立重算**（E 层从原始 gap(α) 重算 / F 层预登记漂移 /
+#   G 层产物与原始逐数对账 / H 层量级体检）。
+#   ⚠ 它印 `RESULT verify_ltv GREEN 18/18`，但**有一条长期红的检查已改成披露制**：
+#     预登记表 §3 自述「一档 ≈ 1.7~2.8 倍」与它自己定的 α 网格（实为 1.43~2.00）
+#     对不上。原文是取数前的记录，不许事后改 ⇒ 改成判「差异被披露且有处置」，
+#     而差异本身每轮都印在警告行里。
+#     （原版把它做成「必须为真」，结果是一条**永远红**的判据 ——
+#      那等于没有判据，而且会让全链退出码恒为 1，此后真故障都被淹在里面。）
+run verify_ltv            "python3 .cache/xcheck/verify_ltv.py"
 run assertion_guard       "python3 .cache/xcheck/assertion_guard.py"
 run panel_coverage        "python3 .cache/xcheck/scan_panel_coverage.py"
 run dead_url              "python3 .cache/xcheck/dead_url_sweep.py && python3 .cache/xcheck/check_dead_url.py"
