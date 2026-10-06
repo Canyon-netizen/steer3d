@@ -289,10 +289,15 @@ run artifact_consumers    "python3 .cache/xcheck/scan_artifact_consumers.py"
 run dedup_rendered        "BV_URL=$U node .cache/browser_verify/probe_dedup_rendered.mjs"
 
 echo
-echo "跑了 $N 条判决（另加 2 道装置闸；第三十六笔起是 22 条）：判红 $RED ／ 环境不可验而跳过 $SKIP ／ **前置未建立（没跑）$NOT** ／ 一条都没跑 $NORUN ／ 装置崩 $CRASH ／ **认不出判决 $UNJUDGED**"
+# ⚠ 预期条数**不许写死**。原来这里写的是 22，加了第 23 条之后它就误报
+#   「串联器自己漏了分支」—— 报红的是我自己，不是被测物，而那个红指向
+#   的方向（判据装置有问题）恰好是最容易让人停下不查的那种。
+#   改成从 `run` 调用处现数，链加一条只会多报一条，不会造假警报。
+EXPECTED=$(grep -c '^run ' "$0")
+echo "跑了 $N 条判决（另加 2 道装置闸；链里现有 $EXPECTED 条）：判红 $RED ／ 环境不可验而跳过 $SKIP ／ **前置未建立（没跑）$NOT** ／ 一条都没跑 $NORUN ／ 装置崩 $CRASH ／ **认不出判决 $UNJUDGED**"
 echo "（跳过与「一条都没跑」都不是绿，但也都不是指控 —— 它们各自印着自己的原因。）"
-if [ "$N" -ne 22 ]; then
-  echo "⚠ 预期 22 条，实际 $N 条 ⇒ **串联器自己漏了分支**（不是被测物的问题）"
+if [ "$N" -ne "$EXPECTED" ]; then
+  echo "⚠ 预期 $EXPECTED 条，实际跑出 $N 条 ⇒ **串联器自己漏了分支**（不是被测物的问题）"
   exit 2
 fi
 [ "$UNJUDGED" -eq 0 ] || { echo "有 $UNJUDGED 条认不出判决 ⇒ 不许当通过"; exit 3; }
