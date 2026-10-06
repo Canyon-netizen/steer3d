@@ -1,0 +1,60 @@
+{
+  "rows": [
+    {
+      "pid": "1983_I_1",
+      "k": 27,
+      "n_shared": 5,
+      "inc_id": 7046,
+      "inc_delta": -3.6155000000000044,
+      "same_top1": false
+    },
+    {
+      "pid": "1984_I_1",
+      "k": 15,
+      "n_shared": 6,
+      "inc_id": 54916,
+      "inc_delta": -8.2761,
+      "same_top1": false
+    },
+    {
+      "pid": "1985_I_1",
+      "k": 8,
+      "n_shared": 5,
+      "inc_id": 21403,
+      "inc_delta": 0.010300000000000864,
+      "same_top1": false
+    },
+    {
+      "pid": "1986_I_1",
+      "k": 23,
+      "n_shared": 6,
+      "inc_id": 1477,
+      "inc_delta": 0.4847999999999999,
+      "same_top1": false
+    },
+    {
+      "pid": "1987_I_1",
+      "k": 44,
+      "n_shared": 8,
+      "inc_id": 320,
+      "inc_delta": -0.8532000000000011,
+      "same_top1": false
+    },
+    {
+      "pid": "1988_I_1",
+      "k": 16,
+      "n_shared": 6,
+      "inc_id": 979,
+      "inc_delta": -3.2836,
+      "same_top1": false
+    }
+  ],
+  "inc_delta_median": -2.0684000000000005,
+  "median_abs_delta": 1.5853999999999981,
+  "span": 12.624099999999999,
+  "inc_pct_median": 0.25,
+  "verdict": "targeted",
+  "steepness_rho": -0.1075933075933076,
+  "steepness_threshold": 0.3333333333333333,
+  "distribution_steepened": false
+}
