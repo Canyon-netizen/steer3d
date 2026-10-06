@@ -348,6 +348,7 @@
         <button id="tabBar">候选词</button>
         <button id="tabDim">维度解读</button>
         <button id="tabDelta">干预 vs 对照</button>
+        <button id="tabPath">逐步路径</button>
       </div>
       <div class="row">
         <label>当前层 <span class="val" id="valLayer">L14</span></label>
@@ -402,6 +403,12 @@
         <div class="sub" id="deltaCap" style="display:none"></div>
         <canvas id="cv" style="flex:1;width:100%"></canvas>
         <canvas id="cvD" style="flex:1;width:100%;display:none"></canvas>
+        <!-- 第 5 屏「逐步路径」的表格容器。不用 canvas：139 行可点的文字表格
+             用 canvas 画就既不能选中也不能被读屏软件读到，反而更不可核。
+             overflow-y:auto + min-height:0 让它自己滚，不把整页撑高。 -->
+        <div id="pathWrap" style="display:none;flex:1;min-height:0;overflow-y:auto;
+             overflow-x:hidden;border:1px solid #1e2637;border-radius:5px;
+             background:#0d1220;padding:8px 10px"></div>
       </div>
       <div class="legend">
         <span><i style="background:#5cc8ff"></i>当前 token</span>
@@ -507,6 +514,10 @@ const S = {
   pCtl: null, pDelta: null, pT: 0, pCtlT: 0, pPrefix: 0,
   pMean: null, pComp: null, pProjC: null, pProjD: null,
   pUnit: null, pUnitProj: null, pIdsC: null, pIdsS: null, pIdsPair: null, pBusy: false,
+  // 逐步路径：两条流每一步各自的 top-8 候选词（path_readout.json）。
+  // 展开到 top-8 的行号集合 —— 默认只显示 top-2，点行才展开。
+  // 用 Set 而不是数组：139 行 × 每次点击都 filter 数组会明显卡。
+  path: null, pathOpen: new Set(), pathFork: true,
   pMeta: null, pStrideComp: 0,
 
   // 分叉步的候选词读出。页面原来只给出两条流各自吐出的那个词（两个标签），
@@ -1015,6 +1026,15 @@ async function loadNarrative(){
       S.backmap = await cr7.json();
     }else trace("token_backmap.json: HTTP " + cr7.status);
   }catch(e){ trace("token_backmap unavailable: " + e.message); }
+  // 第八批：逐步路径。分叉块只给分叉那一步的候选词，前面 k 步只有一条
+  // sparkline —— 读者核不了是哪一步，也看不见每步两条流各自在考虑哪几个词。
+  // 这份数据是从已经存下的 npz 重算的，没重跑模型。
+  try{
+    const cr8 = await fetch(dataBase()+"path_readout.json");
+    if(cr8.ok){
+      S.path = await cr8.json();
+    }else trace("path_readout.json: HTTP " + cr8.status);
+  }catch(e){ trace("path_readout unavailable: " + e.message); }
   return true;
   })();
   return _narrativePromise;
@@ -1505,6 +1525,166 @@ function renderDivergenceReadout(){
 
   h += `</div>`;
   return wrap(h);
+}
+
+/* ================= 第 5 屏：逐步路径 =================
+   回答"模型按什么路径推理"和"干预下行为怎么变"。已有的分叉块只给**分叉那一步**
+   的候选词，前面 k 步只有一条 sparkline 用的 margin 标量 —— 读者能看见"差距在
+   变小"，却核不了是哪一步、也看不见每步两条流各自在考虑哪几个词。
+
+   数据来自 path_readout.json（从已存下的 npz 重算，没重跑模型）。三条判决规则
+   在生成器里取数前写死并逐条落盘：前缀共享 6/6、身份对齐 6/6、候选宽度 6/6。
+
+   ⚠ 三条容易说过头的地方，都印在读者看得见的地方，不只印在 data-* 里：
+     ① 候选表重叠度在分叉前后**没有差别** ⇒ 不能说"干预重排了候选表"。
+     ② 前缀上注入每步都真改了打分，但方向有涨有落 ⇒ 不能说"持续推向一个方向"，
+        也不能说"最后一步才生效"。
+     ③ R6（名次互换 6/6）和 R5（对方第一名排 ≤2，5/6）是两个口径，页面要印清楚。 */
+const PATH_NCAND = 2;   // 默认显示前 2 个候选
+function renderPathPanel(){
+  const esc2 = s => esc(s == null ? "" : String(s));
+  const p = S.pm && S.pm.pairs && S.pm.pairs[S.pi];
+  const pid = p ? p.id : null;
+
+  if(!S.path){
+    return `<div data-pathblock="1" data-pathstate="no-data" style="padding:14px 4px">
+      <b style="color:#ffd479">逐步路径数据未载入，这一屏解释缺失</b>
+      <div style="font-size:11.5px;color:#8891a4;margin-top:6px">
+      缺的是 <code>path_readout.json</code>。它不影响「干预 vs 对照」那一屏的任何数
+      （那些数来自 <code>divergence_readout.json</code>）。</div></div>`;
+  }
+  if(!pid || !(S.path.problems || {})[pid]){
+    return `<div data-pathblock="1" data-pathstate="no-problem" style="padding:14px 4px">
+      <b style="color:#ffd479">这份逐步路径数据里没有题目 ${esc2(pid || "?")} 的记录</b>
+      <div style="font-size:11.5px;color:#8891a4;margin-top:6px">
+      逐步路径只覆盖 ${Object.keys(S.path.problems || {}).length} 道题，
+      而当前选中的是另一道。在左边「配对题目」里换成有记录的那几道之一就能看到。</div></div>`;
+  }
+
+  const q = S.path.problems[pid];
+  const steps = q.steps || [];
+  const k = q.k;
+  const sm = q.summary || {};
+  const me = q.mechanism || {};
+  const pe = S.path.prefix_effect || {};
+  const g = S.path.gates || {};
+  const NC = S.path.n_cand || 8;
+
+  let h = `<div data-pathblock="1" data-pathstate="ok" data-pathpid="${esc2(pid)}"
+            data-pathk="${esc2(String(k))}">`;
+
+  // ---- 抬头：一句话说清这屏在做什么 -------------------------------------
+  h += `<div style="font-size:13px;font-weight:600">前面这 ${k} 步，两条流每一步各自在考虑哪几个词</div>`;
+  h += `<div style="font-size:11px;color:#8891a4;margin:3px 0 8px;line-height:1.55">
+    两条流从同一句话开始跑（<span style="color:#c8d2e2">${esc2(q.prefix_tail)}</span>）。
+    每一步两臂各自的前 ${PATH_NCAND} 个候选词列在下面，<b>分数是原始打分、不是概率</b>。
+    点任意一行可以展开看该步的前 ${NC} 个。灰＝对照臂，绿＝干预臂。
+    第 <b>${k}</b> 步是它们第一次选出不同词的地方。</div>`;
+
+  // ---- 三条判决规则：读者要能核这份数据凭什么可信 ----------------------
+  h += `<div style="font-size:11px;background:#131a28;border-left:2px solid #5cc8ff;
+        border-radius:0 4px 4px 0;padding:7px 9px;margin-bottom:8px;line-height:1.6">
+    <b style="color:#5cc8ff">这份表凭什么可信（进页面前逐条验过）：</b><br>
+    · 前 ${sm.top1_same_denom != null ? sm.top1_same_denom : "—"} 步里，两条流选出的第一个词
+      <b>完全相同 ${sm.top1_same_steps != null ? sm.top1_same_steps : "—"} 步</b>；<br>
+    · 分叉那一步的第一名，与「干预 vs 对照」那一屏已发布的读出<b>逐位相同</b>；<br>
+    · 每步每臂的候选词宽度都是 ${NC} 个。
+  </div>`;
+
+  // ---- 机制量：这屏真正想说的话 ----------------------------------------
+  if(me.gap_widened != null){
+    h += `<div style="font-size:11.5px;background:#131a28;border-left:2px solid var(--acc);
+          border-radius:0 4px 4px 0;padding:8px 10px;margin-bottom:9px;line-height:1.65">
+      <b style="color:var(--acc)">干预在这一步做的事：</b>两个本来就在同一张候选表上的词
+      <b>交换了名次</b>，谁也没被踢出竞争。分叉那一步上，
+      对照臂原本选中的词被推了 <b>${me.winner_shift > 0 ? "+" : ""}${me.winner_shift.toFixed(2)}</b> 分，
+      干预臂选中的词被推了 <b>${me.loser_shift > 0 ? "+" : ""}${me.loser_shift.toFixed(2)}</b> 分，
+      两者的净间距被拉开 <b>${me.gap_widened.toFixed(2)}</b> 分
+      （这一步原本的决胜间距只有 ${sm.decisive_margin_c != null ? sm.decisive_margin_c.toFixed(2) : "—"} 分）。`;
+    if(g.R6_rank_swapped != null && g.R5_pure_swap != null)
+      h += `<br><span style="color:#8891a4">6 道题里「两词相对先后反转」的有
+        <b style="color:#c8d2e2">${g.R6_rank_swapped}</b> 道；
+        口径更严的「对方的第一名排进本臂前 2」只有 <b style="color:#c8d2e2">${g.R5_pure_swap}</b> 道
+        —— 两个数不一样，别混着引。</span>`;
+    h += `</div>`;
+  }
+
+  // ---- 前缀上注入到底改了多少：附在机制量下面，因为它容易被误读 --------
+  if(pe.n != null && pe.ratio_median != null){
+    h += `<div style="font-size:11px;color:#8891a4;margin-bottom:9px;line-height:1.6;
+          border-top:1px solid var(--line);padding-top:7px">
+      <b style="color:#b9c4d6">别把"整段前缀都是干预在起作用"读成反过来的意思：</b>
+      在改口之前那 ${pe.n} 步里，注入<b>每一步都真的改了打分</b>
+      （${pe.n} 步里有 ${pe.n_zero} 步是 0），但方向有涨有落
+      （${pe.n_pos} 步为正、${pe.n_neg} 步为负，中位 ${pe.shift_median > 0 ? "+" : ""}${pe.shift_median} 分），
+      而幅度中位只有该步决胜间距的 <b>${(pe.ratio_median * 100).toFixed(1)}%</b>
+      （决胜间距中位 ${pe.margin_median} 分）。
+      ${pe.ratio_below_quarter != null ? `${pe.n} 步里有 ${pe.ratio_below_quarter} 步低于 25%。` : ""}
+      <b>所以站得住的说法只有一句：每一步都被改了，但没跨过决胜线</b>；
+      说成"持续推向一个方向"或"最后一步才生效"都不成立。</div>`;
+  }
+
+  // ---- 工具条 ----------------------------------------------------------
+  h += `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 7px">
+    <button data-pathbtn="fork" class="${S.pathFork ? "on" : ""}"
+      style="width:auto;padding:3px 8px;font-size:11px">只看分叉前后 ±5 步</button>
+    <button data-pathbtn="all" class="${S.pathFork ? "" : "on"}"
+      style="width:auto;padding:3px 8px;font-size:11px">看全部 ${steps.length} 步</button>
+    <span style="font-size:10.5px;color:#7b869c">共 ${steps.length} 行，每行默认显示前 ${PATH_NCAND} 个候选词</span>
+  </div>`;
+
+  // ---- 表头 ------------------------------------------------------------
+  h += `<div style="display:flex;gap:6px;font-size:10.5px;color:#7b869c;
+        padding:0 4px 4px;border-bottom:1px solid var(--line)">
+    <span style="width:38px;flex:none">步</span>
+    <span style="flex:1">对照臂（灰）</span>
+    <span style="flex:1">干预臂（绿）</span>
+    <span style="width:96px;flex:none;text-align:right">领先 灰/绿</span>
+    <span style="width:52px;flex:none;text-align:right">候选重合</span>
+  </div>`;
+
+  // ---- 表体 ------------------------------------------------------------
+  const show = S.pathFork
+    ? steps.filter(s2 => s2.t >= Math.max(0, k - 5) && s2.t <= k)
+    : steps;
+  if(S.pathFork && steps.length > show.length)
+    h += `<div style="font-size:10.5px;color:#7b869c;padding:5px 4px">
+      （只看第 ${Math.max(0, k - 5)}–${k} 步。前 ${k} 步每一步两臂的第一名都相同，
+      点「看全部」可以逐行核。）</div>`;
+
+  const nc = Math.min(PATH_NCAND, NC);
+  for(const s2 of show){
+    const isK = s2.t === k;
+    const open = S.pathOpen.has(s2.t);
+    const n = open ? NC : nc;
+    const row = (arm, color) => arm.ids.slice(0, n).map((id, i) => {
+      const w = dvText(id);
+      return `<span style="color:${i === 0 ? color : "#8b95a8"};margin-right:9px"
+        title="原始打分 ${arm.g[i]}">${esc(w)}${i === 0 ? "" :
+        `<span style="font-size:9.5px;color:#5f6b80"> ${arm.g[i].toFixed(1)}</span>`}</span>`;
+    }).join("");
+    h += `<div data-patht="${s2.t}" data-pathfork="${isK ? "1" : "0"}"
+      style="display:flex;gap:6px;align-items:center;font-size:11px;padding:3px 4px;
+        cursor:pointer;border-bottom:1px solid #161d2b;
+        background:${isK ? "#1a2436" : (s2.t % 2 ? "transparent" : "#111725")}">
+      <span style="width:38px;flex:none;color:${isK ? "#ffd479" : "#7b869c"};
+        font-family:monospace">${s2.t}${isK ? " ◆" : ""}</span>
+      <span style="flex:1;min-width:0">${row(s2.c, "#8fa0bb")}</span>
+      <span style="flex:1;min-width:0">${row(s2.s, "#3ddc97")}</span>
+      <span style="width:96px;flex:none;text-align:right;font-family:monospace;
+        color:#8b95a8">${s2.m_c.toFixed(2)} / ${s2.m_s.toFixed(2)}</span>
+      <span style="width:52px;flex:none;text-align:right;font-family:monospace;
+        color:#7b869c">${(s2.jaccard * 100).toFixed(0)}%</span>
+    </div>`;
+  }
+
+  h += `<div style="font-size:10.5px;color:#7b869c;padding:7px 4px 0;line-height:1.6">
+    ◆ 标记的那一行是分叉步。「领先 灰/绿」是两臂**各自**的第一名领先第二名多少分。
+    点任意一行可展开／收起该步的前 ${NC} 个候选词。
+    「候选重合」是两臂这一步前 ${NC} 个候选词的交集÷并集 —— 它在整段前缀和分叉步上
+    <b>没有差别</b>，所以别把它读成"干预重排了候选表"。</div>`;
+  h += `</div>`;
+  return h;
 }
 
 /* ---- 对思维链的影响 ---------------------------------------------------
@@ -3341,6 +3521,26 @@ function embedDist(tok, layer){
 /* ================= 画布 ================= */
 function layout(){
   S.dpr = window.devicePixelRatio || 1;
+  // 第 5 屏不用 canvas：整屏是一张 139 行的文字表格，画在 canvas 上既不能选中、
+  // 也不能被读屏软件读到，反而更不可核。所以 PATH 走自己的分支，不进 render()。
+  if(S.view === "PATH"){
+    $("#cv").style.display = "none";
+    $("#cvD").style.display = "none";
+    $("#legendDelta").style.display = "none";
+    $("#legendDelta2").style.display = "none";
+    // 逐步路径是按题索引的，读者必须能换题 —— 否则这一屏只有一道题可看。
+    // 配对题目下拉在 DELTA 屏是显示的，这里沿用同一套 chrome，不新造控件。
+    $("#pairRow").style.display = "flex";
+    $("#trajPanel").style.display = "none";
+    const wrap = $("#pathWrap");
+    wrap.style.display = "block";
+    wrap.innerHTML = renderPathPanel();
+    const p = S.pm && S.pm.pairs && S.pm.pairs[S.pi];
+    $("#mainTitle").textContent = "逐步路径 · " + (p ? p.id : "未选题目");
+    $("#mainSub").textContent = "两条流每一步的前 2 个候选词，直到它们第一次选出不同的词";
+    return;
+  }
+  $("#pathWrap").style.display = "none";
   const delt = S.view === "DELTA";
   for(const [id, on] of [["#cv", true], ["#cvD", delt]]){
     const cv = $(id);
@@ -3887,6 +4087,18 @@ function renderSide(){
 function render(){
   trace("render enter");
   if(!S.m) return;
+  // 第 5 屏：loadPairLayer() 在换题时会调 render()，而 render() 的非 DELTA 分支
+  // 会去 drawDim() —— 那一屏画的是"哪一维最活跃"，和路径表毫无关系。
+  // 所以 PATH 在这里就地重画表格然后返回，不进任何 canvas 分支。
+  if(S.view === "PATH"){
+    const wrap = $("#pathWrap");
+    $("#pairRow").style.display = "flex";
+    $("#trajPanel").style.display = "none";
+    if(wrap.style.display !== "none") wrap.innerHTML = renderPathPanel();
+    const pp = S.pm && S.pm.pairs && S.pm.pairs[S.pi];
+    $("#mainTitle").textContent = "逐步路径 · " + (pp ? pp.id : "未选题目");
+    return;
+  }
   const delta = S.view === "DELTA";
   if(delta){
     if(!S.pBusy && S.pm) drawDelta();
@@ -4078,11 +4290,50 @@ $("#tabDelta").onclick = async () => {
   $("#rngTok").max = Math.max(0, (S.pCtlT||1) - 1);
   layout();
 };
+$("#tabPath").onclick = async () => {
+  S.view="PATH"; syncTabs();
+  // 逐步路径是**按题索引**的（每题的分叉步 k 和它那 k 步的候选词都不同），
+  // 所以必须先有当前配对题，和 DELTA 走同一个 loadPairMeta。
+  const ok = await loadPairMeta();
+  if(!ok){
+    syncTabs(); restoreUnsteeredSliders();
+    $("#mainTitle").textContent = "逐步路径 · 本次数据包未包含";
+    $("#mainSub").textContent = "需要先跑 run_paired_steering.py 采一批配对数据";
+    $("#cv").style.display = "block";
+    $("#pathWrap").style.display = "none";
+    const g = $("#cv").getContext("2d");
+    g.setTransform(S.dpr,0,0,S.dpr,0,0);
+    g.clearRect(0,0,S.W,S.H);
+    g.fillStyle = "#5d6d8a"; g.font = "14px monospace";
+    g.fillText(dataBase()+"pairs/pairs.json 不存在 —— 这一屏还没有数据", 30, S.H/2);
+    return;
+  }
+  if(!S.pi && S.pm.pairs.length) await loadPair(0);
+  layout();
+};
+/* ---- 第 5 屏的事件：点行展开 top-8、两个视图按钮 ------------------------
+   委托绑在 #pathWrap 上而不是逐行绑：整张表 139 行，layout() 每次重画，
+   逐行绑会漏掉重画后的新节点。用委托只绑一次，与 renderExtras 的做法一致。 */
+$("#pathWrap").addEventListener("click", e => {
+  const btn = e.target.closest && e.target.closest("[data-pathbtn]");
+  if(btn){
+    const want = btn.getAttribute("data-pathbtn") === "all";
+    if(S.pathFork !== !want){ S.pathFork = !want; layout(); }
+    return;
+  }
+  const row = e.target.closest && e.target.closest("[data-patht]");
+  if(!row) return;
+  const t = +row.getAttribute("data-patht");
+  if(S.pathOpen.has(t)) S.pathOpen.delete(t); else S.pathOpen.add(t);
+  layout();
+});
+
 function syncTabs(){
   $("#tabXY").classList.toggle("on", S.view==="XY");
   $("#tabBar").classList.toggle("on", S.view==="BAR");
   $("#tabDim").classList.toggle("on", S.view==="DIM");
   $("#tabDelta").classList.toggle("on", S.view==="DELTA");
+  $("#tabPath").classList.toggle("on", S.view==="PATH");
 }
 $("#btnPlay").onclick = () => {
   S.playing = !S.playing;

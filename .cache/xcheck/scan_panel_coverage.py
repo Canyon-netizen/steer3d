@@ -266,6 +266,25 @@ DEAD_IN_SOURCE_EXEMPT = {
     "data-jumphint": "同上（跳转按钮的提示位）。",
     "data-cotjump": "同上：drawDeltaSide() 自己拼的入口行，不在 renderCotEffect() 里。",
     "data-arjump": "同上。",
+    # ⚠⚠ 第三十六笔：第 5 屏「逐步路径」的 7 个标记。它们**不是**死代码，
+    #   和上面 data-jump / data-cotjump 是同一类 —— 只在用户点开第 5 个标签
+    #   （renderPathPanel() → layout() 的 PATH 分支）之后才在 DOM 里，
+    #   而覆盖扫描的探针只点前四个标签，测的是默认视图。
+    #   verify_path.mjs 会点开第 5 屏、把 36 条逐条读一遍（其中 8 条直接读这些标记，
+    #   其余靠可见文案间接锁住）。不登记的话 C7 会把「条件渲染」误报成死代码，
+    #   而把真死代码混进同一份名单，就等于让这份名单失去意义。
+    "data-pathblock": "第 5 屏「逐步路径」整块的根标记（renderPathPanel 的返回值）。"
+                      "只在该屏打开时渲染；verify_path 读它的 data-pathstate 三态"
+                      "（ok / no-data / no-problem）与 data-pathpid、data-pathk。",
+    "data-pathstate": "同上，三态标记。数据缺失时页面必须**明说**缺什么，"
+                      "不能静默消失 —— verify_path 的 A1 查的就是这个。",
+    "data-pathpid": "同上，当前题号。切题后必须跟着换，verify_path D3 查。",
+    "data-pathk": "同上，当前题的分叉步。verify_path C1 拿它与产物里的 k 对账。",
+    "data-patht": "同上，每一行的步号（t=0..k）。verify_path D1/D2 靠它数行、"
+                  "点行展开。",
+    "data-pathfork": "同上，标出哪一行是分叉步。verify_path C2 查「恰好一行且 t=k」。",
+    "data-pathbtn": "同上，两个视图切换按钮（只看分叉前后 ±5 步 / 看全部）。"
+                    "verify_path D2 点「看全部」查行数变成 k+1。",
     # ⚠ 第三十一笔：这两个只在下拉框切到第 5 档（extraction_layer_effect.json）
     #   时才渲染，而默认 idx=0 ⇒ 覆盖扫描看到的根页 DOM 上没有它们。
     #   它们**不是**死引用：Q0 会逐档切过去，Q1 用它们做交叉核对。

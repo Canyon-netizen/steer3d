@@ -250,6 +250,15 @@ run verify_latent_prose   "LAT_URL=${U%/}/latent/index.html node .cache/browser_
 #   产物没记的 16k、四个写死的层号、过期的写死峰值（L20–L21 vs 实测 argmax=21）、
 #   标签与口径差一层的「L27 前」、以及那个自称不了的「注入层」标记。
 run verify_logit_lens      "LAT_URL=${U%/}/latent/index.html node .cache/browser_verify/verify_logit_lens.mjs"
+# ⚠ 第三十六笔新增：第 5 屏「逐步路径」。它是唯一一块**把 t=0..k 每一步、
+#   两条臂各自的 top-8 候选词**印出来的界面，也是「模型按什么路径推理 /
+#   干预下行为怎么变」这两个问题的正面答案所在。前面那些判据一条都碰不到它。
+#   这一条额外防两件本项目已经吃过两次亏的事：
+#     ① **被别的层遮住**。引导页盖住整页时，getBoundingClientRect().height 仍 > 0，
+#        判据全过而读者眼前是一张引导页 ⇒ 可见性判定必须过 elementFromPoint。
+#     ② 切题后 pid/k 是不是真的跟着换。第一版拿 select 的**索引**去和
+#        data-pathpid 的**题号**比口径，恒为真，探针打印 before==after 就算过。
+run verify_path           "LAT_URL=${U%/}/latent/index.html node .cache/browser_verify/verify_path.mjs"
 run assertion_guard       "python3 .cache/xcheck/assertion_guard.py"
 run panel_coverage        "python3 .cache/xcheck/scan_panel_coverage.py"
 run dead_url              "python3 .cache/xcheck/dead_url_sweep.py && python3 .cache/xcheck/check_dead_url.py"
@@ -259,10 +268,10 @@ run artifact_consumers    "python3 .cache/xcheck/scan_artifact_consumers.py"
 run dedup_rendered        "BV_URL=$U node .cache/browser_verify/probe_dedup_rendered.mjs"
 
 echo
-echo "跑了 $N 条判决（另加 2 道装置闸）：判红 $RED ／ 环境不可验而跳过 $SKIP ／ 一条都没跑 $NORUN ／ 装置崩 $CRASH ／ **认不出判决 $UNJUDGED**"
+echo "跑了 $N 条判决（另加 2 道装置闸；第三十六笔起是 22 条）：判红 $RED ／ 环境不可验而跳过 $SKIP ／ 一条都没跑 $NORUN ／ 装置崩 $CRASH ／ **认不出判决 $UNJUDGED**"
 echo "（跳过与「一条都没跑」都不是绿，但也都不是指控 —— 它们各自印着自己的原因。）"
-if [ "$N" -ne 21 ]; then
-  echo "⚠ 预期 21 条，实际 $N 条 ⇒ **串联器自己漏了分支**（不是被测物的问题）"
+if [ "$N" -ne 22 ]; then
+  echo "⚠ 预期 22 条，实际 $N 条 ⇒ **串联器自己漏了分支**（不是被测物的问题）"
   exit 2
 fi
 [ "$UNJUDGED" -eq 0 ] || { echo "有 $UNJUDGED 条认不出判决 ⇒ 不许当通过"; exit 3; }
