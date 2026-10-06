@@ -59,10 +59,19 @@ PYEOF
 }
 
 echo "变异台（原始产物 → 变异产物 → 判据必须报红）"
+# ⚠⚠ 目标串在第二版全部重写。E 层从「verdict 该是 pass」改成
+#   「我重算的 verdict 必须等于产物印的 verdict」之后，绝大多数变异
+#   不再咬原来的行，而是咬 **E12 对账条**。这不是把目标串一改了事：
+#   若只把 expect 换成 E12，E1/E2/E3/E4 这几条**行级自洽判据就没人验了**
+#   —— 它们会悄悄退化成没人盯着的装饰。所以：
+#     · 破坏「量与原始字段自洽」的，仍指向它自己那一条；
+#     · 破坏「判决」的，指向 E12 —— 因为 E 层不再自己下判决，
+#       它只判决「判决有没有被如实重算出来」。
 
 # M1 把主量 excessm 整体变号（等价于「把配平对照换成更破坏的东西」）
-#     => G6 对照不等价[*/excessm] 必须翻红。这一条证明主量确实在起作用。
-run m1_excessm_flip "E10 G6 对照不等价[word/excessm]" '
+#     => ① E1 必须红（excessm 与 nm_* 的定义对不上了）
+#     => ② E12 必须红（重算的 G6 翻成 fail，产物还写着 pass）
+run m1_excessm_flip "E1 三个量与各自的原始字段逐行自洽" '
 for p in d["problems"]:
     for r in p["rows"]:
         for a in ("num", "word"):
@@ -92,8 +101,12 @@ for p in d["problems"]:
     for r in p["rows"][:4]: r["identity_top1_ok"] = 0
 '
 
-# M5 谎报「没有反事实」=> E2/E6 必须红。
-run m5_no_counterfactual "E6 G2 反事实存在[word]" '
+# M5 谎报「没有反事实」=> E12 必须红。
+#     改的是**判决的前提**：word 臂的 ncf 归零 ⇒ g2ok 变 False ⇒ 重算的
+#     G2 变 fail、G3-G6 全变 na，而产物里它们分别写着 pass/fail ⇒ 对不上。
+#     这条是 E12 牙齿最直接的证据：把「反事实存在」这个前提偷走，
+#     产物上的判决就成了没人重算得出来的样子。
+run m5_no_counterfactual "E12 独立重算的每道门与产物印的 verdict 逐条一致" '
 for p in d["problems"]:
     p["num_top1"] = p["clean_top1"]; p["num_differs"] = 0
     p["word_top1"] = p["clean_top1"]; p["word_differs"] = 0
@@ -106,8 +119,10 @@ for p in d["problems"]:
         r["flip_num"] = 0; r["flip_word"] = 0
 '
 
-# M7 节点号整体后移 5 层 => G5 的重叠必须变。
-run m7_node_shift "E9 G5 描述-因果重叠[word/excessm]" '
+# M7 节点号整体后移 5 层 => 重算的 G5 重叠必须与产物对不上 => E12 红。
+#     节点号错位是**不会让任何单行不自洽**的那一类故障：所有数都还在、
+#     都还自洽，只有「层号」整体挪了位置。不对账就永远看不出来。
+run m7_node_shift "E12 独立重算的每道门与产物印的 verdict 逐条一致" '
 for p in d["problems"]:
     for r in p["rows"]: r["node"] = r["node"] + 5
 '

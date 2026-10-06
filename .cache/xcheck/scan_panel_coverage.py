@@ -327,6 +327,16 @@ DEAD_IN_SOURCE_EXEMPT = {
                         "verify_patch P1 逐行核对 data-verdict 与产物 gates[].verdict"
                         "**逐字相同**（唯一结论字段，不许页面自己另判一次）。",
     "data-gate": "判决表每行的门名，与同行 data-verdict 配对。",
+    # ⚠ data-key 漏登记过一次，让 C7 判红。漏登记的后果与登记错**方向相反**：
+    #   登记簿是「这些标记读者看不到，但读代码的人会以为它在」的白名单；
+    #   漏一条 ⇒ 真活着的标记被当成死代码，**把活判成死的**。
+    #   而它偏偏是这一屏**唯一**的对账键：门名 `内容窗可定位` 在三个量上
+    #   各出现一次，只有 data-key（形如 G4[word/excessm]）能分清是哪一道门。
+    #   verify_patch 靠它与产物 gates 的键配对，漏了它页面就会互相认错门。
+    "data-key": "判决表每行的**门键**（形如 G4[word/excessm]），与同行 "
+                "data-gate / data-verdict 在同一个 <tr> 上，条件渲染。"
+                "verify_patch 按**门键**而不是门名与产物 gates 对账 —— "
+                "三个量共用门名，只按门名认会互相认错。",
     "data-verdict": "判决表每行的结论，取值 pass/fail/na 三者之一。"
                     "verify_patch P2 要求三态**都**可能出现在页面上，"
                     "并要求 na 行同时给出 why_na —— 没测说成不成立是伪造结论。",

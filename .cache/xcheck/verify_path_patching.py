@@ -34,10 +34,11 @@ ARMS = ("num", "word")
 MEASURES = ("excessm", "transfer", "excess")
 PRIMARY = "excessm"
 
-fails, warns = [], []
+fails, warns, _total = [], [], [0]
 
 
 def check(name, ok, detail):
+    _total[0] += 1
     print(f"  [{'PASS' if ok else 'FAIL'}] {name}")
     for x in detail:
         print(f"         {x}")
@@ -116,69 +117,131 @@ def main():
           [f"{o_}/{s_} = {r1:.3f}（门 ≥{G1_STEP}）",
            f"逐题：{[(p['pid'][-5:], p['g1_agree'], p['g1_steps']) for p in P]}"])
 
-    # E6 G2 每臂
+    # ── E6..E10 独立重算 → 与产物里印的 verdict 对账 ──────────────────
+    # ⚠⚠⚠ 这一段第一版**方向写反了**。它问的是「verdict 是不是 pass」，
+    #   而本文件 docstring 写的是「两边必须一致」。三个后果，一个比一个隐蔽：
+    #
+    #   ① **科学没成立会把判据弄红**。G4 判「不是窗、只是弥散，附近有峰」
+    #      是本轮的真实结论，页面已经诚实印着。审计器跟着红，就把
+    #      「审计器坏了」和「科学没成立」压成同一个字样 ——
+    #      与「判据返回 False 但不证明任何事」是同一个坑。
+    #   ② **它永远红**。一条永远红的判据与一条永远绿的判据同样没有信息量，
+    #      而且更隐蔽：全链退出码会恒为 1，此后**任何真故障都被淹在这条
+    #      恒红里**，而恒红是最容易被当成「已知问题」继续往下走的那一种。
+    #   ③ **判据与产品对同一件事给了相反答案**。num 臂被 SKIP_NUM 裁掉，
+    #      产物按预登记规则标 `na` 并带理由（没跑 ≠ 跑过没过），
+    #      而 E 层却独立判它 FAIL —— 这正是我写构建器时刻意避免的那个错，
+    #      在自己身上又犯了一遍。
+    #   ⇒ 这里重算的是「verdict 等于多少」，**只有「重算 ≠ 产物」才红**。
+    #     变异台仍然咬得住：改产物里的数就对不上（m3/m4/m6 干的就是这个）。
+    #     注意这**不是**把 E 层降格成复读机 —— 独立重算的代码在这里，
+    #     产物是另一个人（构建器）算的，两边不一致正是要抓的东西。
+    pub_gates = {}
+    if os.path.exists(PUBLIC):
+        pub_gates = (json.load(open(PUBLIC, encoding="utf-8"))
+                     .get("gates") or {})
+
+    recomp, no_recomp = {}, {}
     for arm in ARMS:
         ncf = sum(p[f"{arm}_differs"] for p in P)
-        check(f"E6 G2 反事实存在[{arm}]", ncf >= G2_PROB,
-              [f"{ncf}/{len(P)}（门 ≥{G2_PROB}）",
-               "逐题：" + ", ".join(
-                   f"{p['pid'][-5:]} {p['clean_top1_text']!r}→{p[arm + '_top1_text']!r}"
-                   for p in P)])
+        ran = any(p.get(f"{arm}_top1_text") for p in P)
+        g2ok = ran and ncf >= G2_PROB
+        recomp[f"G2[{arm}]"] = "na" if not ran else ("pass" if g2ok else "fail")
+        if not ran:
+            no_recomp[f"G2[{arm}]"] = "该臂本轮未测（无任何 top1 文本）"
+        print(f"  [重算] E6 G2[{arm}] → {recomp[f'G2[{arm}]']}"
+              f"　反事实 {ncf}/{len(P)}（门 ≥{G2_PROB}）"
+              f"{'　ran=False' if not ran else ''}")
+        print("         逐题：" + ", ".join(
+            f"{p['pid'][-5:]} {p['clean_top1_text']!r}→{p[arm + '_top1_text']!r}"
+            for p in P))
 
-    # E7-E10 G3-G6：每臂 × 每量
-    for arm in ARMS:
+        # E7-E10 G3-G6：每臂 × 每量
         for meas in MEASURES:
+            key4 = f"[{arm}/{meas}]"
+            tag = key4 + ("（主量）" if meas == PRIMARY else "（次量）")
+            if not ran or not g2ok:
+                # 装置前提不成立 ⇒ 全部 na。**这里必须跟着产物走 na**：
+                # 独立算一遍「它该是 fail」是拿「没测」冒充「测了没过」。
+                for g in ("G3", "G4", "G5", "G6"):
+                    recomp[f"{g}{key4}"] = "na"
+                    no_recomp[f"{g}{key4}"] = (
+                        "该臂本轮未测" if not ran else
+                        f"G2[{arm}] 未过（{ncf}/{len(P)}）⇒ 无从测起")
+                print(f"  [重算] E7..E10 {tag} → 全部 na"
+                      f"（{'臂未跑' if not ran else 'G2 未过'}）")
+                continue
             rows = [(p, r) for p in P for r in p["rows"]
                     if r.get(f"{meas}_{arm}") is not None]
-            tag = f"[{arm}/{meas}]" + ("（主量）" if meas == PRIMARY else "（次量）")
             if not rows:
                 # 没数据 ≠ 不成立。SKIP_NUM 裁掉的臂在这里必须报「本轮不适用」，
                 # 报成 FAIL 等于把「没测」写成「测了没过」。
-                print(f"  [略过] E7..E10 {arm}/{meas}：本轮该臂该量无数据"
+                recomp[f"G3{key4}"] = "na"
+                no_recomp[f"G3{key4}"] = "该量在本轮没有可用数据"
+                print(f"  [略过] E7..E10 {tag}：本轮该臂该量无数据"
                       f"（G2 未过或臂被裁掉），不判成立也不判不成立")
                 continue
-            exc = [r[f"{meas}_{arm}"] for _, r in rows]
             isp = meas == PRIMARY
+            exc = [r[f"{meas}_{arm}"] for _, r in rows]
 
             # 该臂自己的 token 是**题级**字段（p["word_top1"]），不是行级。
             # 上一版写成 r[f"{arm}_top1"]，跑到第一个非空行就 KeyError。
-            def no_ctrl(r, pr):
-                if isp:
-                    want = pr.get(arm + "_top1")
-                    tops = [t for t in (r.get("nm_" + arm + "_top1") or []) if t is not None]
+            def no_ctrl(r, pr, _isp=isp, _arm=arm):
+                if _isp:
+                    want = pr.get(_arm + "_top1")
+                    tops = [t for t in (r.get("nm_" + _arm + "_top1") or [])
+                            if t is not None]
                     return int(any(t == want for t in tops)) == 0
                 return r["flip_null"] == 0
 
             dirset = sorted({(r["node"], p["pid"]) for p, r in rows
                              if r[f"{meas}_{arm}"] > 0 and r[f"flip_{arm}"] == 1
                              and no_ctrl(r, p)})
-            check(f"E7 G3 存在方向性层{tag}", len(dirset) > 0,
-                  [f"层-题对 {len(dirset)} 个，对照="
-                   + ("幅度配平随机对照" if isp else "换题臂"),
-                   f"按层：{sorted({x for x, _ in dirset})}" if dirset else "一个都没有"])
+            v3 = "pass" if len(dirset) > 0 else "fail"
+            recomp[f"G3{key4}"] = v3
+            print(f"  [重算] E7 G3{tag} → {v3}"
+                  f"　层-题对 {len(dirset)} 个，对照="
+                  + ("幅度配平随机对照" if isp else "换题臂"))
 
             W = sorted({r["node"] for _, r in rows if r[f"{meas}_{arm}"] > 0})
             span = (W[-1] - W[0] + 1) if W else 0
-            check(f"E8 G4 内容窗可定位{tag}", len(W) >= MINW and span <= MAXSPAN,
-                  [f"{meas}>0 节点 {W}",
-                   f"|W|={len(W)}（门 ≥{MINW}）  span={span}（门 ≤{MAXSPAN}）"])
+            v4 = "pass" if (len(W) >= MINW and span <= MAXSPAN) else "fail"
+            recomp[f"G4{key4}"] = v4
+            print(f"  [重算] E8 G4{tag} → {v4}"
+                  f"　|{meas}>0 的层|={len(W)}（门 ≥{MINW}） span={span}（门 ≤{MAXSPAN}）")
 
             byn = {}
             for p, r in rows:
                 byn.setdefault(r["node"], []).append(r[f"{meas}_{arm}"])
-            nm = {x: st.mean(v) for x, v in byn.items()}
-            top6 = sorted(nm, key=lambda x: -nm[x])[:TOPK]
+            nmv = {x: st.mean(v) for x, v in byn.items()}
+            top6 = sorted(nmv, key=lambda x: -nmv[x])[:TOPK]
             ov = sorted(set(top6) & set(WINDOW))
-            check(f"E9 G5 描述-因果重叠{tag}", len(ov) >= 3,
-                  [f"{meas} 前 {TOPK} 层 = {sorted(top6)}",
-                   f"预登记窗 = {WINDOW}，交集 = {ov}（门 ≥3）",
-                   f"逐层均值 = { {x: round(nm[x], 3) for x in sorted(nm)} }"])
+            v5 = "pass" if len(ov) >= 3 else "fail"
+            recomp[f"G5{key4}"] = v5
+            print(f"  [重算] E9 G5{tag} → {v5}"
+                  f"　前 {TOPK} 层 {sorted(top6)} ∩ 预登记窗 {WINDOW} = {ov}（门 ≥3）")
 
             med = st.median(exc)
-            check(f"E10 G6 对照不等价{tag}", med > 0,
-                  [f"中位数 = {med:.4f}（门 >0）",
-                   f"正 {sum(1 for e in exc if e > 0)} / 负 {sum(1 for e in exc if e < 0)}"
-                   f" / 共 {len(exc)}"])
+            v6 = "pass" if med > 0 else "fail"
+            recomp[f"G6{key4}"] = v6
+            print(f"  [重算] E10 G6{tag} → {v6}"
+                  f"　中位 {med:.4f}（门 >0）　正 {sum(1 for e in exc if e > 0)}"
+                  f" / 负 {sum(1 for e in exc if e < 0)} / 共 {len(exc)}")
+
+    mism, absent = [], []
+    for k, v in sorted(recomp.items()):
+        got = (pub_gates.get(k) or {}).get("verdict")
+        if got is None:
+            absent.append(k)
+        elif got != v:
+            mism.append((k, v, got))
+    check("E12 独立重算的每道门与产物印的 verdict 逐条一致"
+          "（判据审计的是**自洽**，科学红绿由产物与页面负责）",
+          not mism,
+          [f"重算了 {len(recomp)} 道，产物里缺 {len(absent)} 道（{absent[:6]}）",
+           f"不一致 {len(mism)} 处",
+           f"前 3（门键, 重算, 产物）：{mism[:3]}" if mism
+           else "逐条一致（na 也一致：没测在两边都写着没测）"])
 
     # E11 陌生度：主量成立的前提是「配平对照替代换题臂」
     cos = {}
@@ -219,26 +282,6 @@ def main():
                          f"很可能过度破坏（随机方向在流形外）。主量为正不等于"
                          f"「有内容效应」，只能说明「内容补丁比同幅度随机扰动好」。"
                          f"G4/G5 问的是形状，仍有效。")
-
-    # E13 主量的量级体检。
-    # 幅度配平只对齐了**偏离幅度**，没对齐「破坏程度」。随机方向在 2048 维里
-    # 几乎落在数据流形之外，同幅度的随机扰动可能把表示打烂 —— 那样任何内容
-    # 补丁在它面前都好看，excessm 会**平凡地**为正。这里把量级摆出来。
-    print("\nE13 层 · 主量量级体检（配平对照是否过度破坏）")
-    for _arm in ARMS:
-        vals = [r[PRIMARY + "_" + _arm] for _p in P for r in _p["rows"]
-                if r.get(PRIMARY + "_" + _arm) is not None]
-        if not vals:
-            print("    %-5s 本轮没有主量数据" % _arm)
-            continue
-        med = st.median(vals)
-        pos = sum(1 for v in vals if v > 0)
-        print("    %-5s 主量中位 %.3f nats，正 %d/%d" % (_arm, med, pos, len(vals)))
-        if med > 5.0:
-            warns.append("%s 臂主量中位 %.2f nats 偏大 ⇒ 配平随机对照很可能过度"
-                         "破坏（随机方向在流形外）。主量为正不等于「有内容效应」，"
-                         "只能说明「内容补丁比同幅度随机扰动好」；G4/G5 问的是形状，"
-                         "不受这条影响。" % (_arm, med))
 
     # E12 描述量
     lens = {}
@@ -314,10 +357,17 @@ def main():
                              for x in ("pass", "fail", "na")})])
 
     print("\n" + "=" * 60)
-    if fails:
-        print(f"❌ {len(fails)} 条红：{fails}")
-    else:
-        print("✅ 全绿")
+    # ⚠⚠ 汇总行**必须**是 `RESULT <名>  <RED|GREEN>  N/M 条通过`。
+    #   第一版这里印的是自创的 `❌ 8 条红：[…]`，而 run_chain.sh 只认
+    #   `^RESULT` 或 `^=== N/M` ⇒ 我这条判据在全链里被判成 **NORUN**，
+    #   而 NORUN 的读法是「一条都没跑」—— **判据红与判据没跑长得一样**。
+    #   更糟的是它 exit=1 也没用：串联器判决只从汇总行读，退出码只查装置崩。
+    #   ⇒ 房里有两套模板（python 用 RESULT，node 用 === N/M passed ===），
+    #     新判据不许自创第三套。
+    print("\nRESULT verify_patching  %s  %d/%d 条通过"
+          % ("RED" if fails else "GREEN", _total[0] - len(fails), _total[0]))
+    for f in fails:
+        print("   [FAIL] " + f)
     for w in warns:
         print("⚠ " + w)
     sys.exit(1 if fails else 0)
