@@ -156,39 +156,94 @@ def parse_id(path: Path) -> Tuple[str, str]:
     return problem, mode
 
 
+def pick_step_indices(T: int, window: int, scan: str) -> List[int]:
+    """这条轨迹要读 lens 的**步号列表**（升序，长度恰好 min(window, T)）。
+
+    ⚠⚠ 原来这里是 `t0 = T - w` 一句锁死「最后 w 步」，于是
+      logit_lens.json 只覆盖每条轨迹的**尾部**（实测 1536/69155 = 2.2%）。
+      而 Phase-0 要回答的「推理中途某个数算错了时是哪一层先知道」，
+      错误**发生在中段** —— 尾部窗口按定义就答不了。
+      ⇒ 加 uniform：把同样多的采样点铺满整条轨迹，CoT 中段才有数据。
+
+    tail    —— 与原实现逐位相同（默认值不变，logit_lens.json 不受影响）
+    uniform —— 覆盖 [0, T)，含中段
+
+    ⚠ 去重后必须**补回恰好 window 个**：round 会撞车，而下游
+      `sampling.steps_per_traj` 与恒等式 n_tokens == n_steps × n_layers
+      都假定宽度恒定。宁可补齐也不能悄悄少几个。
+    """
+    w = min(window, T)
+    if w <= 0:
+        return []
+    if scan == "tail":
+        return list(range(T - w, T))
+    if scan != "uniform":
+        raise ValueError(f"未知 scan 模式 {scan!r}（只认 tail / uniform）")
+    if w >= T:
+        return list(range(T))
+    cand = [int(round(i * (T - 1) / (w - 1))) for i in range(w)]
+    seen, out = set(), []
+    for v in cand:
+        if v not in seen:
+            seen.add(v)
+            out.append(v)
+    k = 0
+    while len(out) < w and k < T:
+        if k not in seen:
+            seen.add(k)
+            out.append(k)
+        k += 1
+    out.sort()
+    assert len(out) == w, f"采样宽度 {len(out)} ≠ {w}"
+    assert len(set(out)) == w, "采样步号有重复"
+    return out
+
+
 # ---------------------------------------------------------------------------
 # per-trajectory lens
 # ---------------------------------------------------------------------------
 def lens_trajectory(path: Path, g: torch.Tensor, Wt: torch.Tensor, eps: float,
-                    n_layers: int, window: int, tokens: List[str]
+                    n_layers: int, window: int, tokens: List[str],
+                    scan: str = "tail"
                     ) -> Tuple[List[dict], dict]:
-    """One trajectory, last `window` steps, all layers."""
+    """One trajectory, `window` steps per `--scan`, all layers."""
     z = np.load(path)
     hs_all = z["hidden_states"]           # (T, 28, 2048) float16
     top_idx = z["topk_indices"]           # (T, 64) int32
     top_log = z["topk_logits"]            # (T, 64) float16
     T = hs_all.shape[0]
-    w = min(window, T)
-    t0 = T - w
+    idxs = pick_step_indices(T, window, scan)
+    w = len(idxs)
+    # ⚠「是否连续」必须**记进产物**：uniform 模式下采到的是散布在整条轨迹上的
+    #   点，而 window 字段是个**区间**。读者若以为 window 里的每一步都被读了，
+    #   就会读出一个并不存在的连续覆盖。⇒ contiguous=false 时必须同时给
+    #   step_indices。
+    contiguous = (idxs == list(range(idxs[0], idxs[0] + w)))
 
-    hs = torch.from_numpy(hs_all[t0:T].astype(np.float32))      # (w, 28, 2048)
+    hs = torch.from_numpy(hs_all[idxs].astype(np.float32))        # (w, 28, 2048)
     del hs_all
     X = normed_by_layer(hs.reshape(-1, hs.shape[-1]), g, eps, n_layers)
     logits = X @ Wt                                              # (w*28, V)
     logits = logits.reshape(w, n_layers, -1)
 
-    real_margin = (top_log[t0:T, 0].astype(np.float32)
-                   - top_log[t0:T, 1].astype(np.float32))
+    real_margin = (top_log[idxs, 0].astype(np.float32)
+                   - top_log[idxs, 1].astype(np.float32))
 
     steps: List[dict] = []
     diag = {"steps": w, "anchor_pass": 0, "anchor_total": w,
             "decidable_pass": 0, "decidable_total": 0,
             "anchor_err_max": 0.0, "first_hist": [0] * n_layers,
             "ncorrect_hist": [0] * n_layers, "monotone_steps": 0,
-            "committed_steps": 0, "ever_correct": 0}
+            "committed_steps": 0, "ever_correct": 0,
+            # ⚠ T_true 是**npz 里的真实轨迹长度**。原实现没有它，
+            #   调用方只能拿 `steps[-1].t + 1` 反推 —— 而那只在「取尾部」时
+            #   恰好等于 T；一旦扫中段，那个数就是**错的**，而且错得不显眼
+            #   （它仍是个合理的小整数）。⇒ 显式带出来。
+            "T_true": T, "contiguous": contiguous,
+            "lo": idxs[0], "hi": idxs[-1] + 1}
 
     for i in range(w):
-        t = t0 + i
+        t = idxs[i]
         final_id = int(top_idx[t, 0])
         lg = logits[i]                                          # (28, V)
         lse = torch.logsumexp(lg, dim=-1, keepdim=True)          # (28, 1)
@@ -308,7 +363,11 @@ def main() -> int:
     ap.add_argument("--vocab", type=Path, default=DEFAULT_VOCAB)
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--window", type=int, default=32,
-                    help="steps sampled per trajectory, taken from the tail")
+                    help="steps sampled per trajectory")
+    ap.add_argument("--scan", choices=("tail", "uniform"), default="tail",
+                    help="tail = 原行为，只读最后 window 步（默认，"
+                         "logit_lens.json 依赖它）；uniform = 把同样多的采样点"
+                         "铺满整条轨迹，覆盖 CoT 中段。两者写**不同**的产物。")
     ap.add_argument("--limit", type=int, default=0, help="0 = all trajectories")
     ap.add_argument("--selfcheck", action="store_true",
                     help="run the ablation self-check and exit")
@@ -341,8 +400,8 @@ def main() -> int:
 
     print(f"model      {args.model_path.name}  layers={n_layers} d_model={d_model} "
           f"vocab={n_vocab} eps={eps} tied={head_is_tied(args.model_path)}")
-    print(f"sampling   all {len(paths)} trajectories x last {args.window} steps "
-          f"x {n_layers} layers")
+    print(f"sampling   all {len(paths)} trajectories x {args.window} steps "
+          f"x {n_layers} layers  (scan={args.scan})")
     t_start = time.time()
 
     trajs: List[dict] = []
@@ -353,17 +412,29 @@ def main() -> int:
     ncorrect_hist = [0] * (n_layers + 1)
     by_mode: Dict[str, dict] = {}
     lens_rows = 0
+    widths = set()          # 每条轨迹**实际**采到几步（不假设恒等于 --window）
 
     for k, p in enumerate(paths, 1):
         problem, mode = parse_id(p)
-        steps, d = lens_trajectory(p, g, Wt, eps, n_layers, args.window, tokens)
-        T = steps[-1]["t"] + 1
-        trajs.append({
+        steps, d = lens_trajectory(p, g, Wt, eps, n_layers, args.window, tokens,
+                                   scan=args.scan)
+        # ⚠ 原来这里是 `T = steps[-1]["t"] + 1`。那只在「取尾部」时恰好等于
+        #   真实长度；扫中段时它会**静默变成一个错的数**（仍是合理小整数，
+        #   所以没人会发现）。⇒ 一律用 npz 里的真实长度。
+        T = d["T_true"]
+        rec = {
             "id": p.stem, "problem": problem, "mode": mode, "T": T,
-            "window": [steps[0]["t"], T],
+            # window 是**采样点的包围区间**，不是「这段区间每步都读了」。
+            # uniform 模式下它是断的，所以必须同时给出 contiguous 与步号表。
+            "window": [d["lo"], d["hi"]],
+            "contiguous": d["contiguous"],
             "steps": steps,
-        })
+        }
+        if not d["contiguous"]:
+            rec["step_indices"] = [st["t"] for st in steps]
+        trajs.append(rec)
         lens_rows += d["steps"] * n_layers
+        widths.add(d["steps"])
         # Explicit map, not a shared key list: the two dicts name these
         # differently and a shared list let them drift into a KeyError once.
         for tot_key, diag_key in (("anchor_pass", "anchor_pass"),
@@ -444,15 +515,30 @@ def main() -> int:
             #   `{args.window}` 都是插值的 ⇒ 同一段散文里一个数有源、一个没有。
             #   题数从 trajectories 现算（distinct problem），不拿 n_traj 除以模式数 ——
             #   后者在「某一题缺一个模式」时会静默给出一个小数。
-            "rule": f"all {len(paths)} trajectories ({n_problems} problems x "
+            "rule": (f"all {len(paths)} trajectories ({n_problems} problems x "
                     f"{{think, no_think}}); for each, the LAST {args.window} "
-                    f"steps (constant width, tail = the answer-emission region)",
+                    f"steps (constant width, tail = the answer-emission region)"
+                    if args.scan == "tail" else
+                    f"all {len(paths)} trajectories ({n_problems} problems x "
+                    f"{{think, no_think}}); for each, {args.window} steps spread "
+                    f"UNIFORMLY over the WHOLE trajectory [0, T) (scan=uniform) so "
+                    f"the middle of the chain of thought is covered, not just the "
+                    f"answer-emission tail"),
+            "scan": args.scan,
             "why_tail": "the question is about the derivation of the token the "
                         "model is about to say; the tail is where it says it",
+            "why_uniform": "error-awareness asks which layer notices a mistake "
+                           "**while it happens** -- i.e. in the middle of the chain "
+                           "of thought. A tail-only window cannot answer that by "
+                           "construction, it only covers the answer-emission region.",
             "n_traj": len(trajs),
             "n_problems": n_problems,
             "n_modes": n_modes,
-            "steps_per_traj": args.window,
+            # ⚠ 散文里写了「constant width」，那它就**必须**是真的。
+            #   宽度不齐却照写，读者会以为每条轨迹被同等采样。
+            #   ⇒ 记实际观测到的宽度集合；不齐时 steps_per_traj 给整个列表。
+            "steps_per_traj": (args.window if len(widths) == 1 else sorted(widths)),
+            "steps_per_traj_widths_observed": sorted(widths),
             "n_steps": n_steps,
             "n_layers": n_layers,
             "d_model": d_model,
