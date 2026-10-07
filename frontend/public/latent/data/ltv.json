@@ -3356,11 +3356,106 @@
   "G-c": {
    "name": "名字预测效果",
    "claim": "S_k 指向的行为必须出现在注入后的可读输出里，且在未参与抽取的题上仍成立",
-   "verdict": "na",
+   "verdict": "fail",
    "evidence": {
-    "reason": "本轮探针只做了教师强制下的改口测量，没有做注入后生成"
+    "alphas": [
+     0.35,
+     1.0,
+     4.0
+    ],
+    "primary_key": "confident",
+    "negative_keys": [
+     "len_control",
+     "person_ctrl",
+     "register_ct"
+    ],
+    "n_holdout": 3,
+    "n_runs": 27,
+    "rule": "修订 4 ④G-c.1/.2/.3，在全部三档 α 上都成立才 pass（⑥b）",
+    "no_p_value": "3 题配对比较的符号检验最小 p=1.0 ⇒ 不报 p，改判逐题同号（修订 4 ⑤）",
+    "per_alpha": {
+     "0.35": {
+      "rates": {
+       "arm": 2.525252525252525,
+       "rand": 5.181347150259067,
+       "zero": 0.0
+      },
+      "d_arm_minus_rand": -2.656094625006542,
+      "c1_direction": false,
+      "c2_per_problem": false,
+      "per_problem_d": {
+       "aime__1984__1984_I_1__think": -6.4935064935064934,
+       "aime__1985__1985_I_1__no_think": 0.0,
+       "aime__1985__1985_I_1__think": -0.19028590457161965
+      },
+      "c3_negative_control": false,
+      "negative_deltas": {
+       "len_control": -2.5906735751295336,
+       "person_ctrl": -0.457947349139058,
+       "register_ct": 2.525252525252525
+      },
+      "worst_negative_key": "register_ct",
+      "all_three_hold": false
+     },
+     "1.0": {
+      "rates": {
+       "arm": 0.0,
+       "rand": 0.0,
+       "zero": 0.0
+      },
+      "d_arm_minus_rand": 0.0,
+      "c1_direction": false,
+      "c2_per_problem": false,
+      "per_problem_d": {
+       "aime__1984__1984_I_1__think": 0.0,
+       "aime__1985__1985_I_1__no_think": 0.0,
+       "aime__1985__1985_I_1__think": 0.0
+      },
+      "c3_negative_control": false,
+      "negative_deltas": {
+       "len_control": 2.4390243902439024,
+       "person_ctrl": 1.0911424903722704,
+       "register_ct": 0.0
+      },
+      "worst_negative_key": "len_control",
+      "all_three_hold": false
+     },
+     "4.0": {
+      "rates": {
+       "arm": 0.0,
+       "rand": 0.0,
+       "zero": 0.0
+      },
+      "d_arm_minus_rand": 0.0,
+      "c1_direction": false,
+      "c2_per_problem": false,
+      "per_problem_d": {
+       "aime__1984__1984_I_1__think": 0.0,
+       "aime__1985__1985_I_1__no_think": 0.0,
+       "aime__1985__1985_I_1__think": 0.0
+      },
+      "c3_negative_control": false,
+      "negative_deltas": {
+       "len_control": 0.0,
+       "person_ctrl": 0.0,
+       "register_ct": 0.0
+      },
+      "worst_negative_key": "len_control",
+      "all_three_hold": false
+     }
+    },
+    "undecidable_cells": [],
+    "c1_direction": false,
+    "c2_per_problem": false,
+    "c3_negative_control": false,
+    "failed_alphas": [
+     0.35,
+     1.0,
+     4.0
+    ],
+    "verdict_rule": "三条子判据在全部三档 α 上都成立 ⇒ pass（⑥b）；任一档不成立 ⇒ fail 并指明是哪一档"
    },
-   "why_na": "本轮**未测**：G-c 需要注入后**生成**可读输出并检查 S_k 指向的行为，而 probe_ltv.py 这一轮只测了「教师强制下逐步注入能不能改口」——两者是不同实验。按预登记表 §5「不在抽取用的那批上下文上报 G-c」，这里报 na 而非 fail：没跑 ≠ 跑了没过。"
+   "why_na": "三档里有 3 档不成立：α=[0.35, 1.0, 4.0]。⚠ 若想「改成只看 α=1.0」，那是一次口径变更，必须作为修订追加，并同时发出被丢掉的那一档的读数（修订 4 ⑥b）。"
   },
   "S1": {
    "name": "自检：α 网格/拟合窗与预登记一致、每个上下文恒等自证过、① 句子差分齐全且**稀疏分解真算过**",
@@ -3380,6 +3475,7 @@
  "caveats": [
   "① 句子锚定的稀疏分解**上一轮从未被执行过**：探针只算出了 11 条 d_k，没有求 c_k、没有按 |c_k| 选子集，K_MAX=8 被当元数据搬了三个文件却没有任何东西读它。本轮补算后，全解只解释 7.807% 的杠杆能量（残差比 0.9602）；按 |c_k| 取前 8 条里有 2 条负对照。⇒ 预登记表 §1 ①「名字可读」这个组成部分**本轮没有交付**，caveats 不能只写「存在风险」。",
   "S_k 是人挑的（预登记表 §4 已声明），存在拟合风险，消不掉。",
+  "G-c「名字预测效果」判 **fail**：注入 confidence_up 并未让模型说出更多 confident 的话——α=0.35 的待测方向臂 2.525 反而**低于**同范数随机对照 5.181（Δ=-2.656）。⚠ 但 α=1.0, 4.0 三臂计数**全是 0**：那一档上该词表一次都没命中，Δ=0 是「**量不出来**」，**不是**「测出没有差别」——不构成证伪。说「这个名字站不住」的证据是上面那些**方向为负**的档。⇒ 「低余弦 + 名字预测不成立」两句合起来，只能推出**这 11 句话撑不起这个向量**，推不出「模型没有自信这个概念」。",
   "g_v 只在最小三档上拟合；改口落在拟合窗内的上下文一律不判 G-a。",
   "预登记表 §3 把「一档」写成「约 1.7~2.8 倍」，而本网格的相邻档之比实为 1.43~2.0 —— 按「相邻档」字面执行。",
   "G-a 剔除了两类上下文并各自写明理由：改口落在拟合窗内（预测会变成拿答案推答案）与拟合窗内 gap 非单调（线性外推的前提不成立）。两类都记 na，不记 fail。",

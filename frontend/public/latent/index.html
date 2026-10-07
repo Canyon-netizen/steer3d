@@ -3964,6 +3964,20 @@ function evOneLine(g){
       + `，与描述窗交集 ${(e.overlap||[]).length} 层`;
     case "对照不等价": return `中位 ${e.median}（正 ${e.n_pos} / 负 ${e.n_neg} / 共 ${e.n}）`
       + `，对照：${e.control||"—"}`;
+    /* G-c：逐档给读数，不只给一个总判决。α=4.0 是 ‖v‖≈4σ 的大扰动，
+       那一档不成立是有信息量的（剂量够大时名字不再预测行为），压成一句会藏掉它。 */
+    case "名字预测效果": {
+      const pa = e.per_alpha || {};
+      const ks = Object.keys(pa);
+      if (!ks.length) return e.n_runs ? `未测（${e.n_runs} 次生成）` : (e.reason || "未测");
+      return ks.map(a => {
+        const r = pa[a] || {};
+        const d = Number(r.d_arm_minus_rand || 0);
+        return `α=${a} Δ=${d >= 0 ? "+" : ""}${d.toFixed(3)}`
+             + `${r.c1_direction ? "·向" : "·✗向"}${r.c2_per_problem ? "·同" : "·✗同"}`
+             + `${r.c3_negative_control ? "·压过负对照" : "·✗压不过负对照"}`;
+      }).join("　");
+    }
     default: return JSON.stringify(e).slice(0,90);
   }
 }
@@ -4012,6 +4026,16 @@ function renderLtvPanel(){
   const failed = gs.filter(g => g.verdict === "fail");
   const nas    = gs.filter(g => g.verdict === "na");
   const passed = gs.filter(g => g.verdict === "pass");
+
+  /* G-c 有没有真的被测过。下面那句「G-c 需要注入后生成…」在 G-c 还是 na 时
+     是对的；一旦这一轮真的跑了生成，它就变成**假陈述** —— 说着一件已经发生过
+     的事没发生。所以它必须跟着 verdict 走，不能写死。 */
+  const gc    = gates["G-c"] || {};
+  const gcEv  = gc.evidence || {};
+  const gcPa  = gcEv.per_alpha || {};
+  const gcA   = Object.keys(gcPa);
+  const gcMeasured = (gc.verdict === "pass" || gc.verdict === "fail") && gcA.length > 0;
+  const gcUndec = (gcEv.undecidable_cells || []).length;
 
   const gRow = g => {
     const [fg, bg, bd, lab] = VERDICT_STYLE[g.verdict] || VERDICT_STYLE.na;
@@ -4087,8 +4111,11 @@ function renderLtvPanel(){
     <b>「说得更肯定」「更早进入正题」和「换个说法」「换个人称」被并列选中。</b>
     <div style="margin-top:5px;color:#a98d92">
     这不等于「这个向量不是自信向量」：低余弦只说明<b>这 11 句话撑不起它</b>。
-    名字对不对要靠 G-c（注入后生成，看可读输出里有没有那个行为），
-    <b>那一道门本轮仍是「没测」</b>。</div>
+    名字对不对要靠 G-c（注入后生成，看可读输出里有没有那个行为）——
+    ${gcMeasured ? `<b>那一道门这一轮测了，判「不成立」</b>：注入
+      <code>confidence_up</code> 并没有让模型说出更多 <code>${esc4(gcEv.primary_key||"confident")}</code>
+      的话（逐档读数见下方「G-c 逐档读数」）。`
+      : `<b>那一道门本轮仍是「没测」</b>。`}</div>
     </div>
   </div>`;
 
@@ -4167,8 +4194,16 @@ function renderLtvPanel(){
       ${failed.length ? `<b>不成立</b>：${failed.map(g=>esc4("["+g.key+"]"+g.name)).join("、")}` : "（无）"}
       ${nas.length ? `　｜　<b>没测</b>：${nas.map(g=>esc4("["+g.key+"]"+g.name)).join("、")}` : ""}
       <div style="margin-top:4px;color:#a98d92">
-      「没测」不是「测了没过」：G-c 需要注入后<b>生成</b>可读输出再检查 S_k 指向的行为，
-      这一轮的探针只测了教师强制下逐步注入能不能改口 —— 两者是不同实验。</div>
+      ${gcMeasured ? `
+      「没测」不是「测了没过」。G-c 这一轮<b>测了</b>：注入后按
+      ${esc4(String(gcEv.n_holdout||"—"))} 道留出题 × ${esc4(String((gcA.length)||"—"))} 档 α
+      生成 ${esc4(String(gcEv.n_runs||"—"))} 次，三臂（待测方向／同范数随机／不注入）
+      按每千词归一后数 <code>${esc4(gcEv.primary_key||"confident")}</code> 的出现率；
+      词表、三臂、判决规则都写在预登记修订 4 里，<b>取任何生成文本之前</b>就定死了，
+      独立重算在 <code>verify_ltv.py</code> 的 J 层（它自己从生成原文重新数一遍）。`
+      : `「没测」不是「测了没过」：G-c 需要注入后<b>生成</b>可读输出再检查 S_k 指向的行为，
+      这一轮的探针只测了教师强制下逐步注入能不能改口 —— 两者是不同实验。`}
+      </div>
     </div>
   </div>
 
@@ -4180,6 +4215,67 @@ function renderLtvPanel(){
   </table>
 
   ${vblock}
+
+  ${gcMeasured ? `
+  <div data-ltvgc="1" data-ltvgcverdict="${esc4(String(gc.verdict))}"
+       style="margin-top:11px;border:1px solid #3a4256;border-radius:5px;
+              padding:8px 11px;background:#0e1219">
+    <b style="color:#8fd6ff">G-c 逐档读数</b>
+    <span style="font-size:10.5px;color:#8891a4">
+      —— 三条子判据<b>在全部三档 α 上都成立</b>才算通过；任一档不成立即 fail 并指明是哪一档</span>
+    <table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:6px">
+      <thead><tr style="color:#8891a4;font-size:10.5px;text-align:left">
+        <th style="padding:2px 5px">α</th>
+        <th style="padding:2px 5px">待测方向 arm</th>
+        <th style="padding:2px 5px">同范数随机 rand</th>
+        <th style="padding:2px 5px">不注入 zero</th>
+        <th style="padding:2px 5px">Δ＝arm−rand</th>
+        <th style="padding:2px 5px">① 方向性</th>
+        <th style="padding:2px 5px">② 逐题同号</th>
+        <th style="padding:2px 5px">③ 压过负对照</th>
+        <th style="padding:2px 5px">该档总</th></tr></thead>
+      <tbody>${gcA.map(a => {
+        const r = gcPa[a] || {};
+        const rt = r.rates || {};
+        const d = Number(r.d_arm_minus_rand || 0);
+        const yn = (b, t, f) => `<span style="color:${b ? "#7ee08a" : "#ff6b81"}">${b ? "✓" : "✗"} ${esc4(b ? t : f)}</span>`;
+        return `<tr data-ltvgcalpha="${esc4(a)}" data-ltvgcall="${r.all_three_hold ? "1" : "0"}">
+          <td><code>α=${esc4(a)}</code></td>
+          <td>${Number(rt.arm||0).toFixed(3)}</td>
+          <td>${Number(rt.rand||0).toFixed(3)}</td>
+          <td>${Number(rt.zero||0).toFixed(3)}</td>
+          <td><b style="color:${d>0?"#7ee08a":"#ff6b81"}">${d>=0?"+":""}${d.toFixed(3)}</b></td>
+          <td>${yn(r.c1_direction, "arm 高于两臂", "arm 未高于两臂")}</td>
+          <td>${yn(r.c2_per_problem, "每题都正", "有题反向")}</td>
+          <td>${yn(r.c3_negative_control, "压过 " + (r.worst_negative_key||""),
+                                 "压不过 " + (r.worst_negative_key||""))}</td>
+          <td>${r.all_three_hold
+              ? `<span style="color:#7ee08a">成立</span>`
+              : `<span style="color:#ff6b81">不成立</span>`}</td></tr>`;
+      }).join("")}</tbody>
+    </table>
+    <div style="font-size:10.5px;color:#8891a4;margin-top:6px">
+      计数按<b>每千词</b>归一（三臂正文长度不同，不归一就是在比长度）。
+      ② 是<b>一致性要求，不是统计检验</b>：${esc4(String(gcEv.n_holdout||3))} 道留出题的配对
+      符号检验最小可能 p = 1.0，<b>没有任何可用的显著性检验，因此这一屏不报 p 值</b>。
+      ${(() => {
+        const dead = gcA.filter(a => {
+          const r = gcPa[a] || {}, t = r.rates || {};
+          return ["arm","rand","zero"].every(k => Number(t[k]||0) === 0);
+        });
+        return dead.length
+          ? `<br>⚠ <b>α = ${esc4(dead.join("、"))} 三臂的计数全是 0</b>：
+             那一档上这个词表一次都没命中 ⇒ <b>Δ=0 是「量不出来」，不是「测出没有差别」</b>。
+             按预登记修订 4 ④，「没有上升」判 fail；但它<b>不构成「已证伪」</b>——
+             要说这个名字站不住，靠的是 α=0.35 那一档 arm 反而<b>低于</b>同范数随机对照。`
+          : "";
+      })()}
+      ${gcEv.failed_alphas && gcEv.failed_alphas.length
+        ? `<b style="color:#ff6b81">不成立的档：α = ${esc4(gcEv.failed_alphas.join("、"))}。</b>`
+        : ""}
+      ${gcUndec ? `<b style="color:#ffd479">另有 ${gcUndec} 个格子三臂逐字相同 ⇒ 不可判（未计入判决）。</b>` : ""}
+    </div>
+  </div>` : ""}
 
   <div style="margin-top:13px">
     <div style="font-size:10px;color:#5cc8ff;text-transform:uppercase;

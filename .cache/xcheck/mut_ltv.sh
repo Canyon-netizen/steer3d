@@ -234,9 +234,145 @@ run_pub l14_caveat_dropped "已被 caveats 披露" '
 d["caveats"] = [c for c in d["caveats"] if "从未被执行过" not in c]
 '
 
+# ── G-c：判决不能是**写死**的 ───────────────────────────────────────────────
+
+# L15 把 G-c 判成 pass，却把三条子判据的读数删掉 —— 「结论对、证据空」。
+#     G3 要求 pass/fail 时 c1_direction / c2_per_problem / c3_negative_control
+#     三个键必须都在（verify_ltv.py:491）。这一条证明 G3 对**真判决**也有牙齿，
+#     而不只是当初那句「na 必须带理由」。
+run_pub l15_gc_pass_no_evidence "G-c 若报 na 必须带理由" '
+g = d["gates"]["G-c"]; g["verdict"] = "pass"; g.pop("why_na", None)
+for k in ("c1_direction", "c2_per_problem", "c3_negative_control"):
+    g["evidence"].pop(k, None)
+'
+
+# L16 反过来：判成 na 却把理由删掉 —— 复刻「na 却不说明为什么」。
+run_pub l16_gc_na_no_why "G-c 若报 na 必须带理由" '
+g = d["gates"]["G-c"]; g["verdict"] = "na"; g.pop("why_na", None)
+'
+
+# ── build 层：判决**真的**由行为数据推出（不是硬编码，不是恒真）──────────────
+#
+# ⚠ 上面 L15/L16 只能证明 verify 认得证据缺失。真正的风险是**反过来**的：
+#   build_ltv 里那句 put("G-c", ..., "na", ...) 本来就是写死的 na，
+#   就算 verify 查了证据，判决也永远不会随数据变。
+#   ⇒ 这一支不看绿条，直接跑 build、断言 G-c 的**判决值**等于预期。
+#   三份行为数据是合成的（与真实那一跑无关），目的是证明判决随输入移动。
+
+_gc_cases=0
+_gc_fail=0
+run_build() {
+  local nm="$1" expect="$2" mode="$3"
+  local beh="${MUT}/${nm}.beh.json"
+  local pub="${MUT}/${nm}.built.json"
+  rm -f "${beh}" "${pub}"
+  python3 - "${beh}" "${mode}" <<'PYBEH'
+import json, sys
+sys.path.insert(0, ".cache/xcheck")
+import ltv_behavior as LB
+out, mode = sys.argv[1], sys.argv[2]
+ALPHAS = (0.35, 1.0, 4.0); PIDS = ("p1", "p2", "p3")
+rows = []
+for a in ALPHAS:
+    for p in PIDS:
+        for arm in ("arm", "rand", "zero"):
+            sha = ("SAME" if mode == "same" and p == "p2" and a == 4.0
+                   else p + str(a) + arm)
+            r = {"pid": p, "alpha": a, "arm": arm, "n_words": 100, "sha1": sha}
+            for k in LB.FEATURES:
+                if mode == "pass":
+                    r[k] = {"arm": 10.0, "rand": 1.0, "zero": 2.0}[arm] if k == LB.PRIMARY_KEY \
+                        else (1.0 if k in LB.NEGATIVE_KEYS and arm == "arm" else 0.0)
+                elif mode == "flat":
+                    r[k] = 5.0 if arm in ("arm", "rand") else 1.0   # arm==rand ⇒ c1 不成立
+                else:                                             # mode == "same"
+                    r[k] = 1.0
+            rows.append(r)
+beh = {"schema": "steer3d.ltv_behavior/1", "n_runs": len(rows), "per_run": rows,
+       "primary_key": LB.PRIMARY_KEY, "negative_keys": list(LB.NEGATIVE_KEYS),
+       "pooled_by_problem": {p: {str(a): {} for a in ALPHAS} for p in PIDS}}
+json.dump(beh, open(out, "w"))
+PYBEH
+  ARTIFACT="${SRC}" PUBLIC="${pub}" BEHAVIOR="${beh}" \
+    python3 "${B}" >/dev/null 2>&1
+  local got; got=$(python3 -c "
+import json,sys
+try:
+    print((json.load(open(sys.argv[1],encoding='utf-8')).get('gates') or {}).get('G-c',{}).get('verdict'))
+except Exception as e:
+    print('ERR:'+type(e).__name__)" "${pub}")
+  _gc_cases=$((_gc_cases+1))
+  if [ "${got}" = "${expect}" ]; then
+    echo "[绿] ${nm}：G-c 判决 = ${got}（预期 ${expect}）⇒ 判决随数据移动"
+  else
+    echo "[红] ${nm}：G-c 判决 = ${got}，预期 ${expect} ⇒ 判决**没**跟着数据走"
+    _gc_fail=$((_gc_fail+1))
+  fi
+}
+
+# 三份数据、三种判决：全过 / arm==rand ⇒ 方向性不成立 / 有逐字相同格 ⇒ 不可判
+run_build b1_gc_pass   "pass" "pass"
+run_build b2_gc_flat   "fail" "flat"
+run_build b3_gc_undec  "na"   "same"
+
+# ── J 层自己的牙齿 ────────────────────────────────────────────────────────
+# ⚠ J1~J4 是**新加的**，而新加的判据最容易变成一条永远绿的装饰。
+#   这一支证明它们能变红：篡 ltv_gen.json（生成原文），
+#   J2 从原文重数的率会与 ltv_behavior.json 对不上，J4 的判决也会跟着变。
+_j_cases=0
+_j_fail=0
+# ⚠ 前提守卫：J 层只在 ltv_gen.json **和** ltv_behavior.json 都在时才走那条路。
+#   只缺行为文件时 J1 会走「前提缺失」分支，篡改生成原文**打不到**任何东西 ——
+#   那是「变异打空」，不是「判据没牙齿」。两者必须分开报，否则会误判 J 层无效。
+if [ ! -f .cache/xcheck/ltv_behavior.json ] || [ ! -f .cache/xcheck/ltv_gen.json ]; then
+  echo "[跳过] J 层变异：ltv_behavior.json 或 ltv_gen.json 不存在 ⇒ 前提不满足（不是判据没牙齿）"
+  _j_cases=$((_j_cases+2))
+else
+run_j() {
+  local nm="$1" expect="$2" snippet="$3"
+  local gen="${MUT}/${nm}.gen.json"
+  rm -f "${gen}"
+  python3 - .cache/xcheck/ltv_gen.json "${gen}" <<PYJEOF
+import json, hashlib, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+$snippet
+json.dump(d, open(sys.argv[2], "w"), ensure_ascii=False)
+PYJEOF
+  local lg; lg=$(ARTIFACT="${SRC}" PUBLIC="${PUB}" BEHAVIOR=.cache/xcheck/ltv_behavior.json \
+                  GEN_ART="${gen}" python3 "$V" 2>&1)
+  local np; np=$(echo "${lg}" | grep -c "^  \[PASS\]")
+  local hit="no"; echo "${lg}" | grep -qF -- "${expect}" && hit="yes"
+  _j_cases=$((_j_cases+1))
+  if [ "${hit}" = "yes" ]; then
+    echo "[绿] ${nm}：绿条 ${base_pass} → ${np}，且 '${expect}' 转红"
+  else
+    echo "[红] ${nm}：篡改 ltv_gen.json 后 '${expect}' 仍是绿的 ⇒ J 层**没牙齿**"
+    _j_fail=$((_j_fail+1))
+  fi
+}
+
+# J1 把所有生成文本清空 ⇒ 从原文重数的率全变 0，与行为文件对不上 ⇒ J2 转红
+run_j j1_blank_text "J2 从 ltv_gen.json" '
+for r in d["runs"]:
+    r["text"] = ""
+'
+
+# J2 让每一格的 arm 文本与 rand **逐字相同**（sha1 也一起改）
+#    ⇒ 独立重算认定「不可判 ⇒ na」，而产物报的是别的 ⇒ J4 转红
+run_j j2_arm_equals_rand "J4 整道 G-c 的判决值" '
+for r in d["runs"]:
+    if r["arm"] == "arm":
+        src = next(x for x in d["runs"] if x["pid"] == r["pid"]
+                   and x["alpha"] == r["alpha"] and x["arm"] == "rand")
+        r["text"] = src["text"]
+        r["text_sha_1"] = src["text_sha_1"]
+'
+fi
+
 echo
-if [ ${fails} -eq 0 ]; then
+if [ ${fails} -eq 0 ] && [ ${_gc_fail} -eq 0 ] && [ ${_j_fail} -eq 0 ]; then
   echo "全部变异都被判据抓住（判据有牙齿）${skipped:+，跳过 ${skipped} 条（目标条基线已红）}"
   exit 0
 fi
-echo "${fails} 条变异没被抓住"; exit 1
+echo "${fails} 条变异没被抓住；build 层 ${_gc_fail}/${_gc_cases} 条没跟着数据走；J 层 ${_j_fail}/${_j_cases} 条没牙齿"
+exit 1

@@ -331,6 +331,98 @@ def sensitivity(ctx):
     return out
 
 
+# ---- G-c：名字预测效果 --------------------------------------------------------
+# 判决规则**逐条**照抄 LTV_PREREG.md 修订 4 ④ / ⑥b / ⑥c + 修订 5，
+# 词表与主/负对照键名**不在本文件另写一份**，从 ltv_behavior 取（那是照着
+# 预登记实现的唯一一份）。两处各写一份词表，迟早会漂移。
+# ⚠ 判决在取数前就已写死；看到读数后不许在这里挑档、改词表、或改哪一条成立。
+
+_ALPHAS_GC = (0.35, 1.0, 4.0)      # 修订 4 ①
+_HOLDOUT_N = 3                     # 修订 4 ⑤：3 题 ⇒ 符号检验最小 p=1.0 ⇒ 不报 p
+
+
+def _g_c_verdict(beh):
+    """返回 (verdict, evidence, why_na)。三条子判据逐档算，全部三档成立才算 pass。"""
+    import ltv_behavior as LB          # 唯一一份词表/池化实现
+
+    ev = {"alphas": list(_ALPHAS_GC), "primary_key": LB.PRIMARY_KEY,
+          "negative_keys": list(LB.NEGATIVE_KEYS),
+          "n_holdout": _HOLDOUT_N,
+          "n_runs": beh.get("n_runs"),
+          "rule": "修订 4 ④G-c.1/.2/.3，在全部三档 α 上都成立才 pass（⑥b）",
+          "no_p_value": "3 题配对比较的符号检验最小 p=1.0 ⇒ 不报 p，改判逐题同号（修订 4 ⑤）",
+          "per_alpha": {}}
+
+    rows = beh["per_run"]
+    pids = beh["pooled_by_problem"].keys()
+
+    # ---- 修订 4 ⑥c / 修订 5：先把不可判格挑出来（先于任何判决）--------------
+    undec = []
+    for pid in pids:
+        for a in _ALPHAS_GC:
+            sel = [r for r in rows if r["pid"] == pid and r["alpha"] == a]
+            sha = {r["arm"]: r.get("sha1") for r in sel}
+            if len(sha) == 3 and len(set(sha.values())) == 1:
+                undec.append({"pid": pid, "alpha": a,
+                              "why": "三臂生成文本逐字相同 ⇒ 这一格没有分辨力"})
+    ev["undecidable_cells"] = undec
+
+    if undec:
+        ev["c1_direction"] = "未判（存在不可判格）"
+        ev["c2_per_problem"] = "未判（存在不可判格）"
+        ev["c3_negative_control"] = "未判（存在不可判格）"
+        return "na", ev, (
+            f"存在 {len(undec)} 个 (题,α) 格三臂文本逐字相同 ⇒ 该格没有分辨力，"
+            f"按修订 5 报 na（不报 pass 也不报 fail）。逐条读数见 evidence.undecidable_cells。"
+            f"⚠ 若想「剔掉那题再判」，那是一次口径变更，必须作为修订追加。")
+
+    # ---- 三条子判据逐档算 ---------------------------------------------------
+    all_ok, failed_alpha = True, []
+    for a in _ALPHAS_GC:
+        pa = {arm: (LB.pooled_where(rows, alpha=a, arm=arm) or {}).get(LB.PRIMARY_KEY, 0.0)
+              for arm in ("arm", "rand", "zero")}
+        d_rand = pa["arm"] - pa["rand"]
+
+        # G-c.1 方向性：arm > rand 且 arm > zero（与 rand 的比较有牙齿）
+        c1 = (d_rand > 0) and (pa["arm"] > pa["zero"])
+
+        # G-c.2 逐题同号：每一题 arm-rand 都为正
+        per = {pid: ((LB.pooled_where(rows, pid=pid, alpha=a, arm="arm") or {}).get(LB.PRIMARY_KEY, 0.0)
+                    - (LB.pooled_where(rows, pid=pid, alpha=a, arm="rand") or {}).get(LB.PRIMARY_KEY, 0.0))
+               for pid in pids}
+        c2 = all(x > 0 for x in per.values())
+
+        # G-c.3 负对照不吃进来：confident 的 arm-rand 涨幅 > 负对照里最大涨幅
+        neg = {nk: (LB.pooled_where(rows, alpha=a, arm="arm") or {}).get(nk, 0.0)
+                    - (LB.pooled_where(rows, alpha=a, arm="rand") or {}).get(nk, 0.0)
+               for nk in LB.NEGATIVE_KEYS}
+        worst = max(neg, key=lambda k: neg[k])
+        c3 = d_rand > neg[worst]
+
+        ok = c1 and c2 and c3
+        if not ok:
+            all_ok = False
+            failed_alpha.append(a)
+        ev["per_alpha"][str(a)] = {
+            "rates": pa, "d_arm_minus_rand": d_rand,
+            "c1_direction": bool(c1), "c2_per_problem": bool(c2),
+            "per_problem_d": per, "c3_negative_control": bool(c3),
+            "negative_deltas": neg, "worst_negative_key": worst,
+            "all_three_hold": ok}
+
+    ev["c1_direction"] = all(ev["per_alpha"][str(a)]["c1_direction"] for a in _ALPHAS_GC)
+    ev["c2_per_problem"] = all(ev["per_alpha"][str(a)]["c2_per_problem"] for a in _ALPHAS_GC)
+    ev["c3_negative_control"] = all(ev["per_alpha"][str(a)]["c3_negative_control"] for a in _ALPHAS_GC)
+    ev["failed_alphas"] = failed_alpha
+    ev["verdict_rule"] = ("三条子判据在全部三档 α 上都成立 ⇒ pass（⑥b）"
+                          "；任一档不成立 ⇒ fail 并指明是哪一档")
+    if all_ok:
+        return "pass", ev, None
+    return "fail", ev, (f"三档里有 {len(failed_alpha)} 档不成立：α={failed_alpha}。"
+                        f"⚠ 若想「改成只看 α=1.0」，那是一次口径变更，必须作为修订追加，"
+                        f"并同时发出被丢掉的那一档的读数（修订 4 ⑥b）。")
+
+
 def main():
     if not os.path.exists(ART):
         log(f"原始产物不存在：{ART}；先跑 probe_ltv.py")
@@ -627,19 +719,26 @@ def main():
          "detail": detail})
 
     # ---- G-c 名字预测效果 ----------------------------------------------
-    # ⚠ 本轮**没测**。它要的是「注入后的可读输出里，S_k 指向的行为是否出现」，
-    #   那需要**生成**（注入后让模型续写文本），与本轮测的
-    #   「教师强制下逐步注入能不能改口」是两种实验。
-    #   预登记表 §5 明写「不在抽取用的那批上下文上报 G-c」。
-    #   ⇒ 这里报 **na 并写明为什么**，不报 fail —— 没跑 ≠ 跑了没过。
-    put("G-c", "名字预测效果",
-        "S_k 指向的行为必须出现在注入后的可读输出里，"
-        "且在未参与抽取的题上仍成立",
-        "na", {"reason": "本轮探针只做了教师强制下的改口测量，没有做注入后生成"},
-        why_na="本轮**未测**：G-c 需要注入后**生成**可读输出并检查 S_k 指向的行为，"
-               "而 probe_ltv.py 这一轮只测了「教师强制下逐步注入能不能改口」——"
-               "两者是不同实验。按预登记表 §5「不在抽取用的那批上下文上报 G-c」，"
-               "这里报 na 而非 fail：没跑 ≠ 跑了没过。")
+    # 判决规则在取数**之前**写死于预登记修订 4 ④/⑥b/⑥c 与修订 5，
+    # 逐条实现见 _g_c_verdict()（词表从 ltv_behavior 取，不在此另写一份）。
+    _beh_path = os.environ.get("BEHAVIOR", os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "ltv_behavior.json"))
+    _gc_verdict, _gc_ev = None, {}
+    if not os.path.exists(_beh_path):
+        put("G-c", "名字预测效果",
+            "S_k 指向的行为必须出现在注入后的可读输出里，"
+            "且在未参与抽取的题上仍成立",
+            "na", {"reason": "没有 ltv_behavior.json；先跑 ltv_behavior.py"},
+            why_na="行为判定器**没跑**：没有 ltv_behavior.json。"
+                   "没跑 ≠ 跑了没过。")
+    else:
+        _beh = json.load(open(_beh_path, encoding="utf-8"))
+        _v, _ev, _why = _g_c_verdict(_beh)
+        _gc_verdict, _gc_ev = _v, _ev
+        put("G-c", "名字预测效果",
+            "S_k 指向的行为必须出现在注入后的可读输出里，"
+            "且在未参与抽取的题上仍成立",
+            _v, _ev, why_na=_why)
 
     # ---- 自检门 ----------------------------------------------------------
     # ⚠ claim 里加了「① 稀疏分解真算过」。上一版的 S1 只查「句子差分齐全」
@@ -659,6 +758,29 @@ def main():
              (decomp or {}).get("n_negative_control_in_top_k")})
 
     # ---- 输出 ------------------------------------------------------------
+    # G-c 的披露词**现算**，不许手抄：口径一改它就静默过期，而它印在读者面前。
+    _gc_caveat = None
+    if _gc_verdict in ("pass", "fail"):
+        _pa = _gc_ev.get("per_alpha") or {}
+        _dead, _real = [], []
+        for _a, _r in _pa.items():
+            _t = _r.get("rates") or {}
+            (_dead if all(float(x or 0) == 0 for x in _t.values()) else _real).append(_a)
+        _fw = ", ".join(
+            f"α={_a} 的待测方向臂 {_r['rates']['arm']:.3f} 反而**低于**同范数随机对照 "
+            f"{_r['rates']['rand']:.3f}（Δ={_r['d_arm_minus_rand']:+.3f}）"
+            for _a, _r in _pa.items() if _r["d_arm_minus_rand"] < 0)
+        _gc_caveat = (
+            f"G-c「名字预测效果」判 **{_gc_verdict}**：注入 confidence_up 并未让模型"
+            f"说出更多 {(_gc_ev.get('primary_key') or '')} 的话"
+            + (f"——{_fw}。" if _fw else "。")
+            + (f"⚠ 但 α={', '.join(_dead)} 三臂计数**全是 0**：那一档上该词表一次都"
+               f"没命中，Δ=0 是「**量不出来**」，**不是**「测出没有差别」——"
+               f"不构成证伪。说「这个名字站不住」的证据是上面那些**方向为负**的档。"
+               if _dead else "")
+            + "⇒ 「低余弦 + 名字预测不成立」两句合起来，"
+            "只能推出**这 11 句话撑不起这个向量**，推不出「模型没有自信这个概念」。"
+        )
     sd = d.get("sentence_diffs") or []
     public = {
         "schema": "steer3d.ltv/1",
@@ -700,6 +822,15 @@ def main():
             ("① 句子锚定的稀疏分解**从未被执行过**，且本轮补算失败：" + str(decomp_err)
              + " ⇒ 预登记表 §1 ①「名字可读」这个组成部分没有交付。"),
             "S_k 是人挑的（预登记表 §4 已声明），存在拟合风险，消不掉。",
+            # ⚠ G-c 判 fail 之后，**产物必须自己说这件事**。
+            #   老毛病是「产物不说自己哪里没交付」——第 8 屏印着一个
+            #   从未执行过的分解当事实，本轮修掉了；同一个毛病不能搬到 G-c 上。
+            #   而且这里有一处**必须说清的区分**：α=1.0 与 4.0 三臂全是 0，
+            #   Δ=0 是「那个词表一次都没命中、量不出来」，**不是**「测出没有差别」。
+            #   真正说「名字站不住」的证据是 α=0.35 那一档 arm 反而**低于**
+            #   同范数随机对照。两者混成一句「没测出效果」就是把量不出来
+            #   读成了证伪。
+            (_gc_caveat if _gc_verdict else "G-c 未测：本轮没有 ltv_behavior.json"),
             "g_v 只在最小三档上拟合；改口落在拟合窗内的上下文一律不判 G-a。",
             "预登记表 §3 把「一档」写成「约 1.7~2.8 倍」，"
             "而本网格的相邻档之比实为 1.43~2.0 —— 按「相邻档」字面执行。",

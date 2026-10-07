@@ -18,6 +18,7 @@
 import json
 import math
 import os
+import re
 import statistics as st
 import sys
 
@@ -475,11 +476,27 @@ def main():
                + json.dumps({x: sum(1 for k in need if gp[k]["verdict"] == x)
                              for x in ("pass", "fail", "na")})])
 
-        # G-c 必须是 na —— 本轮没做生成实验
-        check("G3 G-c 必须是 na 且带理由（没跑 ≠ 跑过没过）",
-              gp.get("G-c", {}).get("verdict") == "na" and bool(gp.get("G-c", {}).get("why_na")),
-              [f"G-c verdict = {gp.get('G-c', {}).get('verdict')}",
-               f"理由：{str(gp.get('G-c', {}).get('why_na'))[:90]}…"])
+        # G-c：**na 必须带理由；判成 pass/fail 时证据必须齐**
+        # ⚠⚠ 第一版这里是「G-c 必须是 na 且带理由」—— 一条**硬钉死**。
+        #   它当时是对的（G-c 确实没跑），但它把「G-c 永远不许被测」
+        #   写成了门禁：**实现 G-c 之前必须先解开这一条**，否则真正的门
+        #   一判 pass，这一条立刻转红，而根因在门禁自己身上。
+        #   ⇒ 改成：na 时必须有 why_na；判成 pass/fail 时必须有判决证据。
+        _gc = gp.get("G-c") or {}
+        _gc_ev = _gc.get("evidence") or {}
+        if _gc.get("verdict") == "na":
+            _g3_ok, _g3_why = bool(_gc.get("why_na")), f"na，理由：{str(_gc.get('why_na'))[:80]}…"
+        else:
+            # 判成 pass/fail ⇒ 三条子判据（G-c.1/.2/.3）必须都有读数，
+            #   否则「报了判决却没有可核的东西」，与 §0「可否证」背道而驰。
+            _g3_ok = all(k in _gc_ev for k in ("c1_direction", "c2_per_problem",
+                                               "c3_negative_control"))
+            _g3_why = (f"verdict={_gc.get('verdict')}；"
+                       f"三条子判据的读数是否齐 = {_g3_ok}"
+                       f"（{sorted(set(('c1_direction','c2_per_problem','c3_negative_control')) - set(_gc_ev))} 缺）")
+        check("G3 G-c 若报 na 必须带理由；若报 pass/fail 必须带三条子判据的读数"
+              "（⚠ 第一版把它钉死成「必须是 na」，那会让真判决一判 pass 就转红）",
+              _g3_ok, [f"G-c verdict = {_gc.get('verdict')}", _g3_why])
 
         # 敏感性表必须存在，且退化行必须被标成 degenerate_untested
         sens = pa.get("fit_window_sensitivity") or []
@@ -636,6 +653,157 @@ def main():
               f"|c_k| 前 {len(want_top)} 条 = {want_top}")
         print(f"    其中负对照 {sum(1 for i in by_abs[:min(K_MAX, m)] if raw_sd[i].get('negative_control'))} 条"
               f"（负对照共 {sum(1 for r in raw_sd if r.get('negative_control'))} 条）")
+
+    # ---- J 层：G-c 判决的独立重算（从**生成原文**开始）--------------------
+    # ⚠ 为什么 G3 那条不够：G3 只查「三条子判据的键在不在」——
+    #   那是「部件存在」，不是「部件被执行过」。build_ltv 里 G-c 原本就是
+    #   **写死的 na**，键一直都在，G3 一直绿，而判决从没随数据动过。
+    # ⇒ 这里从 ltv_gen.json 的**文本**起，自己分词、自己数、自己判，
+    #   不 import build_ltv 的 _g_c_verdict，也**不信** ltv_behavior.json
+    #   报出来的率。词表从 ltv_behavior 读（那是照预登记写的唯一一份，
+    #   纯标准库、不引入 torch，链里跑得动）。
+    print("\nJ 层 · G-c 判决的独立重算")
+    BEH = os.environ.get("BEHAVIOR", os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "ltv_behavior.json"))
+    GEN = os.environ.get("GEN_ART", os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "ltv_gen.json"))
+    gc_pub = (pub.get("gates") or {}).get("G-c", {})
+    gc_ev = gc_pub.get("evidence") or {}
+
+    if not (os.path.exists(BEH) and os.path.exists(GEN)):
+        check("J1 独立重算的前提：ltv_gen.json 与 ltv_behavior.json 都在",
+              gc_pub.get("verdict") == "na" and bool(gc_pub.get("why_na")),
+              [f"gen={os.path.exists(GEN)} beh={os.path.exists(BEH)}",
+               f"G-c verdict={gc_pub.get('verdict')!r}"])
+    else:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import ltv_behavior as LB
+        beh = json.load(open(BEH, encoding="utf-8"))
+        gen = json.load(open(GEN, encoding="utf-8"))
+        KEYS = list(LB.FEATURES)
+        PRIM, NEGS = LB.PRIMARY_KEY, list(LB.NEGATIVE_KEYS)
+        ALPHAS = (0.35, 1.0, 4.0)
+
+        # ---- J1 行为文件每个 row 都得有全部 11 个特征 --------------------
+        # ⚠ 少了任何一个，build 的池化会 KeyError 直接崩 —— 崩掉的 build
+        #   是「一条判决都不出声」，比红更坏。这里先把它查出来。
+        miss = [f"{r.get('pid', '?')[-11:]}/{r.get('alpha')}/{r.get('arm')}"
+                for r in beh["per_run"] if any(k not in r for k in KEYS)]
+        check("J1 行为文件每一行都带全部 %d 个特征（缺一个会让 build 崩，"
+              "崩掉的判决等于没出声）" % len(KEYS),
+              not miss and len(KEYS) == 11,
+              [f"特征 {len(KEYS)} 个：{KEYS}",
+               f"缺字段的行 {len(miss)} 个"] + ([f"  {x}" for x in miss[:5]] if miss else []))
+
+        # ---- J2 从原文重新数：率必须与 ltv_behavior 报的逐条相符 ----------
+        _W = re.compile(r"[A-Za-z']+")
+        _CP = {k: [re.compile(p) for p in v] for k, v in LB.FEATURES.items()}
+
+        def _rate(text, key):
+            low = text.lower()
+            nw = max(1, len(_W.findall(text)))
+            return 1000.0 * sum(len(p.findall(low)) for p in _CP[key]) / nw
+
+        brows = {(r["pid"], r["alpha"], r["arm"]): r for r in beh["per_run"]}
+        rate_bad, cnt_bad = [], []
+        for g in gen["runs"]:
+            k = (g["pid"], g["alpha"], g["arm"])
+            b = brows.get(k)
+            if b is None:
+                rate_bad.append([list(k), "行为文件里没有这一行"])
+                continue
+            for f in KEYS:
+                mine = _rate(g["text"], f)
+                if abs(mine - b[f]) > 1e-6:
+                    rate_bad.append([k[0][-11:], k[1], k[2], f, b[f], mine])
+            if b.get("n_words") != max(1, len(_W.findall(g["text"]))):
+                cnt_bad.append([k[0][-11:], k[1], k[2],
+                                b.get("n_words"), max(1, len(_W.findall(g["text"])))])
+        check("J2 从 ltv_gen.json **原文**独立重数，%d 个特征的率与行为文件"
+              "逐条相符（n=%d 次生成）" % (len(KEYS), len(gen["runs"])),
+              not rate_bad and not cnt_bad,
+              [f"核对 {len(gen['runs'])} 次生成 × {len(KEYS)} 个特征",
+               f"率不符 {len(rate_bad)} 处，词数不符 {len(cnt_bad)} 处"]
+              + [f"  {x}" for x in (rate_bad + cnt_bad)[:4]])
+
+        # ---- J3/J4 独立重算三条子判据与整道判决 --------------------------
+        PIDS = sorted({g["pid"] for g in gen["runs"]})
+
+        def _pool(alpha, arm=None, pid=None):
+            sel = [g for g in gen["runs"] if g["alpha"] == alpha
+                   and (arm is None or g["arm"] == arm)
+                   and (pid is None or g["pid"] == pid)]
+            if not sel:
+                return None
+            nw = sum(max(1, len(_W.findall(g["text"]))) for g in sel)
+            out = {}
+            for f in KEYS:
+                hits = sum(_rate(g["text"], f) * max(1, len(_W.findall(g["text"]))) / 1000.0
+                           for g in sel)
+                out[f] = 1000.0 * hits / nw if nw else 0.0
+            return out
+
+        # ⑥c / 修订 5：先挑不可判格（先于任何判决）
+        und = []
+        for pid in PIDS:
+            for a in ALPHAS:
+                sha = {g["arm"]: g.get("text_sha_1") for g in gen["runs"]
+                       if g["pid"] == pid and g["alpha"] == a}
+                if len(sha) == 3 and len(set(sha.values())) == 1:
+                    und.append({"pid": pid, "alpha": a})
+
+        mine_per, mine_verdict = {}, None
+        if und:
+            mine_verdict = "na"          # 修订 5：不可判 ⇒ na，不报 pass 也不报 fail
+        else:
+            for a in ALPHAS:
+                pa = {arm: _pool(a, arm)[PRIM] for arm in ("arm", "rand", "zero")}
+                d = pa["arm"] - pa["rand"]
+                per = {p: _pool(a, "arm", p)[PRIM] - _pool(a, "rand", p)[PRIM]
+                       for p in PIDS}
+                nd = {nk: _pool(a, "arm")[nk] - _pool(a, "rand")[nk] for nk in NEGS}
+                mine_per[a] = {
+                    "c1_direction": bool(d > 0 and pa["arm"] > pa["zero"]),
+                    "c2_per_problem": bool(all(x > 0 for x in per.values())),
+                    "c3_negative_control": bool(d > max(nd.values())),
+                    "d_arm_minus_rand": d, "rates": pa}
+            mine_verdict = ("pass" if all(all(mine_per[a][k] for k in
+                                 ("c1_direction", "c2_per_problem",
+                                  "c3_negative_control")) for a in ALPHAS) else "fail")
+
+        # J3：逐档、逐条子判据与产物相符（有不可判格时改比不可判格的条数）
+        SUBS = ("c1_direction", "c2_per_problem", "c3_negative_control")
+        if und:
+            j3_ok = len(gc_ev.get("undecidable_cells") or []) == len(und)
+            j3_why = [f"独立 {len(und)} 格 / 产物 {len(gc_ev.get('undecidable_cells') or [])} 格"]
+        else:
+            pub_per = gc_ev.get("per_alpha") or {}
+            bad = [[a, k, mine_per[a][k], (pub_per.get(str(a)) or {}).get(k)]
+                   for a in ALPHAS for k in SUBS
+                   if (pub_per.get(str(a)) or {}).get(k) is not mine_per[a][k]]
+            dbad = [[a, mine_per[a]["d_arm_minus_rand"],
+                     (pub_per.get(str(a)) or {}).get("d_arm_minus_rand")]
+                    for a in ALPHAS
+                    if abs((pub_per.get(str(a)) or {}).get("d_arm_minus_rand", 1e9)
+                           - mine_per[a]["d_arm_minus_rand"]) > 1e-9]
+            j3_ok = not bad and not dbad
+            j3_why = [f"逐档子判据不符 {len(bad)} 处：{bad}",
+                      f"d(arm−rand) 不符 {len(dbad)} 处：{dbad}",
+                      f"独立读数：{ {a: [mine_per[a][k] for k in SUBS] for a in ALPHAS} }"]
+        check("J3 三条子判据与 d(arm−rand) **逐档**与本文件的独立重算相符"
+              "（⚠ G3 只查键在不在，查不出 build 的判决是写死的）",
+              j3_ok, j3_why)
+
+        check("J4 整道 G-c 的判决值 == 本文件的独立重算（判决不是写死的）",
+              gc_pub.get("verdict") == mine_verdict,
+              [f"独立重算 = {mine_verdict}",
+               f"产物 = {gc_pub.get('verdict')!r}",
+               f"不可判格 {len(und)} 个"
+               + (f"：{[(u['pid'][-11:], u['alpha']) for u in und]}" if und else "")])
+
+        print(f"    独立重算判决 = {mine_verdict}；"
+              f"逐档 c1/c2/c3 = "
+              f"{ {a: [mine_per[a][k] for k in SUBS] for a in ALPHAS} if mine_per else '—'}")
 
     print("\n" + "=" * 60)
     print("\nRESULT verify_ltv  %s  %d/%d 条通过"

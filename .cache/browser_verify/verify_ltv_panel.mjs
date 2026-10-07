@@ -505,6 +505,88 @@ try {
     `产物 top_k 里的负对照 = ${JSON.stringify(wantNeg)}（${wantNeg.length} 条）；`
     + `页面可见文案数出 ${JSON.stringify(negInTopVis)}；data-* 数出 ${JSON.stringify(negInTopAttr)}`);
 
+  // ---- G-c：这一轮真被测了，判决是 fail ---------------------------------
+  // ⚠ 这一段的由来：G-c 原本是 build_ltv 里**写死的 na**，页面也写死了
+  //   「那一道门本轮仍是「没测」」。现在它真跑了，判 fail。
+  //   判据盯两件事：① 逐档读数块**可见**且逐格对得上产物
+  //             ② 页面不再印那句已经过时的「仍是没测」。
+  //   同样地，取的是**可见文本**（innerText），data-* 只作交叉核对。
+  const gc = (art.gates || {})['G-c'] || {};
+  const gcEv = gc.evidence || {};
+  const gcA = Object.keys(gcEv.per_alpha || {});
+  const gcSeen = JSON.parse(await page.eval(`JSON.stringify((() => {
+    const blk = document.querySelector('[data-ltvgc]');
+    const rows = Array.from(document.querySelectorAll('[data-ltvgcalpha]'));
+    return {
+      hasBlock: !!blk,
+      verdict: blk ? (blk.getAttribute('data-ltvgcverdict') || '') : '',
+      text: blk ? (blk.innerText || '') : '',
+      rows: rows.map(r => ({
+        alpha: r.getAttribute('data-ltvgcalpha') || '',
+        all: r.getAttribute('data-ltvgcall') || '',
+        cells: Array.from(r.querySelectorAll('td')).map(td => (td.innerText || '').trim())
+      })),
+      stale: /那一道门本轮仍是/.test(document.body.innerText || '')
+    };
+  })())`));
+
+  const gcBad = [];
+  for (const a of gcA) {
+    const r = (gcEv.per_alpha || {})[a] || {};
+    const row = gcSeen.rows.find(x => x.alpha === a);
+    if (!row) { gcBad.push([a, '页面上没有这一档的行']); continue; }
+    // 前 5 格是 α / arm / rand / zero / Δ
+    // ⚠ 比较必须按**数值**：`Number("0.000")` 是 0，与字符串 "0.000" 做
+    //   JSON 严格比较会判不符 —— 那是判据自己的类型错，不是页面印错。
+    const want = ['arm', 'rand', 'zero'].map(k => Number((r.rates || {})[k] || 0));
+    const gotN = row.cells.slice(1, 4).map(s => (Number.isFinite(Number(s)) ? Number(s) : NaN));
+    for (let i = 0; i < 3; i++) {
+      if (!(Math.abs(gotN[i] - want[i]) <= 5e-4)) {
+        gcBad.push([a, ['arm', 'rand', 'zero'][i] + ' 率', row.cells[i + 1], want[i]]);
+      }
+    }
+    const shownD = Number((row.cells[4] || '').replace('+', ''));
+    const wantD = Number(r.d_arm_minus_rand || 0);
+    if (!(Math.abs(shownD - wantD) <= 5e-4)) gcBad.push([a, 'Δ', row.cells[4], wantD]);
+    const marks = row.cells.slice(5, 8);
+    const wantM = [r.c1_direction, r.c2_per_problem, r.c3_negative_control];
+    for (let i = 0; i < 3; i++) {
+      const isYes = (marks[i] || '').trim().startsWith('✓');
+      if (wantM[i] && !isYes) gcBad.push([a, `子判据 ${i + 1} 应为 ✓，页面是`, marks[i]]);
+      if (!wantM[i] && isYes) gcBad.push([a, `子判据 ${i + 1} 应为 ✗，页面却显示 ✓`]);
+    }
+    // 第 8 格「该档总：成立／不成立」也要对账。
+    // ⚠ 这一格是第一版漏掉的：变异 M3 把 `r.all_three_hold` 换成 `true`
+    //   （页面把三档全不成立印成「成立」），L19 当时 22/22 全绿 ——
+    //   查了三条子判据却没查汇总结论，而汇总结论正是读者最先看的那一格。
+    const tot = (row.cells[8] || '').trim();
+    const wantTot = r.all_three_hold;
+    if (wantTot && tot !== '成立') gcBad.push([a, '该档总应为「成立」，页面是', tot]);
+    if (!wantTot && tot !== '不成立') {
+      gcBad.push([a, '该档总应为「不成立」，页面却是', tot,
+                  '⚠ 把不成立显示成成立 = 假绿']);
+    }
+    // data-ltvgcall 只作交叉核对
+    if ((row.all === '1') !== !!wantTot) {
+      gcBad.push([a, 'data-ltvgcall 与产物 all_three_hold 不符', row.all, wantTot]);
+    }
+  }
+  rec('L19 G-c 逐档读数块**可见**，三臂率/Δ/三条子判据与产物逐格相符'
+    + '（取可见文本 innerText，data-* 只作交叉核对）',
+    gcSeen.hasBlock && gcSeen.rows.length === gcA.length && gcBad.length === 0,
+    `产物判决=${gc.verdict}（data-* 读回 ${gcSeen.verdict}）；`
+    + `档数 产物 ${gcA.length} / 页面 ${gcSeen.rows.length}；`
+    + `不成立档=${JSON.stringify(gcEv.failed_alphas || [])}；`
+    + `不符 ${gcBad.length} 处`
+    + (gcBad.length ? '：' + JSON.stringify(gcBad).slice(0, 300) : '')
+    + (gcSeen.text ? '｜可见文本前 80 字="' + gcSeen.text.replace(/\s+/g, ' ').slice(0, 80) + '"' : ''));
+
+  rec('L20 G-c 真被测过之后，页面不再印「那一道门本轮仍是没测」'
+    + '（⚠ 这句在 G-c 还是 na 时是对的，测了之后它就是假陈述）',
+    gcSeen.hasBlock && !gcSeen.stale,
+    `产物 G-c verdict=${gc.verdict}（判过 ⇒ 不是 na）；`
+    + `逐档读数块存在=${gcSeen.hasBlock}；页面仍含「那一道门本轮仍是」=${gcSeen.stale}`);
+
 } catch (e) {
   console.log('[FAIL] 脚本中断：' + e.message);
   R.push({ n: '脚本中断', p: false });
