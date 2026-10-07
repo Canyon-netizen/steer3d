@@ -18,6 +18,7 @@ import StrengthLawPanel from "@/components/StrengthLawPanel";
 import RandomControlPanel from "@/components/RandomControlPanel";
 import VerifyRandomControl from "@/components/verifyRandomControl";
 import LayerDerivationPanel from "@/components/LayerDerivationPanel";
+import HingePanel from "@/components/HingePanel";
 import TokenStreamPanel from "@/components/TokenStreamPanel";
 import InterpretationPanel from "@/components/InterpretationPanel";
 import SteeringControl from "@/components/SteeringControl";
@@ -154,6 +155,12 @@ export default function Page() {
         <aside className="flex flex-col gap-4 p-4 overflow-hidden min-h-0">
           <ControlPanel sendControl={sendControl} />
           <LayerDerivationPanel />
+          {/* 紧跟在 LayerDerivationPanel 之后：那一块讲的是「token 身份在
+              第几层定型」，这一块讲的是「模型在哪些位置自己动摇，
+              以及那个信号在标记词写出之前就有多可读」。
+              ⚠ 两者是**不同的量**，相邻放置容易读成同一个 ——
+              面板文案里明写了这个区别。 */}
+          <HingePanel />
           <SteeringControl sendControl={sendControl} />
           <InterventionOutcomePanel />
           <VectorStructurePanel />
