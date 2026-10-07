@@ -357,6 +357,7 @@ try {
     recNA('F6b 跨 8 步扫描：绿柱逐层等于 JSON 的 correct[]', `产物里没有记录 ${recId}`);
     recNA('F7 文案诚实标注这是 probe 而非 forward pass', `产物里没有记录 ${recId}`);
     recNA('F9 换记录后链条跟着换成新记录的数据', `产物里没有记录 ${recId}`);
+    recNA('F9b 请求 reset 之后选的步，不会被后端 reset_ack 抹掉', `产物里没有记录 ${recId}`);
     throw new Error('__NA_ONLY__');   // 交给 finally 收尾，不再往下走
   }
   const win = traj.window;
@@ -498,6 +499,48 @@ try {
     rec('F6b 跨 8 步扫描：绿柱逐层等于 JSON 的 correct[]', false, '同上');
     rec('F7 文案诚实标注这是 probe 而非 forward pass', false, '同上');
   }
+
+  /* ---------------------------------------------------------------- */
+  // F9b 钉死 reset 的 ack 不抹掉「请求之后才选的那一步」。
+  //
+  // 为什么必须单开一条：F9 走的是「换记录 → reset → start」，ack 落在选步的
+  // 前面还是后面取决于网络往返的时序，**约 50% 概率**才红（实测）。判据间歇
+  // 咬不住，就等于没有这条判据 —— 而这里恰恰有一个**确定**的构造：
+  // ack 必须走一次 WebSocket 往返，所以只要**同一拍**里「点 reset + 选步」，
+  // ack 就**必然**落在选步之后。
+  //
+  // 这也是读者会做的事：按下 reset 之后顺手拖一下步滑块。
+  // 修之前的实测症状：设的时候成功（afterSet="994"），几百毫秒后滑块被抹回
+  // 窗口起点（sliderValue="992"），面板 state 退回 out-of-window、bars=0。
+  //
+  // ⚠ 不换记录：换了记录，组件里那条「选步在新窗口外就清掉」的 effect 也会
+  //   参与结果，那就不是「只有 ack 能清它」了。留在同一条记录上，
+  //   唯一能抹掉这个选步的就是 ack。
+  const f9bWant = win[0] + 5;
+  const f9bSet = await page.eval(`(() => {
+    const rst = [...document.querySelectorAll('button')]
+      .find(b => /reset/i.test(b.textContent || ''));
+    const r = document.querySelector('[data-deriv-step]');
+    if (!rst || !r) return { err: 'missing reset or slider' };
+    rst.click();                               // 请求 reset：ack 要走一次往返
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype, 'value').set;
+    setter.call(r, ${f9bWant});                // 同一拍选步 —— ack 必然在它之后
+    r.dispatchEvent(new Event('input', { bubbles: true }));
+    r.dispatchEvent(new Event('change', { bubbles: true }));
+    return { setNow: r.value, min: r.min, max: r.max, want: ${f9bWant} };
+  })()`);
+  await sleep(2500);                           // 足够 ack 往返落地
+  const f9bAfter = await page.eval(`(() => {
+    const r = document.querySelector('[data-deriv-step]');
+    const el = document.querySelector('[data-derivation]');
+    return { sliderValue: r ? r.value : null,
+             state: el ? el.getAttribute('data-derivation') : null,
+             stepId: el ? el.getAttribute('data-step-id') : null };
+  })()`);
+  rec('F9b 请求 reset 之后选的步，不会被后端 reset_ack 抹掉',
+      String(f9bAfter.sliderValue) === String(f9bWant) && f9bAfter.state === 'ready',
+      `set=${JSON.stringify(f9bSet)} after=${JSON.stringify(f9bAfter)} want=${f9bWant}`);
 
   /* ---------------------------------------------------------------- */
   // 换记录：链必须换成新记录的数据。

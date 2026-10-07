@@ -11,11 +11,18 @@
 set -u
 ROOT=/Users/zhourui/code/steer3d
 cd "$ROOT" || exit 2
-SRC="$ROOT/frontend/components/LayerDerivationPanel.tsx"
+# ⚠ 变异目标文件。默认是面板组件；每条变异可以改它（M3 动的是 store）。
+SRCFILE=""
 WHICH="${1:-M1}"
 BAK="$ROOT/.cache/mutderiv/LayerDerivationPanel.$WHICH.bak"
 mkdir -p "$ROOT/.cache/mutderiv"
 PORT="${PORT:-22301}"
+
+# ⚠⚠ NEXT_PUBLIC_WS_URL 必须在**构建时**给出（NEXT_PUBLIC_* 会被内联进产物）。
+#   漏掉它 ⇒ 页面连的是默认端口 9503，而本机后端在 9505 ⇒ 后端型判据整片 NA，
+#   绿侧就不是 PASS，台会在第 61 行退出 3 —— 看起来像「变异无效」，
+#   其实是基线跑错了环境。允许外部覆盖，默认跟本机后端一致。
+export NEXT_PUBLIC_WS_URL="${NEXT_PUBLIC_WS_URL:-ws://127.0.0.1:9505/ws}"
 
 # ⚠⚠⚠ 还原**必须包含重建**，否则机器会一直发着变异版。
 #   `npx next build` 写的是 .next/，而**所有** `next start` 进程共享它 ——
@@ -45,8 +52,19 @@ case "$WHICH" in
   #   ⇒ 变异必须打在**判据真正读的那个量**上：柱子的 ok。
   M2) DESC="F6/F6b：把柱子的 ok 整体取反（判据读的是第一根 data-ok=1 的柱）"
        EXPECT_FAIL="F6 首个说对" ;;
+  # ⚠⚠ 本条撤掉的是 **store 里 reset() 的 pickSeq 比较**，不是面板。
+  #   F9b 咬的是「请求 reset 之后选的步会不会被 reset_ack 抹掉」，
+  #   而抹它的代码在 lib/store.ts（reset_ack 的处理器）——
+  #   所以 SRC 必须指向 store，光改面板永远咬不到这条判据。
+  M3) DESC="F9b：撤掉 reset() 的 pickSeq 比较（恢复成无条件清）"
+       EXPECT_FAIL="F9b 请求 reset"
+       SRCFILE="lib/store.ts" ;;
   *) echo "未知变异 $WHICH"; exit 2 ;;
 esac
+
+SRC="$ROOT/frontend/${SRCFILE:-components/LayerDerivationPanel.tsx}"
+BAK="$ROOT/.cache/mutderiv/$(basename "$SRC").$WHICH.bak"
+echo "变异目标文件：${SRC#$ROOT/}"
 
 echo "=== 变异 ${WHICH}：$DESC ==="
 
@@ -86,6 +104,15 @@ elif which == 'M2':
     # 取反之后第一根绿柱会跑到别处（或消失）⇒ F6 / F6b 必红。
     s = sub(s, 'const ok = pl.correct[l];',
                'const ok = !pl.correct[l]; /*MUT M2*/')
+elif which == 'M3':
+    # 改成「永远清」。写成 `s.pickSeq >= 0 ? null : s.focusedStep` 而不是直接
+    # `focusedStep: null`，是为了**继续引用 s**：否则 set((s) => …) 的 s 变成未使用，
+    # 若哪天 tsconfig 打开 noUnusedParameters，构建就会失败 —— 而那会让变异台
+    # 停在「变异侧构建失败」，报出来的是构建错误而不是「判据变红」。
+    # 行为上与修复前的代码完全等价（pickSeq 恒 >= 0 ⇒ 恒取 null）。
+    s = sub(s,
+      'focusedStep: s.pickSeq === s.pickSeqAtResetRequest ? null : s.focusedStep,',
+      'focusedStep: (s.pickSeq >= 0 ? null : s.focusedStep), /*MUT M3*/')
 p.write_text(s, encoding='utf-8')
 print('已注入变异，命中次数已断言')
 PY

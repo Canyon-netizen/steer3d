@@ -30,6 +30,15 @@ type AppState = {
    */
   focusedStep: number | null;
   /**
+   * Every time the reader points at a step, `pickSeq` goes up by one.
+   *
+   * `reset()` compares it against `pickSeqAtResetRequest` to decide whether
+   * the backend's `reset_ack` is allowed to clear that pointer. See `reset`.
+   */
+  pickSeq: number;
+  /** `pickSeq` as of the last reset **request** (not its ack). */
+  pickSeqAtResetRequest: number;
+  /**
    * Which recording is being replayed. The frames themselves do not carry
    * their trajectory id -- a frame from one recording is indistinguishable
    * from a frame of another -- so the per-layer chain could not tell which
@@ -71,6 +80,7 @@ type AppState = {
   setLayer: (l: number) => void;
   setPrompt: (p: string) => void;
   setFocusedStep: (s: number | null) => void;
+  requestReset: () => void;
   setCurrentTrajectory: (id: string | null) => void;
   setSpeed: (s: number) => void;
   setPaused: (b: boolean) => void;
@@ -84,6 +94,8 @@ export const useApp = create<AppState>((set) => ({
   latest: null,
   fullText: "",
   focusedStep: null,
+  pickSeq: 0,
+  pickSeqAtResetRequest: 0,
   currentTrajectory: null,
 
   layer: 14,
@@ -135,14 +147,24 @@ export const useApp = create<AppState>((set) => ({
 
   setLayer: (l) => set(() => ({ layer: l })),
   setPrompt: (p) => set(() => ({ prompt: p })),
-  setFocusedStep: (s) => set(() => ({ focusedStep: s })),
+  // ⚠ Every point the reader makes bumps the sequence counter, *including*
+  //   clearing back to "follow the newest frame" (`live` button, set to null).
+  //   A null pointer is still a pointer the reader set on purpose.
+  setFocusedStep: (s) =>
+    set((st) => ({ focusedStep: s, pickSeq: st.pickSeq + 1 })),
   setCurrentTrajectory: (id) => set(() => ({ currentTrajectory: id })),
+
+  // Called at the moment the reader presses reset — *before* the backend
+  // answers. It records which pick was current then; `reset()` (the ack
+  // handler) compares against it. It deliberately does not clear anything.
+  requestReset: () => set((s) => ({ pickSeqAtResetRequest: s.pickSeq })),
   setSpeed: (s) => set(() => ({ speed: s })),
   setPaused: (b) => set(() => ({ paused: b })),
   setConnected: (c) => set(() => ({ connected: c })),
   setError: (e) => set(() => ({ error: e })),
   reset: () =>
-    set(() => ({
+    // ⚠ `s`（而不是原来的 `()`）：下面要拿上一次 pickSeq 与请求时的快照比。
+    set((s) => ({
       frames: [],
       latest: null,
       fullText: "",
@@ -151,6 +173,20 @@ export const useApp = create<AppState>((set) => ({
       // point the per-layer chain at a trajectory that is no longer on
       // screen -- and since a frame carries no id of its own, the chain
       // would render confidently from the wrong record.
-      focusedStep: null,
+      //
+      // ⚠⚠ `focusedStep` is NOT simply cleared here, and that is the fix.
+      //   This runs on the backend's `reset_ack` (app/page.tsx) — i.e. after a
+      //   **network round trip**, not on the click. Pointing the step slider at
+      //   a step *after* pressing reset is ordinary use, and the ack landing
+      //   used to wipe that pick: the panel then fell back to
+      //   `latest.step_id`, which right after a reset is the first frames of
+      //   the replay (~step 96), far outside the 32-step readout window, so the
+      //   panel sat on "out-of-window" and the reader's pick was gone with no
+      //   way back. Measured: `set.afterSet="994"` yet a few hundred ms later
+      //   `sliderValue="992"` — this was F9's ~50% flake.
+      //   ⇒ Compare against the pickSeq snapshot taken at *request* time: if
+      //     the reader pointed somewhere after asking for the reset, that pick
+      //     is the newer intent and survives.
+      focusedStep: s.pickSeq === s.pickSeqAtResetRequest ? null : s.focusedStep,
     })),
 }));

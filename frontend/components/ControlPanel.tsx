@@ -32,6 +32,7 @@ export default function ControlPanel({ sendControl }: Props) {
   const setLayer = useApp((s) => s.setLayer);
   const setSpeed = useApp((s) => s.setSpeed);
   const setPaused = useApp((s) => s.setPaused);
+  const requestReset = useApp((s) => s.requestReset);
   const latest = useApp((s) => s.latest);
   const setCurrentTrajectory = useApp((s) => s.setCurrentTrajectory);
 
@@ -79,6 +80,12 @@ export default function ControlPanel({ sendControl }: Props) {
 
   const onReset = () => {
     setPaused(false);
+    // ⚠ Must be recorded **before** the control goes out. The ack comes back
+    //   over the socket, i.e. a network round trip later, and by then the
+    //   reader may already have pointed the step slider somewhere. `reset()`
+    //   uses this snapshot to tell "nothing picked since" from "picked after
+    //   asking for a reset" — see the note in store.ts.
+    requestReset();
     sendControl({ kind: "reset" });
   };
 
