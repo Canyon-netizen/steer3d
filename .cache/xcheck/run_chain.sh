@@ -326,6 +326,22 @@ run verify_thresh         "LAT_URL=${U%/}/latent/index.html node .cache/browser_
 run verify_patch         "LAT_URL=${U%/}/latent/index.html node .cache/browser_verify/verify_patch.mjs"
 # 产物层的独立重算：不复用探针的任何计算，只从原始行重算。
 run verify_patching      "python3 .cache/xcheck/verify_path_patching.py"
+# 第 8 屏「阈值向量（LTV）」。ltv.json 在上一轮**没有任何页面消费者** ——
+#   方法算完了、判完了，读者在网站上却看不到。本条是把它接上之后的第一条判决。
+#   ⚠ 它与 verify_ltv（产物层独立重算）**不是重复**：那一条判的是「数对不对」，
+#     这一条判的是「数传到读者眼前时有没有变质」——
+#     ① 判决切片必须可见且逐字（verdict_slice / judge_slice_note）。
+#        G-a 的 claim 与预登记表都写着「留出」，而第一版的判决跑在全量 36 个
+#        上下文上（含约一半抽取题）；页面若只印一个总数，就把
+#        「抽取集上不显著（p=9.23e-02）」这个事实藏起来了。L6 查这个。
+#     ② 并列口径（全量）与判决口径（留出）必须印在**同一块**并标成「不是判决」。
+#        只印一个就是把另一面藏起来 —— 两个切片一个显著一个不显著。L7 查这个。
+#     ③ α*预测 由判据用 m_p÷g_v **独立重算**（不信产物自己写的那个字段），
+#        g_v≤0 的行必须印「—」而不是 0。L8 查这个。
+#     ④ 切片行数三方对账：DOM 标「留出」的行数 = contexts[].in_judge_slice
+#        = 各门 evidence 的 n_ctx。L9/L10 查这个。
+#     ⑤ degenerate_untested 不许被显示成通过（L11）；诚实边界 8 条逐字（L12）。
+run verify_ltv_panel     "LAT_URL=${U%/}/latent/index.html node .cache/browser_verify/verify_ltv_panel.mjs"
 # ⚠ LTV（阈值可读向量）—— 目标里「能不能提取一套通用的可解释性理论」那一条的判决。
 #   预登记表 `LTV_PREREG.md` 写于取数之前；判决的唯一权威是 `build_ltv.py`，
 #   这一条是**独立重算**（E 层从原始 gap(α) 重算 / F 层预登记漂移 /

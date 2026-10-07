@@ -351,6 +351,7 @@
         <button id="tabPath">逐步路径</button>
         <button id="tabThresh">干预阈值</button>
         <button id="tabPatch">因果修补</button>
+        <button id="tabLtv">阈值向量</button>
       </div>
       <div class="row">
         <label>当前层 <span class="val" id="valLayer">L14</span></label>
@@ -424,6 +425,15 @@
              把第 L 层在决策位置上的残差换掉，看这个 token 还解不解得出来。
              主体是七道门的判决表和描述/因果两条曲线，都是文字 + 一张小 canvas。 -->
         <div id="patchWrap" style="display:none;flex:1;min-height:0;overflow-y:auto;
+             overflow-x:hidden;border:1px solid #1e2637;border-radius:5px;
+             background:#0d1220;padding:10px 12px"></div>
+
+        <!-- 第 8 屏「阈值向量」。这一屏展示的是**方法本身的可解释性证据**：
+             沿一条真实 steering 向量扫出「每一处上下文要多大强度才改口」的阈值表，
+             再问这张表能不能被预测、有没有牙齿。
+             主体是五道门的判决表 + 逐上下文的阈值表 + 敏感性表，全是文字，
+             不用 canvas —— 与第 5/6/7 屏同一条理由。 -->
+        <div id="ltvWrap" style="display:none;flex:1;min-height:0;overflow-y:auto;
              overflow-x:hidden;border:1px solid #1e2637;border-radius:5px;
              background:#0d1220;padding:10px 12px"></div>
       </div>
@@ -3966,6 +3976,257 @@ function drawPatchChart(){
      真的什么都不做比调一个不存在的画布函数好——后者会在控制台留红。 */
 }
 
+/* ---- 第 8 屏：阈值向量（LTV） ----------------------------------
+   这一屏和第 5~7 屏不是一类东西：那几屏展示的是**一次实验的结果**，
+   这一屏展示的是**提取方法本身的可解释性证据** ——
+   沿一条真实 steering 向量扫出「每一处上下文要多大强度才改口」的阈值表，
+   再问这张表能不能被预测、有没有牙齿。
+
+   页面只做三件事：逐字转述产物的判决、摊开上下文级的原始数、
+   把「没测」和「不成立」分开印。**任何一句结论都不在这里重判一次** ——
+   判决的唯一权威是 .cache/xcheck/build_ltv.py。
+   顺带一件本屏特有的事：判决切片（留出/抽取）必须**印在每一行上**，
+   因为 G-b 在两个切片上一个显著一个不显著，只印一个总数就是把
+   「这个方向在抽取题上更弱」这个事实藏起来。 */
+function renderLtvPanel(){
+  const esc4 = s => esc(s == null ? "" : String(s));
+  const n3   = v => v == null ? "—" : Number(v).toFixed(3);
+  const n4   = v => v == null ? "—" : Number(v).toFixed(4);
+  const pct  = v => v == null ? "—" : (Number(v) * 100).toFixed(1) + "%";
+  const A = S.ltv;
+
+  if(!A){
+    return `<div data-ltvblock="1" data-ltvstate="no-data" style="padding:14px 4px">
+      <b style="color:#ffd479">阈值向量数据未载入，这一屏解释缺失</b>
+      <div style="font-size:11.5px;color:#8891a4;margin-top:6px">
+      缺的是 <code>ltv.json</code>${S.ltvMissing
+        ? `（取的时候报的是 <code>${esc4(S.ltvMissing)}</code>）` : ""}。
+      它由 <code>build_ltv.py</code> 从 <code>ltv_sentences.py</code> 的稀疏分解
+      和真前向注入扫描生成；没有它，下面 1~7 屏的数一个都不受影响。</div></div>`;
+  }
+
+  const gates  = A.gates || {};
+  const order  = (A.gate_order || Object.keys(gates)).filter(k => gates[k]);
+  const gs     = order.map(k => Object.assign({key: k}, gates[k]));
+  const failed = gs.filter(g => g.verdict === "fail");
+  const nas    = gs.filter(g => g.verdict === "na");
+  const passed = gs.filter(g => g.verdict === "pass");
+
+  const gRow = g => {
+    const [fg, bg, bd, lab] = VERDICT_STYLE[g.verdict] || VERDICT_STYLE.na;
+    return `<tr data-ltvgate="${esc4(g.key)}" data-verdict="${esc4(g.verdict)}">
+      <td><code>${esc4(g.key)}</code> ${esc4(g.name||"")}
+        <div style="font-size:10px;color:#6b7689;margin-top:2px">${esc4(g.claim||"")}</div></td>
+      <td style="color:${fg};background:${bg};border:1px solid ${bd};border-radius:3px;
+                 text-align:center;white-space:nowrap;font-weight:700">${esc4(lab)}</td>
+      <td>${g.verdict === "na"
+            ? `<span style="color:#8891a4">${esc4(g.why_na||"")}</span>`
+            : esc4(evLtvLine(g))}</td>
+    </tr>`;
+  };
+
+  // G-b 的并列口径。它**不是判决**，判决切片是 holdout —— 这一点必须
+  // 在页面上写成一句话，不能只靠颜色区分。
+  const va = (gates["G-b"] || {}).evidence && gates["G-b"].evidence.variant_all_ctx;
+  const vblock = !va ? "" : `
+  <div data-ltv-variant="1" style="margin-top:9px;border:1px solid #2a3348;border-radius:5px;
+       padding:8px 11px;background:#12151c">
+    <b style="color:#8891a4">并列口径，<u>不是判决</u></b>
+    <div style="font-size:11.5px;color:#8d97ab;margin-top:4px">
+    全量 ${va.n_ctx} 个上下文：+1 ${va.n_plus} ／ −1 ${va.n_minus} ／ 0 ${va.n_zero}，
+    有效 ${va.n_effective}，p=${Number(va.sign_test_p).toExponential(3)}。
+    <b>判决切片（${esc4(A.judge_slice)}）上才是
+    +1 ${gates["G-b"].evidence.n_plus} ／ −1 ${gates["G-b"].evidence.n_minus} ／
+    0 ${gates["G-b"].evidence.n_zero}，p=${Number(gates["G-b"].evidence.sign_test_p).toExponential(3)}。</b>
+    <div style="margin-top:4px">${esc4(va.note||"")}</div></div>
+  </div>`;
+
+  // 句子轴：S_k 是什么、差分向量多大、哪几条是负对照。
+  const srows = (A.sentence_diffs||[]).map(s =>
+    `<tr data-ltvsent="${esc4(s.key)}" data-ltvneg="${s.negative_control?"1":"0"}">
+      <td><code>${esc4(s.key)}</code>
+        ${s.negative_control
+          ? `<div style="font-size:10px;color:#ffb454">负对照</div>` : ""}</td>
+      <td style="font-size:11px">${esc4(s.S)}</td>
+      <td style="font-size:11px">${esc4(s.Sp)}</td>
+      <td class="num">${n3(s.norm)}</td>
+    </tr>`).join("");
+
+  // 逐上下文。**判决切片印在每一行上**，不是为了好看 ——
+  // G-b 在抽取切片上不显著，读者必须能在表里看见哪些行不参与判决。
+  const crows = (A.contexts||[]).map(c => {
+    const ctl = (c.ctl_all && (c.ctl_all.nm0 != null ? c.ctl_all.nm0 : c.ctl_all.nm1));
+    let flag = "";
+    if(c.circular_fit_window)      flag = "改口落在拟合窗内 ⇒ 不判 G-a";
+    else if(!c.gap_monotone_in_fit) flag = "拟合窗内 gap 非单调 ⇒ 不判 G-a";
+    else if(c.alpha_star_pred == null) flag = "g_v≤0 或不可外推 ⇒ α* 无预测";
+    return `<tr data-ltvctx="${esc4(c.pid+"@"+c.pos)}"
+                data-ltvslice="${c.in_judge_slice?"holdout":"extract"}">
+      <td style="font-size:10.5px"><code>${esc4(c.pid)}</code></td>
+      <td class="num">${c.pos}</td>
+      <td><code>${esc4(c.tok||"")}</code></td>
+      <td class="num">${n4(c.m_p)}</td>
+      <td class="num">${n4(c.g_v)}</td>
+      <td class="num">${n3(c.alpha_star_pred)}</td>
+      <td class="num">${n3(c.alpha_star_meas)}</td>
+      <td class="num">${n3(ctl)}</td>
+      <td style="white-space:nowrap;color:${c.in_judge_slice?"#4ade80":"#6b7689"}">
+        ${c.in_judge_slice?"留出（参与判决）":"抽取（不参与判决）"}</td>
+      <td style="font-size:10.5px;color:#8891a4">${esc4(flag)}</td>
+    </tr>`;
+  }).join("");
+
+  // 拟合窗敏感性：没写死的参数必须成为**报告出来的一列**，
+  // 否则「换个窗结论还成立吗」就变成读者无从查证的事。
+  const sens = ((gates["G-a"]||{}).evidence||{}).fit_window_sensitivity || [];
+  const wrows = sens.map(s => {
+    const deg = s.verdict === "degenerate_untested";
+    return `<tr data-ltvsens="${esc4((s.fit_alphas||[]).join(","))}"
+                data-verdict="${esc4(s.verdict)}">
+      <td><code>[${esc4((s.fit_alphas||[]).join(", "))}]</code></td>
+      <td class="num">${s.n_judged}</td><td class="num">${s.n_circular}</td>
+      <td class="num">${s.n_within_one_notch}</td><td class="num">${s.n_both_censored}</td>
+      <td class="num">${s.n_fail}</td>
+      <td style="color:${deg?"#ffb454":"#4ade80"};white-space:nowrap">${esc4(s.verdict)}</td>
+    </tr>`;
+  }).join("");
+
+  const lev = A.lever || {};
+  const spl = A.split || {};
+
+  return `<div data-ltvblock="1" data-ltvstate="ready" style="font-size:12px;line-height:1.7">
+
+  <div style="border:1px solid #1e2637;border-radius:5px;padding:9px 11px;background:#0f1523">
+    <b>沿一条真实向量，把「推多大才改口」扫成一张表，再问这张表能不能被预测。</b>
+    <div style="font-size:11.5px;color:#9aa6bb;margin-top:6px">
+    杠杆是页面同一份 steering registry 里的 <code>${esc4(lev.name)}</code>，
+    注入层 <b>L${esc4(lev.layer)}</b>，范数 <b>${n4(lev.unit_norm)}</b>（单位向量）。
+    α 网格 <code>[${esc4((A.alpha_grid||[]).join(", "))}]</code>，
+    拟合只用最小三档 <code>[${esc4((A.fit_alphas||[]).join(", "))}]</code>，
+    K_MAX = ${esc4(A.k_max)}。
+    <div style="margin-top:5px">
+    样本：抽取题 <b>${(spl.extract||[]).length}</b> 道
+    （${esc4((spl.extract||[]).join("、"))}）、
+    留出题 <b>${(spl.holdout||[]).length}</b> 道
+    （${esc4((spl.holdout||[]).join("、"))}）；
+    产物 schema <code>${esc4(A.schema||"")}</code>，
+    预登记表 <code>${esc4(A.prereg||"")}</code>。</div>
+    </div>
+  </div>
+
+  <div data-ltv-slice="1" style="margin-top:9px;font-size:11.5px;color:#c9b79a;
+       border-left:2px solid #5cc8ff;padding-left:9px">
+    <b>判决切片：<code>${esc4(A.judge_slice)}</code></b>
+    <div style="margin-top:3px">${esc4(A.judge_slice_note||"")}</div>
+  </div>
+
+  <div data-ltv-fails="1" style="margin-top:9px;border:1px solid #5a2028;border-radius:5px;
+       padding:8px 11px;background:#140a0d">
+    <b style="color:#ff6b81">${failed.length + nas.length} / ${gs.length} 道门没有通过</b>
+    <div style="font-size:11.5px;color:#c9a3a9;margin-top:4px">
+      ${failed.length ? `<b>不成立</b>：${failed.map(g=>esc4("["+g.key+"]"+g.name)).join("、")}` : "（无）"}
+      ${nas.length ? `　｜　<b>没测</b>：${nas.map(g=>esc4("["+g.key+"]"+g.name)).join("、")}` : ""}
+      <div style="margin-top:4px;color:#a98d92">
+      「没测」不是「测了没过」：G-c 需要注入后<b>生成</b>可读输出再检查 S_k 指向的行为，
+      这一轮的探针只测了教师强制下逐步注入能不能改口 —— 两者是不同实验。</div>
+    </div>
+  </div>
+
+  <table data-ltv-gates="1" style="width:100%;border-collapse:collapse;margin-top:9px">
+    <thead><tr style="color:#8891a4;font-size:11px;text-align:left">
+      <th style="padding:4px 6px">预登记的声称</th><th style="padding:4px 6px">判决</th>
+      <th style="padding:4px 6px">实测</th></tr></thead>
+    <tbody>${[...failed, ...nas, ...passed].map(gRow).join("")}</tbody>
+  </table>
+
+  ${vblock}
+
+  <div style="margin-top:13px">
+    <div style="font-size:10px;color:#5cc8ff;text-transform:uppercase;
+                letter-spacing:.08em;margin-bottom:4px">1 · 句子轴：S_k 是哪几句</div>
+    <table style="width:100%;font-size:11px;border-collapse:collapse">
+      <thead><tr style="color:#8891a4;text-align:left">
+        <th style="padding:3px 6px">轴</th><th>S</th><th>S′</th><th>‖S−S′‖</th></tr></thead>
+      <tbody>${srows}</tbody>
+    </table>
+    <div style="font-size:10.5px;color:#8891a4;margin-top:4px">
+    标「负对照」的三条<b>不该</b>有自信度语义（只改长度／人称／语域）。
+    它们和另外 8 条一起进稀疏分解 —— 如果分解只捡出了这 3 条，
+    那「confidence_up」这个名字就是编的。</div>
+  </div>
+
+  <div style="margin-top:13px">
+    <div style="font-size:10px;color:#5cc8ff;text-transform:uppercase;
+                letter-spacing:.08em;margin-bottom:4px">2 · 逐上下文：阈值表本体</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="color:#8891a4;text-align:left">
+        <th style="padding:3px 5px">题</th><th style="padding:3px 5px">pos</th>
+        <th style="padding:3px 5px">token</th><th style="padding:3px 5px">m_p</th>
+        <th style="padding:3px 5px">g_v</th><th style="padding:3px 5px">α* 预测</th>
+        <th style="padding:3px 5px">α* 实测</th><th style="padding:3px 5px">对照 α*</th>
+        <th style="padding:3px 5px">切片</th><th style="padding:3px 5px">备注</th></tr></thead>
+      <tbody>${crows}</tbody>
+    </table>
+    <div style="font-size:10.5px;color:#8891a4;margin-top:4px;line-height:1.7">
+    预测 α* = m_p ÷ g_v（gap(α)=m_p−g_v·α 在最小三档上线性拟合后外推）。
+    「—」是<b>没测到</b>不是<b>零</b>：g_v≤0 时 gap 不随 α 下降，
+    按构造就外推不出有限阈值。G-a 判的是「预测值与实测值相差不超过一个网格档」，
+    两边都被删失的算同判。</div>
+  </div>
+
+  <div style="margin-top:13px">
+    <div style="font-size:10px;color:#5cc8ff;text-transform:uppercase;
+                letter-spacing:.08em;margin-bottom:4px">3 · 拟合窗敏感性</div>
+    <table style="width:100%;font-size:11px;border-collapse:collapse">
+      <thead><tr style="color:#8891a4;text-align:left">
+        <th style="padding:3px 5px">拟合窗</th><th style="padding:3px 5px">可判</th>
+        <th style="padding:3px 5px">窗内改口</th><th style="padding:3px 5px">差≤1 档</th>
+        <th style="padding:3px 5px">同判删失</th><th style="padding:3px 5px">失败</th>
+        <th style="padding:3px 5px">判决</th></tr></thead>
+      <tbody>${wrows}</tbody>
+    </table>
+    <div style="font-size:10.5px;color:#8891a4;margin-top:4px">
+    最后一档把拟合窗开到整个网格，结果<b style="color:#ffb454">不可判</b>：
+    11 个上下文的改口落进拟合窗内、0 个可判 —— 此时「预测」等于拿答案推答案。
+    不可判过半不算通过，所以这一档记 <code>degenerate_untested</code>，
+    不记 pass。</div>
+  </div>
+
+  <div data-ltv-caveats="1" style="margin-top:13px;border-top:1px solid #1e2637;padding-top:9px;
+       font-size:11px;color:#8d97ab">
+    <b>这一屏不能回答的（产物自带 ${(A.caveats||[]).length} 条，逐字转述）：</b>
+    <ol style="margin:5px 0 0 18px;padding:0">
+      ${(A.caveats||[]).map(t=>`<li style="margin:4px 0">${esc4(t)}</li>`).join("")}
+    </ol>
+  </div>
+</div>`;
+}
+
+/* 把 LTV 一道门的证据压成一行短句。只取能放进表格的数，不重新判一次。 */
+function evLtvLine(g){
+  const e = g.evidence || {};
+  switch(g.key){
+    case "G-a0":
+      return `${e.n_monotone}/${e.n_ctx} 上下文在拟合窗内 gap 单调不增`
+             + `（适用率 ${(Number(e.applicability)*100).toFixed(1)}%，`
+             + `门槛 ${(Number(e.threshold)*100).toFixed(1)}%）`;
+    case "G-a":
+      return `可判 ${e.n_judged}：差≤1 档 ${e.n_within_one_notch}、`
+             + `同判删失 ${e.n_both_censored}；`
+             + `剔除 窗内改口 ${e.n_excluded_fit_window}、`
+             + `拟合窗非单调 ${e.n_excluded_nonmonotone}、`
+             + `g_v≤0 无预测 ${e.n_pred_none_gv_le0}`;
+    case "G-b":
+      return `+1 ${e.n_plus} ／ −1 ${e.n_minus} ／ 0 ${e.n_zero}`
+             + `，有效 ${e.n_effective}，p=${Number(e.sign_test_p).toExponential(3)}`;
+    case "S1":
+      return `恒等自证 ${e.n_identity_ok}/${e.n_ctx} 个上下文输出不变`
+             + ((e.problems||[]).length ? `；但有 ${e.problems.length} 处口径问题` : "；口径问题 0 处");
+    default:
+      return JSON.stringify(e).slice(0, 90);
+  }
+}
+
 /* ---- 第 7 屏的标签 --------------------------------------------
    数据是一份独立产物（path_patching.json），与配对数据无关，
    缺了就如实说缺，不静默退回空屏。 */
@@ -3977,6 +4238,17 @@ $("#tabPatch").onclick = async () => {
       S.patch = r.ok ? await r.json() : null;
       S.patchMissing = r.ok ? null : ("HTTP " + r.status);
     }catch(e){ S.patch = null; S.patchMissing = String(e); }
+  }
+  layout();
+};
+$("#tabLtv").onclick = async () => {
+  S.view = "LTV"; syncTabs();
+  if(!S.ltv){
+    try{
+      const r = await fetch(dataBase()+"ltv.json");
+      S.ltv = r.ok ? await r.json() : null;
+      S.ltvMissing = r.ok ? null : ("HTTP " + r.status);
+    }catch(e){ S.ltv = null; S.ltvMissing = String(e); }
   }
   layout();
 };
@@ -4040,6 +4312,7 @@ function layout(){
     $("#pairRow").style.display = "flex";
     $("#trajPanel").style.display = "none";
     $("#patchWrap").style.display = "none";
+    $("#ltvWrap").style.display = "none";
     const wrap = $("#pathWrap");
     wrap.style.display = "block";
     wrap.innerHTML = renderPathPanel();
@@ -4060,6 +4333,7 @@ function layout(){
     $("#pairRow").style.display = "none";
     $("#trajPanel").style.display = "none";
     $("#patchWrap").style.display = "none";
+    $("#ltvWrap").style.display = "none";
     const w = $("#threshWrap");
     w.style.display = "block";
     w.innerHTML = renderThreshPanel();
@@ -4080,6 +4354,7 @@ function layout(){
     $("#legendDelta2").style.display = "none";
     $("#pairRow").style.display = "none";
     $("#trajPanel").style.display = "none";
+    $("#ltvWrap").style.display = "none";
     const w = $("#patchWrap");
     w.style.display = "block";
     w.innerHTML = renderPatchPanel();
@@ -4089,6 +4364,26 @@ function layout(){
     return;
   }
   $("#patchWrap").style.display = "none";
+  /* 第 8 屏「阈值向量」：同样是纯文字表格 + 一张 SVG 都不用。
+     主体是五道门的判决、逐上下文的阈值表、敏感性表与诚实边界，
+     全部是可核对的文字，画到 canvas 上就既不能选中也不能被读屏软件读到。
+     路径一律过 dataBase() —— 写死会让这一屏在换模型时静默读另一个模型的文件。 */
+  if(S.view === "LTV"){
+    $("#cv").style.display = "none";
+    $("#cvD").style.display = "none";
+    $("#legendDelta").style.display = "none";
+    $("#legendDelta2").style.display = "none";
+    $("#pairRow").style.display = "none";
+    $("#trajPanel").style.display = "none";
+    const w = $("#ltvWrap");
+    w.style.display = "block";
+    w.innerHTML = renderLtvPanel();
+    $("#mainTitle").textContent = "阈值向量 · 推多大才改口，能不能被预测";
+    $("#mainSub").textContent =
+      "沿一条真实 steering 向量扫出逐上下文的阈值表；判决只在留出集上做";
+    return;
+  }
+  $("#ltvWrap").style.display = "none";
   const delt = S.view === "DELTA";
   for(const [id, on] of [["#cv", true], ["#cvD", delt]]){
     const cv = $(id);
@@ -4896,6 +5191,7 @@ function syncTabs(){
   $("#tabPath").classList.toggle("on", S.view==="PATH");
   $("#tabThresh").classList.toggle("on", S.view==="THRESH");
   $("#tabPatch").classList.toggle("on", S.view==="PATCH");
+  $("#tabLtv").classList.toggle("on", S.view==="LTV");
 }
 $("#btnPlay").onclick = () => {
   S.playing = !S.playing;
