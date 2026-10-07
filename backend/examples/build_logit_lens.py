@@ -204,7 +204,7 @@ def pick_step_indices(T: int, window: int, scan: str) -> List[int]:
 # ---------------------------------------------------------------------------
 def lens_trajectory(path: Path, g: torch.Tensor, Wt: torch.Tensor, eps: float,
                     n_layers: int, window: int, tokens: List[str],
-                    scan: str = "tail"
+                    scan: str = "tail", want_idx: Optional[List[int]] = None
                     ) -> Tuple[List[dict], dict]:
     """One trajectory, `window` steps per `--scan`, all layers."""
     z = np.load(path)
@@ -212,7 +212,20 @@ def lens_trajectory(path: Path, g: torch.Tensor, Wt: torch.Tensor, eps: float,
     top_idx = z["topk_indices"]           # (T, 64) int32
     top_log = z["topk_logits"]            # (T, 64) float16
     T = hs_all.shape[0]
-    idxs = pick_step_indices(T, window, scan)
+    # ⚠⚠ **explicit 才是能回答 Phase-0 那个问题的那一种。**
+    #   实测：把 32 个采样点均匀铺满 2048 步的轨迹后，Phase-0 找到的
+    #   **14 个判错位置命中 0 个**（采样点平均间隔 ~64 步，而错误位置是
+    #   具体的某一步）。⇒ 「把窗口铺开」解决的是**可见性**，
+    #   解决不了**覆盖率**。真要逐层看那几个位置，只能**按位置算**。
+    if scan == "explicit":
+        idxs = sorted(set(int(i) for i in (want_idx or [])))
+        if not idxs:
+            raise ValueError(f"{path.stem}: --scan explicit 但没有给该轨迹的位置")
+        if idxs[0] < 0 or idxs[-1] >= T:
+            raise ValueError(f"{path.stem}: 位置越界 [{idxs[0]}, {idxs[-1]}] "
+                             f"而 T={T}")
+    else:
+        idxs = pick_step_indices(T, window, scan)
     w = len(idxs)
     # ⚠「是否连续」必须**记进产物**：uniform 模式下采到的是散布在整条轨迹上的
     #   点，而 window 字段是个**区间**。读者若以为 window 里的每一步都被读了，
@@ -364,10 +377,15 @@ def main() -> int:
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--window", type=int, default=32,
                     help="steps sampled per trajectory")
-    ap.add_argument("--scan", choices=("tail", "uniform"), default="tail",
+    ap.add_argument("--scan", choices=("tail", "uniform", "explicit"), default="tail",
                     help="tail = 原行为，只读最后 window 步（默认，"
                          "logit_lens.json 依赖它）；uniform = 把同样多的采样点"
-                         "铺满整条轨迹，覆盖 CoT 中段。两者写**不同**的产物。")
+                         "铺满整条轨迹；explicit = 只读 --positions 给出的那些步。"
+                         "三者写**不同**的产物。")
+    ap.add_argument("--positions", type=Path, default=None,
+                    help="scan=explicit 时必给。JSON，两种形状都收："
+                         "{traj_id: [tok, ...]} 或 "
+                         '[{"trajectory_id": ..., "tok": ...}, ...]')
     ap.add_argument("--limit", type=int, default=0, help="0 = all trajectories")
     ap.add_argument("--selfcheck", action="store_true",
                     help="run the ablation self-check and exit")
@@ -398,6 +416,37 @@ def main() -> int:
     if args.limit:
         paths = paths[:args.limit]
 
+    # explicit：按给定位置算，覆盖率与采样解耦
+    pos_map: Dict[str, List[int]] = {}
+    if args.scan == "explicit":
+        if args.positions is None:
+            raise SystemExit("ABORT --scan explicit 必须同时给 --positions")
+        raw = json.load(open(args.positions, encoding="utf-8"))
+        if isinstance(raw, dict):
+            pos_map = {k: [int(x) for x in v] for k, v in raw.items()}
+        elif isinstance(raw, list):
+            for it in raw:
+                key = it.get("trajectory_id") or it.get("id")
+                tok = it.get("tok")
+                if key is None or tok is None:
+                    raise SystemExit(f"ABORT positions 里有一项没有 trajectory_id/tok：{it!r}")
+                pos_map.setdefault(key, []).append(int(tok))
+        else:
+            raise SystemExit(f"ABORT --positions 的顶层既不是 dict 也不是 list：{type(raw)}")
+        keep = {p.stem for p in paths} & set(pos_map)
+        dropped = sorted(set(pos_map) - {p.stem for p in paths})
+        if dropped:
+            print(f"WARNING positions 里有 {len(dropped)} 个 id 在 --npz-dir 下不存在，"
+                  f"已忽略，例如 {dropped[:3]}")
+        if not keep:
+            raise SystemExit("ABORT positions 与 npz 一个都对不上，没有可算的轨迹")
+        # ⚠ 只算**有位置**的轨迹：没位置的算进去只会让 n_traj 虚高，
+        #   而它会以「轨迹数」的形式出现在产物里。
+        paths = [p for p in paths if p.stem in keep]
+    elif args.positions is not None:
+        raise SystemExit("ABORT --positions 只在 --scan explicit 下有意义，"
+                         f"现在是 {args.scan!r}")
+
     print(f"model      {args.model_path.name}  layers={n_layers} d_model={d_model} "
           f"vocab={n_vocab} eps={eps} tied={head_is_tied(args.model_path)}")
     print(f"sampling   all {len(paths)} trajectories x {args.window} steps "
@@ -417,7 +466,8 @@ def main() -> int:
     for k, p in enumerate(paths, 1):
         problem, mode = parse_id(p)
         steps, d = lens_trajectory(p, g, Wt, eps, n_layers, args.window, tokens,
-                                   scan=args.scan)
+                                   scan=args.scan,
+                                   want_idx=pos_map.get(p.stem))
         # ⚠ 原来这里是 `T = steps[-1]["t"] + 1`。那只在「取尾部」时恰好等于
         #   真实长度；扫中段时它会**静默变成一个错的数**（仍是合理小整数，
         #   所以没人会发现）。⇒ 一律用 npz 里的真实长度。
@@ -523,7 +573,15 @@ def main() -> int:
                     f"{{think, no_think}}); for each, {args.window} steps spread "
                     f"UNIFORMLY over the WHOLE trajectory [0, T) (scan=uniform) so "
                     f"the middle of the chain of thought is covered, not just the "
-                    f"answer-emission tail"),
+                    f"answer-emission tail"
+                    if args.scan == "uniform" else
+                    f"ONLY the steps listed in --positions, per trajectory "
+                    f"(scan=explicit). Coverage is therefore **decoupled from "
+                    f"sampling**: every position is read exactly, so a label at "
+                    f"step t is never missed by a sampling stride. Measured "
+                    f"justification: with scan=uniform, 32 samples spread over a "
+                    f"2048-step trajectory hit **0 of the 14** wrong-arithmetic "
+                    f"positions Phase-0 found."),
             "scan": args.scan,
             "why_tail": "the question is about the derivation of the token the "
                         "model is about to say; the tail is where it says it",
