@@ -35,6 +35,65 @@ K_MAX = 8
 #     并把这个不一致印出来，不替它圆。
 # -----------------------------------------------------------------------------
 
+# ⚠⚠⚠ 判决切片：G-a0 / G-a / G-b 只在**留出集**上判（预登记表 §43/§84/§100-101）。
+#   第一版在**全部 36 个**上下文上判 —— 那是 18 留出 + 18 抽取混在一起，
+#   而 G-a 的 claim 与预登记表都写着「在**留出**上下文上」。
+#   ⇒ 口径与 claim 不一致，而产物里**没有任何字段披露这一点**：
+#     `caveats` 五条一条没提，公开产物的 `split` 还反过来说 `holdout: []`。
+#   实测两种口径的差别不是修辞：
+#     G-a  全部 36 ⇒ 可判 22 / 0 红；仅留出 18 ⇒ 可判 12 / 0 红（都 pass）
+#     G-b  全部 36 ⇒ +1 24／−1 3，p=4.92e-05
+#          仅留出 18 ⇒ +1 14／−1 0，p=1.22e-04（更干净）
+#          仅抽取 18 ⇒ +1 10／−1 3，p=9.23e-02（**不显著**）
+#   ⇒ 混合口径恰好把「抽取集上不显著」这件事藏了起来，而那正是
+#     留出划分存在的理由。判决一律按预登记口径走；全量口径作为
+#     `variant_all_ctx` 并列发出，但**它不是判决**。
+JUDGE_SLICE = "holdout"
+
+def _gb_score(r):
+    """G-b 的逐上下文配对打分。**判决与并列口径共用这一份**。
+
+    ⚠ 抽成函数是因为第一版把同一段打分写了两遍（判决一次、并列一次），
+      而「同一段数学写两遍」会悄悄不一致 —— 变体与判决对不上时，
+      读的人只能看见两个数，不会知道哪个是哪个算出来的。
+      ⇒ 单一实现，两处调用。
+    """
+    n_ctl = len(r["ctl_all"])
+    n_ctl_flip = sum(1 for v in r["ctl_all"].values() if v is not None)
+    a = r["alpha_star_meas"]
+    if a is None and n_ctl_flip == 0:
+        return 0, "两边都没改口 ⇒ 无从比较（不记 +1 也不记 −1）"
+    if a is None:
+        return -1, f"臂没改口，但 {n_ctl_flip}/{n_ctl} 个对照改口了"
+    if n_ctl_flip == 0:
+        return 1, "臂改口而两个对照都没改口"
+    best = min(v for v in r["ctl_all"].values() if v is not None)
+    return (1 if a < best else (-1 if a > best else 0)), \
+           f"两边都改口：臂 α*={a} vs 对照最早 {best}"
+
+
+def _gb_sign_p(pos, neg):
+    """双侧符号检验的精确 p（n 小，直接数，不用正态近似）。"""
+    n_eff = pos + neg
+    if n_eff <= 0:
+        return 1.0
+    k = min(pos, neg)
+    return min(1.0, 2 * sum(math.comb(n_eff, i) for i in range(0, k + 1)) / (2 ** n_eff))
+
+
+def _g_b_variant(rows):
+    """同一套打分在**别的切片**上的读数。只作并列信息，不作判决。"""
+    pos = neg = zero = 0
+    for r in rows:
+        s, _w = _gb_score(r)
+        pos += s > 0
+        neg += s < 0
+        zero += s == 0
+    return {"n_ctx": len(rows), "n_plus": pos, "n_minus": neg, "n_zero": zero,
+            "n_effective": pos + neg, "sign_test_p": _gb_sign_p(pos, neg),
+            "note": "并列口径，不是判决；判决切片见 judge_slice"}
+
+
 gates, order = {}, []
 
 
@@ -158,6 +217,26 @@ def main():
         f"α 网格 {d.get('alpha_grid')}　拟合窗 {d.get('fit_alphas')}")
     log(f"上下文 {len(ctx)} 个；留出划分 {d.get('split')}")
 
+    # ---- 判决切片 ------------------------------------------------------
+    # ⚠ 留出集为空时**不许判绿**：那正是「在留出上下文上」这个前提不成立，
+    #   与 G-c 报 na 是同一件事（G-c 的 why_na 里已经写了同一句话）。
+    #   这里选择**停下**而不是报 na，是因为判决切片是**本文件的口径**，
+    #   不是被测物的性质 —— 装置自己口径错位应当 exit 2 让���看见。
+    _split = d.get("split") or {}
+    _ho = list(_split.get("holdout") or [])
+    _ex = list(_split.get("extract") or [])
+    if JUDGE_SLICE == "holdout":
+        if not _ho:
+            log("装置故障：预登记表要求在留出集上判（G-a/G-b），"
+                "而产物 split.holdout 是空的 ⇒ 前提不成立，不许判绿")
+            return 2
+        _jctx = [c for c in ctx if c["pid"] in _ho]
+        log(f"判决切片 = 留出集 {len(_ho)} 题 / {len(_jctx)} 个上下文"
+            f"（全量 {len(ctx)} 个仅作并列信息发出，不作判决）")
+    else:
+        _jctx = list(ctx)
+        log(f"判决切片 = 全量 {len(ctx)} 个上下文")
+
     # ---- 构建期自检 ------------------------------------------------------
     problems = []
     if d.get("alpha_grid") != ALPHA_GRID:
@@ -169,6 +248,19 @@ def main():
         problems.append(f"{len(idbad)} 个上下文恒等自证失败（批量化引入了偏差？）")
     if not d.get("sentence_diffs"):
         problems.append("① 的句子差分缺失")
+    # ⚠ 判决切片自身的自检。第一版**没有**这条，于是「split.holdout 是空的」
+    #   这个事实一路穿过构建器、穿过 GREEN 18/18 的独立重算、最后落进公开产物，
+    #   而 G-a 的 claim 明写着「在留出上下文上」——
+    #   一个**自相矛盾且无人披露**的产物被发了出去。
+    #   ⇒ 切片是判决的前提，不是配置：前提不成立就在这里报，不许留到判决里。
+    _h, _e = set(_ho), set(_ex)
+    if not _h:
+        problems.append("split.holdout 为空：预登记要求在留出集上判，前提不成立")
+    if _h & _e:
+        problems.append(f"split.extract 与 split.holdout 重叠 {sorted(_h & _e)}")
+    _ctx_pids = {c["pid"] for c in ctx}
+    if _h - _ctx_pids:
+        problems.append(f"留出题在上下文里一个都没出现：{sorted(_h - _ctx_pids)}")
     log(f"构建期自检：{len(problems)} 条问题 {problems if problems else ''}")
 
     # ---- 逐上下文：由 gap(α) 推出 g_v，再预测 α* -------------------------
@@ -194,7 +286,13 @@ def main():
             "alpha_star_pred": pred, "alpha_star_meas": meas,
             "ctl_alpha_star_min": ctl_min, "ctl_all": ctl,
             "circular_fit_window": circular,
+            # 逐上下文的切片归属。页面与判决都读它，不各自再判一次。
+            "in_judge_slice": c["pid"] in _ho,
         })
+    jrows = [r for r in rows if r["in_judge_slice"]]
+    if JUDGE_SLICE == "holdout" and not jrows:
+        log("装置故障：留出集里一个上下文都没有 ⇒ 无从判决")
+        return 2
 
     # ---- G-a 可预测 ------------------------------------------------------
     # ⚠ 先剔除**前提不成立**的上下文，否则这道门会红在一个不是缺陷的地方。
@@ -210,27 +308,27 @@ def main():
         ys = [float(gap[str(a)]) for a in FIT_ALPHAS if str(a) in gap]
         return not any(ys[i + 1] > ys[i] + 1e-12 for i in range(len(ys) - 1))
 
-    nonmono = [c for c in ctx if not monotone_in_fit(c)]
+    nonmono = [c for c in _jctx if not monotone_in_fit(c)]
     nonmono_key = {(c["pid"], c["pos"]) for c in nonmono}
     for r in rows:
         r["gap_monotone_in_fit"] = (r["pid"], r["pos"]) not in nonmono_key
-    log(f"\nG-a 前置：拟合窗 {FIT_ALPHAS} 内 gap **非单调**的 {len(nonmono)}/{len(ctx)}"
+    log(f"\nG-a 前置：拟合窗 {FIT_ALPHAS} 内 gap **非单调**的 {len(nonmono)}/{len(_jctx)}"
         f" 个上下文报 na（线性外推的前提不成立）")
     for c in nonmono[:5]:
         g = c["arm_gap"]
         log(f"     ⊘ {c['pid'][-11:]} pos={c['pos']} "
             f"gap: {[round(float(g[str(a)]), 4) for a in FIT_ALPHAS]}")
 
-    judged = [r for r in rows
+    judged = [r for r in jrows
               if not r["circular_fit_window"] and r["gap_monotone_in_fit"]]
-    censored_fit = [r for r in rows if r["circular_fit_window"]]
-    dropped_nonmono = [r for r in rows
+    censored_fit = [r for r in jrows if r["circular_fit_window"]]
+    dropped_nonmono = [r for r in jrows
                        if not r["gap_monotone_in_fit"] and not r["circular_fit_window"]]
     log(f"   改口落在拟合窗内（预测会变成拿答案推答案）的 {len(censored_fit)} 个"
         f"／前提不成立的 {len(dropped_nonmono)} 个 ⇒ 可判 {len(judged)} 个")
 
-    applic = (len(ctx) - len(nonmono)) / max(len(ctx), 1)
-    log(f"   ⚠ 适用率 {(len(ctx)-len(nonmono))}/{len(ctx)} = {applic:.3f}"
+    applic = (len(_jctx) - len(nonmono)) / max(len(_jctx), 1)
+    log(f"   ⚠ 适用率 {(len(_jctx)-len(nonmono))}/{len(_jctx)} = {applic:.3f}"
         f"（前提不成立的 {len(nonmono)} 个被剔除 ⇒ G-a 只判 {len(judged)} 个）")
     ok_grid, ok_beyond, fail, npred, nmeas, both_cens = 0, 0, [], 0, 0, 0
     for r in judged:
@@ -269,9 +367,11 @@ def main():
         "前提不成立就把该处剔除，会让 G-a 变好看，那正是「改了坏的一处却让"
         "更宽的检查变绿」",
         "pass" if applic >= 2.0 / 3 else "fail",
-        {"n_ctx": len(ctx), "n_monotone": len(ctx) - len(nonmono),
+        {"n_ctx": len(_jctx), "n_monotone": len(_jctx) - len(nonmono),
          "n_nonmonotone": len(nonmono), "applicability": round(applic, 3),
          "threshold": 2 / 3,
+         "judge_slice": JUDGE_SLICE,
+         "n_ctx_all": len(ctx),
          "nonmonotone_ctx": [{"pid": c["pid"][-11:], "pos": c["pos"],
                               "gap_fit_window": [round(float(c["arm_gap"][str(a)]), 5)
                                                  for a in FIT_ALPHAS]}
@@ -286,7 +386,8 @@ def main():
          "n_within_one_notch": ok_grid, "n_both_censored": both_cens,
          "n_pred_none_gv_le0": npred, "n_meas_censored": nmeas,
          "alpha_grid": ALPHA_GRID, "fit_alphas": FIT_ALPHAS,
-         "fit_window_sensitivity": sensitivity(ctx),
+         "judge_slice": JUDGE_SLICE,
+         "fit_window_sensitivity": sensitivity(_jctx),
          "failures": [{"pid": r["pid"], "pos": r["pos"], "m_p": r["m_p"],
                        "g_v": r["g_v"], "pred": r["alpha_star_pred"],
                        "meas": r["alpha_star_meas"], "why": w}
@@ -308,44 +409,42 @@ def main():
     #   最后对**非零**的那些做符号检验，报 p 值 ——
     #   「净分 > 0」不是显著性，而预登记表要的是「**显著**低于」。
     detail, pos, neg, zeros = [], 0, 0, 0
-    for r in rows:
-        n_ctl = len(r["ctl_all"])
-        n_ctl_flip = sum(1 for v in r["ctl_all"].values() if v is not None)
-        a = r["alpha_star_meas"]
-        if a is None and n_ctl_flip == 0:
-            s, why = 0, "两边都没改口 ⇒ 无从比较（不记 +1 也不记 −1）"
-        elif a is None:
-            s, why = -1, f"臂没改口，但 {n_ctl_flip}/{n_ctl} 个对照改口了"
-        elif n_ctl_flip == 0:
-            s, why = 1, "臂改口而两个对照都没改口"
-        else:
-            best = min(v for v in r["ctl_all"].values() if v is not None)
-            s = 1 if a < best else (-1 if a > best else 0)
-            why = f"两边都改口：臂 α*={a} vs 对照最早 {best}"
+    for r in jrows:
+        s, why = _gb_score(r)
         pos += s > 0
         neg += s < 0
         zeros += s == 0
         detail.append({"pid": r["pid"], "pos": r["pos"], "m_p": r["m_p"],
-                       "arm": a, "ctl": r["ctl_all"], "score": s, "why": why})
+                       "arm": r["alpha_star_meas"],
+                       "ctl": r["ctl_all"], "score": s, "why": why})
     net = pos - neg
     n_eff = pos + neg
-    # 双侧符号检验的精确 p（n 较小，直接数）
-    if n_eff > 0:
-        k = min(pos, neg)
-        tot = sum(math.comb(n_eff, i) for i in range(0, k + 1))
-        p_two = min(1.0, 2 * tot / (2 ** n_eff))
-    else:
-        p_two = 1.0
+    p_two = _gb_sign_p(pos, neg)
     log(f"\nG-b：配对打分  +1 {pos}／−1 {neg}／0 {zeros}"
-        f"（共 {len(rows)}）⇒ 净 {net}，有效对比 {n_eff}，符号检验 p={p_two:.4g}")
+        f"（切片 {JUDGE_SLICE}，共 {len(jrows)}）⇒ 净 {net}，有效对比 {n_eff}，"
+        f"符号检验 p={p_two:.4g}")
+    # 并列口径：同一套规则在**别的切片**上的读数。它们不是判决 ——
+    #   预登记表 §43/§84/§100 要求判决只在留出集上做。发出来是为了让
+    #   「换成别的口径会怎样」可被核对，而不是藏在提交信息里。
+    #   ⚠ 数字**现算**，不许手抄进 caveat：手抄的那一份没有任何东西会对账，
+    #     口径一改它就静默过期，而它印在读者面前。
+    _var = _g_b_variant(rows)
+    _var_ho = _g_b_variant(jrows)
+    _var_ex = _g_b_variant([r for r in rows if not r["in_judge_slice"]])
+    log(f"   （并列口径 · 全量 {len(rows)} 个：+1 {_var['n_plus']}／−1 {_var['n_minus']}"
+        f"／0 {_var['n_zero']}，p={_var['sign_test_p']:.4g} —— 不作判决）")
+    log(f"   （并列口径 · 抽取集 {_var_ex['n_ctx']} 个：+1 {_var_ex['n_plus']}"
+        f"／−1 {_var_ex['n_minus']}／0 {_var_ex['n_zero']}，"
+        f"p={_var_ex['sign_test_p']:.4g} —— 不作判决，但**不显著**，须披露）")
     put("G-b", "阈值表有牙齿",
         "该向量的 α* 显著低于幅度配平随机对照的 α*"
         "（对照与该臂偏离 clean 的范数逐节点相等）",
         "pass" if (net > 0 and p_two < 0.05) else "fail",
         {"net": net, "n_plus": pos, "n_minus": neg, "n_zero": zeros,
-         "n_ctx": len(rows), "n_effective": n_eff, "sign_test_p": p_two,
-         "alpha": 0.05,
+         "n_ctx": len(jrows), "n_effective": n_eff, "sign_test_p": p_two,
+         "alpha": 0.05, "judge_slice": JUDGE_SLICE,
          "control": "幅度配平随机对照，‖偏离‖ 逐节点相等",
+         "variant_all_ctx": _var,
          "detail": detail})
 
     # ---- G-c 名字预测效果 ----------------------------------------------
@@ -379,6 +478,10 @@ def main():
         "fit_alphas": FIT_ALPHAS,
         "k_max": K_MAX,
         "split": d.get("split"),
+        "judge_slice": JUDGE_SLICE,
+        "judge_slice_note":
+            "G-a0/G-a/G-b 的判决**只**用留出集上的上下文（预登记表 §43/§84/§100-101）。"
+            "全量口径的数字在 G-b 的 variant_all_ctx 里并列给出，它**不是判决**。",
         "registry_names": d.get("registry_names"),
         "sentence_diffs": [
             {"key": r["key"], "S": r["S"], "Sp": r["Sp"], "norm": r["norm"],
@@ -397,6 +500,21 @@ def main():
             "G-b 的对照是幅度配平随机对照，‖偏离‖ 逐节点相等，"
             "但随机方向在 2048 维里落在数据流形外，可能过度破坏 ⇒ 右删失被"
             "读成「顶不动」，这个混淆消不掉。",
+            # ↓ 以下三条是「判决切片」这件事的披露。第一版一条都没有，
+            #   而它恰恰是本轮最该被看见的东西。
+            f"判决只在**留出集**上做（预登记表 §43/§84/§100-101），"
+            f"当前切片 = {JUDGE_SLICE}（{len(_ho)} 题 / {len(_jctx)} 个上下文）。"
+            f"第一版在**全量 {len(ctx)} 个**上下文上判，"
+            f"其中约一半来自抽取题 —— 而 G-a 的 claim 与预登记表都写着「留出」。",
+            f"按留出口径，G-b 的配对是 +1 {_var_ho['n_plus']}／−1 {_var_ho['n_minus']}"
+            f"／0 {_var_ho['n_zero']}，符号检验 p={_var_ho['sign_test_p']:.3g}。"
+            f"**同一套规则在抽取集上不显著**（+{_var_ex['n_plus']}／−{_var_ex['n_minus']}，"
+            f"p={_var_ex['sign_test_p']:.3g}）—— 这不是缺陷，是「这个方向在抽取题上"
+            f"效果更弱」的事实，消不掉，也不该被混合口径盖住。",
+            "「留出」在本轮是**弱留出**：S_k 的稀疏分解是按句子做的、"
+            "与题无关，所以留出集隔离的是「这些题没参与任何拟合」这一点，"
+            "而不是「这些题的 S_k 是在别的题上选的」。预登记表 §100 设想的"
+            "是逐题选子集，本轮没有那样做。",
         ],
     }
     os.makedirs(os.path.dirname(PUBLIC), exist_ok=True)

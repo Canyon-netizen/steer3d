@@ -252,32 +252,118 @@ try {
   //     **不能**拿它当一个精确划分去做集合相等的判决。
   //     （mut_panel_coverage 的 M2e 第一版就是这么翻的：拿它分区比身份，
   //       而分区本身带噪 ⇒ 报出一个长得像真回归的假红。）
+    // ⚠ 定义必须在这里：`takeCensus` 是 const 箭头函数，TDZ 之下
+  //   在别处用它会 ReferenceError，而症状是「探针跑到一半炸了」。
   const VOL_WAIT = 4000;
   const takeCensus = async () => JSON.parse(await page.eval(CENSUS_EVAL()));
+
+// ⚠⚠⚠ **先把页面放进会变的状态，再去量它会不会变。**
+  //   这一段是 2026-10-07 加的，起因是 C6 随机变红：
+  //     根页那 7~10 段（`connected 112 steps` / `path length 3229.29` /
+  //     `mean step …` / `direction reversals …` …）带**跟着轨迹走的数**。
+  //     后端连着、且流在跑的时候它们会跳动 ⇒ 探针量到 volatile ⇒ C6 豁免它们；
+  //     后端没连或流没跑时它们不动 ⇒ volatile=false ⇒ C6 判它们「未登记」。
+  //     ⇒ **C6 的红绿取决于探针采样那一刻页面在不在流式播放**，
+  //       而那不是判据该依赖的东西（实测同一份代码两轮全链：C6 一次红一次绿）。
+  //   修法不是把 C6 改松，而是**补上量之前缺的前置**：
+  //     与 `verify_derivation` 的 F2b 同款 —— reset 与 Run **都要点**
+  //     （只点 reset 会把流停掉，见那边的注释）。
+  //   ⚠ 找不到 Run 按钮就**明说**，不假装量到了会变：那种情况下
+  //     volatile=0 是「页面不在流式态」的真实读数，不是「这些块稳定」。
+  let streaming = null;
+  // ⚠⚠⚠ **加载态**的全文普查。量「会不会变」的第二个、**可靠**的参照点：
+  //   加载态那些块印的是占位文案（`0 tokens` / `awaiting first frame…`），
+  //   Run 之后是真实值。**同一块文字在这两个时刻不同 ⇒ 它是活的。**
+  //   为什么非要这一条：前面那套「隔几秒再采一次」量的是**时间上会不会跳**，
+  //   而 `entropy 0.000`、`112 steps` 这类块**可以在整个采样窗里都不变**
+  //   （值恰好重复、流还没推进到下一个值）⇒ 漏判 ⇒ C6 判它们未登记 ⇒ 变红。
+  //   而「按 key 登记」也**救不了**：okey 的第三段是 `head[:24]`，
+  //   里面就有那个数 ⇒ 值一变 key 就变 ⇒ 登记必然 stale（2026-10-07 裁决）。
+  //   ⇒ 唯一稳的判据是**拿两个我们能控制的时刻比**，不是等它自己跳。
+  const loadCensus = IS_LATENT ? [] : await takeCensus();
+  if (!IS_LATENT) {
+    streaming = await page.eval(`(() => {
+      const btn = re => [...document.querySelectorAll('button')]
+        .find(b => re.test((b.textContent || '').trim()));
+      const rst = btn(/reset/i); if (rst) rst.click();
+      const run = btn(/run/i);
+      if (!run) return { clicked: false, why: '页面上没有 Run 控件' };
+      run.click();
+      return { clicked: true };
+    })()`);
+    await sleep(3000);
+    console.log('流式前置：%s',
+      streaming.clicked
+        ? '已点 reset+Run，等了 3s —— 后面的 volatile 量的是「流在跑时会不会变」'
+        : `⚠ 没点成（${streaming.why}）⇒ 本轮 volatile 会偏小，C6 可能因此变红`);
+  }
+
   const unmarked = await takeCensus();
   await sleep(VOL_WAIT);
   const resample = await takeCensus();
+  await sleep(VOL_WAIT);
+  const resample2 = await takeCensus();
   // 身份 = tag + 自己那段话。**不拿 len 当身份的一部分**：步进块的长度
   // 本身也随内容变，拿它当身份会把「同一块的不同步」算成两块。
   const idOf = u => u.tag + '␟' + (u.ownHead || '').trim();
-  const idsB = new Set(resample.map(idOf));
+  // ⚠⚠⚠ 判据从「后一次没有」改成「**后两次里任一次没有**」。
+  //   上面那段注释早就写明 `volatile` 是**带噪的下界**、`VOL_WAIT` 可能赶不上；
+  //   流式前置解决了「页面不在会变的状态」，但**没解决采样窗口**：
+  //   2026-10-07 实测同一状态下量到 7 块会变，C6 只豁免到 6 块，
+  //   剩下 1 块翻回「未分类」⇒ C6 仍然红。
+  //   ⇒ 两件事一起才自洽：**前置保证有易变性，多次采样保证测得全。**
+  //     每轮把「单次采样会漏多少」也印出来 —— 豁免不许是黑箱。
+  //
+  // ⚠⚠⚠⚠ 这里踩过一次**方向反了的**错，写下来免得再踩：
+  //   我第一版写成 `idsB = new Set([...B, ...C]); volatile = !idsB.has(id)`
+  //   —— 那是在问「B 和 C 里**都**没有」，即两个**缺失集的交**，比单次**更严**。
+  //   实测印出「并集 7 / 单次 9」，并集反而更少，当场露馅。
+  //   「任一次会变」的正确写法是把**缺失**取并：
+  //       volatile = !idsB.has(id) || !idsC.has(id)
+  //   判据里凡是「并集」，都要先问一句：我要并的是**存在**还是**缺失**？
+  const idsB1 = new Set(resample.map(idOf));
+  const idsC = new Set(resample2.map(idOf));
+  const idsAll = new Set([...idsB1, ...idsC]);
   const idsA = new Set(unmarked.map(idOf));
+  // 加载态的同块文字（tag + head）→ 加载态那一版说的是什么。
+  //   匹配用 **tag + 前 12 字**：`head[:24]` 里可能带数，用整段会把自己
+  //   变成「找不到对应块」，那会把**所有**块都算成活的（判据反向失效）。
+  const loadByTag = new Map();
+  for (const v of loadCensus) {
+    const t = (v.ownHead || '').trim().slice(0, 12);
+    if (!loadByTag.has(v.tag)) loadByTag.set(v.tag, []);
+    loadByTag.get(v.tag).push(t);
+  }
+  let nByClock = 0, nByLoad = 0;
   for (const u of unmarked) {
-    u.volatile = !idsB.has(idOf(u));
+    const id = idOf(u);
+    // 判据 A（时间）：任一次采样里这块的身份不见了 ⇒ 它会变。
+    //   **不是**「两次都不见」—— 那是缺失集的交，比单次更严，方向反了。
+    const byClock = !idsB1.has(id) || !idsC.has(id);
+    // 判据 B（加载态对照）：同 tag 的块在加载态说的是别的话 ⇒ 它被数据填过。
+    const cands = loadByTag.get(u.tag) || [];
+    const mine = (u.ownHead || '').trim().slice(0, 12);
+    const byLoad = cands.length > 0 && !cands.includes(mine);
+    if (byClock) nByClock++;
+    if (byLoad) nByLoad++;
+    u.volatile = byClock || byLoad;
   }
   const vol = {
-    waitMs: VOL_WAIT,
-    nA: unmarked.length, nB: resample.length,
+    waitMs: VOL_WAIT, samples: 3,
+    streamed: streaming && streaming.clicked ? true : (streaming ? false : null),
+    nA: unmarked.length, nB: resample.length, nC: resample2.length,
     changed: unmarked.filter(u => u.volatile).length,
-    onlyInA: [...idsA].filter(x => !idsB.has(x)).length,
-    onlyInB: [...idsB].filter(x => !idsA.has(x)).length,
+    changed_if_single_sample: unmarked.filter(u => !idsB1.has(idOf(u))).length,
+    changed_by_clock: nByClock, changed_by_load: nByLoad,
+    onlyInA: [...idsA].filter(x => !idsAll.has(x)).length,
+    onlyInB: [...idsAll].filter(x => !idsA.has(x)).length,
   };
-  console.log('可复现性自测：隔 %d ms 再采一次 —— %d 块里 **%d 块会自己变**%s',
-              VOL_WAIT, vol.nA, vol.changed,
-              vol.onlyInA !== vol.changed
-                ? ('（⚠ 另有 %d 条第二次才出现/第一次才有，数量也对不上）'
-                   % Math.abs(vol.onlyInA - vol.changed))
-                : '');
+  console.log('可复现性自测：%d 块里 **%d 块判为活读数**'
+              + '（时间判据 %d 块 ／ 加载态对照 %d 块 ／ 两者都占 %d 块）'
+              + '　单次后测只认出 %d 块',
+              vol.nA, vol.changed, nByClock, nByLoad,
+              vol.changed - (nByClock + nByLoad - vol.changed),
+              vol.changed_if_single_sample);
   // ⚠ 必须是 **函数声明**而不是 const：它在下面才定义，而上面
   //   takeCensus() 已经要用它。const 是 TDZ ⇒ 运行到那一行直接
   //   ReferenceError「Cannot access 'CENSUS_EVAL' before initialization」，

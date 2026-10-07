@@ -118,9 +118,26 @@ for c in d["contexts"]:
 #    那条判据读的是**产物**里的 G-c verdict，原始层根本改不到它 ⇒ 变异打空了。
 #    ⇒ 改成打原始层真有的字段。verify 侧的 G-c na 检查保留，
 #      它该由「篡改产物」那一类变异去打，不该由篡改原始来打。
-run l6_alpha_star_flat "公开产物与原始层的每个数相符" '
+run l6_alpha_star_flat "逐上下文字段" '
 for c in d["contexts"]:
     c["arm_alpha_star"] = 1.0
+'
+
+# L7 篡改原始层的留出划分（把 holdout 抄成 extract）—— 这是本轮真实缺陷的**反向**：
+#    磁盘上那份公开产物的 split 曾经是 extract 6 / holdout 0，而原始层是 3/3。
+#    当时的判据叫「与原始层的每个数相符」，却只对账逐上下文字段，
+#    顶层 split 落在缺口里 ⇒ 一句假话在 GREEN 18/18 下原样发了出去。
+#    这一条专打那个缺口。
+run l7_split_tamper "顶层字段" '
+d["split"] = {"extract": d["split"]["extract"] + d["split"]["holdout"],
+              "holdout": []}
+'
+
+# L8 换掉切片成员（把抽取题挪进留出集）⇒ 判决口径与产物声明的切片不再一致。
+#    专打「产物自己说自己是 holdout，但没人拿原始 split 去对」那个洞。
+run l8_slice_swapped "独立重算的 G-b" '
+d["split"]["holdout"] = d["split"]["extract"] + d["split"]["holdout"]
+d["split"]["extract"] = []
 '
 
 echo

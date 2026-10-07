@@ -525,6 +525,8 @@ try {
     //
     // 等的是**面板的窗口**变成新记录的窗口：这一步只有 currentTrajectory
     // 已经更新、且 reset 已经落地之后才会发生。
+    //
+    const winWait0 = Date.now();
     const winMoved = await (async () => {
       for (let i = 0; i < 20; i++) {
         await sleep(500);
@@ -534,18 +536,45 @@ try {
       }
       return false;
     })();
+    // ⚠ 实测（2026-10-07，两次各 502ms 就中）：**等待从来不是 F9 的瓶颈** ——
+    //   预算从 10s 提到 30s 是**没证据的改动**，已撤回。红在后面的滑块/取样那几步。
+    console.log('   · F9 等面板换窗口：等了 %dms／预算 10000ms%s',
+                Date.now() - winWait0, winMoved ? '' : ' ⇒ 没等到');
+    const winWaitMs = Date.now() - winWait0;
+    console.log('   · F9 等面板换窗口：等了 %dms（预算 30000ms）%s',
+                winWaitMs, winMoved ? '' : ' ⇒ 没等到');
 
-    const setRes = await page.eval(`(() => {
-      const r = document.querySelector('[data-deriv-step]');
-      if (!r) return { err: 'no slider' };
-      const setter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype, 'value').set;
-      setter.call(r, ${otherT});
-      const afterSet = r.value;      // 浏览器会按 min/max 夹取
-      r.dispatchEvent(new Event('input', { bubbles: true }));
-      r.dispatchEvent(new Event('change', { bubbles: true }));
-      return { min: r.min, max: r.max, want: ${otherT}, afterSet };
-    })()`);
+    // ⚠⚠⚠ 设滑块**必须验是否真的生效**，没生效就重设。
+    //   2026-10-07 抓到实锤：`set.afterSet="994"`（设置当时成功了），
+    //   而几百毫秒后 `after.sliderValue="992"` —— 被 React 的 reset() 抹回窗口起点，
+    //   于是 state=out-of-window、bars=0，F9 转红。
+    //   原因就是本段上面注释预言的那条竞态：`pickAndStart` 是
+    //   「换记录 → reset → start」同步连发，reset 的 `focusedStep: null`
+    //   **可能晚于**我们等 winMoved 落地 —— winMoved 只证明 currentTrajectory
+    //   换了，**证明不了 reset 已经落地**。
+    //   ⇒ 不加大等待预算（实测等窗口只要 502ms，不是瓶颈），
+    //     改成「设 → 读回 → 不对就再设」，最多 6 轮。
+    const want = otherT;
+    let setRes = null, appliedAt = -1, attempts = 0;
+    for (let a = 0; a < 6; a++) {
+      attempts = a + 1;
+      setRes = await page.eval(`(() => {
+        const r = document.querySelector('[data-deriv-step]');
+        if (!r) return { err: 'no slider' };
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype, 'value').set;
+        setter.call(r, ${want});
+        const afterSet = r.value;      // 浏览器会按 min/max 夹取
+        r.dispatchEvent(new Event('input', { bubbles: true }));
+        r.dispatchEvent(new Event('change', { bubbles: true }));
+        return { min: r.min, max: r.max, want: ${want}, afterSet };
+      })()`);
+      await sleep(700);
+      const back = await page.eval(
+        `(() => { const r = document.querySelector('[data-deriv-step]');`
+        + ` return r ? r.value : null; })()`);
+      if (String(back) === String(want)) { appliedAt = a; break; }
+    }
 
     let sig = null, sigState = null, sigText = '';
     for (let i = 0; i < 12; i++) {
@@ -567,6 +596,7 @@ try {
     // "没进窗口"、"JSON 没 join 上"还是"画错了"——三种修法完全不同；
     // 而"没进窗口"又要分清是判据没等、还是面板真没切过去。
     let why = `other=${other.id} winMoved=${winMoved} want t=${otherT} `
+            + `sliderSetAttempts=${attempts} 第${appliedAt+1}轮读回=${appliedAt>=0 ? '生效' : '仍被重置'} `
             + `set=${JSON.stringify(setRes)} after=${JSON.stringify(after)} | `
             + `state=${sigState} bars=${sig ? sig.bars.length : 0} | ${sigText.slice(0, 130)}`;
     if (sig && sig.bars.length === NL && ot) {

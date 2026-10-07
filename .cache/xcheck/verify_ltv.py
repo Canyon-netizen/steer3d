@@ -31,6 +31,13 @@ ALPHA_GRID = [0.05, 0.1, 0.2, 0.35, 0.5, 1.0, 2.0, 4.0]
 FIT_ALPHAS = [0.05, 0.1, 0.2]
 K_MAX = 8
 
+# G1t 用的期望值。**本文件自己写死**，不从构建器 import ——
+#   同源共用会「一处错则处处绿」，而顶层对账的全部意义就是抓那类错。
+#   alpha_grid / fit_alphas 在原始层与公开层都可能对不上预登记，
+#   所以对账时允许「原始＝预登记」或「公开＝预登记」任一成立，
+#   两者都不成立才算不符。
+_EXPECT = {"alpha_grid": ALPHA_GRID, "fit_alphas": FIT_ALPHAS, "k_max": K_MAX}
+
 fails, warns, _total = [], [], [0]
 
 
@@ -74,6 +81,36 @@ def main():
 
     pub = json.load(open(PUBLIC, encoding="utf-8")) if os.path.exists(PUBLIC) else {}
 
+    # ---- 判决切片（独立于构建器，自己从原始 split 重算）------------------
+    # ⚠⚠⚠ 第一版**没有切片**，于是一整套判据都在**全量**上下文上重算，
+    #   而预登记表 §43/§84/§100-101 要求 G-a / G-b 只在**留出集**上判。
+    #   这个偏差一路没人抓，公开产物里 `split` 还反过来说 `holdout: []` ——
+    #   一份**自相矛盾且无人披露**的产物发了出去。
+    #   ⇒ 这里不 import 构建器的常量，也不读产物里的 judge_slice：
+    #     两个来源都不算独立证据。切片从**原始产物的 split** 现算。
+    _split = raw.get("split") or {}
+    _ho = set(_split.get("holdout") or [])
+    _ex = set(_split.get("extract") or [])
+    _sctx = [c for c in ctx if c["pid"] in _ho]
+    print(f"判决切片（判据自算）：留出题 {len(_ho)} ／抽取题 {len(_ex)}"
+          f" ⇒ 留出切片内上下文 {len(_sctx)}/{len(ctx)}")
+    if not _ho:
+        # ⚠⚠⚠ 这里**不许 exit**。写成「留出集为空 ⇒ 退出码 2」的理由是
+        #   「前提不成立就别判」。那条路更糟：整个判据**当场死掉**，
+        #   其余二十几条检查一条都不再出声 —— 而「一处前提坏了」
+        #   与「其余检查全都没跑」在汇总里长得一模一样。
+        #   这就是「恒红污染下游」的**崩溃版**。
+        #   ⇒ 记一条红，让其余检查照常跑完，让读的人看见
+        #     「哪一条坏了、其余结论还成不成立」。
+        check("E0 原始产物的留出集非空（预登记表 §43/§84/§100 要求在留出集上判）",
+              False, [f"split.holdout 为空：{raw.get('split')}",
+                      "判决切片退化为空 ⇒ G-a0/G-a/G-b 的口径不成立",
+                      "其余检查仍会跑完；它们的结论只对『可判的部分』成立"])
+    else:
+        check("E0 原始产物的留出集非空（预登记表 §43/§84/§100 要求在留出集上判）",
+              True, [f"留出 {len(_ho)} 题 ／ 抽取 {len(_ex)} 题，两集无重叠",
+                     f"留出切片内 {len(_sctx)}/{len(ctx)} 个上下文"])
+
     # ---- E 层：从原始 gap(α) 重算 ----
     print("\nE 层 · 从原始行独立重算")
     # ⚠ 第一版 E1 查的是「gap(最小 α) 与 m_p 同量级」，容差 25%+0.05。
@@ -85,6 +122,11 @@ def main():
     #   而「先微升再塌」正是 G-a 判红的机理，两者必须挂钩印出来，
     #   否则 G-a 那个红看起来像是随便挑的。
     nonmono, bad_m = set(), []
+    # ⚠ 非单调的重算口径**必须与判决切片一致**：判决只在留出集上做，
+    #   而「非单调」是 G-a 剔除的依据 ⇒ 剔的是切片内的那几个。
+    #   第一版（和构建器第一版一样）在全量上算，判决改到留出集后
+    #   判据立刻报「11 ≠ 4」—— 那正是它在提醒我两处口径没同步。
+    #   全量口径仍在这里算一遍，只作信息。
     for c in ctx:
         gap = c["arm_gap"]
         ys = [float(gap[str(a)]) for a in FIT_ALPHAS if str(a) in gap]
@@ -92,6 +134,8 @@ def main():
             nonmono.add((c["pid"], c["pos"]))
         if not (c["m_p"] > 0):
             bad_m.append((c["pid"][-11:], c["pos"], c["m_p"]))
+    nonmono_s = {(c["pid"], c["pos"]) for c in _sctx
+                 if (c["pid"], c["pos"]) in nonmono}
     # ⚠ 这条**不是**「必须单调」。非单调是**物理事实**（gap 先微升再塌），
     #   报告它不是缺陷 —— 判据该管的是「构建器有没有把这批位置**从 G-a 里剔除**，
     #   并把剔除数印出来」。不这么写，这条就会永远红，而红的是装置不是被测物。
@@ -100,10 +144,11 @@ def main():
     # ⚠ 产物里只存了 pid 的**后 11 位**，而 raw 里是全名 ⇒ 不能直接比集合。
     #   改成比**条数**并抽查第一条的后缀，这是能核的。
     check("E1 拟合窗内 gap 非单调的位置数：判据独立重算 == 产物 G-a0 报的",
-          len(nonmono) == len(pub_nm) and not bad_m,
-          [f"判据重算非单调 {len(nonmono)}/{len(ctx)} 个"
-           f"（{sorted(n[0][-11:] + str(n[1]) for n in nonmono)[:4]} …）；"
+          len(nonmono_s) == len(pub_nm) and not bad_m,
+          [f"判据重算：切片内 {len(nonmono_s)}/{len(_sctx)} 个非单调"
+           f"（全量 {len(nonmono)}/{len(ctx)}，只作信息）；"
            f"产物 G-a0 报 {pg0.get('n_nonmonotone')} 个",
+           f"产物 judge_slice = {pg0.get('judge_slice')!r}",
            f"m_p ≤ 0 的 {len(bad_m)} 个 {bad_m[:3]}"])
 
     check("E1b 全部上下文的 m_p > 0（m_p ≤ 0 时「决胜间距」本身没有意义）",
@@ -111,14 +156,18 @@ def main():
           else [f"{len(ctx)} 个上下文 m_p 全为正"])
 
     # ⚠ 适用率门必须**独立**重算，且门槛与产物一致。
-    applic = (len(ctx) - len(nonmono)) / max(len(ctx), 1)
+    #   口径与 E1 一致：**切片内**算，不是全量 ——
+    #   「剔掉的那些占多数吗」这个问题本身就是相对判决切片问的。
+    applic = (len(_sctx) - len(nonmono_s)) / max(len(_sctx), 1)
     want_a0 = "pass" if applic >= 2.0 / 3 else "fail"
     check("E1c 独立重算的适用率与 G-a0 的判决一致"
           "（剔除太多位置后 G-a 变好看，这条门就是防那个的）",
           abs(applic - float(pg0.get("applicability", -1))) < 1e-3
           and (pub.get("gates") or {}).get("G-a0", {}).get("verdict") == want_a0,
-          [f"重算适用率 {applic:.3f}（门槛 2/3）⇒ 应判 {want_a0.upper()}",
-           f"产物 {pg0.get('applicability')} ⇒ "
+          [f"重算适用率（切片 {len(_sctx)} 个上下文）{applic:.3f}"
+           f"（门槛 2/3）⇒ 应判 {want_a0.upper()}",
+           f"产物 {pg0.get('applicability')}（n_ctx={pg0.get('n_ctx')}"
+           f"／n_ctx_all={pg0.get('n_ctx_all')}）⇒ "
            f"{(pub.get('gates') or {}).get('G-a0', {}).get('verdict')}"])
 
     gvs, preds = [], []
@@ -150,7 +199,7 @@ def main():
     #   两处口径不同就等于一个恒红的判据，而红的原因是「我没同步」。
     import math
     pos = neg = zero = 0
-    for c in ctx:
+    for c in _sctx:
         a = c["arm_alpha_star"]
         flips = [v for v in c["ctl_alpha_star"].values() if v is not None]
         if a is None and not flips:
@@ -173,17 +222,25 @@ def main():
           pg.get("net") == net and pg.get("n_plus") == pos
           and pg.get("n_minus") == neg and pg.get("n_zero") == zero
           and abs(float(pg.get("sign_test_p", -1)) - p_two) < 1e-12,
-          [f"本文件重算：+1 {pos}／−1 {neg}／0 {zero}，净 {net}，p={p_two:.4g}",
+          [f"本文件重算（切片 holdout，{len(_sctx)} 个上下文）："
+           f"+1 {pos}／−1 {neg}／0 {zero}，净 {net}，p={p_two:.4g}",
            f"产物：    +1 {pg.get('n_plus')}／−1 {pg.get('n_minus')}"
            f"／0 {pg.get('n_zero')}，净 {pg.get('net')}，p={pg.get('sign_test_p')}",
-           f"逐上下文：臂改口 {sum(1 for c in ctx if c['arm_alpha_star'] is not None)}"
-           f"／共 {len(ctx)}；对照改口 "
-           f"{sum(1 for c in ctx for v in c['ctl_alpha_star'].values() if v is not None)}"
-           f"／共 {2*len(ctx)}"])
+           f"产物声明的 judge_slice = {pg.get('judge_slice')!r}",
+           f"切片内逐上下文：臂改口 "
+           f"{sum(1 for c in _sctx if c['arm_alpha_star'] is not None)}"
+           f"／共 {len(_sctx)}；对照改口 "
+           f"{sum(1 for c in _sctx for v in c['ctl_alpha_star'].values() if v is not None)}"
+           f"／共 {2*len(_sctx)}"])
 
     # 重算 G-a 的判否数
+    # ⚠ `preds` 与 `ctx` **并行同序**，所以切片要按下标取，不能直接过滤 preds ——
+    #   直接过滤会把「第 i 个的预测」配到「第 j 个的实测」上，而那种错
+    #   在数字上仍然自洽，只是不再是同一个上下文。
+    _sidx = [i for i, c in enumerate(ctx) if c["pid"] in _ho]
     circ = f_g = hit = both = nonmono_n = 0
-    for c, p in zip(ctx, preds):
+    for _i in _sidx:
+        c, p = ctx[_i], preds[_i]
         m = c["arm_alpha_star"]
         # ⚠ 与构建器主口径同一套剔除：非单调的位置也**不判**。
         gap = c["arm_gap"]
@@ -218,11 +275,13 @@ def main():
               (("n_judged", hit + both + f_g), ("n_excluded_fit_window", circ),
                ("n_excluded_nonmonotone", nonmono_n),
                ("n_within_one_notch", hit), ("n_both_censored", both))),
-          [f"重算：可判 {hit+both+f_g}／窗内剔除 {circ}／非单调剔除 {nonmono_n}"
+          [f"重算（切片 holdout）：可判 {hit+both+f_g}／窗内剔除 {circ}"
+           f"／非单调剔除 {nonmono_n}"
            f"／命中 {hit}／同判删失 {both}／红 {f_g}",
            f"产物：可判 {pa.get('n_judged')}／窗内 {pa.get('n_excluded_fit_window')}"
            f"／非单调 {pa.get('n_excluded_nonmonotone')}"
-           f"／命中 {pa.get('n_within_one_notch')}／同判删失 {pa.get('n_both_censored')}"])
+           f"／命中 {pa.get('n_within_one_notch')}／同判删失 {pa.get('n_both_censored')}",
+           f"产物声明的 judge_slice = {pa.get('judge_slice')!r}"])
 
     # ---- F 层：预登记漂移 ----
     print("\nF 层 · 预登记与实现是否漂移")
@@ -294,10 +353,102 @@ def main():
             if b.get("ctl_alpha_star_min") != cmin:
                 mism.append([b.get("pid", "?")[-11:], b.get("pos"),
                              "ctl_alpha_star_min", cmin, b.get("ctl_alpha_star_min")])
-        check("G1 公开产物与原始层的每个数相符（页面读的那份必须是对的）",
+        check("G1 公开产物与原始层的**逐上下文字段**相符"
+              "（页面读的那份必须是对的）",
               not mism,
               [f"核对 {len(ctx)} 个上下文 × 3 个原始字段", f"不符 {len(mism)} 处",
                f"前 3：{mism[:3]}"] if mism else ["逐数一致"])
+
+        # ---- G1t 顶层字段对账 --------------------------------------------
+        # ⚠⚠⚠ 第一版的 G1 叫「与原始层的**每个数**相符」，而它只对账
+        #   **逐上下文**的 3 个字段 + 2 个派生量。**顶层字段一个都没核** ——
+        #   split / alpha_grid / fit_alphas / registry_names / lever 全在缺口里。
+        #   后果不是理论上的：磁盘上那份公开产物的 `split` 是
+        #   `extract 6 / holdout 0`，而原始层是 `3 / 3` ——
+        #   一句**假话**在 GREEN 18/18 的独立重算下原样发了出去，
+        #   而 G-a 的 claim 明写「在留出上下文上」，两者直接矛盾。
+        #   ⇒ 名字里写「每个数」就得真核每个数。清单式对账必须把清单也核。
+        tm = []
+        for key in ("split", "registry_names"):
+            if pub.get(key) != raw.get(key):
+                tm.append([key, raw.get(key), pub.get(key)])
+        for key in ("alpha_grid", "fit_alphas", "k_max"):
+            # 这三个在原始层与公开层都可能对不上预登记 ⇒ 任一等于本文件的
+            # 期望值就算过；两者都不等于才算不符。
+            if pub.get(key) != raw.get(key) and pub.get(key) != _EXPECT[key]:
+                tm.append([key, f"原始 {raw.get(key)}", f"产物 {pub.get(key)}"])
+        # lever：vec 是 2048 维，逐数比；name/layer/unit_norm 比值
+        lv_r, lv_p = raw.get("lever") or {}, pub.get("lever") or {}
+        for k in ("name", "layer", "unit_norm"):
+            if lv_r.get(k) != lv_p.get(k):
+                tm.append([f"lever.{k}", lv_r.get(k), lv_p.get(k)])
+        if lv_r.get("vec") != lv_p.get("vec"):
+            tm.append(["lever.vec",
+                       f"{len(lv_r.get('vec') or [])} 维",
+                       f"{len(lv_p.get('vec') or [])} 维"])
+        # sentence_diffs 的每个键与范数（判红的是**逐条**，不是条数）
+        sdr = {r["key"]: r for r in (raw.get("sentence_diffs") or [])}
+        for r in (pub.get("sentence_diffs") or []):
+            o = sdr.get(r.get("key"))
+            if o is None:
+                tm.append([f"sentence_diffs[{r.get('key')}]", "原始层没有", "产物有"])
+            elif (o.get("norm") != r.get("norm")
+                  or o.get("S") != r.get("S") or o.get("Sp") != r.get("Sp")
+                  or o.get("negative_control") != r.get("negative_control")):
+                tm.append([f"sentence_diffs[{r.get('key')}]",
+                           o.get("norm"), r.get("norm")])
+        if len(sdr) != len(pub.get("sentence_diffs") or []):
+            tm.append(["sentence_diffs 条数", len(sdr),
+                       len(pub.get("sentence_diffs") or [])])
+        check("G1t **顶层字段**也与原始层逐项相符"
+              "（split / lever / alpha_grid / fit_alphas / sentence_diffs）",
+              not tm,
+              [f"核了 2 类原始透传字段 + 3 类预登记字段 + 3 项 lever + "
+               f"{len(sdr)} 条句子差分",
+               f"不符 {len(tm)} 处", f"全部：{tm}"] if tm else ["逐项一致"])
+
+        # schema / prereg 是**构建器自己写的**，原始层没有 ⇒ 不参与「与原始对账」，
+        #   但它们同样是会被读的字段，另立一条查它们**自洽**。
+        #   （第一版把它们并进原始对账，于是 `prereg` 永远「不符」——
+        #     又一条恒红判据，而红的原因是「我把两类字段混在一张清单里」。）
+        _bm = []
+        if pub.get("schema") != "steer3d.ltv/1":
+            _bm.append(["schema", pub.get("schema")])
+        _pr = str(pub.get("prereg") or "")
+        if "LTV_PREREG.md" not in _pr:
+            _bm.append(["prereg 没指向预登记表", _pr])
+        if not os.path.exists(PREREG):
+            _bm.append(["预登记表文件不存在", PREREG])
+        check("G1u 构建器自撰字段（schema / prereg）自洽且指向真实文件",
+              not _bm, [f"schema={pub.get('schema')!r}", f"prereg={_pr!r}",
+                        f"文件在不在：{os.path.exists(PREREG)}"] if _bm
+              else [f"schema=steer3d.ltv/1；prereg 指向 {PREREG}（文件存在）"])
+
+        # ---- G1s 判决切片必须真的是留出集 ---------------------------------
+        # 判据不 import 构建器的 JUDGE_SLICE，也**不信产物自己写的** judge_slice
+        #   值 —— 产物说自己是 holdout，正需要有人拿原始 split 去对。
+        gs = pub.get("judge_slice")
+        check("G1s 产物声明的判决切片 == 原始产物的留出集，且留出集非空",
+              gs == "holdout" and _ho and bool(_ho - _ex),
+              [f"产物 judge_slice = {gs!r}",
+               f"原始 split：留出 {len(_ho)} 题 ／抽取 {len(_ex)} 题",
+               f"两集重叠 {sorted(_ho & _ex)}",
+               f"留出集内的上下文 {len(_sctx)} 个（判决只用这些）",
+               f"产物 G-a/G-b 的 judge_slice = "
+               f"{(pub.get('gates') or {}).get('G-a', {}).get('evidence', {}).get('judge_slice')!r} / "
+               f"{(pub.get('gates') or {}).get('G-b', {}).get('evidence', {}).get('judge_slice')!r}"])
+
+        # ---- G1d2 披露：切片这件事必须写在产物里 --------------------------
+        # 口径与预登记不一致时，**差异本身要成为产物的一部分**，
+        # 只活在提交信息里是不够的 —— 提交信息不会每轮重印，页面也不会。
+        _cav = " ".join(pub.get("caveats") or [])
+        _need = ["留出", "不显著", "弱留出"]
+        _miss = [w for w in _need if w not in _cav]
+        check("G1d 口径偏离（判决改到留出集、抽取集上不显著）已被 caveats 披露",
+              not _miss,
+              [f"caveats {len(pub.get('caveats') or [])} 条",
+               f"缺少关键词：{_miss}"] if _miss else
+              ["「留出」「不显著」「弱留出」三条披露都在产物里"])
 
         # 派生量：产物 vs 本文件的独立重算
         dm = []

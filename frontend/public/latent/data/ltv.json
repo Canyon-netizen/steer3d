@@ -2076,13 +2076,16 @@
   "extract": [
    "aime__1983__1983_I_1__no_think",
    "aime__1983__1983_I_1__think",
-   "aime__1984__1984_I_1__no_think",
+   "aime__1984__1984_I_1__no_think"
+  ],
+  "holdout": [
    "aime__1984__1984_I_1__think",
    "aime__1985__1985_I_1__no_think",
    "aime__1985__1985_I_1__think"
-  ],
-  "holdout": []
+  ]
  },
+ "judge_slice": "holdout",
+ "judge_slice_note": "G-a0/G-a/G-b 的判决**只**用留出集上的上下文（预登记表 §43/§84/§100-101）。全量口径的数字在 G-b 的 variant_all_ctx 里并列给出，它**不是判决**。",
  "registry_names": [
   "caution",
   "confidence_down",
@@ -2186,6 +2189,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2203,6 +2207,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2220,6 +2225,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2237,7 +2243,8 @@
     "nm1": null
    },
    "circular_fit_window": false,
-   "gap_monotone_in_fit": false
+   "in_judge_slice": false,
+   "gap_monotone_in_fit": true
   },
   {
    "pid": "aime__1983__1983_I_1__no_think",
@@ -2254,6 +2261,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2271,6 +2279,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2288,6 +2297,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2305,6 +2315,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2322,7 +2333,8 @@
     "nm1": null
    },
    "circular_fit_window": false,
-   "gap_monotone_in_fit": false
+   "in_judge_slice": false,
+   "gap_monotone_in_fit": true
   },
   {
    "pid": "aime__1983__1983_I_1__think",
@@ -2339,6 +2351,7 @@
     "nm1": 2.0
    },
    "circular_fit_window": true,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2356,7 +2369,8 @@
     "nm1": null
    },
    "circular_fit_window": false,
-   "gap_monotone_in_fit": false
+   "in_judge_slice": false,
+   "gap_monotone_in_fit": true
   },
   {
    "pid": "aime__1983__1983_I_1__think",
@@ -2373,7 +2387,8 @@
     "nm1": null
    },
    "circular_fit_window": false,
-   "gap_monotone_in_fit": false
+   "in_judge_slice": false,
+   "gap_monotone_in_fit": true
   },
   {
    "pid": "aime__1984__1984_I_1__no_think",
@@ -2390,7 +2405,8 @@
     "nm1": null
    },
    "circular_fit_window": false,
-   "gap_monotone_in_fit": false
+   "in_judge_slice": false,
+   "gap_monotone_in_fit": true
   },
   {
    "pid": "aime__1984__1984_I_1__no_think",
@@ -2407,6 +2423,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2424,6 +2441,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2441,6 +2459,7 @@
     "nm1": 2.0
    },
    "circular_fit_window": false,
+   "in_judge_slice": false,
    "gap_monotone_in_fit": true
   },
   {
@@ -2458,7 +2477,8 @@
     "nm1": null
    },
    "circular_fit_window": false,
-   "gap_monotone_in_fit": false
+   "in_judge_slice": false,
+   "gap_monotone_in_fit": true
   },
   {
    "pid": "aime__1984__1984_I_1__no_think",
@@ -2475,7 +2495,8 @@
     "nm1": null
    },
    "circular_fit_window": false,
-   "gap_monotone_in_fit": false
+   "in_judge_slice": false,
+   "gap_monotone_in_fit": true
   },
   {
    "pid": "aime__1984__1984_I_1__think",
@@ -2492,6 +2513,7 @@
     "nm1": 2.0
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2509,6 +2531,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2526,6 +2549,7 @@
     "nm1": null
    },
    "circular_fit_window": true,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2543,6 +2567,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": false
   },
   {
@@ -2560,6 +2585,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2577,6 +2603,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2594,6 +2621,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2611,6 +2639,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": false
   },
   {
@@ -2628,6 +2657,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2645,6 +2675,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2662,6 +2693,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2679,6 +2711,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2696,6 +2729,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": false
   },
   {
@@ -2713,6 +2747,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": false
   },
   {
@@ -2730,6 +2765,7 @@
     "nm1": 4.0
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2747,6 +2783,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2764,6 +2801,7 @@
     "nm1": null
    },
    "circular_fit_window": true,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   },
   {
@@ -2781,6 +2819,7 @@
     "nm1": null
    },
    "circular_fit_window": false,
+   "in_judge_slice": true,
    "gap_monotone_in_fit": true
   }
  ],
@@ -2797,75 +2836,14 @@
    "claim": "拟合窗内 gap 单调不增（线性外推成立）的上下文必须占多数 —— 前提不成立就把该处剔除，会让 G-a 变好看，那正是「改了坏的一处却让更宽的检查变绿」",
    "verdict": "pass",
    "evidence": {
-    "n_ctx": 36,
-    "n_monotone": 25,
-    "n_nonmonotone": 11,
-    "applicability": 0.694,
+    "n_ctx": 18,
+    "n_monotone": 14,
+    "n_nonmonotone": 4,
+    "applicability": 0.778,
     "threshold": 0.6666666666666666,
+    "judge_slice": "holdout",
+    "n_ctx_all": 36,
     "nonmonotone_ctx": [
-     {
-      "pid": "1__no_think",
-      "pos": 391,
-      "gap_fit_window": [
-       0.75425,
-       0.75481,
-       0.75501
-      ]
-     },
-     {
-      "pid": "_I_1__think",
-      "pos": 454,
-      "gap_fit_window": [
-       2.43602,
-       2.43829,
-       2.44444
-      ]
-     },
-     {
-      "pid": "_I_1__think",
-      "pos": 568,
-      "gap_fit_window": [
-       1.95124,
-       1.96917,
-       2.00591
-      ]
-     },
-     {
-      "pid": "_I_1__think",
-      "pos": 625,
-      "gap_fit_window": [
-       3.72367,
-       3.76464,
-       3.85015
-      ]
-     },
-     {
-      "pid": "1__no_think",
-      "pos": 341,
-      "gap_fit_window": [
-       0.14269,
-       0.15877,
-       0.19068
-      ]
-     },
-     {
-      "pid": "1__no_think",
-      "pos": 568,
-      "gap_fit_window": [
-       2.20315,
-       2.22574,
-       2.27018
-      ]
-     },
-     {
-      "pid": "1__no_think",
-      "pos": 625,
-      "gap_fit_window": [
-       0.24877,
-       0.2592,
-       0.27956
-      ]
-     },
      {
       "pid": "_I_1__think",
       "pos": 511,
@@ -2910,13 +2888,13 @@
    "claim": "在留出上下文上，由 gap(α) 线性拟合出的 g_v 预测的 α*，与实测 α* 相差不超过一个网格档",
    "verdict": "pass",
    "evidence": {
-    "n_judged": 22,
-    "n_excluded_fit_window": 3,
-    "n_excluded_nonmonotone": 11,
-    "n_within_one_notch": 18,
-    "n_both_censored": 4,
+    "n_judged": 12,
+    "n_excluded_fit_window": 2,
+    "n_excluded_nonmonotone": 4,
+    "n_within_one_notch": 9,
+    "n_both_censored": 3,
     "n_pred_none_gv_le0": 0,
-    "n_meas_censored": 4,
+    "n_meas_censored": 3,
     "alpha_grid": [
      0.05,
      0.1,
@@ -2932,6 +2910,7 @@
      0.1,
      0.2
     ],
+    "judge_slice": "holdout",
     "fit_window_sensitivity": [
      {
       "fit_alphas": [
@@ -2939,11 +2918,11 @@
        0.1,
        0.2
       ],
-      "n_circular": 3,
-      "n_within_one_notch": 18,
-      "n_both_censored": 4,
+      "n_circular": 2,
+      "n_within_one_notch": 9,
+      "n_both_censored": 3,
       "n_fail": 0,
-      "n_judged": 22,
+      "n_judged": 12,
       "verdict": "pass"
      },
      {
@@ -2953,11 +2932,11 @@
        0.2,
        0.35
       ],
-      "n_circular": 3,
-      "n_within_one_notch": 18,
-      "n_both_censored": 4,
+      "n_circular": 2,
+      "n_within_one_notch": 9,
+      "n_both_censored": 3,
       "n_fail": 0,
-      "n_judged": 22,
+      "n_judged": 12,
       "verdict": "pass"
      },
      {
@@ -2968,11 +2947,11 @@
        0.35,
        0.5
       ],
-      "n_circular": 3,
-      "n_within_one_notch": 18,
-      "n_both_censored": 4,
+      "n_circular": 2,
+      "n_within_one_notch": 9,
+      "n_both_censored": 3,
       "n_fail": 0,
-      "n_judged": 22,
+      "n_judged": 12,
       "verdict": "pass"
      },
      {
@@ -2984,11 +2963,11 @@
        0.5,
        1.0
       ],
-      "n_circular": 9,
-      "n_within_one_notch": 12,
-      "n_both_censored": 4,
+      "n_circular": 6,
+      "n_within_one_notch": 5,
+      "n_both_censored": 3,
       "n_fail": 0,
-      "n_judged": 16,
+      "n_judged": 8,
       "verdict": "pass"
      },
      {
@@ -3002,7 +2981,7 @@
        2.0,
        4.0
       ],
-      "n_circular": 20,
+      "n_circular": 11,
       "n_within_one_notch": 0,
       "n_both_censored": 0,
       "n_fail": 0,
@@ -3018,232 +2997,26 @@
    "claim": "该向量的 α* 显著低于幅度配平随机对照的 α*（对照与该臂偏离 clean 的范数逐节点相等）",
    "verdict": "pass",
    "evidence": {
-    "net": 21,
-    "n_plus": 24,
-    "n_minus": 3,
-    "n_zero": 9,
-    "n_ctx": 36,
-    "n_effective": 27,
-    "sign_test_p": 4.9233436584472656e-05,
+    "net": 14,
+    "n_plus": 14,
+    "n_minus": 0,
+    "n_zero": 4,
+    "n_ctx": 18,
+    "n_effective": 14,
+    "sign_test_p": 0.0001220703125,
     "alpha": 0.05,
+    "judge_slice": "holdout",
     "control": "幅度配平随机对照，‖偏离‖ 逐节点相等",
+    "variant_all_ctx": {
+     "n_ctx": 36,
+     "n_plus": 24,
+     "n_minus": 3,
+     "n_zero": 9,
+     "n_effective": 27,
+     "sign_test_p": 4.9233436584472656e-05,
+     "note": "并列口径，不是判决；判决切片见 judge_slice"
+    },
     "detail": [
-     {
-      "pid": "aime__1983__1983_I_1__no_think",
-      "pos": 261,
-      "m_p": 1.1869354248046875,
-      "arm": 1.0,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 1,
-      "why": "臂改口而两个对照都没改口"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__no_think",
-      "pos": 304,
-      "m_p": 0.666534423828125,
-      "arm": 2.0,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 1,
-      "why": "臂改口而两个对照都没改口"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__no_think",
-      "pos": 348,
-      "m_p": 1.5376167297363281,
-      "arm": 2.0,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 1,
-      "why": "臂改口而两个对照都没改口"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__no_think",
-      "pos": 391,
-      "m_p": 0.753326416015625,
-      "arm": 4.0,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 1,
-      "why": "臂改口而两个对照都没改口"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__no_think",
-      "pos": 435,
-      "m_p": 1.666433334350586,
-      "arm": null,
-      "ctl": {
-       "nm0": 4.0,
-       "nm1": null
-      },
-      "score": -1,
-      "why": "臂没改口，但 1/2 个对照改口了"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__no_think",
-      "pos": 478,
-      "m_p": 0.7218856811523438,
-      "arm": 4.0,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 1,
-      "why": "臂改口而两个对照都没改口"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__think",
-      "pos": 341,
-      "m_p": 1.0267524719238281,
-      "arm": 1.0,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 1,
-      "why": "臂改口而两个对照都没改口"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__think",
-      "pos": 397,
-      "m_p": 1.6171550750732422,
-      "arm": 2.0,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 1,
-      "why": "臂改口而两个对照都没改口"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__think",
-      "pos": 454,
-      "m_p": 2.4341659545898438,
-      "arm": null,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 0,
-      "why": "两边都没改口 ⇒ 无从比较（不记 +1 也不记 −1）"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__think",
-      "pos": 511,
-      "m_p": 0.23702430725097656,
-      "arm": 0.1,
-      "ctl": {
-       "nm0": null,
-       "nm1": 2.0
-      },
-      "score": 1,
-      "why": "两边都改口：臂 α*=0.1 vs 对照最早 2.0"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__think",
-      "pos": 568,
-      "m_p": 1.9334526062011719,
-      "arm": null,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 0,
-      "why": "两边都没改口 ⇒ 无从比较（不记 +1 也不记 −1）"
-     },
-     {
-      "pid": "aime__1983__1983_I_1__think",
-      "pos": 625,
-      "m_p": 3.683900833129883,
-      "arm": null,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 0,
-      "why": "两边都没改口 ⇒ 无从比较（不记 +1 也不记 −1）"
-     },
-     {
-      "pid": "aime__1984__1984_I_1__no_think",
-      "pos": 341,
-      "m_p": 0.12666702270507812,
-      "arm": null,
-      "ctl": {
-       "nm0": 1.0,
-       "nm1": null
-      },
-      "score": -1,
-      "why": "臂没改口，但 1/2 个对照改口了"
-     },
-     {
-      "pid": "aime__1984__1984_I_1__no_think",
-      "pos": 397,
-      "m_p": 0.35440635681152344,
-      "arm": 4.0,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 1,
-      "why": "臂改口而两个对照都没改口"
-     },
-     {
-      "pid": "aime__1984__1984_I_1__no_think",
-      "pos": 454,
-      "m_p": 0.6080970764160156,
-      "arm": 2.0,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 1,
-      "why": "臂改口而两个对照都没改口"
-     },
-     {
-      "pid": "aime__1984__1984_I_1__no_think",
-      "pos": 511,
-      "m_p": 0.3396720886230469,
-      "arm": 4.0,
-      "ctl": {
-       "nm0": null,
-       "nm1": 2.0
-      },
-      "score": -1,
-      "why": "两边都改口：臂 α*=4.0 vs 对照最早 2.0"
-     },
-     {
-      "pid": "aime__1984__1984_I_1__no_think",
-      "pos": 568,
-      "m_p": 2.1803054809570312,
-      "arm": null,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 0,
-      "why": "两边都没改口 ⇒ 无从比较（不记 +1 也不记 −1）"
-     },
-     {
-      "pid": "aime__1984__1984_I_1__no_think",
-      "pos": 625,
-      "m_p": 0.23815536499023438,
-      "arm": null,
-      "ctl": {
-       "nm0": null,
-       "nm1": null
-      },
-      "score": 0,
-      "why": "两边都没改口 ⇒ 无从比较（不记 +1 也不记 −1）"
-     },
      {
       "pid": "aime__1984__1984_I_1__think",
       "pos": 341,
@@ -3488,6 +3261,9 @@
   "g_v 只在最小三档上拟合；改口落在拟合窗内的上下文一律不判 G-a。",
   "预登记表 §3 把「一档」写成「约 1.7~2.8 倍」，而本网格的相邻档之比实为 1.43~2.0 —— 按「相邻档」字面执行。",
   "G-a 剔除了两类上下文并各自写明理由：改口落在拟合窗内（预测会变成拿答案推答案）与拟合窗内 gap 非单调（线性外推的前提不成立）。两类都记 na，不记 fail。",
-  "G-b 的对照是幅度配平随机对照，‖偏离‖ 逐节点相等，但随机方向在 2048 维里落在数据流形外，可能过度破坏 ⇒ 右删失被读成「顶不动」，这个混淆消不掉。"
+  "G-b 的对照是幅度配平随机对照，‖偏离‖ 逐节点相等，但随机方向在 2048 维里落在数据流形外，可能过度破坏 ⇒ 右删失被读成「顶不动」，这个混淆消不掉。",
+  "判决只在**留出集**上做（预登记表 §43/§84/§100-101），当前切片 = holdout（3 题 / 18 个上下文）。第一版在**全量 36 个**上下文上判，其中约一半来自抽取题 —— 而 G-a 的 claim 与预登记表都写着「留出」。",
+  "按留出口径，G-b 的配对是 +1 14／−1 0／0 4，符号检验 p=0.000122。**同一套规则在抽取集上不显著**（+10／−3，p=0.0923）—— 这不是缺陷，是「这个方向在抽取题上效果更弱」的事实，消不掉，也不该被混合口径盖住。",
+  "「留出」在本轮是**弱留出**：S_k 的稀疏分解是按句子做的、与题无关，所以留出集隔离的是「这些题没参与任何拟合」这一点，而不是「这些题的 S_k 是在别的题上选的」。预登记表 §100 设想的是逐题选子集，本轮没有那样做。"
  ]
 }

@@ -1581,8 +1581,17 @@ try {
   const U06URL = URL + (URL.includes('?') ? '&' : '?') + 'm=0p6b';
   await page.send('Page.navigate', { url: U06URL });
   await page.waitForEvent('Page.loadEventFired', 40000).catch(() => {});
+  // ⚠⚠ 预算：原来写死 40000ms（40s）。实测它在**全链里**不够用 ——
+  //   2026-10-07 第 26 条全链，U5 红一次；而同一份代码**独立**连跑 3 次
+  //   全是 53/53。差别是它紧跟在 20 分钟的软件光栅臂之后，机器是热的。
+  //   ⇒ 这是**预算估小了**，不是被测物坏了 —— 与 scene_link 那次
+  //     「150s 是按一个假停估出来的」是同一族。
+  //   120s 的依据：实测独立跑 3 次的等待都在 3.6~7.2s 量级，
+  //   留 ~15 倍余量给热机器；每轮把**实际等了多久**印出来，
+  //   下次再红就能一眼看出是「超预算」还是「真不对」。
+  const U06_BUDGET_MS = 120000;
   let wU = 0, okU = false, g06 = null;
-  while (wU < 40000) {
+  while (wU < U06_BUDGET_MS) {
     g06 = await page.eval(READ);
     // 双条件：模型 id 对上 **且** walkTok 变成 0.6B 自己的总步数
     // （静态值是「—」，只有 applyWalkthroughFacts 跑过才会变）
@@ -1591,15 +1600,33 @@ try {
   }
   const u0b = fac('0p6b', 0), u5b = fac('0p6b', 5);
 
-  rec('U5 切到 0.6B 后同一批导览必须**换成 0.6B 自己的数**'
+  // ⚠⚠⚠ 这一条**只**问「仪器到位没有」。数值对不对是下一条 U5b 的事。
+  //   原来两者合成一条，于是「页面没在预算内切到 0.6B」与「导览数值是错的」
+  //   报出**同一个判决**：都是 FAIL，都占一个 N/M。
+  //   而这两种红的**责任方不同** —— 前者要查页面加载/服务器，后者要查文案。
+  //   合并的那版，理由行写「仪器没到位」、判决却写 FAIL，
+  //   正是本仓反复出现的那类「消息与代码各说各话」。
+  //   ⇒ 拆开。U5a 红了就说明「这一组还没测成」，不必再猜是哪一种。
+  rec('U5a 0.6B 那一页必须在预算内切到目标状态（**前置**；它红不代表导览数值错）'
+      + `（预算 ${U06_BUDGET_MS}ms，实测空闲时约 1.2s）`,
+      okU,
+      okU ? `等了 ${wU}ms　modelId=${g06.modelId} walkTok=${g06.walkTok} open=${g06.open}`
+        : `⚠ 仪器没到位：等了 ${wU}ms（预算 ${U06_BUDGET_MS}ms），`
+          + `modelId=${(g06 && g06.modelId)} walkTok=${(g06 && g06.walkTok)}`
+          + ` open=${(g06 && g06.open)}`
+          + `　（open=false ＝ 导读还没展开；walkTok 仍是「—」＝ applyWalkthroughFacts 没跑完。`
+          + `这一条 2026-10-07 在全链里红过一次、同一份代码独立跑 3 次全绿，`
+          + `**根因未查明** —— 本条的存在就是为了下次红时能一眼定位。）`);
+
+  rec('U5b 切到 0.6B 后同一批导览必须**换成 0.6B 自己的数**'
       + '（只核 1.7B 下对是发现不了「七次半」那类缺陷的：静态文案两个模型都一样长）',
       okU && g06.walkEnt0 === pairTxt(u0b) && g06.walkEnt5 === pairTxt(u5b)
         && g06.walkEnt0 !== g17.walkEnt0 && g06.walkEnt5 !== g17.walkEnt5,
-      okU ? `?m=0p6b（walkTok=${g06.walkTok}，已确认走完 applyWalkthroughFacts）　`
+      okU ? `?m=0p6b（walkTok=${g06.walkTok}，等了 ${wU}ms）　`
             + `walkEnt0「${g06.walkEnt0}」vs 产物「${pairTxt(u0b)}」　`
             + `walkEnt5「${g06.walkEnt5}」vs 产物「${pairTxt(u5b)}」`
-          : `⚠ 仪器没到位：等了 ${wU}ms，modelId=${(g06 && g06.modelId)}`
-            + ` walkTok=${(g06 && g06.walkTok)} open=${(g06 && g06.open)}`);
+          : `未判：前置 U5a 没成立，页面还没切到 0.6B 状态，`
+            + `此时比 walkEnt 会拿 1.7B 的数去对 0.6B 的产物，判红是假的`);
 
   rec('U6 0.6B 下导读点名的两个 token 仍须等于 0.6B 产物的真实值',
       tokAt0(g06) === u0b.s && tokAt5(g06) === u5b.s
