@@ -231,21 +231,32 @@ class NpzReplayRunner:
         if rec is None:
             # 没有数据就说没有，不要用合成轨迹顶替 —— 那样页面上
             # 显示的会是编出来的点，而读者没有任何办法分辨。
-            on_frame(
-                Frame(
-                    ts=0.0,
-                    step_id=0,
-                    token=f"[no replay data: {_AIME_DIR}]",
-                    token_id=-1,
-                    point=Point3D(0.0, 0.0, 0.0),
-                    perplexity=None,
-                    entropy=None,
-                    loss=None,
-                    is_self_check=False,
-                    is_revisit=False,
-                    is_end=True,
-                )
+            end_frame = Frame(
+                ts=0.0,
+                step_id=0,
+                token=f"[no replay data: {_AIME_DIR}]",
+                token_id=-1,
+                point=Point3D(0.0, 0.0, 0.0),
+                perplexity=None,
+                entropy=None,
+                loss=None,
+                is_self_check=False,
+                is_revisit=False,
             )
+            # ⚠⚠ `is_end` **不是 Frame 的字段** —— Frame 的字段到
+            #   `steer_projection` 为止（core/protocol.py）。原来这里把它当构造
+            #   参数传进去，于是**每条轨迹播到最后一步都炸一次**：
+            #     TypeError: __init__() got an unexpected keyword argument 'is_end'
+            #   抛在 on_frame 之前 ⇒ 收尾帧根本没发出去，调用方
+            #   （server.py:401 / run_global.py / run_qwen3_real.py）永远看不到
+            #   结束标记，只能靠「帧不再来」推断。
+            #   ⇒ 按全仓既有约定：构造完之后赋私有名 `_is_end`
+            #     （与 core/model_runner.py:593 同一写法，读侧一律
+            #      `getattr(frame, "_is_end", False)`）。
+            #     ⚠ 它不进 `to_dict()`（dataclass 只序列化声明过的字段），
+            #       所以前端拿不到也不需要 —— 收尾语义只给后端调用方用。
+            end_frame._is_end = True  # type: ignore[attr-defined]
+            on_frame(end_frame)
             return
 
         with np.load(rec["npz"]) as z:
@@ -377,8 +388,7 @@ class NpzReplayRunner:
                     )
                 )
 
-            on_frame(
-                Frame(
+            end_frame = Frame(
                     ts=float(n),
                     step_id=n,
                     token="",
@@ -389,9 +399,12 @@ class NpzReplayRunner:
                     loss=None,
                     is_self_check=False,
                     is_revisit=False,
-                    is_end=True,
                 )
-            )
+            # 与上面那处同一个坑：`_is_end` 是构造**之后**赋的私有名，
+            # 不是 Frame 的字段。传 `is_end=` 进构造器会让每条轨迹收尾时抛
+            # TypeError，收尾帧一次都发不出去（详见上面那处的注释）。
+            end_frame._is_end = True  # type: ignore[attr-defined]
+            on_frame(end_frame)
 
 
 class _Decoder:
