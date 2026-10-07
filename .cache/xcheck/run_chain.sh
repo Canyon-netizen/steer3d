@@ -334,6 +334,13 @@ run verify_law            "T3D_URL=$U node .cache/browser_verify/verify_law.mjs"
 run verify_ladder         "T3D_URL=$U node .cache/browser_verify/verify_ladder.mjs"
 run verify_structure      "T3D_URL=$U node .cache/browser_verify/verify_structure.mjs"
 run verify_derivation     "T3D_URL=$U node .cache/browser_verify/verify_derivation.mjs"
+# ⚠ verify_hinge_panel 紧跟 verify_derivation：两者读同一屏的相邻两个面板，
+#   而**量的是不同的东西**（前者是「token 身份在第几层定型」，
+#   后者是「模型在哪些位置自己动摇 + 那个信号在标记词写出前有多可读」）。
+#   放进链是因为这一屏现在带着**一整个已被证伪的旧说法**（P0 的 14 条假阳性），
+#   如果它哪天悄悄回退成「算错了的位置」，链必须红。
+#   不开 WebGL：它是纯 DOM 判据，走 2D 降级路径也读得到。
+run verify_hinge_panel   "BV_URL=$U node .cache/browser_verify/verify_hinge_panel.mjs"
 run verify_subspace       "BV_URL=$U  node .cache/browser_verify/verify_subspace.mjs"
 run verify_axis_readout   "BV_URL=$U  node .cache/browser_verify/verify_axis_readout.mjs"
 run verify_heldout        "BV_URL=$U  node .cache/browser_verify/verify_heldout.mjs"
