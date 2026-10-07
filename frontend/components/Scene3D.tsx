@@ -202,7 +202,7 @@ function TokenParticles({ frames }: { frames: Frame[] }) {
                 f.point.y / PCA_WORLD_SCALE,
                 f.point.z / PCA_WORLD_SCALE,
               ]}
-              distanceFactor={3}
+              distanceFactor={undefined}
               style={{ pointerEvents: "none" }}
             >
               <div
@@ -253,8 +253,19 @@ function CurrentTokenPulse({ latest }: { latest: Frame | null }) {
         <sphereGeometry args={[0.055, 24, 24]} />
         <meshStandardMaterial color={c} emissive={c} emissiveIntensity={2.0} />
       </mesh>
-      <Html distanceFactor={3} position={[0.12, 0.12, 0]}>
-        <div className="px-2.5 py-1.5 rounded-lg bg-black/80 border border-yellow-400/60 text-sm font-mono whitespace-nowrap text-yellow-100 shadow-lg">
+      {/* ⚠⚠ `distanceFactor={undefined}`（固定屏幕尺寸）是**刻意**的。
+        原来这里是 3 —— 标签随相机距离等比缩放，于是**读者越拉近视轨迹、
+        标签越大**：实测把相机拉近后这个黄框大到把轨迹本身盖住，
+        而拉近恰恰是唯一能看清轨迹的办法（浅层只占画面宽度 6.6%，
+        原因见 lib/view-scale.ts：那是模型的真实方差比，不是画错）。
+        ⇒ HUD 必须锁在屏幕尺寸上，锚点跟着 3D 位置走、大小不变。
+        同一个文件里那个「3D 已加载 N 步」徽章本来就是这么写的
+        （distanceFactor={undefined}），这里是唯一的例外。 */}
+      <Html distanceFactor={undefined} position={[0.12, 0.12, 0]}>
+        <div
+          data-scene-token-badge="1"
+          className="px-2 py-1 rounded bg-black/80 border border-yellow-400/60 text-[11px] font-mono whitespace-nowrap text-yellow-100"
+        >
           {latest.token || "·"}
         </div>
       </Html>

@@ -296,6 +296,11 @@ try {
     const miss = document.querySelector('[data-scene-focus-miss]');
     const br = badge && badge.getBoundingClientRect();
     const sr = scene && scene.getBoundingClientRect();
+    // ⚠ 当前 token 的大黄框。它和聚焦标签都用 drei <Html>，
+    //   而 distanceFactor 的语义是「随相机距离等比缩放」——
+    //   读者越拉近视轨迹它越大，最后反过来把轨迹盖住。J11 量这件事。
+    const tbadge = document.querySelector('[data-scene-token-badge]');
+    const tr = tbadge && tbadge.getBoundingClientRect();
     const slider = chain && chain.querySelector('input[type=range]');
     return JSON.stringify({
       badge: badge ? {
@@ -303,6 +308,10 @@ try {
         token: badge.getAttribute('data-scene-focus-token'),
         text: (badge.innerText||'').replace(/\\s+/g,' ').trim(),
         w: Math.round(br.width), h: Math.round(br.height),
+      } : null,
+      tokenBadge: tbadge ? {
+        text: (tbadge.innerText||'').replace(/\\s+/g,' ').trim(),
+        w: Math.round(tr.width), h: Math.round(tr.height),
       } : null,
       chain: chain ? {
         state: chain.getAttribute('data-derivation'),
@@ -551,6 +560,84 @@ try {
                 : `流停后试了 3 轮（每轮重读窗口 + 轮询 5.6s）仍无 [data-scene-focus]；`
                   + `最后一次窗口 ${s1?.scene?.low}–${s1?.scene?.high}`);
   }
+  // ---- J12 HUD 标签的屏幕尺寸不许随相机距离缩放 --------------------------
+  //
+  // 为什么要有这条：drei 的 <Html distanceFactor={n}> 是**随相机距离等比缩放**
+  // 的。实测（2026-10-07，浏览器实点截图）：相机一拉近，那个当前 token 的大黄框
+  // 和聚焦标签就同步胀大，最后**把轨迹本身盖住** ——
+  // 而「拉近」恰恰是唯一能看清轨迹的办法：浅层只占画面宽度 6.6%
+  // （lib/view-scale.ts，那是模型真实的方差比，不是画错）。
+  // ⇒ 读者越想看清数据，HUD 越挡数据。
+  //
+  // ⚠ 判决规则**取数前写死**：放大后/放大前的尺寸比 ≤ 1.35 算通过。
+  //
+  // ⚠⚠ 放大**必须够狠**，否则这条判据只是勉强分开、不算有鉴别力。
+  //   第一版只发 6 格滚轮，实测变异侧是 1.36×/1.38× —— 对 1.35 的余量只有
+  //   0.01～0.03，换个视口或换个初始相机距离就可能翻面，那不叫判据。
+  //   机理：OrbitControls 每格 dolly ×0.95，n 格后距离 ×0.95^n，
+  //   而带 distanceFactor 的元素尺寸 ∝ 1/距离 ⇒ 涨 0.95^-n 倍。
+  //     n=6  → ×1.36（几乎贴阈值，没用）
+  //     n=20 → ×2.79（离阈值一个数量级，稳）
+  //   ⇒ **实测后决定留在 6 格**（2026-10-07 双向都验过）：
+  //       绿侧（distanceFactor=undefined）1.00×（84px→84px、27px→27px）
+  //       红侧（distanceFactor=3）            1.36× / 1.38×，且是唯一一条红
+  //     为什么不升到 20 格（那本该更稳）：升上去之后这台机器已经退化到
+  //     连绿侧都跑不出来（实测 bodyLen=0，页面没渲染），拿不到双向证据。
+  //     **宁可交一个已验证的判据，不交一个「更好但没验」的。**
+  //   ⚠⚠ 余量是不对称的，别看错方向：
+  //     · **绿侧余量 0.35，不是 0.01** —— distanceFactor=undefined 时元素
+  //       根本没有 transform，尺寸恒等于 CSS 像素值，**不是**测出来的、
+  //       而是构造上就不会变 ⇒ 这条判据不会因环境慢而误报产品。
+  //     · 薄的是**红侧**：环境慢时滚轮少处理几格，可能读到 1.20 而漏红。
+  //       那影响的是「变异有没有被检出」，不会让好代码被判红。
+  //     ⇒ 想加宽余量就把 ZOOM_NOTCHES 调大（机理 0.95^-n），
+  //       但要**重新验两侧**，不能只验一侧。
+  const ZOOM_NOTCHES = 6;
+  // ⚠⚠ 编号曾写成 J11，与本脚本**已存在的** J11/J11b/J11c（2D 降级画布的
+  //   proof-of-paint）撞号 —— 同名两条判据，汇总行里分不清谁是谁。
+  //   ⇒ 改成 J12。撞号与判红不同类：它让「哪条判据」这件事变得不可判定。
+  // ⚠ 量的必须是**屏幕像素包围盒**，不是 3D 世界坐标 ——
+  //   后者在任何缩放下都不变，量它等于恒绿。
+  if (!s1?.badge && !s1?.tokenBadge) {
+    checkPrecond('J12 标签的屏幕尺寸不随相机距离缩放（放大 6 档后变化 ≤ 1.35×）',
+      false, '两个 HUD 标签都不在页面上', '没有可量的标签');
+  } else {
+    const badgeSize = (b) => (b ? Math.max(b.w, b.h) : null);
+    const beforeFocus = badgeSize(s1.badge);
+    const beforeToken = badgeSize(s1.tokenBadge);
+
+    // 拉近。OrbitControls：deltaY < 0 ⇒ dollyIn ⇒ 相机变近。
+    const zoomed = await page.eval(`(() => {
+      const c = document.querySelector('canvas');
+      if (!c) return JSON.stringify({ err: 'no canvas' });
+      const r = c.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      for (let i = 0; i < ${ZOOM_NOTCHES}; i++) {
+        c.dispatchEvent(new WheelEvent('wheel', {
+          deltaY: -240, clientX: cx, clientY: cy, bubbles: true, cancelable: true,
+        }));
+      }
+      return JSON.stringify({ ok: true, n: ${ZOOM_NOTCHES} });
+    })()`);
+    await sleep(1200);              // 等阻尼停下来
+
+    const s2 = JSON.parse(await page.eval(readBoth));
+    const afterFocus = badgeSize(s2.badge);
+    const afterToken = badgeSize(s2.tokenBadge);
+    const ratio = (a, b) => (a && b ? Math.max(b / a, a / b) : null);
+
+    const rf = ratio(beforeFocus, afterFocus);
+    const rt = ratio(beforeToken, afterToken);
+    const parts = [];
+    if (rf != null) parts.push(`聚焦标签 ${beforeFocus}px→${afterFocus}px（${rf.toFixed(2)}×）`);
+    if (rt != null) parts.push(`token 框 ${beforeToken}px→${afterToken}px（${rt.toFixed(2)}×）`);
+    const worst = Math.max(...[rf, rt].filter((x) => x != null));
+
+    check('J12 标签的屏幕尺寸不随相机距离缩放（放大 6 档后变化 ≤ 1.35×）',
+      worst <= 1.35,
+      `${parts.join('；')} | 阈值 1.35 | 缩放=${zoomed}`);
+  }
+
   if (s1?.badge) {
     check('J7 标签有非零包围盒（不是隐藏元素）',
       s1.badge.w > 0 && s1.badge.h > 0, `${s1.badge.w}x${s1.badge.h}px`);
