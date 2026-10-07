@@ -3991,6 +3991,7 @@ function drawPatchChart(){
 function renderLtvPanel(){
   const esc4 = s => esc(s == null ? "" : String(s));
   const n3   = v => v == null ? "—" : Number(v).toFixed(3);
+  const n5   = v => v == null ? "—" : Number(v).toFixed(5);
   const n4   = v => v == null ? "—" : Number(v).toFixed(4);
   const pct  = v => v == null ? "—" : (Number(v) * 100).toFixed(1) + "%";
   const A = S.ltv;
@@ -4041,16 +4042,55 @@ function renderLtvPanel(){
     <div style="margin-top:4px">${esc4(va.note||"")}</div></div>
   </div>`;
 
-  // 句子轴：S_k 是什么、差分向量多大、哪几条是负对照。
-  const srows = (A.sentence_diffs||[]).map(s =>
-    `<tr data-ltvsent="${esc4(s.key)}" data-ltvneg="${s.negative_control?"1":"0"}">
+  // 句子轴 + **真正的稀疏分解系数**。
+  // ⚠⚠ 上一版这一节印的是 11 条句子对，标题写「S_k 是哪几句」，
+  //   说明写「它们和另外 8 条一起进稀疏分解」——
+  //   而**稀疏分解从未被执行过**：探针只算出 d_k 就收工，没有 c_k、没有选子集，
+  //   K_MAX=8 被当元数据搬了三个文件却没有任何东西读它。
+  //   ⇒ 一个没发生过的分解，被当成事实印在读者面前。
+  //   现在分解真算了（build_ltv.py 的 _sparse_decomp），这里逐行印出它的 c_k 与 cos²。
+  const _dc = A.decomp || null;
+  const _axisByKey = {};
+  for(const a of ((_dc||{}).axes||[])) _axisByKey[a.key] = a;
+  const srows = (A.sentence_diffs||[]).map(s => {
+    const a = _axisByKey[s.key];
+    const inTop = _dc && (_dc.top_k||[]).indexOf(s.key) >= 0;
+    return `<tr data-ltvsent="${esc4(s.key)}" data-ltvneg="${s.negative_control?"1":"0"}"
+                data-ltvsenttop="${inTop?"1":"0"}">
       <td><code>${esc4(s.key)}</code>
         ${s.negative_control
-          ? `<div style="font-size:10px;color:#ffb454">负对照</div>` : ""}</td>
+          ? `<div style="font-size:10px;color:#ffb454">负对照</div>` : ""}
+        ${inTop
+          ? `<div style="font-size:10px;color:#5cc8ff">被 |c| 前 ${_dc.k_max} 选中</div>`
+          : ""}</td>
       <td style="font-size:11px">${esc4(s.S)}</td>
       <td style="font-size:11px">${esc4(s.Sp)}</td>
       <td class="num">${n3(s.norm)}</td>
-    </tr>`).join("");
+      <td class="num">${a && a.cos != null ? (a.cos*100).toFixed(2)+"%" : "—"}</td>
+      <td class="num">${a && a.c != null ? n5(a.c) : "—"}</td>
+    </tr>`;
+  }).join("");
+
+  // 分解的头条数：全解解释多少、截断解释多少、前 K_MAX 条里有几条负对照。
+  const dblock = !_dc ? "" : `
+  <div data-ltv-decomp="1" style="margin-top:10px;border:1px solid #5a2028;border-radius:5px;
+       padding:9px 11px;background:#140a0d">
+    <b style="color:#ff6b81">这个分解没有交付</b>
+    <div style="font-size:11.5px;color:#c9a3a9;margin-top:5px;line-height:1.75">
+    把 ${_dc.n_axes} 条句子方向摆在一起对 <code>${esc4((A.lever||{}).name||"")}</code>
+    做最小二乘，全解只解释它 <b style="color:#ff6b81">${(_dc.explained_energy*100).toFixed(3)}%</b>
+    的能量（残差比 ${n4(_dc.residual_ratio)}）。
+    按 |c<sub>k</sub>| 取前 ${_dc.k_max} 条，重建只剩
+    <b>${(_dc.top_k_energy*100).toFixed(3)}%</b>，而这 ${_dc.k_max} 条里有
+    <b style="color:#ff6b81">${_dc.n_negative_control_in_top_k} 条负对照</b>
+    （负对照共 ${_dc.negative_control_keys.length} 条）——
+    <b>「说得更肯定」「更早进入正题」和「换个说法」「换个人称」被并列选中。</b>
+    <div style="margin-top:5px;color:#a98d92">
+    这不等于「这个向量不是自信向量」：低余弦只说明<b>这 11 句话撑不起它</b>。
+    名字对不对要靠 G-c（注入后生成，看可读输出里有没有那个行为），
+    <b>那一道门本轮仍是「没测」</b>。</div>
+    </div>
+  </div>`;
 
   // 逐上下文。**判决切片印在每一行上**，不是为了好看 ——
   // G-b 在抽取切片上不显著，读者必须能在表里看见哪些行不参与判决。
@@ -4143,16 +4183,23 @@ function renderLtvPanel(){
 
   <div style="margin-top:13px">
     <div style="font-size:10px;color:#5cc8ff;text-transform:uppercase;
-                letter-spacing:.08em;margin-bottom:4px">1 · 句子轴：S_k 是哪几句</div>
+                letter-spacing:.08em;margin-bottom:4px">1 · 句子轴与它的分解系数</div>
     <table style="width:100%;font-size:11px;border-collapse:collapse">
       <thead><tr style="color:#8891a4;text-align:left">
-        <th style="padding:3px 6px">轴</th><th>S</th><th>S′</th><th>‖S−S′‖</th></tr></thead>
+        <th style="padding:3px 6px">轴</th><th>S</th><th>S′</th>
+        <th>‖S−S′‖</th><th>cos²(轴,向量)</th><th>c<sub>k</sub></th></tr></thead>
       <tbody>${srows}</tbody>
     </table>
-    <div style="font-size:10.5px;color:#8891a4;margin-top:4px">
-    标「负对照」的三条<b>不该</b>有自信度语义（只改长度／人称／语域）。
-    它们和另外 8 条一起进稀疏分解 —— 如果分解只捡出了这 3 条，
-    那「confidence_up」这个名字就是编的。</div>
+    <div style="font-size:10.5px;color:#8891a4;margin-top:4px;line-height:1.75">
+    标「负对照」的三条<b>不该</b>有自信度语义（只改长度／人称／语域）——
+    它们和另外 8 条一起进分解，所以选出来的轴里混进负对照，是可以被数出来的。
+    <br>
+    <b>但先说清一件上一版没说的话：这个分解上一轮从来没被算过。</b>
+    探针只把 11 条 d<sub>k</sub> 算出来就收工，没有求 c<sub>k</sub>、
+    没有按 |c<sub>k</sub>| 选子集，K_MAX=8 被当元数据搬了三个文件却没有任何东西读它；
+    而这一屏当时印着一句「它们一起进稀疏分解」。<b>没发生过的分解被写成了事实。</b>
+    ${dblock}
+    </div>
   </div>
 
   <div style="margin-top:13px">

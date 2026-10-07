@@ -137,7 +137,18 @@ run() {
   if [ "$passed" -lt "$total" ]; then
     RED=$((RED+1)); verdict=RED
     printf '  [RED  ] %-22s exit=%d  %s\n' "$label" "$rc" "$res"
-    grep -E "^\[FAIL\]" "$ONE" | head -6 | sed 's/^/         /'
+    # ⚠⚠ 必须连**诊断行**一起印，只印条目名字等于把根因扔掉。
+    #   房里的判据统一用 `rec(name, ok, detail)`，输出形状是
+    #       [FAIL] 条目名
+    #              诊断文字（缩进 7 格，在**下一行**）
+    #   而这里原来只 `grep -E "^\[FAIL\]"` ⇒ **诊断全被丢掉**。
+    #   2026-10-07 链里 F9 红过一次，单跑 3 次全绿、根因查不出来 ——
+    #   原因就是这里：那条红只有名字，装置自己打的
+    #   「第几轮读回=生效/仍被重置」「after.sliderValue=…」全没进汇总。
+    #   ⇒ 判红时把每条红后面的缩进行一并带出来（最多 3 行，够放数字了）。
+    awk '/^\[FAIL\]/{p=1; print "         " $0; next}
+         p && /^       /{print "       " $0; n++; if (n>=3) p=0; next}
+         p {p=0}' "$ONE"
     return
   fi
   verdict=ok

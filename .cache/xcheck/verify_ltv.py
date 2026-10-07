@@ -16,6 +16,7 @@
   ARTIFACT=.cache/xcheck/ltv.json PUBLIC=... python3 .cache/xcheck/verify_ltv.py
 """
 import json
+import math
 import os
 import statistics as st
 import sys
@@ -507,6 +508,134 @@ def main():
                          "⇒ 「阈值 = m / g_v」在一半以上的上下文上**预测不出改口**")
         check("H1 g_v 的正负分布已报告（g_v≤0 是「预测不出」，不是「无效」）",
               True, [f"中位 {med:.4f}；≤0 的 {neg}/{len(ok_g)}"])
+
+    # ---- I 层：① 稀疏分解的独立重算 ------------------------------------
+    # ⚠ 这一层的存在理由：预登记表 §1 ① 把「句子锚定的稀疏分解」列为 LTV
+    #   三个组成部分的第一个，而**它从未被执行过** —— 探针只算出 11 条 d_k，
+    #   没有求 c_k、没有按 |c_k| 选子集，K_MAX=8 被当元数据搬了三个文件
+    #   却没有任何东西读它。产物与页面却按「已经分解过」呈现它。
+    #   ⇒ 这里从**原始层的 vec** 独立重算一遍：不 import 构建器，
+    #     也不信产物里的 `decomp`，从 d_k 与 v 现算 c_k。
+    print("\nI 层 · ① 稀疏分解的独立重算")
+    dc = pub.get("decomp")
+    raw_sd = raw.get("sentence_diffs") or []
+    raw_vec = (raw.get("lever") or {}).get("vec")
+
+    if dc is None:
+        check("I1 产物里必须有 decomp（① 没算过就不许有「句子轴 = 向量分解」的呈现）",
+              False, f"decomp={dc!r}；decomp_error={pub.get('decomp_error')!r}")
+    elif not raw_vec or not raw_sd:
+        check("I1 独立重算的前提缺失（原始层没有 lever.vec / sentence_diffs）",
+              False, f"lever.vec={bool(raw_vec)} sentence_diffs={len(raw_sd)}")
+    else:
+        check("I1 产物里有 decomp，且原始层给得出 vec / sentence_diffs",
+              True, [f"轴数 {len(raw_sd)}",
+                     f"decomp_error={pub.get('decomp_error')}"])
+
+        # —— 独立最小二乘（11×11 Gram，纯标准库，不复用构建器的 _solve_sym）——
+        def _dot2(a, b):
+            return sum(x * y for x, y in zip(a, b))
+
+        vecs = [r["vec"] for r in raw_sd]
+        keys = [r["key"] for r in raw_sd]
+        nv = math.sqrt(_dot2(raw_vec, raw_vec))
+        m = len(keys)
+        Gm = [[_dot2(vecs[i], vecs[j]) for j in range(m)] for i in range(m)]
+        diag = sorted(Gm[i][i] for i in range(m))
+        for i in range(m):
+            Gm[i][i] += 1e-9 * (diag[m // 2] if m else 1.0)
+        rhs = [_dot2(vecs[i], raw_vec) for i in range(m)]
+        # 高斯消元（就地解 G c = rhs）
+        cc = rhs[:]
+        for i in range(m):
+            piv = max(range(i, m), key=lambda k: abs(Gm[k][i]))
+            Gm[i], Gm[piv] = Gm[piv], Gm[i]
+            cc[i], cc[piv] = cc[piv], cc[i]
+            for k in range(i + 1, m):
+                f = Gm[k][i] / Gm[i][i]
+                for j in range(i, m):
+                    Gm[k][j] -= f * Gm[i][j]
+                cc[k] -= f * cc[i]
+        coef = [0.0] * m
+        for i in reversed(range(m)):
+            coef[i] = (cc[i] - sum(Gm[i][j] * coef[j]
+                                   for j in range(i + 1, m))) / Gm[i][i]
+
+        def _expl(idxs):
+            s = 0.0
+            for j in range(len(raw_vec)):
+                rec = sum(coef[i] * vecs[i][j] for i in idxs)
+                s += (rec - raw_vec[j]) ** 2
+            return max(0.0, 1.0 - (math.sqrt(s) / nv) ** 2)
+
+        full = _expl(range(m))
+        by_abs = sorted(range(m), key=lambda i: -abs(coef[i]))
+        want_top = [keys[i] for i in by_abs[:min(K_MAX, m)]]
+        top_e = _expl(by_abs[:min(K_MAX, m)])
+
+        check("I2 解释率（explained_energy）与本文件的独立重算相符",
+              abs(full - dc.get("explained_energy", -1)) < 1e-9,
+              [f"独立重算 {full*100:.4f}%",
+               f"产物 {dc.get('explained_energy', float('nan'))*100:.4f}%"])
+
+        # 这条是**量纲体检**：能量不可能 >100%，截断也不可能比全解更高。
+        # ⚠ 它真的会红 —— 第一版把 top_k_energy 写成 Σc_k²‖d_k‖²，
+        #   实测印出 **207.562%**。一个 >100% 的「被解释的能量」自己就把错喊出来了；
+        #   没有这条体检，那个数会一路绿灯走进公开产物和页面。
+        check("I3 能量在量纲上说得通：0 ≤ 截断能量 ≤ 全解能量 ≤ 100%",
+              (0.0 <= dc.get("top_k_energy", -1) <= dc.get("explained_energy", -2) + 1e-12
+               <= 1.0 + 1e-12),
+              [f"截断 {dc.get('top_k_energy', float('nan'))*100:.4f}%",
+               f"全解 {dc.get('explained_energy', float('nan'))*100:.4f}%",
+               f"独立重算：截断 {top_e*100:.4f}% / 全解 {full*100:.4f}%"])
+
+        got = {a["key"]: a for a in (dc.get("axes") or [])}
+        cbad = []
+        for i, k in enumerate(keys):
+            a = got.get(k)
+            if a is None:
+                cbad.append([k, "产物 decomp.axes 里没有这一条"]); continue
+            if a.get("c") is None or abs(a["c"] - coef[i]) > 1e-9:
+                cbad.append([k, f"c_k：产物 {a.get('c')} vs 重算 {coef[i]:.9f}"])
+            nd = math.sqrt(_dot2(vecs[i], vecs[i]))
+            cs = (_dot2(vecs[i], raw_vec) / (nd * nv)) if nd > 0 else None
+            if cs is None or a.get("cos") is None or abs(a["cos"] - cs) > 1e-9:
+                cbad.append([k, f"cos：产物 {a.get('cos')} vs 重算 {cs}"])
+        check("I4 逐轴的 c_k 与 cos 与本文件的独立重算逐条相符",
+              len(got) == m and not cbad,
+              f"产物 {len(got)} 轴 / 原始 {m} 轴；不一致 {json.dumps(cbad, ensure_ascii=False)[:400]}")
+
+        # ⚠ 这条判的是**旋钮真的被用了**。K_MAX 上一轮被搬了三个文件
+        #   却没有任何东西读它，top_k = 全部轴也能一路绿灯放行。
+        check("I5 K_MAX 真的用于选子集：top_k 长度 = min(K_MAX, 轴数) 且按 |c_k| 排",
+              list(dc.get("top_k") or []) == want_top
+              and len(dc.get("top_k") or []) == min(K_MAX, m),
+              [f"K_MAX={K_MAX} 轴数={m} 期望 top_k={want_top}",
+               f"产物 top_k={dc.get('top_k')}（{len(dc.get('top_k') or [])} 条）"])
+
+        check("I6 top_k 里的负对照条数与产物自报一致（负对照进选中 = 名字可疑，必须可数）",
+              dc.get("n_negative_control_in_top_k")
+              == sum(1 for a in (dc.get("axes") or [])
+                     if a["key"] in (dc.get("top_k") or []) and a.get("negative_control")),
+              [f"自报 {dc.get('n_negative_control_in_top_k')} 条",
+               f"top_k = {dc.get('top_k')}"])
+
+        # ---- 披露：分解跑了，但解释率极低，这件事必须写在产物里 ----------
+        cav = " ".join(pub.get("caveats") or [])
+        low = full < 0.5
+        disclosed = ("稀疏分解" in cav) and ("从未被执行过" in cav) \
+            and (f"{full*100:.3f}%" in cav)
+        check("I7 「① 从未执行过 + 补算后解释率 %s%%」已被 caveats 披露"
+              % f"{full*100:.3f}",
+              (not low) or disclosed,
+              [f"独立重算解释率 {full*100:.4f}%",
+               f"阈值 50%；披露到位={disclosed}",
+               f"caveats[0]={str((pub.get('caveats') or [''])[0])[:150]}"])
+
+        print(f"    独立重算：全解解释 {full*100:.4f}%；"
+              f"|c_k| 前 {len(want_top)} 条 = {want_top}")
+        print(f"    其中负对照 {sum(1 for i in by_abs[:min(K_MAX, m)] if raw_sd[i].get('negative_control'))} 条"
+              f"（负对照共 {sum(1 for r in raw_sd if r.get('negative_control'))} 条）")
 
     print("\n" + "=" * 60)
     print("\nRESULT verify_ltv  %s  %d/%d 条通过"

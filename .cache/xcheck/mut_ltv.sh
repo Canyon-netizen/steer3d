@@ -67,6 +67,36 @@ PYEOF
 
 echo "变异台（原始产物 → 变异产物 → 判据必须报红）"
 
+# ⚠⚠ run_pub：篡改**公开产物**的变异。
+#   run() 只动原始层（原始变、产物不变 ⇒ 判据靠「产物 vs 原始」抓）。
+#   有一类洞它打不到：**产物自己内部不自洽** —— 没有任何原始层改动能暴露它。
+#   最典型的就是本轮真实踩到的那个：构建器把 top_k_energy 写成
+#   Σ c_k²‖d_k‖²（基向量自身的能量，而不是重建的能量），实测印出 **207.562%**。
+#   那个数没有任何原始层篡改能暴露它 —— 它自己就不合量纲。
+#   ⇒ 必须有一支直接改产物、让判据去判「这个产物自己站不站得住」。
+run_pub() {
+  local nm="$1" expect="$2"; shift 2
+  local out="$MUT/${nm}.pub.json"
+  rm -f "${out}"
+  python3 - "${PUB}" "${out}" <<PYEOF
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+$*
+json.dump(d, open(sys.argv[2], "w"), ensure_ascii=False)
+PYEOF
+  local lg; lg=$(ARTIFACT="${SRC}" PUBLIC="${out}" python3 "$V" 2>&1)
+  local np; np=$(echo "${lg}" | grep -c "^  \[PASS\]")
+  local hit="no"; echo "${lg}" | grep -qF -- "${expect}" && hit="yes"
+  if [ "${np}" -ge "${base_pass}" ]; then
+    echo "[红] ${nm}：变异后绿条 ${np} 条，基线 ${base_pass} 条 ⇒ 判据**没**咬住"
+    fails=$((fails+1))
+  elif [ "${hit}" = "yes" ]; then
+    echo "[绿] ${nm}：绿条 ${base_pass} → ${np}，且命中 '${expect}'"
+  else
+    echo "[绿] ${nm}：绿条 ${base_pass} → ${np}（命中的是别的条）"
+  fi
+}
+
 # L1 把整条 gap 曲线翻号（等价于「杠杆方向取反」）=> 拟合出的 g_v 反号，
 #    预测与实测必然对不上，G-a 的 E 层计数必须变。
 run l1_gap_flip "独立重算的 G-a 计数与公开产物逐条一致" '
@@ -138,6 +168,70 @@ d["split"] = {"extract": d["split"]["extract"] + d["split"]["holdout"],
 run l8_slice_swapped "独立重算的 G-b" '
 d["split"]["holdout"] = d["split"]["extract"] + d["split"]["holdout"]
 d["split"]["extract"] = []
+'
+
+# ⚠⚠ 以下三条打的是 **① 稀疏分解**。这一整块上一轮**根本不存在** ——
+#   探针只算出 11 条 d_k 就收工，没有 c_k、没有选子集，
+#   而产物与第 8 屏都按「这些句子是这个向量的分解」呈现它。
+#   补算之后实测：全解只解释 7.807%，|c_k| 前 8 条里有 **2 条负对照**。
+#   ⇒ 「①②③ 三个组成部分」里的第一个，本轮**没有交付**。
+#   判据侧对应 I2 / I4 / I5 三条独立重算。
+
+# L9 把原始层第一条句子方向**整个反号** —— 语义是「原始层被改了一个轴，
+#    而产物里的 c_k / cos 是按改动前那份算的」。
+#    ⚠ 这一条同时打 l1 类问题的老洞：判据若只信产物里的 decomp，
+#      它永远绿。I2/I4 的存在意义就是「从原始层的 vec 现算，不信产物」。
+run l9_axis_flip "独立重算" '
+v = d["sentence_diffs"][0]["vec"]
+d["sentence_diffs"][0]["vec"] = [-x for x in v]
+d["sentence_diffs"][0]["norm"] = -d["sentence_diffs"][0]["norm"]
+'
+
+# L10 把**两条轴的向量对调，名字留在原位** —— 这是「命名是事后贴的」最字面的形态：
+#     `confident` 这个名字底下压着 `late_chain` 的方向，反之亦然。
+#     ⇒ |c_k| 的排序跟着变，而产物里的 top_k 还是按旧排序挑的。
+#     这一条专打「K_MAX 只是被搬了三个文件却没有任何东西读它」那个洞：
+#     上一版 top_k = 全部 11 条也能一路绿灯放行。
+#     ⚠⚠ 第一版把 `key`/`S`/`vec` **整条一起**对调，结果只是把前两项重排 ——
+#     {d_k} 这个集合压根没变，独立重算逐位相同 ⇒ 变异自己打空了。
+#     「变异打空」和「判据没牙齿」长得很像，必须分开看：
+#     这里绿条一条没少，说明**这一条不是判据的问题，是变异构造错了**。
+run l10_axis_swap "K_MAX 真的用于选子集" '
+a, b = d["sentence_diffs"][0], d["sentence_diffs"][1]
+d["sentence_diffs"][0]["vec"] = b["vec"]
+d["sentence_diffs"][0]["norm"] = b["norm"]
+d["sentence_diffs"][1]["vec"] = a["vec"]
+d["sentence_diffs"][1]["norm"] = a["norm"]
+'
+
+# L11 原始层少给一条轴（模拟「分解只用了部分句子」）⇒ 产物的 c_k 数量
+#     与独立重算对不上。I4 判的是「逐轴逐条相符」，
+#     所以少一条不是靠判「条数」而是被判成「这一条在产物里没有」。
+run l11_axis_dropped "逐轴的 c_k 与 cos" '
+d["sentence_diffs"] = d["sentence_diffs"][:-1]
+'
+
+# ── 篡改公开产物的一支（run_pub）────────────────────────────────────────
+
+# L12 把 top_k_energy 写成 >100%（复刻构建器第一版那个 Σc_k²‖d_k‖² 的错）。
+#     这一条**任何原始层篡改都打不到**：它不是「产物与原始对不上」，
+#     它是「产物自己不合量纲」。只有直接改产物 + 判一条量纲体检才咬得住。
+#     这条判据（I3）在第一版不存在 —— 那个 207.562% 一路绿灯进了公开页面。
+run_pub l12_energy_over_100 "能量在量纲上说得通" '
+d["decomp"]["top_k_energy"] = 2.0756
+d["decomp"]["explained_energy"] = 0.0780697335313475
+'
+
+# L13 top_k 变成全部 11 条（K_MAX 又变回装饰品）——
+#     产物内部看着自洽（长度对了轴数），但与独立重算的 |c_k| 排序对不上。
+run_pub l13_topk_all_axes "K_MAX 真的用于选子集" '
+d["decomp"]["top_k"] = [a["key"] for a in d["decomp"]["axes"]]
+'
+
+# L14 把披露那条 caveat 删掉（解释率只有 7.807% 却一个字不提「① 从未执行过」）
+#     —— 复刻「产物不说自己哪里没交付」的原始形态。
+run_pub l14_caveat_dropped "已被 caveats 披露" '
+d["caveats"] = [c for c in d["caveats"] if "从未被执行过" not in c]
 '
 
 echo

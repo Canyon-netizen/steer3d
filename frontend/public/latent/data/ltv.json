@@ -2173,6 +2173,123 @@
    "negative_control": true
   }
  ],
+ "decomp": {
+  "n_axes": 11,
+  "k_max": 8,
+  "objective": "在全部 d_k 上最小二乘，再按 |c_k| 取前 k_max 个",
+  "lever_norm": 1.000000060604851,
+  "explained_energy": 0.0780697335313475,
+  "residual_ratio": 0.9601719983777138,
+  "top_k_energy": 0.0658858392958881,
+  "top_k": [
+   "deliberate",
+   "person_ctrl",
+   "early_setup",
+   "late_chain",
+   "hesitant",
+   "exploratory",
+   "confident",
+   "len_control"
+  ],
+  "n_negative_control_in_top_k": 2,
+  "negative_control_keys": [
+   "len_control",
+   "person_ctrl",
+   "register_ct"
+  ],
+  "axes": [
+   {
+    "key": "confident",
+    "cos": 0.04644233834698326,
+    "cos2": 0.002156890791135672,
+    "c": -0.002519858196599819,
+    "norm_d": 145.59075093410206,
+    "negative_control": false
+   },
+   {
+    "key": "hesitant",
+    "cos": 0.01799355259198541,
+    "cos2": 0.0003237679348805449,
+    "c": -0.0031430502723452177,
+    "norm_d": 69.3791933763245,
+    "negative_control": false
+   },
+   {
+    "key": "deliberate",
+    "cos": 0.042022902076161946,
+    "cos2": 0.0017659242989026959,
+    "c": -0.005235321654118749,
+    "norm_d": 117.78866807183604,
+    "negative_control": false
+   },
+   {
+    "key": "brisk",
+    "cos": -0.052135325994074,
+    "cos2": 0.002718092216508368,
+    "c": -0.00032211192516832984,
+    "norm_d": 336.83487949738264,
+    "negative_control": false
+   },
+   {
+    "key": "early_setup",
+    "cos": -0.07834940462776924,
+    "cos2": 0.0061386292055259075,
+    "c": -0.003610377570953439,
+    "norm_d": 175.76400930856067,
+    "negative_control": false
+   },
+   {
+    "key": "late_chain",
+    "cos": -0.08500982879531528,
+    "cos2": 0.007226670991808815,
+    "c": -0.003535792816171514,
+    "norm_d": 195.98314134491216,
+    "negative_control": false
+   },
+   {
+    "key": "exploratory",
+    "cos": -0.07063210691658374,
+    "cos2": 0.0049888945274757165,
+    "c": -0.002779570122117705,
+    "norm_d": 190.4492366065123,
+    "negative_control": false
+   },
+   {
+    "key": "verify_mode",
+    "cos": -0.05977705546488471,
+    "cos2": 0.003573296360051903,
+    "c": 0.0006522675832556147,
+    "norm_d": 271.19772824552604,
+    "negative_control": false
+   },
+   {
+    "key": "len_control",
+    "cos": -0.04247314772976523,
+    "cos2": 0.0018039682780744612,
+    "c": 0.0019817268314914374,
+    "norm_d": 292.0408495677394,
+    "negative_control": true
+   },
+   {
+    "key": "person_ctrl",
+    "cos": -0.026594132908561968,
+    "cos2": 0.0007072479051582586,
+    "c": 0.003833562793292803,
+    "norm_d": 32.11136812535136,
+    "negative_control": true
+   },
+   {
+    "key": "register_ct",
+    "cos": -0.06738950143573044,
+    "cos2": 0.0045413449037563156,
+    "c": -0.0011484596276513292,
+    "norm_d": 151.18898105545716,
+    "negative_control": true
+   }
+  ],
+  "note": "explained_energy 是**全解**的能量，top_k 是它的 |c_k| 截断；K_MAX < 轴数时两者不相等，核对时别混用"
+ },
+ "decomp_error": null,
  "contexts": [
   {
    "pid": "aime__1983__1983_I_1__no_think",
@@ -3246,17 +3363,22 @@
    "why_na": "本轮**未测**：G-c 需要注入后**生成**可读输出并检查 S_k 指向的行为，而 probe_ltv.py 这一轮只测了「教师强制下逐步注入能不能改口」——两者是不同实验。按预登记表 §5「不在抽取用的那批上下文上报 G-c」，这里报 na 而非 fail：没跑 ≠ 跑了没过。"
   },
   "S1": {
-   "name": "自检：α 网格/拟合窗与预登记一致、每个上下文恒等自证过、① 句子差分齐全",
-   "claim": "装置不许带着错的口径去报判决",
+   "name": "自检：α 网格/拟合窗与预登记一致、每个上下文恒等自证过、① 句子差分齐全且**稀疏分解真算过**",
+   "claim": "装置不许带着错的口径去报判决，也不许带着没跑过的部件去报判决",
    "verdict": "pass",
    "evidence": {
     "problems": [],
     "n_ctx": 36,
-    "n_identity_ok": 36
+    "n_identity_ok": 36,
+    "decomp_ran": true,
+    "decomp_error": null,
+    "explained_energy": 0.0780697335313475,
+    "n_negative_control_in_top_k": 2
    }
   }
  },
  "caveats": [
+  "① 句子锚定的稀疏分解**上一轮从未被执行过**：探针只算出了 11 条 d_k，没有求 c_k、没有按 |c_k| 选子集，K_MAX=8 被当元数据搬了三个文件却没有任何东西读它。本轮补算后，全解只解释 7.807% 的杠杆能量（残差比 0.9602）；按 |c_k| 取前 8 条里有 2 条负对照。⇒ 预登记表 §1 ①「名字可读」这个组成部分**本轮没有交付**，caveats 不能只写「存在风险」。",
   "S_k 是人挑的（预登记表 §4 已声明），存在拟合风险，消不掉。",
   "g_v 只在最小三档上拟合；改口落在拟合窗内的上下文一律不判 G-a。",
   "预登记表 §3 把「一档」写成「约 1.7~2.8 倍」，而本网格的相邻档之比实为 1.43~2.0 —— 按「相邻档」字面执行。",

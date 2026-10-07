@@ -420,7 +420,14 @@ try {
   const transcribed = [];
   for (const k of order) {
     const g = gates[k];
-    for (const f of ['claim', 'role', 'why_na', 'verdict_reason']) {
+    // ⚠⚠ 清单里必须包含页面**逐字转述的每一个**产物字段，一个都不能漏。
+    //   第一版这份清单只有 claim / role / why_na / verdict_reason，漏了 `name` ——
+    //   而判决表第一格印的就是 `g.name`。后来 S1 的 name 里带了 `**`（产品文案用
+    //   Markdown 标重点的既有约定），页面原样印出 2 个星号，而清单没这一项
+    //   ⇒ L15 报 22 vs 20。**是清单漏了，不是页面多印了。**
+    //   这条纪律的一般形式：**「页面转述了哪些字段」必须由字段清单驱动，
+    //   而不是靠人记得有几个。**
+    for (const f of ['name', 'claim', 'role', 'why_na', 'verdict_reason']) {
       if (g && g[f]) transcribed.push([`gates.${k}.${f}`, g[f]]);
     }
   }
@@ -434,6 +441,69 @@ try {
     domStars === expectStars,
     `页面 ${domStars} 个 \\*\\* / 产物转述字段合计 ${expectStars} 个；`
     + `带星号的字段：${starSrc.join('、')}`);
+
+  // ---- 16..18 ① 稀疏分解：否定结论不许被折叠，系数不许被抄错 ----------
+  // ⚠ 这一段对应的是上一版屏上那句**假话**：「它们和另外 8 条一起进稀疏分解」。
+  //   分解当时从未被执行过（探针只算出 d_k）。现在补算了，结论是**否定**的
+  //   （全解只解释 7.807%，前 8 条里 2 条负对照）。
+  //   ⇒ 否定结论与肯定结论**同等对待**：必须在页面上看得见、且数对。
+  const dc = art.decomp;
+  const dblk = JSON.parse(await page.eval(`JSON.stringify((() => {
+    const el = document.querySelector('[data-ltv-decomp]');
+    if(!el) return {ok:false, txt:''};
+    const r = el.getBoundingClientRect();
+    return { ok: r.height>0, txt: (el.innerText||'').trim() };
+  })())`));
+  const p1 = x => (x * 100).toFixed(3) + '%';
+  rec('L16 「这个分解没有交付」那块**可见**，且解释率/截断能量与产物 decomp 逐字相符',
+    !!dc && dblk.ok
+      && dblk.txt.includes(p1(dc.explained_energy))
+      && dblk.txt.includes(p1(dc.top_k_energy)),
+    `可见=${dblk.ok}；产物 explained_energy=${dc ? p1(dc.explained_energy) : '—'} `
+    + `top_k_energy=${dc ? p1(dc.top_k_energy) : '—'}；`
+    + `页面文本="${dblk.txt.slice(0, 110)}"`);
+
+  // 逐轴：cos² 与 c_k 必须与产物一致，且负对照行同样印着它们的数
+  const sRows3 = JSON.parse(await page.eval(`JSON.stringify(
+    [...document.querySelectorAll('[data-ltvsent]')].map(tr => ({
+      key: tr.getAttribute('data-ltvsent'),
+      neg: tr.getAttribute('data-ltvneg'),
+      top: tr.getAttribute('data-ltvsenttop'),
+      cells: [...tr.querySelectorAll('td')].map(td => td.textContent.trim())
+    })))`));
+  const axByKey = {};
+  for (const a of ((dc||{}).axes||[])) axByKey[a.key] = a;
+  const axBad = [];
+  for (const d of sRows3) {
+    const a = axByKey[d.key];
+    if (!a) { axBad.push([d.key, '产物 decomp.axes 里没有这一轴']); continue; }
+    if (d.cells[4] !== (a.cos*100).toFixed(2)+'%')
+      axBad.push([d.key, `cos²：页面 ${d.cells[4]} vs 产物 ${(a.cos*100).toFixed(2)}%`]);
+    if (d.cells[5] !== Number(a.c).toFixed(5))
+      axBad.push([d.key, `c_k：页面 ${d.cells[5]} vs 产物 ${Number(a.c).toFixed(5)}`]);
+    const wantTop = (dc.top_k||[]).indexOf(d.key) >= 0;
+    if ((d.top === '1') !== wantTop)
+      axBad.push([d.key, `入选标记：页面 ${d.top} vs 产物 ${wantTop}`]);
+  }
+  rec('L17 句子轴逐行印出 cos² 与 c_k，与产物 decomp.axes 逐条相符',
+    !!dc && sRows3.length === (art.sentence_diffs||[]).length && axBad.length === 0,
+    `DOM ${sRows3.length} 行 / 产物 ${(art.sentence_diffs||[]).length} 轴；`
+    + `错 ${axBad.length} 条${axBad.length ? '：' + JSON.stringify(axBad).slice(0,300) : ''}`);
+
+  // 负对照进了选中 —— 这条是「名字可疑」最直接的证据，必须**可数**，
+  // 而且判据数的是**可见文案**（同行第一格里的「被 |c| 前 K 选中」），
+  // 不是 data-ltvsenttop。
+  const negInTopVis = sRows3.filter(r => r.neg === '1'
+    && /被 \|c\| 前 \d+ 选中/.test(r.cells[0] || '')).map(r => r.key);
+  const negInTopAttr = sRows3.filter(r => r.neg === '1' && r.top === '1').map(r => r.key);
+  const wantNeg = (dc ? dc.top_k : []).filter(k => (axByKey[k]||{}).negative_control);
+  rec('L18 负对照进了选中——**数可见文案**（数的是「被 |c| 前 K 选中」那行字，不是 data-*）',
+    !!dc && JSON.stringify(negInTopVis.slice().sort())
+      === JSON.stringify(wantNeg.slice().sort())
+      && JSON.stringify(negInTopAttr.slice().sort())
+        === JSON.stringify(negInTopVis.slice().sort()),
+    `产物 top_k 里的负对照 = ${JSON.stringify(wantNeg)}（${wantNeg.length} 条）；`
+    + `页面可见文案数出 ${JSON.stringify(negInTopVis)}；data-* 数出 ${JSON.stringify(negInTopAttr)}`);
 
 } catch (e) {
   console.log('[FAIL] 脚本中断：' + e.message);

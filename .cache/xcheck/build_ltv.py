@@ -94,6 +94,134 @@ def _g_b_variant(rows):
             "note": "并列口径，不是判决；判决切片见 judge_slice"}
 
 
+# ---------------------------------------------------------------------------
+# ① 句子锚定的稀疏分解
+#
+# ⚠⚠⚠ 这里补的是**一个从未被执行过的方法组件**。
+#   预登记表 §1 ① 写的是 v = Σ c_k (r̄(S_k) − r̄(S'_k))，‖c‖₀ ≤ K ≤ 8，
+#   并把它列为 LTV 三个组成部分的第一个（「名字可读」）。
+#   而 probe_ltv.py 里那一段的实际内容只有：
+#       for i, (key, s, sp) in enumerate(SENTENCE_PAIRS):
+#           d = resid_at_last(S) - resid_at_last(Sp)
+#           rows.append({... "vec": [...] "norm": ...})
+#   —— 把 11 条 d_k 算出来倒进产物，**没有 lstsq、没有求 c_k、没有按 |c_k| 选子集**。
+#   `K_MAX = 8` 从头到尾只被当作**元数据搬运**（原始层 setting.k_max → 产物 k_max
+#   → verify 的 _EXPECT），**从未参与任何选择**。
+#   ⇒ 一个「旋钮」被当成参数传了三个文件，但没有任何东西读它。
+#     这正是 [[旋钮值 ≠ 生效值]]：设了不等于生效。
+#
+#   而公开产物与第 8 屏都按「这些句子是这个向量的分解」呈现它 ——
+#   一个**从未发生**的分解，被当成事实印在读者面前。
+#
+#   现在把它真算出来。**判据是过程门**（算过没有、c_k 齐不齐、K_MAX 用上没有），
+#   不是「解释率够不够高」那种事后才找得到的阈值门 ——
+#   后者正是「未写死却左右判决」，这里不许做。
+#   实测出来的解释率原样进 `decomp` 并进 `caveats`，由读者自己判断。
+# ---------------------------------------------------------------------------
+def _dot(a, b):
+    return sum(x * y for x, y in zip(a, b))
+
+
+def _solve_sym(Amat, bvec):
+    """带极小岭项的高斯消元解对称正定方程组（维度 = 轴数，很小）。"""
+    n = len(bvec)
+    A = [row[:] for row in Amat]
+    r = bvec[:]
+    for i in range(n):
+        piv = max(range(i, n), key=lambda k: abs(A[k][i]))
+        if abs(A[piv][i]) < 1e-300:
+            raise ValueError("Gram 矩阵奇异：句子轴互相共线，最小二乘无唯一解")
+        A[i], A[piv] = A[piv], A[i]
+        r[i], r[piv] = r[piv], r[i]
+        for k in range(i + 1, n):
+            f = A[k][i] / A[i][i]
+            for j in range(i, n):
+                A[k][j] -= f * A[i][j]
+            r[k] -= f * r[i]
+    x = [0.0] * n
+    for i in reversed(range(n)):
+        x[i] = (r[i] - sum(A[i][j] * x[j] for j in range(i + 1, n))) / A[i][i]
+    return x
+
+
+def _sparse_decomp(sd, lever_vec, k_max):
+    """把杠杆 v 在 {d_k} 上做**最小二乘**分解，并按 |c_k| 真的取前 k_max 个。
+
+    ⚠ 最小二乘用的是**全部**轴，不是前 k_max 个 —— 前 k_max 个里的最小二乘
+      是另一个（非凸）问题。这里先解全解再按 |c_k| 排序，理由写在这里，
+      因为它决定了 `explained_energy` 与 `top_k` 的关系：
+      **`explained_energy` 是全解的，`top_k` 是它的截断**，两者不可混读。
+    ⚠ 因此当 K_MAX < 轴数时，`top_k` 的重建能量会**低于** `explained_energy`。
+      两个数都发出来，别让读者拿 top_k 去核对 explained_energy。
+    """
+    keys = [r["key"] for r in sd]
+    vecs = [r["vec"] for r in sd]
+    nv = math.sqrt(_dot(lever_vec, lever_vec))
+    if nv <= 0:
+        raise ValueError("杠杆向量范数为 0，无法分解")
+    m = len(keys)
+    gram = [[_dot(vecs[i], vecs[j]) for j in range(m)] for i in range(m)]
+    # 岭项只用来在轴几乎共线时稳住数值；相对量级取 Gram 对角的中位数。
+    diag = sorted(gram[i][i] for i in range(m))
+    ridge = 1e-9 * (diag[m // 2] if m else 1.0)
+    for i in range(m):
+        gram[i][i] += ridge
+    coef = _solve_sym(gram, [_dot(vecs[i], lever_vec) for i in range(m)])
+
+    resid_sq = 0.0
+    for j in range(len(lever_vec)):
+        rec = sum(coef[i] * vecs[i][j] for i in range(m))
+        resid_sq += (rec - lever_vec[j]) ** 2
+    resid_ratio = math.sqrt(resid_sq) / nv
+    explained = max(0.0, 1.0 - resid_ratio ** 2)
+
+    per_axis = []
+    for i, r in enumerate(sd):
+        nd = math.sqrt(_dot(vecs[i], vecs[i]))
+        cos = (_dot(vecs[i], lever_vec) / (nd * nv)) if nd > 0 else None
+        per_axis.append({
+            "key": keys[i],
+            "cos": cos,
+            "cos2": (cos * cos) if cos is not None else None,
+            "c": coef[i],
+            "norm_d": nd,
+            "negative_control": bool(r.get("negative_control")),
+        })
+
+    order_by_abs = sorted(range(m), key=lambda i: -abs(coef[i]))
+    top = order_by_abs[:max(0, min(k_max, m))]
+    # 截断后的重建能量 = ‖Σ_{i∈top} c_i d_i‖² / ‖v‖²
+    # ⚠⚠ 第一版这里写成 Σ c_i²‖d_i‖² —— 那是**基向量各自**的能量，
+    #   不是重建的能量，而且它不保证 ≤ explained_energy。实测印出 **207.562%**，
+    #   一个 >100% 的「被解释的能量」自己就把错处喊出来了。
+    #   ⇒ 能量一律按 ‖重建 − 目标‖² / ‖目标‖² 这一个式子算，全解与截断共用，
+    #     也保证截断 ≤ 全解（少几个轴只会更差）。
+    def _energy(idxs):
+        s = 0.0
+        for j in range(len(lever_vec)):
+            rec = sum(coef[i] * vecs[i][j] for i in idxs)
+            s += (rec - lever_vec[j]) ** 2
+        return max(0.0, 1.0 - (math.sqrt(s) / nv) ** 2)
+
+    top_explained = _energy(top)
+
+    return {
+        "n_axes": m,
+        "k_max": k_max,
+        "objective": "在全部 d_k 上最小二乘，再按 |c_k| 取前 k_max 个",
+        "lever_norm": nv,
+        "explained_energy": explained,
+        "residual_ratio": resid_ratio,
+        "top_k_energy": top_explained,
+        "top_k": [keys[i] for i in top],
+        "n_negative_control_in_top_k": sum(1 for i in top if sd[i].get("negative_control")),
+        "negative_control_keys": [r["key"] for r in sd if r.get("negative_control")],
+        "axes": per_axis,
+        "note": "explained_energy 是**全解**的能量，top_k 是它的 |c_k| 截断；"
+                "K_MAX < 轴数时两者不相等，核对时别混用",
+    }
+
+
 gates, order = {}, []
 
 
@@ -221,7 +349,7 @@ def main():
     # ⚠ 留出集为空时**不许判绿**：那正是「在留出上下文上」这个前提不成立，
     #   与 G-c 报 na 是同一件事（G-c 的 why_na 里已经写了同一句话）。
     #   这里选择**停下**而不是报 na，是因为判决切片是**本文件的口径**，
-    #   不是被测物的性质 —— 装置自己口径错位应当 exit 2 让���看见。
+    #   不是被测物的性质 —— 装置自己口径错位应当 exit 2 让你看见。
     _split = d.get("split") or {}
     _ho = list(_split.get("holdout") or [])
     _ex = list(_split.get("extract") or [])
@@ -236,6 +364,33 @@ def main():
     else:
         _jctx = list(ctx)
         log(f"判决切片 = 全量 {len(ctx)} 个上下文")
+
+    # ---- ① 稀疏分解：把它真的算出来 ------------------------------------
+    # ⚠ 以前**没有这一步**。K_MAX 被当元数据搬了三个文件却没有任何东西读它，
+    #   而产物与页面都按「这些句子是这个向量的分解」呈现它。见 _sparse_decomp 上面的说明。
+    _sd = d.get("sentence_diffs") or []
+    _lev = (d.get("lever") or {}).get("vec")
+    decomp, decomp_err = None, None
+    if not _sd:
+        decomp_err = "原始产物里没有 sentence_diffs，无法分解"
+    elif not _lev:
+        decomp_err = "原始产物里没有 lever.vec，无法分解"
+    else:
+        try:
+            decomp = _sparse_decomp(_sd, _lev, K_MAX)
+        except Exception as e:          # 装置问题照实报，不吞
+            decomp_err = f"{type(e).__name__}: {e}"
+    if decomp is None:
+        log(f"① 稀疏分解失败：{decomp_err}")
+    else:
+        log(f"① 稀疏分解（全解）：解释 confidence_up@L{_lev and d.get('lever',{}).get('layer')}"
+            f" 的 {decomp['explained_energy']*100:.3f}% 能量，残差比 "
+            f"{decomp['residual_ratio']:.4f}")
+        log(f"   按 |c_k| 前 {K_MAX} 条：{decomp['top_k']}")
+        log(f"   其中负对照 {decomp['n_negative_control_in_top_k']} 条 "
+            f"（负对照共 {len(decomp['negative_control_keys'])} 条）")
+        log(f"   截断后能量 {decomp['top_k_energy']*100:.3f}%"
+            "（≠ 全解能量，K_MAX < 轴数时本来就不该相等）")
 
     # ---- 构建期自检 ------------------------------------------------------
     problems = []
@@ -261,6 +416,30 @@ def main():
     _ctx_pids = {c["pid"] for c in ctx}
     if _h - _ctx_pids:
         problems.append(f"留出题在上下文里一个都没出现：{sorted(_h - _ctx_pids)}")
+    # ⚠ ① 的稀疏分解：**过程门**，不是结果门。
+    #   判的是「它有没有被真的算过」——算过没有、每个轴有没有 c_k、
+    #   K_MAX 有没有被用来选子集。这些是**装置完整性**，不需要事后找阈值。
+    #   ⚠ 刻意**不**判「解释率够不够高」：预登记表没有为解释率写过任何门槛，
+    #     现在看着 7.807% 再补一个门槛，正是「未写死却左右判决」。
+    #     那个数原样发进 `decomp` 与 `caveats`，由读者自己判断它意味着什么。
+    if decomp is None:
+        problems.append(f"① 的稀疏分解没有算出来：{decomp_err}")
+    else:
+        _axes = decomp["axes"]
+        if len(_axes) != len(_sd):
+            problems.append(f"① 分解的轴数 {len(_axes)} != sentence_diffs {len(_sd)}")
+        if any(a.get("c") is None for a in _axes):
+            problems.append("① 分解有轴没有 c_k（最小二乘没跑完？）")
+        if len(decomp["top_k"]) != min(K_MAX, len(_sd)):
+            problems.append(
+                f"① 分解的 top_k 有 {len(decomp['top_k'])} 条，"
+                f"应等于 min(K_MAX={K_MAX}, 轴数 {len(_sd)})")
+        # K_MAX 必须真的在**选子集**。上一版 K_MAX 只被搬运，
+        # 于是「top_k = 全部轴」也能一路绿灯放行 —— 这里显式判它。
+        _by_abs = sorted(_axes, key=lambda a: -abs(a["c"]))
+        _want = [a["key"] for a in _by_abs[:min(K_MAX, len(_sd))]]
+        if list(decomp["top_k"]) != _want:
+            problems.append("① 分解的 top_k 不是按 |c_k| 排的（K_MAX 没被用于选子集）")
     log(f"构建期自检：{len(problems)} 条问题 {problems if problems else ''}")
 
     # ---- 逐上下文：由 gap(α) 推出 g_v，再预测 α* -------------------------
@@ -463,10 +642,21 @@ def main():
                "这里报 na 而非 fail：没跑 ≠ 跑了没过。")
 
     # ---- 自检门 ----------------------------------------------------------
-    put("S1", "自检：α 网格/拟合窗与预登记一致、每个上下文恒等自证过、① 句子差分齐全",
-        "装置不许带着错的口径去报判决", "pass" if not problems else "fail",
+    # ⚠ claim 里加了「① 稀疏分解真算过」。上一版的 S1 只查「句子差分齐全」
+    #   —— 而句子差分**本来就是齐的**，① 那一段从探针到产物到页面
+    #   全程都按「已经分解过」呈现，实际只做了 d_k 的计算。
+    #   「部件存在」与「部件被执行过」是两件事，S1 原来只查了前者。
+    put("S1", "自检：α 网格/拟合窗与预登记一致、每个上下文恒等自证过、"
+              "① 句子差分齐全且**稀疏分解真算过**",
+        "装置不许带着错的口径去报判决，也不许带着没跑过的部件去报判决",
+        "pass" if not problems else "fail",
         {"problems": problems, "n_ctx": len(ctx),
-         "n_identity_ok": sum(1 for c in ctx if c.get("identity_top1_ok"))})
+         "n_identity_ok": sum(1 for c in ctx if c.get("identity_top1_ok")),
+         "decomp_ran": decomp is not None,
+         "decomp_error": decomp_err,
+         "explained_energy": (decomp or {}).get("explained_energy"),
+         "n_negative_control_in_top_k":
+             (decomp or {}).get("n_negative_control_in_top_k")})
 
     # ---- 输出 ------------------------------------------------------------
     sd = d.get("sentence_diffs") or []
@@ -486,10 +676,29 @@ def main():
         "sentence_diffs": [
             {"key": r["key"], "S": r["S"], "Sp": r["Sp"], "norm": r["norm"],
              "negative_control": r["negative_control"]} for r in sd],
+        "decomp": decomp,
+        "decomp_error": decomp_err,
         "contexts": rows,
         "gate_order": order,
         "gates": gates,
         "caveats": [
+            # ⚠ 第一条从「存在风险」改成**已发生的实测结果**。
+            #   上一版写的是「S_k 是人挑的，存在拟合风险，消不掉」——
+            #   那是预登记表 §4 的**预警**。预警之后没有人量过这个风险，
+            #   于是产物与第 8 屏都按「句子是这个向量的分解」呈现它。
+            #   现在真算了，数字是：见 decomp.explained_energy。
+            ("① 句子锚定的稀疏分解**上一轮从未被执行过**：探针只算出了 11 条 d_k，"
+             "没有求 c_k、没有按 |c_k| 选子集，K_MAX=8 被当元数据搬了三个文件"
+             "却没有任何东西读它。本轮补算后，全解只解释 "
+             f"{(decomp or {}).get('explained_energy', 0)*100:.3f}% 的杠杆能量"
+             f"（残差比 {(decomp or {}).get('residual_ratio', float('nan')):.4f}）；"
+             f"按 |c_k| 取前 {K_MAX} 条里有 "
+             f"{(decomp or {}).get('n_negative_control_in_top_k')} 条负对照。"
+             "⇒ 预登记表 §1 ①「名字可读」这个组成部分**本轮没有交付**，"
+             "caveats 不能只写「存在风险」。")
+            if decomp else
+            ("① 句子锚定的稀疏分解**从未被执行过**，且本轮补算失败：" + str(decomp_err)
+             + " ⇒ 预登记表 §1 ①「名字可读」这个组成部分没有交付。"),
             "S_k 是人挑的（预登记表 §4 已声明），存在拟合风险，消不掉。",
             "g_v 只在最小三档上拟合；改口落在拟合窗内的上下文一律不判 G-a。",
             "预登记表 §3 把「一档」写成「约 1.7~2.8 倍」，"
