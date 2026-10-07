@@ -548,6 +548,30 @@ DEAD_IN_SOURCE_EXEMPT = {
                           "并把「后端确实没连上」与「后端在线但没开始播」"
                           "分成两句不同的理由印出来（:274-279）。"
                           "本轮后端在跑 ⇒ 不渲染 ⇒ 扫描器误当死引用。",
+    # ⚠⚠⚠ 2026-10-07：这一条是**第三种**情形，与上面两族都不同。
+    #
+    #   上面的 data-path* / data-thresh* 是「同一页内条件渲染」；
+    #   data-deriv-default 是「前提未建立时条件渲染」。
+    #   而这一条是**两条渲染路径不同**：根页在 WebGL 不可用时走
+    #   `Scene3DFallback`，实测该组件里 **data-scene-* 一个都没有**
+    #   （grep 计数 0）；`data-scene-token-badge` 只在真 3D 的
+    #   `Scene3D.tsx:266` 里。覆盖扫描的探针**不开 WebGL**（run_chain.sh
+    #   明写「19 条不开、只有 verify_scene_link 开」），量的是降级那份 DOM。
+    #
+    #   ⇒ 它被 `verify_scene_link.mjs:302` 读着，而且那条判据是
+    #     **本项目唯一**验证「3D 展示 hidden states 如何推导出 token」
+    #     的机器判决（J6 珠子标签出现 step=782 token="$$"）。
+    #
+    #   ⚠ 登记理由写「另一条渲染路径」，**不是**「条件渲染」也不是
+    #     「判据没触发」—— 三者在输出上同形，混写会让这本簿子替真死代码
+    #     背书。run_chain.sh 已把「两条路径的覆盖要分开记账」列为下一笔的活。
+    "data-scene-token-badge": "根页**真 3D 路径专属**的 HUD 标签（Scene3D.tsx:266，"
+                              "在 d2d2bff 里随 distanceFactor={undefined} 一起改过）。"
+                              "WebGL 不可用时走 Scene3DFallback，实测该组件里"
+                              "data-scene-* 计数为 0 ⇒ 降级 DOM 上没有它。"
+                              "verify_scene_link :302 读它，且那条是**唯一**验"
+                              "「3D 展示 hidden states 如何推导出 token」的判决"
+                              "（J6）。登记理由是**另一条渲染路径**，不是条件渲染。",
 }
 
 

@@ -170,6 +170,72 @@ async function run() {
     check('H7 页面写明人工裁决数与准确率',
       !!audit && audit.includes('裁决') && /%/.test(audit), (audit || '').slice(0, 50));
 
+    // ---- H10 逐条列表的五项交叉核对 ----
+    // ⚠⚠ 这五条是**被 C4 点名补上的**。全链第一次跑时 `panel_coverage` 红在
+    //   C4：「页面上存在、但没有任何判据读过的标记」——它逐个点名了
+    //   data-hinge-decidable / -first-layer / -list / -tok / -verdict。
+    //   ⇒ 处置方式选**「让判据真的读它们」**，不是登记成装饰或欠账：
+    //     登记簿只是把账记上，缺口还在。
+    //   ⚠ 主体仍是**可见文案**：data-* 只用来把「哪一条」对回产物，
+    //     断言的是那句文字本身。
+    const xc = await ev(page,
+      `(() => {`
+      + ` const first = document.querySelector('[data-hinge="ready"]')`
+      + `   ? document.querySelectorAll('[data-hinge-item]')[0] : null;`
+      + ` const q = s => document.querySelector(s);`
+      + ` return {`
+      + `  listLen: (document.querySelector('[data-hinge-list]')`
+      + `    || {children:[]}).children.length,`
+      + `  tok: first ? first.getAttribute('data-hinge-tok') : null,`
+      + `  verdict: first ? first.getAttribute('data-hinge-verdict') : null,`
+      + `  decidable: first ? first.getAttribute('data-hinge-decidable') : null,`
+      + `  firstLayerText: first ?`
+      + `    (first.querySelector('[data-hinge-first-layer]')`
+      + `     || {innerText:''}).innerText : null,`
+      + ` }; })()`);
+    // H10a 列表容器存在且装着条目
+    check('H10a 列表容器 data-hinge-list 装着条目', xc.listLen > 0,
+      `${xc.listLen} 个子项`);
+    // ⚠⚠ 必须按**下拉当前值**取产物侧的那条，不能用 `first` /
+    //   `art.trajectories[0]` —— H6 刚把下拉切到了第二条轨迹，
+    //   于是「页面第一条」是 tok 597、而 `trajectories[0]` 是 tok 745。
+    //   第一版这么写，三条断言同时红，且红得莫名其妙（null vs 745、
+    //   「应含 20」而页面上写 27）。⇒ 判决的**两侧必须取自同一个选择**。
+    const curTraj = await ev(page,
+      `(() => { const s = document.querySelector('[data-hinge-traj]');`
+      + ` return s ? s.value : null; })()`);
+    const curArt = art.trajectories.find(t => t.trajectory_id === curTraj);
+    const firstH = curArt ? curArt.hinges[0] : null;
+
+    // H10b tok 属性与产物一致，且**可见文字里也有那个步号**
+    const firstItemText = await ev(page,
+      `(() => { const e = document.querySelector('[data-hinge-item]');`
+      + ` return e ? e.innerText : ''; })()`);
+    check('H10b data-hinge-tok 与产物一致',
+      !!firstH && String(xc.tok) === String(firstH.tok),
+      `${xc.tok} vs ${firstH && firstH.tok}（当前录制 ${curTraj && curTraj.slice(5, 9)}）`);
+    check('H10b 步号也出现在可见文字里',
+      !!firstH && firstItemText.includes(`tok ${firstH.tok}`), '');
+    // H10c verdict 与产物一致，且人工裁决那句话在文字里
+    check('H10c data-hinge-verdict 与产物一致',
+      !!firstH && xc.verdict === firstH.audited,
+      `${xc.verdict} vs ${firstH && firstH.audited}`);
+    const expectWord = !firstH ? ''
+      : firstH.audited === 'true_hinge' ? '真动摇'
+      : firstH.audited === 'false_positive' ? '假阳性' : '尚未人工裁决';
+    check('H10c 人工裁决那句话在可见文字里',
+      !!firstH && firstItemText.includes(expectWord), expectWord);
+    // H10d decidable 与产物一致
+    check('H10d data-hinge-decidable 与产物一致',
+      !!firstH && String(xc.decidable) === String(firstH.decidable),
+      `${xc.decidable} vs ${firstH && firstH.decidable}`);
+    // H10e 首个定型层的**可见文字**与产物一致
+    const fv = firstH ? firstH.first_layer_correct : null;
+    const want = fv == null ? '未读出' : String(fv);
+    check('H10e 首个定型层的可见文字与产物一致',
+      !!firstH && !!xc.firstLayerText && xc.firstLayerText.includes(want),
+      `${(xc.firstLayerText || '').trim()} 应含 ${want}`);
+
     // ---- H9 页面上不许出现 markdown 残留或内部路径 ----
     // ⚠ 截图才发现的：产物里带着 42 处 `**`，而 React **不渲染 markdown**
     //   ⇒ 读者看到的是「`**探针测的是可分性…`」这样一串星号。
