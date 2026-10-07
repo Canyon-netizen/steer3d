@@ -72,7 +72,27 @@ def gidx(a):
 
 def main():
     if not os.path.exists(ART):
+        # ⚠⚠ 这里**必须自己把话说全**，不能只印一行路径。
+        #   本仓的 force-add 约定是「只点名脚本，不 force-add 数据」，
+        #   所以 `.cache/xcheck/ltv.json`（原始产物）、`ltv_gen.json`、
+        #   `ltv_behavior.json` **都不在仓里** ——
+        #   ⇒ 新克隆上本判据**跑不起来**。
+        #   第一版只印 `原始产物不存在：<路径>` 然后 exit=2，
+        #   链把它归成 NORUN 并只印「一条都没跑」，
+        #   既没说缺什么、也没说要跑哪条命令 ⇒ 读的人无从下手。
+        #   现在印全：缺哪个、要跑什么、跑完这个判据会查什么。
         print(f"原始产物不存在：{ART}")
+        print("⚠ 本仓的约定是「只提交判据脚本，不提交数据产物」"
+              "（.gitignore:119 忽略整个 .cache/），")
+        print("  所以**新克隆上这一条判据跑不起来** —— 这不是判据坏了，是产物没进仓。")
+        print("  原始产物由这一条生成：")
+        print("      PYTHONPATH=.cache/pylibs python3 .cache/xcheck/probe_ltv.py")
+        print("  它读的是上面那份原始层；J 层（从生成原文独立重算 G-c 判决）"
+              "另外还要这两份：")
+        print("      PYTHONPATH=.cache/pylibs python3 .cache/xcheck/probe_ltv_gen.py")
+        print("      python3 .cache/xcheck/ltv_behavior.py .cache/xcheck/ltv_gen.json")
+        print("      python3 .cache/xcheck/build_ltv.py   # 重建公开产物 ltv.json")
+        print("  ⇒ 结论：本条的读数**只在本机成立**，不随仓库分发。")
         sys.exit(2)
     raw = json.load(open(ART, encoding="utf-8"))
     ctx = raw.get("contexts") or []

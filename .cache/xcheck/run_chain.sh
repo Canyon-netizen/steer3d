@@ -59,6 +59,17 @@ run() {
   if [ -z "$res" ]; then
     NORUN=$((NORUN+1))
     printf '  [NORUN] %-22s exit=%d  <没有汇总行>\n' "$label" "$rc"
+    # ⚠ 一条没跑的检查，**必须带出它自己印的原因**。
+    #   第一版只印「<没有汇总行>」：缺产物、缺服务、缺环境、脚本崩了，
+    #   四种完全不同的原因在汇总里长得一模一样 ——
+    #   而本仓的约定是**不提交数据产物**，所以「新克隆上某条判据跑不起来」
+    #   是常态而不是意外。读的人看到「一条都没跑」既不知道缺什么，
+    #   也不知道该跑哪条命令去补。
+    #   ⇒ 这里把脚本最后几行非空输出原样带出（最多 6 行，避免刷屏）。
+    if [ -s "$ONE" ]; then
+      printf '         —— 该脚本自己印的最后几行：\n'
+      grep -v '^[[:space:]]*$' "$ONE" | tail -6 | sed 's/^/         │ /'
+    fi
     return
   fi
   # ⚠⚠ 第三十三笔之九：下面这段「探针也算一条判决」是**故意不加**的。
@@ -185,6 +196,106 @@ stage() {
 }
 
 echo "端口 = $U"
+# ===========================================================================
+# 开跑前的**预检**：链里引用的每一个脚本都必须在盘上，且**必须已被 git 跟踪**。
+#
+# ⚠⚠ 起因：2026-10-07 的一次审计发现，链引用的判决脚本里有 **6 个自己就没进仓**
+#   （assertion_guard / check_dead_url / dead_url_sweep /
+#     scan_artifact_consumers / scan_json_strict / scan_live_blocks）。
+#   本仓的约定是「只提交判据脚本，不提交数据产物」，那 6 个**是判据脚本**，
+#   按约定本来就该点名 force-add —— 是漏了，不是规矩冲突。
+#   而它们没进仓的后果不是「链少跑几条」，而是**新克隆上这 6 条各报一次 NORUN**，
+#   每条的错都不一样（cmd not found），读的人要自己拼出「是文件没进仓」。
+#
+#   ⇒ 现在把这件事收在**跑之前**一次性说完。
+#   注意这里查的是「**脚本**」；数据产物（ltv.json / ltv_gen.json / ltv_behavior.json）
+#   按约定不进仓，**不查** —— 它们由各判据自己印出缺什么、要跑什么。
+#
+# ⚠⚠ **位置必须在两支 probe_panels 之前。** stage() 是立即执行的
+#   （`( eval "$cmd" ) > "$ONE" 2>&1`），而探针要起浏览器、跑几十秒 ——
+#   预检摆在 stage 之后，等于「开跑前预检」实际是跑完两个探针才跑。
+# ===========================================================================
+# ⚠⚠ 依赖闭包：链里引用的 .mjs 会 `import './cdp_client.mjs'` 这类**同目录依赖**。
+#   「脚本进了仓」**不等于**「它 import 的东西进了仓」——
+#   新克隆上缺依赖时，报出来的是 `Cannot find module`，读的人完全看不出
+#   「根因是这个依赖没进仓」⇒ 与「判据红」长得不像，与「环境坏了」更像。
+#   ⇒ 只报**不在直接引用清单里**的那几个，避免同一个文件报两遍。
+_preflight_deps() {
+  python3 - "$ROOT" <<'PY'
+import io, os, re, subprocess, sys
+root = sys.argv[1]
+src = io.open(os.path.join(root, ".cache/xcheck/run_chain.sh"), encoding="utf-8").read()
+direct = set(re.findall(r"\.cache/(?:xcheck|browser_verify)/[A-Za-z0-9_./-]+\.(?:py|sh|mjs)", src))
+tracked = set(x for x in subprocess.run(["git", "-C", root, "ls-files"],
+                                        capture_output=True, text=True).stdout.split("\n") if x)
+imp = re.compile(r"""(?:from|import)\s+['"](\.[^'"]+)['"]""")
+seen, stack, bad = set(), [f for f in direct if f.endswith((".mjs", ".js"))], []
+while stack:
+    f = stack.pop()
+    if f in seen:
+        continue
+    seen.add(f)
+    p = os.path.join(root, f)
+    if not os.path.exists(p):
+        continue
+    if f not in direct and f not in tracked:      # 闭包新增的漏网
+        bad.append(f)
+    if f.endswith((".mjs", ".js")):
+        try:
+            t = io.open(p, encoding="utf-8").read()
+        except Exception:
+            continue
+        for m in imp.findall(t):
+            stack.append(os.path.normpath(os.path.join(os.path.dirname(f), m)))
+print(" ".join(sorted(bad)))
+PY
+}
+
+_preflight() {
+  local miss_untracked="" miss_absent="" f
+  for f in $(grep -oE '\.cache/(xcheck|browser_verify)/[A-Za-z0-9_./-]+\.(py|sh|mjs)' "$0" | sort -u); do
+    if [ ! -e "$ROOT/$f" ]; then
+      miss_absent="$miss_absent $f"
+    elif ! git -C "$ROOT" ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+      miss_untracked="$miss_untracked $f"
+    fi
+  done
+  # ⚠⚠ 第一版写成 `miss_untracked="$miss_untracked $(_preflight_deps)"`：
+  #   无漏网时 _preflight_deps 印一个**空行**，而 $( ) 只削尾部换行、不削空格
+  #   ⇒ 赋进去的是**一个空格**，接着 `[ -n "$miss_untracked" ]` 为**真**
+  #   ⇒ 链是干净的那天反而报「预检不通过：存在但没被 git 跟踪」，后面一个文件都不列。
+  #   症状是「预检恒红」：比恒绿好一点（它确实吵），但照样让整条链跑不起来，
+  #   而且读的人看到的是一条**空清单**，比不报还难查。
+  #   ⇒ 单独接住 + 显式判空；另外它自己崩了要**说**，不能当成「没漏网」。
+  local deps_bad="" deps_rc=0
+  deps_bad=$(_preflight_deps 2>/dev/null) || deps_rc=$?
+  if [ "$deps_rc" -ne 0 ]; then
+    echo "⚠ 预检：闭包检查**自己没跑起来**（exit=$deps_rc）"
+    echo "   ⇒「依赖有没有跟着进仓」这一维现在是**空的，不是绿的**。别把它读成通过。"
+  elif [ -n "$deps_bad" ]; then
+    miss_untracked="$miss_untracked $deps_bad"
+  fi
+  if [ -n "$miss_absent" ]; then
+    echo "⛔ 预检不通过：链引用的脚本**在盘上不存在**："
+    for f in $miss_absent; do echo "     $f"; done
+    echo "   ⇒ 这不是判据红，是链本身跑不起来。先把文件补上。"
+    exit 6
+  fi
+  if [ -n "$miss_untracked" ]; then
+    echo "⛔ 预检不通过：链引用的脚本**存在但没被 git 跟踪**："
+    for f in $miss_untracked; do echo "     $f"; done
+    echo "   ⇒ 新克隆上这些判据各报一次 NORUN（cmd not found），"
+    echo "     而本仓的约定是「只提交判据脚本，不提交数据产物」——"
+    echo "     这些是**脚本**，按约定就该点名 force-add："
+    echo "         git add -f <上面列出的路径>"
+    echo "   ⚠ 其中可能混着**没被链直接引用、但被引用的 .mjs import 的同目录依赖**，"
+    echo "     那种文件缺了报的是「Cannot find module」，比 NORUN 更难认。"
+    exit 6
+  fi
+  echo "预检：链引用的脚本全部在盘上且已被 git 跟踪"
+}
+_preflight
+# ===========================================================================
 # ⚠⚠ 第三十三笔之九：**先把两页探针跑掉，再让 panel_coverage 读它们。**
 #   原先这 21 条里**没有一条**会重跑 probe_panels ——
 #   panel_coverage 读的是上一次手工跑完留在磁盘上的 JSON。
@@ -216,6 +327,8 @@ stage probe_root   "$ROOT/.cache/browser_verify/panel_blocks.json"       root \
   "BV_URL=$U PROBE_OUT=$ROOT/.cache/browser_verify/panel_blocks.json node .cache/browser_verify/probe_panels.mjs"
 stage probe_latent "$ROOT/.cache/browser_verify/panel_blocks_latent.json" latent \
   "BV_URL=${U%/}/latent/index.html PROBE_OUT=$ROOT/.cache/browser_verify/panel_blocks_latent.json node .cache/browser_verify/probe_panels.mjs"
+# ===========================================================================
+
 run verify_outcome        "T3D_URL=$U node .cache/browser_verify/verify_outcome.mjs"
 run verify_law            "T3D_URL=$U node .cache/browser_verify/verify_law.mjs"
 run verify_ladder         "T3D_URL=$U node .cache/browser_verify/verify_ladder.mjs"
