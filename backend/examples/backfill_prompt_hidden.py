@@ -55,6 +55,20 @@ sys.path.insert(0, str(HERE.parent))
 from core.standard import TrajectoryDataset, SCHEMA_VERSION  # noqa: E402
 
 
+# Alignment-gate threshold for --verify.
+#
+# Measured on 6 pilot trajectories (aime25/aime26, both modes, bfloat16,
+# HF-collector data re-forwarded by this script):
+#   aligned    0.0226 - 0.0461
+#   misaligned 1.0935 - 1.3025
+# 0.10 sits ~2x above the worst observed aligned value and ~10x below the
+# misalignment signature, so it separates the two populations with room on
+# both sides. It is NOT the 5e-2 the --help text used to quote: that number
+# predates this alignment fix and is below the legitimate bf16 incremental-
+# vs-full-forward spread.
+VERIFY_MAX_REL = 0.10
+
+
 def get_dtype(name: str) -> torch.dtype:
     return {"bfloat16": torch.bfloat16,
             "float16": torch.float16,
@@ -121,23 +135,42 @@ def backfill_one(json_path: Path, npz_path: Path, model, tokenizer,
     p_lh = p_hs[:, -1, :].copy()
     p_ti = np.asarray(prompt_ids, dtype=np.int32)
 
-    # Sanity: the gen-position last-layer residual should be CLOSE to the
-    # stored last_hidden, but won't be exact (vLLM's forward ≠ HF's forward
-    # bit-for-bit — different attention impls, kv-cache, fp32 vs bfloat16
-    # accumulation, etc.). We log the max diff for diagnostics but don't
-    # fail on it; large diff just means "the stored gen block is vLLM-side,
-    # but our prompt block is HF-side and that's the correct shape to ship".
+    # Alignment gate.
+    #
+    # The collector decodes one token at a time with a KV cache and stores the
+    # residual stream **before** consuming that token, so stored row g is the
+    # state at full-sequence position P+g-1 (this is the R-1 offset: a full
+    # forward's row T_p+g is the state *after* consuming it).
+    # Comparing the two directly is off by one position, which reads as a ~100%
+    # relative difference on every trajectory — measured 1.09-1.30 across 6
+    # pilot traces — and says nothing about the prompt block we are writing.
+    #
+    # We therefore compare the ALIGNED slice. Measured on the same 6 traces:
+    #   aligned    0.0226 - 0.0461
+    #   misaligned 1.0935 - 1.3025
+    # The two are separated by ~30x, so the threshold below sits in the gap.
+    # --verify now REJECTS the write instead of only reporting, which is what
+    # its --help text always claimed; see the "Don't fail" note that used to
+    # be here. A rejection means the prompt block would be untrustworthy.
     if verify:
-        computed_lh = hs_tuple[L][0, T_p:, :].to(torch.float32).cpu().numpy()
+        final = hs_tuple[L][0].to(torch.float32).cpu().numpy()
         stored_lh = existing_arrays["last_hidden"]
         if stored_lh.dtype != np.float32:
             stored_lh = stored_lh.astype(np.float32)
-        max_diff = float(np.abs(computed_lh - stored_lh).max())
-        rel_diff = max_diff / (float(np.abs(stored_lh).max()) + 1e-9)
-        print(f"      verify: max|computed - stored| last_layer = {max_diff:.4e} "
-              f"(relative {rel_diff:.4e})", flush=True)
-        # Don't fail — just report. The prompt block is correct even when
-        # the gen block diverges.
+
+        aligned = final[T_p - 1:T_p - 1 + T_g, :]
+        misaligned = final[T_p:T_p + T_g, :]
+        rel_aligned = float(np.abs(aligned - stored_lh).max()) / (
+            float(np.abs(stored_lh).max()) + 1e-9)
+        rel_misaligned = float(np.abs(misaligned - stored_lh).max()) / (
+            float(np.abs(stored_lh).max()) + 1e-9)
+        print(f"      verify: aligned={rel_aligned:.4e} "
+              f"(misaligned={rel_misaligned:.4e}, reported for diagnosis only)",
+              flush=True)
+        if rel_aligned > VERIFY_MAX_REL:
+            print(f"      verify: REJECT — aligned relative diff {rel_aligned:.4e} "
+                  f"> {VERIFY_MAX_REL:.2e}; prompt block NOT written", flush=True)
+            return ("reject", T_p, T_g)
 
     # Write back
     existing_arrays["prompt_hidden_states"] = p_hs.astype(target_np_dtype, copy=False)
@@ -175,9 +208,15 @@ def main():
                     help="Recompute even if prompt_hidden_states already exists")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--verify", action="store_true",
-                    help="Sanity-check: forward again and compare gen-position "
-                         "last-layer residual to stored last_hidden. If "
-                         "diff > 5e-2, skip writeback.")
+                    help="Alignment gate: re-forward the trajectory and compare "
+                         "the ALIGNED gen-position last-layer residual "
+                         "(position T_p-1, i.e. before the token is consumed) "
+                         "against stored last_hidden. If the relative max "
+                         f"difference exceeds {VERIFY_MAX_REL:g}, the prompt "
+                         "block is NOT written and the trajectory is counted "
+                         "as rejected. Measured aligned spread on 6 pilot "
+                         "trajectories is 0.0226-0.0461; the off-by-one "
+                         "(misaligned) comparison reads ~1.1-1.3.")
     args = ap.parse_args()
 
     root = Path(args.root)
@@ -193,7 +232,7 @@ def main():
         ids = ids[:args.limit]
     print(f"[backfill] {len(ids)} trajectories in {root}", flush=True)
 
-    n_ok = n_skip = n_err = 0
+    n_ok = n_skip = n_err = n_reject = 0
     t_start = time.time()
     for tid in ids:
         json_path = ds._index[tid]
@@ -215,10 +254,16 @@ def main():
             n_skip += 1
             print(f"  · {tid}: SKIP", flush=True)
         else:
-            n_err += 1
+            n_reject += 1
+            print(f"  · {tid}: **REJECTED by the alignment gate — prompt block "
+                  f"not written**", flush=True)
     dt = time.time() - t_start
-    print(f"\n[backfill] ok={n_ok} skip={n_skip} err={n_err}  "
+    print(f"\n[backfill] ok={n_ok} skip={n_skip} reject={n_reject} err={n_err}  "
           f"in {dt/60:.1f} min. root={root}", flush=True)
+    if n_reject:
+        print("[backfill] WARNING: rejections mean --verify found the recomputed "
+              "gen block does not line up with the stored one. Do not ship this "
+              "root until the cause is understood.", file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":
