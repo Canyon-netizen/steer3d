@@ -1,0 +1,9 @@
+{
+ "t1": true,
+ "t2": true,
+ "t3": true,
+ "guide": "Let's think step by step and output the final answer within \\boxed{}.",
+ "bad_answers": [],
+ "short": [],
+ "truncated": []
+}

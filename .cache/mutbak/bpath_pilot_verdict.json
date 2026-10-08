@@ -1,0 +1,131 @@
+{
+ "schema": "bpath_pilot_v2",
+ "why_v2": "v1 是在 bash 单行里生成、正则被转义吃掉，boxed 计数全线归零。带正则的 Python 必须写文件。v2 由 pilot_verdict2.py 生成。",
+ "what": "B 路扩样的 cap 取值 pilot：3 题 x 2 模式，cap 8192",
+ "gpu": "zju-53 CVD 7 = nvidia-smi index 3 = RTX PRO 5000 Blackwell",
+ "prereg_gates": {
+  "P1_think_tocap_le_0.25": "FAIL (实测 33%)",
+  "P2_think_has_boxed_ge_0.50": "PASS (实测 67%)",
+  "P3_think_median_wall_le_420s": "PASS (实测 205s)"
+ },
+ "gate_correction": "P1 衡量的是截断，而本实验要解除的约束是「拿不拿得到标签」。按标签产出率：cap2048 时 think 25%(6/24)，cap8192 时 100%(3/3)。触顶的那条 p02 恰恰有标签（so the answer is 16）—— 截断不等于无标签。",
+ "think": {
+  "n": 3,
+  "trunc": 1,
+  "labeled": 3,
+  "correct": 3,
+  "wrong": 0,
+  "tok_med": 3993,
+  "tok_max": 8192,
+  "wall_med_s": 204.5,
+  "wall_sum_s": 738.5
+ },
+ "no_think": {
+  "n": 3,
+  "trunc": 0,
+  "labeled": 3,
+  "correct": 2,
+  "wrong": 1,
+  "tok_med": 1132,
+  "tok_max": 1465,
+  "wall_med_s": 42.0,
+  "wall_sum_s": 139.1
+ },
+ "extrapolation_60_problems": {
+  "think_wall_mean_s": 246.2,
+  "no_think_wall_mean_s": 46.4,
+  "total_h": 4.88
+ },
+ "rows": [
+  {
+   "traj": "aime__aime25__p00__no_think",
+   "mode": "no_think",
+   "cap": 8192,
+   "n_tok": 916,
+   "truncated": false,
+   "n_boxed": 2,
+   "n_statements": 2,
+   "stated": "70",
+   "stated_src": "boxed",
+   "gt": "70",
+   "legacy_correct": true,
+   "wall_s": 37.3,
+   "strict": "correct"
+  },
+  {
+   "traj": "aime__aime25__p00__think",
+   "mode": "think",
+   "cap": 8192,
+   "n_tok": 3993,
+   "truncated": false,
+   "n_boxed": 2,
+   "n_statements": 9,
+   "stated": "70",
+   "stated_src": "boxed",
+   "gt": "70",
+   "legacy_correct": true,
+   "wall_s": 204.5,
+   "strict": "correct"
+  },
+  {
+   "traj": "aime__aime25__p02__no_think",
+   "mode": "no_think",
+   "cap": 8192,
+   "n_tok": 1465,
+   "truncated": false,
+   "n_boxed": 2,
+   "n_statements": 2,
+   "stated": "916",
+   "stated_src": "boxed",
+   "gt": "16",
+   "legacy_correct": false,
+   "wall_s": 59.8,
+   "strict": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p02__think",
+   "mode": "think",
+   "cap": 8192,
+   "n_tok": 8192,
+   "truncated": true,
+   "n_boxed": 0,
+   "n_statements": 10,
+   "stated": "16",
+   "stated_src": "answer_is",
+   "gt": "16",
+   "legacy_correct": true,
+   "wall_s": 417.0,
+   "strict": "correct"
+  },
+  {
+   "traj": "aime__aime26__p01__no_think",
+   "mode": "no_think",
+   "cap": 8192,
+   "n_tok": 1132,
+   "truncated": false,
+   "n_boxed": 1,
+   "n_statements": 1,
+   "stated": "277",
+   "stated_src": "boxed",
+   "gt": "277",
+   "legacy_correct": true,
+   "wall_s": 42.0,
+   "strict": "correct"
+  },
+  {
+   "traj": "aime__aime26__p01__think",
+   "mode": "think",
+   "cap": 8192,
+   "n_tok": 3252,
+   "truncated": false,
+   "n_boxed": 2,
+   "n_statements": 5,
+   "stated": "277",
+   "stated_src": "boxed",
+   "gt": "277",
+   "legacy_correct": true,
+   "wall_s": 117.0,
+   "strict": "correct"
+  }
+ ]
+}

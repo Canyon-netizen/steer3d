@@ -10,11 +10,23 @@ think 轨迹在 cap 处被切断时落到第三条，于是
 
 ## 规则（取数前写死）
 
+⚠ **修订 R-27**：初版只认 `\boxed{}`，把「无 boxed」一律判 unlabeled。
+实测那是**往严的方向错**——think 轨迹普遍在写出 `\boxed` 之前就被截断，
+但它们大多已经用散文写了答案（`answer is N` / `so the answer is N`）。
+三只 D1 违例里只有 1 只（`1983_I_1__think`）是真幻觉，另外 2 只是**真答案、
+非规范形式**。初版把真答案当噪声扔了。
+
   n_boxed   = 文本里 `\boxed{...}` 的个数
-  last_box  = 最后一个 boxed 的内容（归一化后）
-  correct_strict = (n_boxed >= 1) 且 (last_box == ground_truth)
-  wrong_strict   = (n_boxed >= 1) 且 (last_box != ground_truth)
-  unlabeled      = n_boxed == 0     ← 不计入 correct 也不计入 incorrect
+  statements = 四类答案陈述按出现位置排序：
+                `\boxed{X}` / `so the answer is X` / `answer is|equals|= X` /
+                `(final )?answer: X`
+  stated    = **最后一条**陈述（模型最后说的是哪个，就是它的最终答案）
+  stated_src= 该陈述的类型
+  gt        = ground truth 归一化后的整数串
+
+  correct_strict = stated is not None 且 stated == gt
+  wrong_strict   = stated is not None 且 stated != gt
+  unlabeled      = stated is None      ← 不计入 correct 也不计入 incorrect
 
   truncated = n_generated_tokens >= config.max_new_tokens
 
@@ -50,20 +62,41 @@ def norm_int(s: str) -> str:
         return ""
 
 
+PATTERNS = [
+    ("boxed", re.compile(r"\\boxed\{([^}]*)\}")),
+    ("so_the", re.compile(r"so\s+the\s+answer\s+is\s+\$?\s*(-?\d+)", re.I)),
+    ("answer_is", re.compile(r"answer\s*(?:is|equals|=)\s*\$?\s*(-?\d+)", re.I)),
+    ("final", re.compile(r"(?:final\s+answer|answer)\s*[:=]\s*\$?\s*(-?\d+)", re.I)),
+]
+
+
+def all_statements(txt: str):
+    """所有答案陈述，按出现位置排序；返回 [(pos, src, value), ...]"""
+    hits = []
+    for src, pat in PATTERNS:
+        for m in pat.finditer(txt):
+            hits.append((m.start(), src, m.group(1)))
+    hits.sort(key=lambda x: x[0])
+    return hits
+
+
 def label(path: str) -> dict:
     j = json.load(open(path, encoding="utf-8"))
     txt = j.get("generated_text") or ""
-    boxes = re.findall(r"\\boxed\{([^}]*)\}", txt)
     gt = norm_int(j.get("ground_truth", ""))
-    last = norm_int(boxes[-1]) if boxes else ""
+    boxes = re.findall(r"\\boxed\{([^}]*)\}", txt)
+    hits = all_statements(txt)
+    stated_raw = hits[-1][2] if hits else None
+    stated = norm_int(stated_raw) if stated_raw is not None else None
+    src = hits[-1][1] if hits else None
     cfg = j.get("config", {})
     cap = cfg.get("max_new_tokens")
     ntok = j.get("n_generated_tokens")
     truncated = bool(cap and ntok is not None and ntok >= cap)
 
-    if not boxes:
+    if stated is None:
         strict = "unlabeled"
-    elif gt and last == gt:
+    elif gt and stated == gt:
         strict = "correct"
     else:
         strict = "wrong"
@@ -75,7 +108,9 @@ def label(path: str) -> dict:
         "n_tok": ntok,
         "truncated": truncated,
         "n_boxed": len(boxes),
-        "last_boxed": last,
+        "n_statements": len(hits),
+        "stated": stated,
+        "stated_src": src,
         "gt": gt,
         "legacy_correct": bool(j.get("is_correct")),
         "legacy_answer": j.get("generated_answer"),
@@ -102,18 +137,20 @@ def main() -> int:
     tr = [r for r in rows if r["truncated"]]
 
     if not a.quiet:
-        print(f"{'trajectory':46s} {'mode':9s} {'cap':>5s} {'tok':>5s} {'box':>4s} "
-              f"{'旧':>5s} {'严格':>10s}  备注")
+        print(f"{'trajectory':46s} {'mode':9s} {'cap':>5s} {'tok':>5s} {'box':>4s} {'stm':>4s} "
+              f"{'旧':>5s} {'严格':>10s} {'来源':>9s} {'答':>5s} {'gt':>5s}  备注")
         for r in rows:
             note = []
             if r["truncated"]:
                 note.append("触顶")
             if r["ghost"]:
                 note.append("<<D1 红：旧标签幻觉")
-            if r["n_boxed"] == 0 and not r["ghost"]:
-                note.append("无 boxed -> unlabeled")
+            if r["strict"] == "unlabeled":
+                note.append("无任何答案陈述 -> unlabeled")
             print(f"{r['traj']:46s} {str(r['mode']):9s} {str(r['cap']):>5s} {str(r['n_tok']):>5s} "
-                  f"{r['n_boxed']:4d} {str(r['legacy_correct']):>5s} {r['strict']:>10s}  {' '.join(note)}")
+                  f"{r['n_boxed']:4d} {r['n_statements']:4d} {str(r['legacy_correct']):>5s} "
+                  f"{r['strict']:>10s} {str(r['stated_src']):>9s} {str(r['stated']):>5s} "
+                  f"{str(r['gt']):>5s}  {' '.join(note)}")
 
     print()
     print(f"轨迹总数 {len(rows)}")

@@ -1,0 +1,329 @@
+{
+ "sources": {},
+ "overlap_with_builtin": {
+  "aime25": {
+   "n": 30,
+   "years": [
+    2025
+   ],
+   "new_ids": [
+    {
+     "id": "2025_I_0",
+     "answer": "70",
+     "q_head": "Find the sum of all integer bases $b>9$ for which $17_b$ is a divisor "
+    },
+    {
+     "id": "2025_I_1",
+     "answer": "588",
+     "q_head": "In $\\triangle ABC$ points $D$ and $E$ lie on $\\overline{AB}$ so that $"
+    },
+    {
+     "id": "2025_I_2",
+     "answer": "16",
+     "q_head": "The $9$ members of a baseball team went to an ice-cream parlor after t"
+    },
+    {
+     "id": "2025_I_3",
+     "answer": "117",
+     "q_head": "Find the number of ordered pairs $(x,y)$, where both $x$ and $y$ are i"
+    },
+    {
+     "id": "2025_I_4",
+     "answer": "279",
+     "q_head": "There are $8!= 40320$ eight-digit positive integers that use each of t"
+    },
+    {
+     "id": "2025_I_5",
+     "answer": "504",
+     "q_head": "An isosceles trapezoid has an inscribed circle tangent to each of its "
+    },
+    {
+     "id": "2025_I_6",
+     "answer": "821",
+     "q_head": "The twelve letters $A$,$B$,$C$,$D$,$E$,$F$,$G$,$H$,$I$,$J$,$K$, and $L"
+    },
+    {
+     "id": "2025_I_7",
+     "answer": "77",
+     "q_head": "Let $k$ be a real number such that the system \\begin{align*} &|25 + 20"
+    },
+    {
+     "id": "2025_I_8",
+     "answer": "62",
+     "q_head": "The parabola with equation $y = x^2 - 4$ is rotated $60^\\circ$ counter"
+    },
+    {
+     "id": "2025_I_9",
+     "answer": "81",
+     "q_head": "The $27$ cells of a $3 \\times 9$ grid are filled in using the numbers "
+    },
+    {
+     "id": "2025_I_10",
+     "answer": "259",
+     "q_head": "A piecewise linear function is defined by\\[f(x) = \\begin{cases} x & \\o"
+    },
+    {
+     "id": "2025_I_11",
+     "answer": "510",
+     "q_head": "The set of points in $3$-dimensional coordinate space that lie in the "
+    },
+    {
+     "id": "2025_I_12",
+     "answer": "204",
+     "q_head": "Alex divides a disk into four quadrants with two perpendicular diamete"
+    },
+    {
+     "id": "2025_I_13",
+     "answer": "60",
+     "q_head": "Let $ABCDE$ be a convex pentagon with $AB=14,$ $BC=7,$ $CD=24,$ $DE=13"
+    },
+    {
+     "id": "2025_I_14",
+     "answer": "735",
+     "q_head": "Let $N$ denote the number of ordered triples of positive integers $(a,"
+    },
+    {
+     "id": "2025_I_15",
+     "answer": "468",
+     "q_head": "Six points $A, B, C, D, E,$ and $F$ lie in a straight line in that ord"
+    },
+    {
+     "id": "2025_I_16",
+     "answer": "49",
+     "q_head": "Find the sum of all positive integers $n$ such that $n + 2$ divides th"
+    },
+    {
+     "id": "2025_I_17",
+     "answer": "82",
+     "q_head": "Four unit squares form a $2 \\times 2$ grid. Each of the $12$ unit line"
+    },
+    {
+     "id": "2025_I_18",
+     "answer": "106",
+     "q_head": "The product\\[\\prod^{63}_{k=4} \frac{\\log_k (5^{k^2 - 1})}{\\log_{k + 1} "
+    },
+    {
+     "id": "2025_I_19",
+     "answer": "336",
+     "q_head": "Suppose $\\triangle ABC$ has angles $\\angle BAC = 84^\\circ, \\angle ABC="
+    },
+    {
+     "id": "2025_I_20",
+     "answer": "293",
+     "q_head": "Circle $\\omega_1$ with radius $6$ centered at point $A$ is internally "
+    },
+    {
+     "id": "2025_I_21",
+     "answer": "237",
+     "q_head": "Let $A$ be the set of positive integer divisors of $2025$. Let $B$ be "
+    },
+    {
+     "id": "2025_I_22",
+     "answer": "610",
+     "q_head": "From an unlimited supply of 1-cent coins, 10-cent coins, and 25-cent c"
+    },
+    {
+     "id": "2025_I_23",
+     "answer": "149",
+     "q_head": "There are $n$ values of $x$ in the interval $0<x<2\\pi$ where $f(x)=\\si"
+    },
+    {
+     "id": "2025_I_24",
+     "answer": "907",
+     "q_head": "Sixteen chairs are arranged in a row. Eight people each select a chair"
+    },
+    {
+     "id": "2025_I_25",
+     "answer": "113",
+     "q_head": "Let $S$ be the set of vertices of a regular $24$-gon. Find the number "
+    },
+    {
+     "id": "2025_I_26",
+     "answer": "19",
+     "q_head": "Let $A_1A_2\\dots A_{11}$ be a non-convex $11$-gon such that The area o"
+    },
+    {
+     "id": "2025_I_27",
+     "answer": "248",
+     "q_head": "Let the sequence of rationals $x_1,x_2,\\dots$ be defined such that $x_"
+    },
+    {
+     "id": "2025_I_28",
+     "answer": "104",
+     "q_head": "Let ${\\triangle ABC}$ be a right triangle with $\\angle A = 90^\\circ$ a"
+    },
+    {
+     "id": "2025_I_29",
+     "answer": "240",
+     "q_head": "Let\\[f(x)=\\frac{(x-18)(x-72)(x-98)(x-k)}{x}.\\]There exist exactly thre"
+    }
+   ],
+   "dup_of_builtin": [],
+   "ans_conflict": [],
+   "already_generated": [
+    "2025_I_1"
+   ]
+  },
+  "aime26": {
+   "n": 30,
+   "years": [
+    2026
+   ],
+   "new_ids": [
+    {
+     "id": "2026_I_1",
+     "answer": "277",
+     "q_head": "Patrick started walking at a constant rate along a straight road from "
+    },
+    {
+     "id": "2026_I_2",
+     "answer": "62",
+     "q_head": "Find the number of positive integer palindromes written in base $10$ w"
+    },
+    {
+     "id": "2026_I_3",
+     "answer": "79",
+     "q_head": "A hemisphere with radius $200$ sits on top of a horizontal circular di"
+    },
+    {
+     "id": "2026_I_4",
+     "answer": "70",
+     "q_head": "Find the number of integers less than or equal to 100 that are equal t"
+    },
+    {
+     "id": "2026_I_5",
+     "answer": "65",
+     "q_head": "A plane contains points $A$ and $B$ with $AB = 1$. Point $A$ is rotate"
+    },
+    {
+     "id": "2026_I_6",
+     "answer": "441",
+     "q_head": "A real number $x$ satisfies $\\sqrt[20]{x^{\\log_{2026}x}}=26x$. What is"
+    },
+    {
+     "id": "2026_I_7",
+     "answer": "396",
+     "q_head": " Find the number of functions $\\pi$ mapping the set $A =\\{1,2,3,4,5,6\\"
+    },
+    {
+     "id": "2026_I_8",
+     "answer": "244",
+     "q_head": "Let $N$ be the number of positive integer divisors of $17017^{17}$ tha"
+    },
+    {
+     "id": "2026_I_9",
+     "answer": "29",
+     "q_head": "Joanne has a blank fair six-sided die and six stickers each displaying"
+    },
+    {
+     "id": "2026_I_10",
+     "answer": "156",
+     "q_head": "Let $\\triangle ABC$ have side lengths $AB = 13, BC = 14,$ and $CA = 15"
+    },
+    {
+     "id": "2026_I_11",
+     "answer": "896",
+     "q_head": "The integers from $1$ to $64$ are placed in some order into an $8 \\tim"
+    },
+    {
+     "id": "2026_I_12",
+     "answer": "161",
+     "q_head": "Triangle $\\triangle ABC$ lies in plane $\\mathcal P$ with $AB = 6, AC ="
+    },
+    {
+     "id": "2026_I_13",
+     "answer": "39",
+     "q_head": "For each positive integer $r$ less than $502,$ define \\[ S_r=\\sum_{m\\g"
+    },
+    {
+     "id": "2026_I_14",
+     "answer": "681",
+     "q_head": "In an equiangular pentagon, the sum of the squares of the side lengths"
+    },
+    {
+     "id": "2026_I_15",
+     "answer": "83",
+     "q_head": "Let $a, b,$ and $n$ be positive integers with both $a$ and $b$ greater"
+    },
+    {
+     "id": "2026_I_16",
+     "answer": "178",
+     "q_head": "Find the sum of the $10$th terms of all arithmetic sequences of intege"
+    },
+    {
+     "id": "2026_I_17",
+     "answer": "243",
+     "q_head": "The figure below shows a grid of $10$ squares in a row. Each square ha"
+    },
+    {
+     "id": "2026_I_18",
+     "answer": "503",
+     "q_head": "Let $ABCDE$ be a nonconvex pentagon with internal angles $\\angle A = \\"
+    },
+    {
+     "id": "2026_I_19",
+     "answer": "279",
+     "q_head": "For each positive integer $n$ let $f(n)$ be the value of the base-ten "
+    },
+    {
+     "id": "2026_I_20",
+     "answer": "190",
+     "q_head": "An urn contains $n$ marbles. Each marble is either red or blue, and th"
+    },
+    {
+     "id": "2026_I_21",
+     "answer": "50",
+     "q_head": "Find the sum of all real numbers $r$ such that there is at least one p"
+    },
+    {
+     "id": "2026_I_22",
+     "answer": "754",
+     "q_head": "A standard fair six-sided die is rolled repeatedly. Each time the die "
+    },
+    {
+     "id": "2026_I_23",
+     "answer": "245",
+     "q_head": "Isosceles triangle $\\triangle ABC$ has $AB = BC.$ Let $I$ be the incen"
+    },
+    {
+     "id": "2026_I_24",
+     "answer": "669",
+     "q_head": "Let $S$ denote the value of the infinite sum \\[ \\frac{1}{9} + \\frac{1}"
+    },
+    {
+     "id": "2026_I_25",
+     "answer": "850",
+     "q_head": "Let $\\triangle ABC$ be a triangle with $D$ on $\\overline{BC}$ such tha"
+    },
+    {
+     "id": "2026_I_26",
+     "answer": "132",
+     "q_head": "Find the greatest integer $n$ such that the cubic polynomial \\[ x^{3} "
+    },
+    {
+     "id": "2026_I_27",
+     "answer": "223",
+     "q_head": "Consider a tetrahedron with two isosceles triangle faces with side len"
+    },
+    {
+     "id": "2026_I_28",
+     "answer": "107",
+     "q_head": "Call finite sets of integers $S$ and $T$ cousins if - $S$ and $T$ have"
+    },
+    {
+     "id": "2026_I_29",
+     "answer": "157",
+     "q_head": "For integers $a$ and $b,$ let $a \\circ b = a - b$ if $a$ is odd and $b"
+    },
+    {
+     "id": "2026_I_30",
+     "answer": "393",
+     "q_head": "Find the number of ordered 7-tuples $(a_1, a_2, a_3, \\ldots, a_7)$ hav"
+    }
+   ],
+   "dup_of_builtin": [],
+   "ans_conflict": [],
+   "already_generated": []
+  }
+ }
+}
