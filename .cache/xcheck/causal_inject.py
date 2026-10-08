@@ -51,6 +51,8 @@ SEED = 20261007
 # ⚠ 它是 fp32 累加顺序造成的噪声，**不是**效应量下限 ——
 #   别拿它去卡效应量，那会把「小于噪声」当成「没有效应」。
 NOISE = 4.339e-05
+# 装置符号守卫用的**小剂量**（相对类间间距）。见 R-19 的注释。
+CHK_REL = 0.05
 
 # ---- PREREG §3.1：marker 集合写死，含前导空格变体 ----
 MARKER_WORDS = (" Wait", "Wait", " Let", "Let", " maybe", " Hmm", "Hmm")
@@ -319,9 +321,20 @@ def main() -> int:
     # 装置符号守卫：**每个案例**都带两个 unembedding 基准。
     # +α·U[tok] 必然抬高 tok 的 logprob（符号由构造决定，与学出来的方向无关）。
     # 若这两条翻红 ⇒ 装置坏了，本案例全部读数作废。
+    # ⚠⚠⚠ 守卫剂量必须是**小剂量**（α_rel = CHK_REL = 0.05）。
+    #   我第一版把它放在 α_rel = 1.0 上，于是第 12 个案例被判红：
+    #       Wait −1.4017   the +20.3922
+    #   ` the` 涨了 20（守卫期望的形状），` Wait` 却**跌了** 1.4。
+    #   这不是装置坏了，是我**守卫的假设错了**：
+    #   log_softmax 是**相对量** —— 只要别的 token 的 logit 涨得更多，
+    #   目标 token 的 logprob 照样会降。大剂量下 unembedding 的
+    #   「直接 logit 通路」被其他词淹没，这个论证不成立。
+    #   ⇒ 装置符号是**符号约定**问题，属于小剂量极限；
+    #     用标定剂量去判它，等于拿大剂量去检验一个小剂量的命题。
+    #   守卫照旧（这次真的在正确地响），但剂量改到 5%。
     for nm, tk_id in (("Uref", ref_tok), ("Uctl", cid)):
         u = U[tk_id] / np.linalg.norm(U[tk_id])
-        variants.append((f"{nm}|rel+1.00", nm, (gap * u)))
+        variants.append((f"{nm}|chk", nm, (CHK_REL * gap * u)))
     print(f"变体 {len(variants)} 个/案例，类间间距 {gap:.1f}，"
           f"新梯 α_abs = " + " ".join(f"{r:g}×{gap:.0f}" for r in rel_ladder))
 
@@ -344,7 +357,7 @@ def main() -> int:
                 lg = model(pre1.expand(B, L)).logits[:, -1, :]
         finally:
             hd.remove()
-        return torch.log_softmax(lg, dim=-1)
+        return lg, torch.log_softmax(lg, dim=-1)
 
     results = []
     align_checked = 0
@@ -364,10 +377,12 @@ def main() -> int:
         pre1 = torch.as_tensor(full[:pos_read + 1])[None, :]
         cur = int(gids[c["t"]])
 
-        lp = run_batched(pre1, pos_read, [v for _, _, v in variants])
+        lg_all, lp_all = run_batched(pre1, pos_read,
+                                      [v for _, _, v in variants])
         mid_t = torch.as_tensor(mid)
         d = {}
-        for (key, _nm, _v), row_lp in zip(variants, lp):
+        for bi, (key, _nm, _v) in enumerate(variants):
+            row_lp = lp_all[bi]
             # ⚠ `cur` 是「位置 t 上**实际写的那个 token**」的 logprob，
             #   而 Uref 的 unembedding 行是 ` Wait` 的 —— 两者一般**不是**
             #   同一个 token。第一版守卫错查了 `cur`，自己把自己判红了。
@@ -375,33 +390,46 @@ def main() -> int:
             d[key] = {"mark": float(torch.logsumexp(row_lp[mid_t], dim=0)),
                       "ctl": float(row_lp[cid]),
                       "ref": float(row_lp[ref_tok]),
-                      "cur": float(row_lp[cur])}
+                      "cur": float(row_lp[cur]),
+                      # ⚠⚠ logit 是**绝对**量，logprob 是**相对**量。
+                      #   装置符号的判据必须看 logit，见下面守卫处。
+                      "ctl_logit": float(lg_all[bi, cid]),
+                      "ref_logit": float(lg_all[bi, ref_tok])}
 
         # ⚑ 守卫 1：坐标错位（第一版缺的正是这条，错位时读数照常输出）
         if align_checked < 50:
             align_checked += 1
             _ref = int(z["topk_indices"][c["t"], 0])
-            if int(lp[0].argmax()) != _ref:
+            if int(lp_all[0].argmax()) != _ref:
                 raise SystemExit(
                     f"ABORT 位置映射错位：生成段 t={c['t']} 处本地 top-1="
-                    f"{int(lp[0].argmax())} 与 npz 记录的 {_ref} 不一致。")
+                    f"{int(lp_all[0].argmax())} 与 npz 记录的 {_ref} 不一致。")
         # ⚑ 守卫 2：装置符号。变体 0 是 w|abs+0.0，必须逐位等于基线。
         if abs(d["w|abs+0.0"]["mark"] - d["w|abs+0.0"]["mark"]) > 1e-12:
             raise SystemExit("ABORT α=0 不自洽。")
-        # ⚑ 装置符号守卫：注入 +α·U[tok] 后，**该 token 自己的** logprob
-        #   必须比基线**上升**。
-        # ⚠⚠ 第一版把「绝对 logprob」和 0 比 —— 而 logprob 恒 ≤ 0，
-        #   这条守卫于是**恒真**，每次都把自己判红。
-        #   logprob 是概率的对数，拿它比 0 就像拿「百分比」比 0：
-        #   只有**相对基线的变化量**才有正负号可言。
-        #   这也是「先怀疑判据」的一个实例：守卫自己写错，照样很响。
+        # ⚑⚑ 装置符号守卫：**判 logit，不判 logprob**。
+        #   「注入 +α·U[tok] ⇒ tok 的 logit 上升」是**绝对**的、只走
+        #   unembedding 这一条通路的事 —— 这正是「符号约定对不对」。
+        #   而 logprob 是**相对**量（logit 减 logsumexp）：只要别的
+        #   token 涨得更多，tok 的 logprob 照样会降，哪怕它自己的
+        #   logit 一路涨。实测（`guard_case12.py`）：α_rel=1.0 时
+        #   ` Wait` 的 Δlogit **+4.845、排 151936 名中的第 1 名**，
+        #   Δlogprob 却被别的 token 挤到 +0.30（换一批位置会变负）。
+        #   ⇒ 第一版守卫拿 logprob 下判决，被一个**良性的相对效应**
+        #     判死在第 12 个案例上。守卫自己写错，照样很响。
         _b = d["w|abs+0.0"]
-        _dg_ref = d["Uref|rel+1.00"]["ref"] - _b["ref"]
-        _dg_ctl = d["Uctl|rel+1.00"]["ctl"] - _b["ctl"]
-        if _dg_ref <= 0 or _dg_ctl <= 0:
+        _dl_ref = d["Uref|chk"]["ref_logit"] - _b["ref_logit"]
+        _dl_ctl = d["Uctl|chk"]["ctl_logit"] - _b["ctl_logit"]
+        # logprob 的变化只**记录**，不参与判死。
+        _dp_ref = d["Uref|chk"]["ref"] - _b["ref"]
+        _dp_ctl = d["Uctl|chk"]["ctl"] - _b["ctl"]
+        if _dl_ref <= 0 or _dl_ctl <= 0:
             raise SystemExit(
-                f"ABORT 装置符号：注入 +α·U 后对应 token 的 logprob 未上升"
-                f"（Wait {_dg_ref:+.4f}， the {_dg_ctl:+.4f}）⇒ 读数不可用。")
+                f"ABORT 装置符号：注入 +α·U 后对应 token 的 **logit** 未上升"
+                f"（Wait {_dl_ref:+.4f}， the {_dl_ctl:+.4f}）"
+                f"⇒ 读数不可用。")
+        d["_guard"] = {"d_logit_ref": _dl_ref, "d_logit_ctl": _dl_ctl,
+                       "d_logprob_ref": _dp_ref, "d_logprob_ctl": _dp_ctl}
 
         row = {"traj": tid, "t": c["t"], "inj": pos_read,
                "npz_row": c["t"], "n_prompt": n_pre, "marker_id": cur,
@@ -517,8 +545,8 @@ def main() -> int:
     if abs(spearman(np.arange(5.0), np.arange(5.0)[::-1]) + 1.0) > 1e-9:
         raise SystemExit("ABORT spearman(x,-x) 应恒为 -1.0 —— 实现坏了。")
     # ⚑ 装置符号守卫（已在逐案例时跑过，这里再总检一次）
-    g1 = mean_delta(results, ["w|abs+0.0", "Uref|rel+1.00"], "ref")
-    g2 = mean_delta(results, ["w|abs+0.0", "Uctl|rel+1.00"], "ctl")
+    g1 = mean_delta(results, ["w|abs+0.0", "Uref|chk"], "ref_logit")
+    g2 = mean_delta(results, ["w|abs+0.0", "Uctl|chk"], "ctl_logit")
     if g1[1] <= 0 or g2[1] <= 0:
         raise SystemExit(
             f"ABORT 装置符号总检失败：+α·U 未能抬高对应 token"
@@ -625,7 +653,7 @@ def main() -> int:
          "detail": "见上方自检"},
         {"name": "C-1b 装置符号：+α·U 抬高对应 token（逐案例守卫）",
          "ok": bool(g1[1] > 0 and g2[1] > 0),
-         "detail": f"Wait {g1[1]:+.4f}， the {g2[1]:+.4f}"},
+         "detail": f"Δlogit Wait {g1[1]:+.4f}， the {g2[1]:+.4f}"},
         {"name": "C-2 正向剂量单调（旧 abs 梯，ρ ≥ 0.8）",
          "ok": rho_pos >= 0.8, "detail": f"ρ={rho_pos:.3f}"},
         {"name": "C-3 反向剂量反向单调（旧 abs 梯，ρ ≤ -0.8）",
