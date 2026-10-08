@@ -29,9 +29,20 @@ import sys
 import time
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-DEV = sys.argv[2] if len(sys.argv) > 2 else "3"   # PCI_BUS_ID 序下的 CVD 号
-os.environ["CUDA_VISIBLE_DEVICES"] = DEV
-print(f"[卡] CUDA_DEVICE_ORDER=PCI_BUS_ID, CUDA_VISIBLE_DEVICES={DEV}")
+# ⚠ 卡的选择必须按 **UUID**，且必须在 import torch **之前**设定。
+#   两个坑都踩过：
+#   1. CVD 编号依赖 CUDA_DEVICE_ORDER：FASTEST_FIRST 与 PCI_BUS_ID 给出
+#      **不同**的 卡号<->卡 对应。曾因此把测试脚本放到生成任务正在用的那张卡上。
+#   2. torch.cuda.device_count() 一调用就初始化 CUDA，之后再改
+#      CUDA_VISIBLE_DEVICES 对当前进程**无效**。
+#   CUDA 支持直接写 `CUDA_VISIBLE_DEVICES=GPU-<uuid>`，绕开以上全部歧义。
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+_uuid = sys.argv[2] if len(sys.argv) > 2 else None
+if _uuid:
+    os.environ["CUDA_VISIBLE_DEVICES"] = f"GPU-{_uuid}"
+    print(f"[卡] CUDA_VISIBLE_DEVICES=GPU-{_uuid}（按 UUID 指定，不猜编号）")
+else:
+    print("[卡] 未指定 UUID，沿用环境中的 CUDA_VISIBLE_DEVICES")
 
 import numpy as np
 import torch
@@ -108,7 +119,9 @@ def logit_at_fast(ids, t, vec, alpha, model, prefix_cache, explicit_pos=True):
 def main():
     from transformers import AutoModelForCausalLM, AutoTokenizer
     tok = AutoTokenizer.from_pretrained(MODEL)
-    model = AutoModelForCausalLM.from_pretrained(MODEL, dtype=torch.bfloat16).to("cuda:0").eval()
+    DT = torch.float32 if (len(sys.argv) > 3 and sys.argv[3] == "fp32") else torch.bfloat16
+    print(f"[dtype] {DT}")
+    model = AutoModelForCausalLM.from_pretrained(MODEL, dtype=DT).to("cuda:0").eval()
 
     name = "aime__aime25__p00__think"
     meta = json.load(open(f"{ROOT}/{name}.json"))
@@ -175,7 +188,8 @@ def main():
     print(f"E4 alpha=0 空挂不改变读数 <= {TOL_HOOK0} : {e4:.3e}  -> {'PASS' if e4<=TOL_HOOK0 else 'FAIL'}")
     print("=" * 72)
 
-    out = "/home/zhourui/steer3d_bpath/kv_share_verdict.json"
+    out = ("/home/zhourui/steer3d_bpath/kv_share_verdict_fp32.json"
+           if DT == torch.float32 else "/home/zhourui/steer3d_bpath/kv_share_verdict.json")
     json.dump({"rows": rows, "dmax": dmax, "argmax_all_same": arg_ok,
                "t_slow_s": t_slow, "t_fast_s": t_fast, "t_fast_amort_s": t_amort, "hook0_diff": e4,
                "tolerances": {"logit": TOL_LOGIT, "hook0": TOL_HOOK0},
