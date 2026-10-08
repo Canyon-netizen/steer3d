@@ -1,0 +1,644 @@
+{
+ "marker_ids": [
+  13824,
+  14190,
+  6771,
+  10061,
+  7196,
+  88190,
+  80022
+ ],
+ "rules": {
+  "min_per_traj": 3,
+  "min_trajs_ok": 2,
+  "floor": 0.5
+ },
+ "m3_note": "M3 用每千 token 密度，受 trace 长度影响；M3' 用绝对数，才是取样相关的量。",
+ "new_batch": {
+  "rows": [
+   {
+    "traj": "aime__aime25__p00__no_think",
+    "mode": "no_think",
+    "n_tok": 916,
+    "n_marker": 2,
+    "per_1k": 2.1834061135371177,
+    "which": {
+     "Let": 2
+    },
+    "marker_texts": [
+     "Let"
+    ]
+   },
+   {
+    "traj": "aime__aime25__p00__think",
+    "mode": "think",
+    "n_tok": 3993,
+    "n_marker": 32,
+    "per_1k": 8.014024542950162,
+    "which": {
+     " Let": 11,
+     "Let": 5,
+     " Wait": 2,
+     "Wait": 6,
+     " maybe": 8
+    },
+    "marker_texts": [
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__aime25__p02__no_think",
+    "mode": "no_think",
+    "n_tok": 1465,
+    "n_marker": 3,
+    "per_1k": 2.04778156996587,
+    "which": {
+     "Let": 3
+    },
+    "marker_texts": [
+     "Let"
+    ]
+   },
+   {
+    "traj": "aime__aime25__p02__think",
+    "mode": "think",
+    "n_tok": 8192,
+    "n_marker": 78,
+    "per_1k": 9.521484375,
+    "which": {
+     " Let": 17,
+     "Let": 15,
+     "Wait": 21,
+     " Wait": 10,
+     " Hmm": 1,
+     " maybe": 14
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__aime26__p01__no_think",
+    "mode": "no_think",
+    "n_tok": 1132,
+    "n_marker": 1,
+    "per_1k": 0.8833922261484098,
+    "which": {
+     "Let": 1
+    },
+    "marker_texts": [
+     "Let"
+    ]
+   },
+   {
+    "traj": "aime__aime26__p01__think",
+    "mode": "think",
+    "n_tok": 3252,
+    "n_marker": 27,
+    "per_1k": 8.302583025830259,
+    "which": {
+     " Let": 9,
+     "Let": 10,
+     " Wait": 4,
+     "Wait": 2,
+     " maybe": 2
+    },
+    "marker_texts": [
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   }
+  ],
+  "density_median": 8.302583025830259,
+  "abs_median": 32,
+  "trajs_ok": 3
+ },
+ "old_batch": {
+  "rows": [
+   {
+    "traj": "aime__1983__1983_I_1__think",
+    "mode": "think",
+    "n_tok": 1024,
+    "n_marker": 9,
+    "per_1k": 8.7890625,
+    "which": {
+     "Let": 4,
+     " Let": 2,
+     "Hmm": 1,
+     " maybe": 1,
+     "Wait": 1
+    },
+    "marker_texts": [
+     " Let",
+     " maybe",
+     "Hmm",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__1984__1984_I_1__think",
+    "mode": "think",
+    "n_tok": 1024,
+    "n_marker": 13,
+    "per_1k": 12.6953125,
+    "which": {
+     " Let": 6,
+     "Let": 2,
+     " maybe": 2,
+     " Wait": 2,
+     "Wait": 1
+    },
+    "marker_texts": [
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__1985__1985_I_1__think",
+    "mode": "think",
+    "n_tok": 1024,
+    "n_marker": 16,
+    "per_1k": 15.625,
+    "which": {
+     " maybe": 4,
+     " Let": 7,
+     "Hmm": 1,
+     "Let": 4
+    },
+    "marker_texts": [
+     " Let",
+     " maybe",
+     "Hmm",
+     "Let"
+    ]
+   },
+   {
+    "traj": "aime__1986__1986_I_1__think",
+    "mode": "think",
+    "n_tok": 1024,
+    "n_marker": 11,
+    "per_1k": 10.7421875,
+    "which": {
+     " Let": 5,
+     "Wait": 4,
+     " maybe": 2
+    },
+    "marker_texts": [
+     " Let",
+     " maybe",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__1987__1987_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 25,
+    "per_1k": 12.20703125,
+    "which": {
+     "Hmm": 1,
+     " maybe": 8,
+     " Wait": 6,
+     " Let": 5,
+     "Wait": 4,
+     " Hmm": 1
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Hmm",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__1988__1988_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 46,
+    "per_1k": 22.4609375,
+    "which": {
+     " Hmm": 2,
+     " Let": 12,
+     " maybe": 18,
+     "Let": 1,
+     " Wait": 2,
+     "Wait": 11
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__1989__1989_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 33,
+    "per_1k": 16.11328125,
+    "which": {
+     " Hmm": 2,
+     " maybe": 5,
+     " Let": 20,
+     "Let": 2,
+     " Wait": 2,
+     "Wait": 1,
+     "Hmm": 1
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Hmm",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__1990__1990_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 52,
+    "per_1k": 25.390625,
+    "which": {
+     " Wait": 27,
+     " Hmm": 2,
+     " maybe": 17,
+     " Let": 2,
+     "Let": 1,
+     "Wait": 3
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__1991__1991_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 50,
+    "per_1k": 24.4140625,
+    "which": {
+     " Hmm": 1,
+     " Wait": 30,
+     " Let": 4,
+     " maybe": 13,
+     "Let": 1,
+     "Wait": 1
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__1992__1992_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 4,
+    "per_1k": 1.953125,
+    "which": {
+     " Let": 1,
+     "Let": 2,
+     " maybe": 1
+    },
+    "marker_texts": [
+     " Let",
+     " maybe",
+     "Let"
+    ]
+   },
+   {
+    "traj": "aime__1994__1994_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 39,
+    "per_1k": 19.04296875,
+    "which": {
+     "Let": 8,
+     " Let": 8,
+     "Hmm": 3,
+     " maybe": 13,
+     " Wait": 4,
+     "Wait": 3
+    },
+    "marker_texts": [
+     " Let",
+     " Wait",
+     " maybe",
+     "Hmm",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2000__2000_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 31,
+    "per_1k": 15.13671875,
+    "which": {
+     " Wait": 5,
+     " maybe": 15,
+     " Let": 7,
+     "Wait": 4
+    },
+    "marker_texts": [
+     " Let",
+     " Wait",
+     " maybe",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2002__2002_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 22,
+    "per_1k": 10.7421875,
+    "which": {
+     " Let": 12,
+     "Let": 2,
+     "Wait": 3,
+     " Hmm": 1,
+     " Wait": 2,
+     " maybe": 2
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2004__2004_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 29,
+    "per_1k": 14.16015625,
+    "which": {
+     "Wait": 3,
+     " Wait": 21,
+     " maybe": 5
+    },
+    "marker_texts": [
+     " Wait",
+     " maybe",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2010__2010_I_1__think",
+    "mode": "think",
+    "n_tok": 1960,
+    "n_marker": 14,
+    "per_1k": 7.142857142857142,
+    "which": {
+     "Let": 1,
+     " Let": 3,
+     "Wait": 1,
+     " maybe": 6,
+     " Wait": 3
+    },
+    "marker_texts": [
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2012__2012_I_1__think",
+    "mode": "think",
+    "n_tok": 1449,
+    "n_marker": 14,
+    "per_1k": 9.66183574879227,
+    "which": {
+     " Hmm": 2,
+     " Let": 4,
+     " Wait": 2,
+     "Wait": 2,
+     " maybe": 4
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2014__2014_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 32,
+    "per_1k": 15.625,
+    "which": {
+     " Wait": 20,
+     " maybe": 10,
+     "Wait": 2
+    },
+    "marker_texts": [
+     " Wait",
+     " maybe",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2016__2016_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 31,
+    "per_1k": 15.13671875,
+    "which": {
+     " Let": 4,
+     " Wait": 9,
+     " maybe": 12,
+     "Wait": 5,
+     " Hmm": 1
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2020__2020_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 15,
+    "per_1k": 7.32421875,
+    "which": {
+     " Hmm": 1,
+     " Let": 7,
+     "Let": 2,
+     "Wait": 2,
+     " maybe": 2,
+     " Wait": 1
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2021__2021_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 31,
+    "per_1k": 15.13671875,
+    "which": {
+     " Let": 15,
+     "Let": 3,
+     " Wait": 6,
+     " maybe": 4,
+     "Wait": 3
+    },
+    "marker_texts": [
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2022__2022_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 36,
+    "per_1k": 17.578125,
+    "which": {
+     " Hmm": 1,
+     " maybe": 12,
+     " Let": 11,
+     "Let": 3,
+     " Wait": 2,
+     "Wait": 7
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2023__2023_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 40,
+    "per_1k": 19.53125,
+    "which": {
+     " Let": 4,
+     " Wait": 7,
+     " maybe": 20,
+     "Wait": 9
+    },
+    "marker_texts": [
+     " Let",
+     " Wait",
+     " maybe",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2024__2024_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 20,
+    "per_1k": 9.765625,
+    "which": {
+     " maybe": 3,
+     " Let": 4,
+     "Let": 2,
+     " Wait": 10,
+     "Wait": 1
+    },
+    "marker_texts": [
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   },
+   {
+    "traj": "aime__2025__2025_I_1__think",
+    "mode": "think",
+    "n_tok": 2048,
+    "n_marker": 64,
+    "per_1k": 31.25,
+    "which": {
+     " Hmm": 1,
+     " maybe": 22,
+     "Wait": 7,
+     " Wait": 24,
+     " Let": 8,
+     "Let": 2
+    },
+    "marker_texts": [
+     " Hmm",
+     " Let",
+     " Wait",
+     " maybe",
+     "Let",
+     "Wait"
+    ]
+   }
+  ],
+  "density_median": 15.13671875,
+  "abs_median": 30.0,
+  "trajs_ok": 24
+ },
+ "verdict": {
+  "M2": true,
+  "M3_density_reference_only": true,
+  "M3_prime": true
+ }
+}
