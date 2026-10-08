@@ -157,6 +157,10 @@ def main() -> int:
                     help="每条轨迹取 N 个位置（PREREG 修订 3 取 2）")
     ap.add_argument("--rel-ladder", default="0.1,0.25,0.5,1.0,2.0",
                     help="标定剂量梯；修订 3 取 0.25,0.5,1.0")
+    ap.add_argument("--batch-chunk", type=int, default=8,
+                    help="前向时每批多少个变体；调小以压住长序列的显存")
+    ap.add_argument("--checkpoint-every", type=int, default=5,
+                    help="每 N 个案例落一次部分结果，避免被杀后全丢")
     a = ap.parse_args()
 
     import torch
@@ -338,26 +342,46 @@ def main() -> int:
     print(f"变体 {len(variants)} 个/案例，类间间距 {gap:.1f}，"
           f"新梯 α_abs = " + " ".join(f"{r:g}×{gap:.0f}" for r in rel_ladder))
 
-    def run_batched(pre1, inj, vecs):
-        """把所有变体塞进**一次**前向。hook 按 batch 元素分别加各自的量。"""
-        B = len(vecs)
-        L = pre1.shape[1]
-        delta = torch.as_tensor(np.stack(vecs), dtype=torch.float32)
-        pos_idx = torch.full((B,), inj, dtype=torch.long)
-        bidx = torch.arange(B)
+    def run_batched(pre1, inj, vecs, chunk=None):
+        """把变体塞进前向，**按 chunk 分批**以压住内存。
 
-        def hook(mod, inp):
-            h = inp[0].clone()
-            h[bidx, pos_idx, :] = h[bidx, pos_idx, :] + delta
-            return (h,) + inp[1:]
+        ⚠⚠⚠ 第一版是「全部变体一次前向」（B=28）。它在 L≈878 上跑得好好的，
+        到第 17 个案例被**静默杀掉**（无 Traceback，只有退出时的
+        `resource_tracker ... at shutdown` 警告）—— 16 个案例的计算全丢。
 
-        hd = blk.register_forward_pre_hook(hook)
-        try:
-            with torch.no_grad():
-                lg = model(pre1.expand(B, L)).logits[:, -1, :]
-        finally:
-            hd.remove()
-        return lg, torch.log_softmax(lg, dim=-1)
+        根因能算出来：注意力分数张量按 (B, 头, L, L) 展开，
+            28 × 16 × 2048² × 4 字节 ≈ **7.5 GB**
+        序列越长越吃。`--per-traj` 的错位取样让后面正好撞上长轨迹。
+
+        ⇒ 修法是**分块**，不是减样本：chunk=8 时峰值降到 ~2.1 GB，
+          仍比逐个前向（B=1）快得多。`batch_equiv.py` 已证批大小
+          只影响 fp32 累加顺序（≤4.6e-05），分块不改变结论。
+        """
+        chunk = chunk or a.batch_chunk
+        outs_lg, outs_lp = [], []
+        for s0 in range(0, len(vecs), chunk):
+            part = vecs[s0:s0 + chunk]
+            B = len(part)
+            L = pre1.shape[1]
+            delta = torch.as_tensor(np.stack(part), dtype=torch.float32)
+            pos_idx = torch.full((B,), inj, dtype=torch.long)
+            bidx = torch.arange(B)
+
+            def hook(mod, inp):
+                h = inp[0].clone()
+                h[bidx, pos_idx, :] = h[bidx, pos_idx, :] + delta
+                return (h,) + inp[1:]
+
+            hd = blk.register_forward_pre_hook(hook)
+            try:
+                with torch.no_grad():
+                    lg = model(pre1.expand(B, L)).logits[:, -1, :]
+                    outs_lg.append(lg)
+                    outs_lp.append(torch.log_softmax(lg, dim=-1))
+            finally:
+                hd.remove()
+            del delta
+        return torch.cat(outs_lg), torch.cat(outs_lp)
 
     results = []
     align_checked = 0
@@ -441,6 +465,18 @@ def main() -> int:
         results.append(row)
         if ci % 1 == 0:
             print(f"  [{ci}/{len(cases)}]")
+        # ⚠⚠ 增量落盘。第一版跑完 16 个案例被 OOM 杀掉，
+        #   `json.dump` 在**最后**才执行 ⇒ 全部读数蒸发。
+        #   这与「40 分钟算力被 numpy bool 炸掉」是同一条教训：
+        #   **算力结果必须边跑边存**，不能只存在内存里。
+        if a.checkpoint_every and len(results) % a.checkpoint_every == 0:
+            try:
+                json.dump({"partial": True, "n_done": len(results),
+                           "n_total": len(cases), "rows": results},
+                          open(a.out + ".partial", "w", encoding="utf-8"),
+                          ensure_ascii=False)
+            except OSError as e:
+                print(f"  ⚠ 部分结果落盘失败（不算判红，但要知道）：{e}")
 
     # ---- 批量路径必须与逐个前向一致（批量不是免费的等价变换）----
     # ⚠ 第一版没有这一项。批量化把 26 次前向压成 1 次，
