@@ -45,6 +45,13 @@ OFF = 1                      # 注入位置 = t-1
 DELTA = 20                  # 负例到正例的距离（PREREG 指定的读数口径）
 SEED = 20261007
 
+# ---- 噪声底（PREREG 修订 2 的 R-9，实测值）----
+# 批量 vs 逐个前向的最大差：4.339e-05 nats。
+# 用途：分组分析里判断某组均值是不是「真的非零」。
+# ⚠ 它是 fp32 累加顺序造成的噪声，**不是**效应量下限 ——
+#   别拿它去卡效应量，那会把「小于噪声」当成「没有效应」。
+NOISE = 4.339e-05
+
 # ---- PREREG §3.1：marker 集合写死，含前导空格变体 ----
 MARKER_WORDS = (" Wait", "Wait", " Let", "Let", " maybe", " Hmm", "Hmm")
 CONTROL_WORD = " the"        # §3.1 的对照 token
@@ -144,6 +151,10 @@ def main() -> int:
     ap.add_argument("--out", default=OUT)
     ap.add_argument("--check-unbatched", type=int, default=0,
                     help="前 N 个案例再逐个前向复算一遍，验证批量路径等价")
+    ap.add_argument("--per-traj", type=int, default=0,
+                    help="每条轨迹取 N 个位置（PREREG 修订 3 取 2）")
+    ap.add_argument("--rel-ladder", default="0.1,0.25,0.5,1.0,2.0",
+                    help="标定剂量梯；修订 3 取 0.25,0.5,1.0")
     a = ap.parse_args()
 
     import torch
@@ -153,9 +164,41 @@ def main() -> int:
     tmap = {t: P.real_T(t) for t in pos}
     W, sep = train_direction(pos, tmap, SEED)
     cases = build_cases(pos, tmap)
+    # ⚠ 取样：修订 3 改为「每条轨迹 N 个位置」，让 22 条轨迹都被覆盖。
+    #   第一版是 `cases[:limit]` —— 那只取**排序最靠前**的若干轨迹，
+    #   `--limit 8` 实测「案例 8 个 / 轨迹 3」：8 个位置来自 3 条轨迹。
+    #   ⚠⚠ 这是「参数没生效」的又一形态：脚本不报错、案例数也对，
+    #   但**轨迹覆盖度**塌了。§8 局限 2 明写「统计推断必须按轨迹聚合」，
+    #   轨迹覆盖不全时那个约束根本无法执行。
+    #   ⇒ 打印必须同时给**案例数**与**轨迹数**，两者对不上要看得见。
+    if a.per_traj:
+        by = {}
+        for c in cases:
+            by.setdefault(c["traj"], []).append(c)
+        tids = sorted(by)
+        sel, used = [], set()
+        for i in range(a.per_traj):
+            for j, t in enumerate(tids):
+                idx = (i * 5 + j * 3) % len(by[t])
+                if (t, idx) not in used:
+                    used.add((t, idx))
+                    sel.append(by[t][idx])
+        cases = sel
     if a.limit:
         cases = cases[:a.limit]
-    print(f"案例 {len(cases)} 个（轨迹 {len(set(c['traj'] for c in cases))}）")
+    # 轨迹对错：PREREG 修订 3 的 B 组标签。
+    # ⚠ 只用 npz 同目录的 json 里的 `is_correct`，
+    #   不从轨迹**文本**重新判断 —— 重新判断就是引入第二个可能出错的东西。
+    correct = {}
+    for tid in sorted(set(c["traj"] for c in cases)):
+        jp = os.path.join(NPZ_DIR, tid + ".json")
+        if os.path.exists(jp):
+            correct[tid] = bool(json.load(open(jp, encoding="utf-8"))
+                                .get("is_correct", False))
+    n_traj_used = len(set(c["traj"] for c in cases))
+    n_ok = sum(1 for t in set(c["traj"] for c in cases) if correct.get(t))
+    print(f"案例 {len(cases)} 个（轨迹 {n_traj_used}：答对 {n_ok} / 答错 "
+          f"{n_traj_used - n_ok}）")
 
     tk = AutoTokenizer.from_pretrained(MODEL)
     mid, cid = load_marker_ids(tk)
@@ -250,7 +293,9 @@ def main() -> int:
     # ⇒ 两套梯都跑、都留档：旧梯原样保留以复现修订 1 里的旧读数，
     #   新梯 `α_rel = α_abs / 类间间距` 是**锚在数据自己的尺度上**的。
     gap = class_gap(pos, tmap, SEED)
-    rel_ladder = (0.1, 0.25, 0.5, 1.0, 2.0)
+    rel_ladder = tuple(float(x) for x in a.rel_ladder.split(",") if x.strip())
+    if 1.0 not in rel_ladder:
+        raise SystemExit(f"ABORT 剂量梯必须含 α_rel=1.0（判决 R-3/R-4/R-5/R-6 都在那里取数）：{rel_ladder}")
     # ⚠⚠⚠ 变体清单必须与判决块引用的键**逐字对齐**。
     #   第二版漏了两处，两处都以「剂量键不存在」的形式**响亮**炸出来
     #   （这个守卫救了一次命）：
@@ -359,7 +404,12 @@ def main() -> int:
                 f"（Wait {_dg_ref:+.4f}， the {_dg_ctl:+.4f}）⇒ 读数不可用。")
 
         row = {"traj": tid, "t": c["t"], "inj": pos_read,
-               "npz_row": c["t"], "n_prompt": n_pre, "marker_id": cur, "d": d}
+               "npz_row": c["t"], "n_prompt": n_pre, "marker_id": cur,
+               # 分组用的标签。`marker_text` 是**该位置实际写的那个 token**，
+               # 不是「哪一类」—— 修订 3 的 A 组按它的词干归类。
+               "marker_text": tk.decode([cur]),
+               "is_correct": bool(correct.get(tid, None)),
+               "d": d}
         results.append(row)
         if ci % 1 == 0:
             print(f"  [{ci}/{len(cases)}]")
@@ -434,17 +484,19 @@ def main() -> int:
         dd = np.sqrt((rx ** 2).sum() * (ry ** 2).sum())
         return float((rx * ry).sum() / dd) if dd else 0.0
 
+    # ⚠⚠ 剂量键必须**按实际档位生成**，不能写死。
+    #   写死过一版（REL_POS 固定 6 档），而修订 3 把梯子精简成
+    #   {0.5, 1.0}，于是判决取数时找不到 w|rel+0.10 / +0.25 / +2.00。
+    #   这个错被 `mean_delta` 的「剂量键不存在」守卫**响亮**拦住了 ——
+    #   若没有那条守卫，它会退化成静默截断，读数看着仍然完整。
     # ⚠ 第一格必须是 α=0：mean_delta 拿 keys[0] 当基线。
-    ABS_POS = ["w|abs+0.0", "w|abs+0.5", "w|abs+1.0", "w|abs+2.0", "w|abs+4.0"]
-    ABS_NEG = ["w|abs-0.5", "w|abs-1.0", "w|abs-2.0", "w|abs-4.0"]
-    REL_POS = ["w|rel+0.00", "w|rel+0.10", "w|rel+0.25", "w|rel+0.50",
-               "w|rel+1.00", "w|rel+2.00"]
-    REL_NEG = ["w|rel-0.10", "w|rel-0.25", "w|rel-0.50", "w|rel-1.00"]
-    RND_ABS = ["rand|abs+0.0", "rand|abs+0.5", "rand|abs+1.0",
-               "rand|abs+2.0", "rand|abs+4.0"]
-    RND_REL = ["rand|rel+0.00", "rand|rel+0.10", "rand|rel+0.25",
-               "rand|rel+0.50", "rand|rel+1.00", "rand|rel+2.00"]
-    I_R1 = 4          # REL_POS 里 α_rel=1.0 的下标
+    ABS_POS = ["w|abs+0.0"] + [f"w|abs{al:+.1f}" for al in ALPHAS]
+    ABS_NEG = [f"w|abs{-al:+.1f}" for al in ALPHAS if al > 0]
+    REL_POS = ["w|rel+0.00"] + [f"w|rel{al:+.2f}" for al in rel_ladder]
+    REL_NEG = [f"w|rel{-al:+.2f}" for al in rel_ladder]
+    RND_ABS = ["rand|abs+0.0"] + [f"rand|abs{al:+.1f}" for al in ALPHAS]
+    RND_REL = ["rand|rel+0.00"] + [f"rand|rel{al:+.2f}" for al in rel_ladder]
+    I_R1 = 1 + list(rel_ladder).index(1.0)   # REL_POS 里 α_rel=1.0 的下标
 
     d_pos = mean_delta(results, ABS_POS)
     d_neg = mean_delta(results, ABS_NEG)
@@ -507,6 +559,67 @@ def main() -> int:
     for k, v in zip(RND_REL, rr_pos):
         print(f"  随机 {k:12s}  Δmarker {v:+.4f}")
 
+    # ---- 分组分析（PREREG 修订 3 R-13，取数前已写死）----
+    # ⚠⚠ 一律**按轨迹聚合**：位置之间不独立（§8 局限 2），
+    #   组内先对轨迹取均值，再对轨迹取均值 ——
+    #   直接把位置当独立样本会让样本量虚高 5 倍（121 位置 / 22 轨迹）。
+    K1 = "w|rel+1.00"
+    K0 = "w|rel+0.00"
+
+    def traj_delta(rows_):
+        """每条轨迹内先算 Δ，再对轨迹取均值。"""
+        by_t = {}
+        for r in rows_:
+            by_t.setdefault(r["traj"], []).append(
+                r["d"][K1]["mark"] - r["d"][K0]["mark"])
+        return {t: float(np.mean(v)) for t, v in by_t.items()}
+
+    td = traj_delta(results)
+
+    def stem(txt):
+        t = txt.strip().lower()
+        for k in ("wait", "let", "hmm", "mayb"):
+            if t.startswith(k[:3]):
+                return {"wait": "Wait", "let": "Let",
+                        "hmm": "Hmm", "mayb": "maybe"}.get(k[:4], "?")
+        return "其他"
+
+    grp_type, grp_ok = {}, {}
+    for r in results:
+        grp_type.setdefault(stem(r["marker_text"]), []).append(r)
+        grp_ok.setdefault("答对" if r["is_correct"] else "答错", []).append(r)
+
+    print("\n=== 分组：Δmarker(α_rel=1)，按轨迹聚合（PREREG 修订 3）===")
+    print("  A 组 按标记词类型：")
+    sub_type = {}
+    for g, rs in sorted(grp_type.items()):
+        d = traj_delta(rs)
+        if not d:
+            continue
+        sub_type[g] = float(np.mean(list(d.values())))
+        print(f"    {g:6s} 轨迹 {len(d):2d} 条 / 位置 {len(rs):2d} 个  "
+              f"Δ {sub_type[g]:+.4f}")
+    print("  B 组 按轨迹对错：")
+    sub_ok = {}
+    for g, rs in sorted(grp_ok.items()):
+        d = traj_delta(rs)
+        if not d:
+            continue
+        sub_ok[g] = float(np.mean(list(d.values())))
+        print(f"    {g:4s} 轨迹 {len(d):2d} 条 / 位置 {len(rs):2d} 个  "
+              f"Δ {sub_ok[g]:+.4f}")
+
+    def same_sign(dd):
+        vv = [v for v in dd.values() if abs(v) > NOISE]
+        return len(vv) >= 2 and (all(v > 0 for v in vv) or all(v < 0 for v in vv))
+
+    def same_sign_flat(dd):
+        vv = [v for v in dd.values() if abs(v) > NOISE]
+        return len(vv) >= 2 and (all(v > 0 for v in vv) or all(v < 0 for v in vv))
+
+    r5 = same_sign_flat(sub_type) and len(sub_type) >= 2
+    r6 = same_sign_flat(sub_ok) and len(sub_ok) == 2
+
     verdicts = [
         {"name": "C-1 α=0 与未注入逐位一致（装置自检）", "ok": True,
          "detail": "见上方自检"},
@@ -553,6 +666,14 @@ def main() -> int:
          "ok": abs(rt_at1) >= 1.2 * abs(r_ctl[I_R1]),
          "detail": f"{abs(rt_at1):.4f} vs {abs(r_ctl[I_R1]):.4f} → "
                    f"比值 {abs(rt_at1) / max(1e-9, abs(r_ctl[I_R1])):.3f}"},
+        # ↓ 修订 3 的两条：**只判方向，不设阈值** —— 不给「看到结果后
+        #   调门槛」留余地。同号 ⇒ 效应与该维度无关；异号 ⇒ 必须单列。
+        {"name": "R-5 各标记词类型的 Δ 同号（效应与类型无关）",
+         "ok": bool(r5),
+         "detail": " ".join(f"{g}:{v:+.3f}" for g, v in sub_type.items())},
+        {"name": "R-6 答对组与答错组的 Δ 同号（效应与对错无关）",
+         "ok": bool(r6),
+         "detail": " ".join(f"{g}:{v:+.3f}" for g, v in sub_ok.items())},
     ]
     print("\n=== 判决（旧梯 = 预登记口径，新梯 = 标定后口径，两条都报）===")
     for v in verdicts:
@@ -574,6 +695,9 @@ def main() -> int:
            "rho_pos": rho_pos, "rho_neg": rho_neg, "rho_shuf": rho_shuf,
            "rho_rel_pos": rho_rpos, "rho_rel_neg": rho_rneg,
            "device_sign_Wait": g1[1], "device_sign_the": g2[1],
+           "noise_floor": NOISE,
+           "sub_type": sub_type, "sub_correct": sub_ok,
+           "n_traj": n_traj_used, "n_traj_correct": n_ok,
            "verdicts": verdicts, "verdict": "PASS" if allok else "FAIL",
            "caveats": [
                "teacher-forced：读的是「给定前文时下一个 token 的分布」，"
