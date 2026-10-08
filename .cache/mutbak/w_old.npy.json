@@ -1,0 +1,18 @@
+{
+ "npz_dir": "datasets/aime_qwen3_1p7b_16k_fp16/aime",
+ "n_train_traj": 24,
+ "sign_gap": 0.32266640793584284,
+ "class_gap": 319.8948669433594,
+ "w_norm": 1.0,
+ "layer": 20,
+ "seed": 42,
+ "marker_ids": [
+  13824,
+  14190,
+  6771,
+  10061,
+  7196,
+  88190,
+  80022
+ ]
+}

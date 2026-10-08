@@ -191,14 +191,14 @@ def main():
     ap.add_argument("--limit-traj", type=int, default=None)
     ap.add_argument("--gpu-uuid", default=None)
     ap.add_argument("--smoke", action="store_true", help="只跑 3 条轨迹的装置符号基准")
+    ap.add_argument("--train-only", action="store_true",
+                    help="只训 w 并存成 .npy 后退出：**不加载模型、不需要 GPU**。"
+                         "训练只吃 npz 的 hidden_states，所以可以在本机跑，"
+                         "用来产出 P2b 需要的 w_old。")
+    ap.add_argument("--w-out", default=None, help="--train-only 时 w 的输出路径")
     a = ap.parse_args()
 
-    import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
     MODEL = "/home/zhourui/.cache/huggingface/models/Qwen--Qwen3-1.7B/snapshots/master"
-    if a.gpu_uuid:
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"GPU-{a.gpu_uuid}"
-    tok = AutoTokenizer.from_pretrained(MODEL)
 
     lab = {r["traj"]: r for r in json.load(open(a.labels, encoding="utf-8"))["rows"]}
 
@@ -242,11 +242,30 @@ def main():
         print(f"[方向] |w|={np.linalg.norm(W):.4f}  正负打分差={sgn:.3f}  类间间距={gap:.3f}")
         del X, y
 
+    # 分词器与模型都**不是训练 w 所需** —— 训练只吃 npz 的 hidden_states。
+    # 所以 train-only 必须在加载它们之前返回，否则本机（无该模型缓存）会直接报
+    # HFValidationError（远端模型路径在本机不存在）。
+    if a.train_only:
+        out_w = a.w_out or (a.out + ".w.npy")
+        np.save(out_w, W)
+        meta = {"npz_dir": a.npz_dir, "n_train_traj": len(train_tids),
+                "sign_gap": sgn, "class_gap": gap, "w_norm": float(np.linalg.norm(W)),
+                "layer": LAYER, "seed": 42, "marker_ids": MARKER_IDS}
+        json.dump(meta, open(out_w + ".json", "w"), ensure_ascii=False, indent=1)
+        print(f"[train-only] 写出 {out_w}（|w|={float(np.linalg.norm(W)):.4f}, "
+              f"类间间距={gap:.3f}, 训练轨迹 {len(train_tids)} 条）")
+        return 0
+
     rng = np.random.default_rng(42)
     W_rand = rng.standard_normal(2048).astype(np.float32)
     W_rand /= np.linalg.norm(W_rand)
 
     # ---- 装置符号基准 P9 ----
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    if a.gpu_uuid:
+        os.environ["CUDA_VISIBLE_DEVICES"] = f"GPU-{a.gpu_uuid}"
+    tok = AutoTokenizer.from_pretrained(MODEL)
     model = AutoModelForCausalLM.from_pretrained(
         MODEL, dtype=torch.bfloat16).to("cuda:0").eval()
     fwd = make_forward(model, tok)
