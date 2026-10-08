@@ -1,0 +1,224 @@
+{
+ "rows": [
+  {
+   "traj": "aime__aime25__p00__no_think",
+   "mode": "no_think",
+   "n_tok": 757,
+   "truncated": false,
+   "n_markers": 2,
+   "n_sampled": 2,
+   "label": "correct"
+  },
+  {
+   "traj": "aime__aime25__p00__think",
+   "mode": "think",
+   "n_tok": 3309,
+   "truncated": false,
+   "n_markers": 33,
+   "n_sampled": 6,
+   "label": "correct"
+  },
+  {
+   "traj": "aime__aime25__p01__no_think",
+   "mode": "no_think",
+   "n_tok": 2515,
+   "truncated": false,
+   "n_markers": 11,
+   "n_sampled": 5,
+   "label": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p01__think",
+   "mode": "think",
+   "n_tok": 8192,
+   "truncated": true,
+   "n_markers": 133,
+   "n_sampled": 6,
+   "label": "correct"
+  },
+  {
+   "traj": "aime__aime25__p02__no_think",
+   "mode": "no_think",
+   "n_tok": 1124,
+   "truncated": false,
+   "n_markers": 4,
+   "n_sampled": 4,
+   "label": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p02__think",
+   "mode": "think",
+   "n_tok": 7938,
+   "truncated": false,
+   "n_markers": 65,
+   "n_sampled": 6,
+   "label": "correct"
+  },
+  {
+   "traj": "aime__aime25__p03__no_think",
+   "mode": "no_think",
+   "n_tok": 2005,
+   "truncated": false,
+   "n_markers": 8,
+   "n_sampled": 5,
+   "label": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p03__think",
+   "mode": "think",
+   "n_tok": 7303,
+   "truncated": false,
+   "n_markers": 63,
+   "n_sampled": 6,
+   "label": "correct"
+  },
+  {
+   "traj": "aime__aime25__p04__no_think",
+   "mode": "no_think",
+   "n_tok": 1737,
+   "truncated": false,
+   "n_markers": 6,
+   "n_sampled": 4,
+   "label": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p04__think",
+   "mode": "think",
+   "n_tok": 8192,
+   "truncated": true,
+   "n_markers": 80,
+   "n_sampled": 6,
+   "label": "unlabeled"
+  },
+  {
+   "traj": "aime__aime25__p05__no_think",
+   "mode": "no_think",
+   "n_tok": 441,
+   "truncated": false,
+   "n_markers": 0,
+   "n_sampled": 0,
+   "label": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p05__think",
+   "mode": "think",
+   "n_tok": 3434,
+   "truncated": false,
+   "n_markers": 28,
+   "n_sampled": 6,
+   "label": "correct"
+  },
+  {
+   "traj": "aime__aime25__p06__no_think",
+   "mode": "no_think",
+   "n_tok": 2033,
+   "truncated": false,
+   "n_markers": 9,
+   "n_sampled": 6,
+   "label": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p06__think",
+   "mode": "think",
+   "n_tok": 8192,
+   "truncated": true,
+   "n_markers": 39,
+   "n_sampled": 6,
+   "label": "unlabeled"
+  },
+  {
+   "traj": "aime__aime25__p07__no_think",
+   "mode": "no_think",
+   "n_tok": 4014,
+   "truncated": false,
+   "n_markers": 15,
+   "n_sampled": 6,
+   "label": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p07__think",
+   "mode": "think",
+   "n_tok": 6003,
+   "truncated": false,
+   "n_markers": 48,
+   "n_sampled": 6,
+   "label": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p08__no_think",
+   "mode": "no_think",
+   "n_tok": 1998,
+   "truncated": false,
+   "n_markers": 5,
+   "n_sampled": 4,
+   "label": "correct"
+  },
+  {
+   "traj": "aime__aime25__p08__think",
+   "mode": "think",
+   "n_tok": 8192,
+   "truncated": true,
+   "n_markers": 61,
+   "n_sampled": 6,
+   "label": "unlabeled"
+  },
+  {
+   "traj": "aime__aime25__p09__no_think",
+   "mode": "no_think",
+   "n_tok": 764,
+   "truncated": false,
+   "n_markers": 2,
+   "n_sampled": 2,
+   "label": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p09__think",
+   "mode": "think",
+   "n_tok": 8192,
+   "truncated": true,
+   "n_markers": 31,
+   "n_sampled": 6,
+   "label": "unlabeled"
+  },
+  {
+   "traj": "aime__aime25__p10__no_think",
+   "mode": "no_think",
+   "n_tok": 2357,
+   "truncated": false,
+   "n_markers": 3,
+   "n_sampled": 3,
+   "label": "wrong"
+  },
+  {
+   "traj": "aime__aime25__p10__think",
+   "mode": "think",
+   "n_tok": 8192,
+   "truncated": true,
+   "n_markers": 84,
+   "n_sampled": 6,
+   "label": "unlabeled"
+  }
+ ],
+ "agg": {
+  "think": {
+   "n_traj": 11,
+   "positions": 66,
+   "correct": 5,
+   "wrong": 1,
+   "unlabeled": 5,
+   "enough": false
+  },
+  "no_think": {
+   "n_traj": 11,
+   "positions": 41,
+   "correct": 2,
+   "wrong": 9,
+   "unlabeled": 0,
+   "enough": true
+  }
+ },
+ "rules": {
+  "max_pos_per_traj": 6,
+  "min_wrong_traj": 8
+ }
+}
