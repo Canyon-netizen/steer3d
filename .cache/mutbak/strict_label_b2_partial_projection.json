@@ -1,0 +1,91 @@
+{
+ "input": ".cache/mutbak/strict_label_b2_partial.json",
+ "summary": {
+  "no_think": {
+   "n_problems": 15,
+   "correct": 2,
+   "wrong": 11,
+   "truncated": 2,
+   "rate_correct": 0.13333333333333333,
+   "rate_wrong": 0.7333333333333333,
+   "wilson_correct": [
+    0.037360469891359285,
+    0.3788249920651624
+   ],
+   "wilson_wrong": [
+    0.48049110342313245,
+    0.8910272389681717
+   ]
+  },
+  "think": {
+   "n_problems": 15,
+   "correct": 5,
+   "wrong": 1,
+   "truncated": 10,
+   "rate_correct": 0.3333333333333333,
+   "rate_wrong": 0.06666666666666667,
+   "wilson_correct": [
+    0.15176100694691236,
+    0.5828687484878702
+   ],
+   "wilson_wrong": [
+    0.011866588606194859,
+    0.29817077552423993
+   ]
+  }
+ },
+ "targets": {
+  "30": {
+   "no_think": {
+    "correct": 4.0,
+    "wrong": 22.0
+   },
+   "think": {
+    "correct": 10.0,
+    "wrong": 2.0
+   }
+  },
+  "60": {
+   "no_think": {
+    "correct": 8.0,
+    "wrong": 44.0
+   },
+   "think": {
+    "correct": 20.0,
+    "wrong": 4.0
+   }
+  },
+  "90": {
+   "no_think": {
+    "correct": 12.0,
+    "wrong": 66.0
+   },
+   "think": {
+    "correct": 30.0,
+    "wrong": 6.0
+   }
+  },
+  "120": {
+   "no_think": {
+    "correct": 16.0,
+    "wrong": 88.0
+   },
+   "think": {
+    "correct": 40.0,
+    "wrong": 8.0
+   }
+  },
+  "150": {
+   "no_think": {
+    "correct": 20.0,
+    "wrong": 109.99999999999999
+   },
+   "think": {
+    "correct": 50.0,
+    "wrong": 10.0
+   }
+  }
+ },
+ "min_correct": 10,
+ "min_wrong": 8
+}
