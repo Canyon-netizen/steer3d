@@ -32,12 +32,16 @@ def main(inp, targets):
     d = json.load(open(inp, encoding="utf-8"))
     rows = d["rows"]
 
-    # 按题号归并：文件名形如 aime__aime25__pNN__<mode>
+    # 按题号归并：文件名形如 aime__<split>__pNN__<mode>。
+    # ⚠ 题号只在**同一 split 内**唯一：aime25__p19 与 aime26__p19 是两道不同的题。
+    #   只取 pNN 会把两道题并成一条，外推出「触顶 130%」这种自相矛盾的东西。
     by = {}
     for r in rows:
-        stem = r["traj"]
-        parts = stem.split("__")
-        pid = parts[-2] if parts[-1] in ("think", "no_think") else parts[-1]
+        parts = r["traj"].split("__")
+        if parts[-1] in ("think", "no_think"):
+            pid = "__".join(parts[:-1])          # 含 split，保证跨 split 唯一
+        else:
+            pid = parts[-1]
         by.setdefault((r["mode"], pid), []).append(r)
 
     modes = sorted({m for m, _ in by})
