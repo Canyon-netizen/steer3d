@@ -1,0 +1,203 @@
+{
+ "schema": "pick_hi_sites/1",
+ "prereg": "R6_RERUN_PREREG.md 修订 28 §28.1",
+ "rule": "字典序取前 30 条未测轨迹；每条取全部 w·ĥ>0.1 的 marker 位点；不按 frac/n_hi 排序；选材只依赖预测量，不依赖 Δ",
+ "excluded_rev22": [
+  "aime__aime25__p02__think",
+  "aime__aime25__p03__think",
+  "aime__aime25__p04__think",
+  "aime__aime25__p05__think",
+  "aime__aime25__p06__think",
+  "aime__aime25__p07__think",
+  "aime__aime25__p08__think",
+  "aime__aime25__p09__think",
+  "aime__aime25__p10__think",
+  "aime__aime25__p11__think"
+ ],
+ "n_tracks": 30,
+ "n_sites": 453,
+ "n_zero_contrib": 1,
+ "n_tracks_ge8": 21,
+ "tracks": [
+  {
+   "traj": "aime__aime25__p12__think",
+   "n_hi": 56,
+   "n_sites": 132,
+   "frac": 0.42424242424242425
+  },
+  {
+   "traj": "aime__aime25__p13__think",
+   "n_hi": 18,
+   "n_sites": 159,
+   "frac": 0.11320754716981132
+  },
+  {
+   "traj": "aime__aime25__p14__think",
+   "n_hi": 31,
+   "n_sites": 85,
+   "frac": 0.36470588235294116
+  },
+  {
+   "traj": "aime__aime25__p15__think",
+   "n_hi": 6,
+   "n_sites": 47,
+   "frac": 0.1276595744680851
+  },
+  {
+   "traj": "aime__aime25__p16__think",
+   "n_hi": 16,
+   "n_sites": 64,
+   "frac": 0.25
+  },
+  {
+   "traj": "aime__aime25__p17__think",
+   "n_hi": 31,
+   "n_sites": 120,
+   "frac": 0.25833333333333336
+  },
+  {
+   "traj": "aime__aime25__p18__think",
+   "n_hi": 4,
+   "n_sites": 49,
+   "frac": 0.08163265306122448
+  },
+  {
+   "traj": "aime__aime25__p19__think",
+   "n_hi": 13,
+   "n_sites": 132,
+   "frac": 0.09848484848484848
+  },
+  {
+   "traj": "aime__aime25__p20__think",
+   "n_hi": 10,
+   "n_sites": 93,
+   "frac": 0.10752688172043011
+  },
+  {
+   "traj": "aime__aime25__p21__think",
+   "n_hi": 9,
+   "n_sites": 57,
+   "frac": 0.15789473684210525
+  },
+  {
+   "traj": "aime__aime25__p22__think",
+   "n_hi": 19,
+   "n_sites": 74,
+   "frac": 0.25675675675675674
+  },
+  {
+   "traj": "aime__aime25__p23__think",
+   "n_hi": 23,
+   "n_sites": 79,
+   "frac": 0.2911392405063291
+  },
+  {
+   "traj": "aime__aime25__p24__think",
+   "n_hi": 16,
+   "n_sites": 106,
+   "frac": 0.1509433962264151
+  },
+  {
+   "traj": "aime__aime25__p25__think",
+   "n_hi": 7,
+   "n_sites": 123,
+   "frac": 0.056910569105691054
+  },
+  {
+   "traj": "aime__aime25__p26__think",
+   "n_hi": 8,
+   "n_sites": 65,
+   "frac": 0.12307692307692308
+  },
+  {
+   "traj": "aime__aime25__p27__think",
+   "n_hi": 26,
+   "n_sites": 148,
+   "frac": 0.17567567567567569
+  },
+  {
+   "traj": "aime__aime25__p28__think",
+   "n_hi": 14,
+   "n_sites": 111,
+   "frac": 0.12612612612612611
+  },
+  {
+   "traj": "aime__aime25__p29__think",
+   "n_hi": 10,
+   "n_sites": 98,
+   "frac": 0.10204081632653061
+  },
+  {
+   "traj": "aime__aime26__p01__think",
+   "n_hi": 1,
+   "n_sites": 17,
+   "frac": 0.058823529411764705
+  },
+  {
+   "traj": "aime__aime26__p02__think",
+   "n_hi": 0,
+   "n_sites": 96,
+   "frac": 0.0
+  },
+  {
+   "traj": "aime__aime26__p03__think",
+   "n_hi": 4,
+   "n_sites": 41,
+   "frac": 0.0975609756097561
+  },
+  {
+   "traj": "aime__aime26__p04__think",
+   "n_hi": 1,
+   "n_sites": 45,
+   "frac": 0.022222222222222223
+  },
+  {
+   "traj": "aime__aime26__p05__think",
+   "n_hi": 26,
+   "n_sites": 140,
+   "frac": 0.18571428571428572
+  },
+  {
+   "traj": "aime__aime26__p06__think",
+   "n_hi": 19,
+   "n_sites": 131,
+   "frac": 0.1450381679389313
+  },
+  {
+   "traj": "aime__aime26__p07__think",
+   "n_hi": 38,
+   "n_sites": 110,
+   "frac": 0.34545454545454546
+  },
+  {
+   "traj": "aime__aime26__p08__think",
+   "n_hi": 12,
+   "n_sites": 88,
+   "frac": 0.13636363636363635
+  },
+  {
+   "traj": "aime__aime26__p09__think",
+   "n_hi": 16,
+   "n_sites": 36,
+   "frac": 0.4444444444444444
+  },
+  {
+   "traj": "aime__aime26__p10__think",
+   "n_hi": 6,
+   "n_sites": 87,
+   "frac": 0.06896551724137931
+  },
+  {
+   "traj": "aime__aime26__p11__think",
+   "n_hi": 8,
+   "n_sites": 61,
+   "frac": 0.13114754098360656
+  },
+  {
+   "traj": "aime__aime26__p12__think",
+   "n_hi": 5,
+   "n_sites": 71,
+   "frac": 0.07042253521126761
+  }
+ ]
+}
