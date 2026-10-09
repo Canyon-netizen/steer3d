@@ -1,0 +1,76 @@
+{
+ "schema": "orthogonality_q3_verdict/1",
+ "prereg": "R6_RERUN_PREREG.md 修订 17 §17.3/§17.4",
+ "input": ".cache/mutbak/orthogonality_nt8.json",
+ "traj": [
+  "aime__aime25__p11__no_think",
+  "aime__aime26__p14__no_think",
+  "aime__aime26__p13__no_think",
+  "aime__aime26__p25__no_think",
+  "aime__aime26__p18__no_think",
+  "aime__aime25__p07__no_think",
+  "aime__aime25__p21__no_think",
+  "aime__aime25__p28__no_think",
+  "aime__aime25__p00__think",
+  "aime__aime25__p01__think"
+ ],
+ "no_think_top_n": 8,
+ "noise_p95": 1.0,
+ "n_sites": 494,
+ "n_above": 140,
+ "by_mode": {
+  "no_think": {
+   "n": 19,
+   "k": 6,
+   "agree_hi": 6,
+   "agree_lo": 6,
+   "rho_eff": 0.1563,
+   "direction": "打平（无方向证据）",
+   "n_above_0.1_orth": 2,
+   "groups": {
+    "w·ĥ>0": {
+     "n": 1,
+     "median": 1.1249,
+     "frac_pos": 1.0
+    },
+    "w·ĥ≈0": {
+     "n": 17,
+     "median": 1.126,
+     "frac_pos": 0.941
+    },
+    "w·ĥ<0": {
+     "n": 1,
+     "median": 1.004,
+     "frac_pos": 1.0
+    }
+   }
+  },
+  "think": {
+   "n": 121,
+   "k": 40,
+   "agree_hi": 10,
+   "agree_lo": 28,
+   "rho_eff": -0.4177,
+   "direction": "反（H 反转）",
+   "n_above_0.1_orth": 21,
+   "groups": {
+    "w·ĥ>0": {
+     "n": 20,
+     "median": -1.9159,
+     "frac_pos": 0.0
+    },
+    "w·ĥ≈0": {
+     "n": 100,
+     "median": 1.5042,
+     "frac_pos": 0.67
+    },
+    "w·ĥ<0": {
+     "n": 1,
+     "median": 1.0003,
+     "frac_pos": 1.0
+    }
+   }
+  }
+ },
+ "final": "无法判定：no_think 两组同号率打平（6/6 vs 6/6），且 |w·ĥ|>0.1 的位点仅 4 个 ⇒ Q1 的分组边界在这批数据上切不出样本"
+}
