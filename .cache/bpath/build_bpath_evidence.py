@@ -59,6 +59,22 @@ def main():
     assert abs(_old["alpha"] - layer["alpha"]) > 1e-6, \
         "臂 A 与臂 B 的 alpha 相同，说明读到了同一份产物，臂别搞混了"
     dose = jload(M / "dose_sweep_B.json")
+    # 预登记修订 16/17/18：正交度探针与 Q3 判定。
+    # ⚠ 两份产物测的是**同一批 think 轨迹**，但 no_think 子集不同
+    # （15 版 2 条 / 17 版 8 条机械选出）⇒ 数字不能混用，各自标注来源。
+    ortho = jload(M / "orthogonality.json")          # 179 位点，修订 16 的 Q1/Q2/Q4
+    ortho_nt8 = jload(M / "orthogonality_nt8.json")  # 494 位点，修订 17/18 的 Q3
+    q3v = jload(M / "q3_verdict.json")
+
+    # ⚠ 断言两份是不同批次的读数（与层扫描那个坑同一类：文件名不含作用域）
+    # `no_think_top_n` 是修订 17 才加进探针的 ⇒ 旧批次（orthogonality.json）里
+    # **根本没有这个键**，此时它等价于「未做补测」，用 .get 取默认值。
+    assert ortho.get("no_think_top_n") in (0, None), \
+        "orthogonality.json 应当是修订 15 的原始批次"
+    assert ortho_nt8["no_think_top_n"] == 8, "orthogonality_nt8.json 应当是修订 17 的补测"
+    assert len(ortho["rows"]) != len(ortho_nt8["rows"]), "两份产物行数相同，批次可能串了"
+    assert abs(ortho["rel_ladder"][-1] - ortho_nt8["rel_ladder"][-1]) < 1e-9, \
+        "两批的剂量阶梯不一致"
 
     # ---------- 1. 坐标系（守卫自己报的，不是手填的）----------
     coord = {
@@ -181,13 +197,56 @@ def main():
         "rows": prof,
     }
 
-    # ---------- 6. 挂到八级阶梯 ----------
+    # ---------- 4b. 正交度探针（修订 16–18）：H 被证伪 ----------
+    # ⚠ 三个数分属**三份产物**，各自标注，不合并成一个「结论」。
+    tk = q3v["by_mode"]["think"]
+    nt = q3v["by_mode"]["no_think"]
+    tk_ortho = {"largest_third": tk["agree_hi"], "smallest_third": tk["agree_lo"],
+                "k": tk["k"]}
+    ortho_block = {
+        "what": "正交度探针：w 与该处激活的对齐度，不是效应强度的度量",
+        "prereg": "R6_RERUN_PREREG.md 修订 15–18",
+        "hypothesis": ("**H（已证伪）**：有效剂量 ≈ α·(w·ĥ)/‖h‖，"
+                       "即 w 与该处激活对齐越好、注入越有效、符号跟随 w·ĥ。"),
+        "headline": ("**`w` 与该处激活对齐得越好，注入效果越负。**"
+                     f"think 上 `w·ĥ>0` 的 {tk['groups']['w·ĥ>0']['n']} 个超地板位点，"
+                     f"Δ(1.0) 中位 {tk['groups']['w·ĥ>0']['median']:+.4f}、"
+                     f"**{(1-tk['groups']['w·ĥ>0']['frac_pos'])*100:.0f}% 为负**；"
+                     f"而 `w·ĥ≈0` 的 {tk['groups']['w·ĥ≈0']['n']} 个位点中位 "
+                     f"{tk['groups']['w·ĥ≈0']['median']:+.4f}、"
+                     f"{tk['groups']['w·ĥ≈0']['frac_pos']*100:.0f}% 为正。"
+                     "⇒ H 的每一个预测都与实测相反。"),
+        "scale": (f"think {tk_ortho['largest_third']}/{tk_ortho['k']}（对齐大的 1/3）"
+                  f" vs {tk_ortho['smallest_third']}/{tk_ortho['k']}（对齐小的 1/3）同号，"
+                  f"ρ(Δ, 有效剂量) = **{tk['rho_eff']:+.4f}**（H 预测为正）。"),
+        "q3": {
+            "no_think_above_noise": nt["n"],
+            "no_think_direction": nt["direction"],
+            "no_think_rho": nt["rho_eff"],
+            "final": q3v["final"],
+            "note": ("**Q3 报「无法判定」**：no_think 超地板位点只有 "
+                     f"{nt['n']} 个，其中 `|w·ĥ|>0.1` 的仅 {nt['n_above_0.1_orth']} 个，"
+                     "Q1 的分组边界在这批数据上切不出样本；两组同号率打平（6/6 vs 6/6）。"
+                     "**不报 PASS 也不报 FAIL。**"),
+        },
+        "q4_caveat": ("不利证据：**p01__think 有 56/133 个位点随剂量单调降**，"
+                      "H 与「反转」结论都覆盖不到它（反转只占 24 个位点）。"),
+        "scope": ("⚠ 只在 `rel ≤ 1.0`（相对 class_gap）、臂 B、`L=20`、"
+                  "Qwen3-1.7B、marker 位点上成立，**不外推**。"),
+        "groups_think": tk["groups"],
+        "groups_no_think": nt["groups"],
+    }
+
+    # ---------- 5. 挂到八级阶梯 ----------
     ladder = [
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
          "bpath_state": "done",
          "here": f"频次加权 w·U = {read['freq_weighted']:+.5f}，"
                  f"{read['n_ids_positive']}/{read['n_ids']} 个 marker id 为正",
-         "note": "这是**静态**读数，一次前向都不用。"},
+         "note": ("这是**静态**读数，一次前向都不用。"
+                 "⚠ 更强的反证：think 上 `w·ĥ>0` 的 20 个超地板位点"
+                 "**20/20 全负**（中位 −1.92），`w·ĥ≈0` 的 100 个中位 +1.50 —— "
+                 "**对齐得越好，注入效果越负**。见 orthogonality 块。")},
         {"level": "L5", "claim": "这条配方专一到能注入",
          "bpath_state": "missing",
          "here": "0 条（同范数随机方向对照在本项目里只做到了 P9 的基准规模）",
@@ -213,14 +272,17 @@ def main():
         "built_from": [".cache/mutbak/" + n for n in
                        ("w_L19_m0.npy.json", "r6_smoke_L19m0.json",
                         "marker_freq5.json", "layer_sweep_B.json",
-                        "dose_sweep_B.json")],
+                        "dose_sweep_B.json", "orthogonality.json",
+                        "orthogonality_nt8.json", "q3_verdict.json")],
         "selfcheck_passed": True,
-        "selfcheck": "位置+层轴 12/12；P9 判定 11/11（含新旧闸门对照）；判决脚本 26/26",
+        "selfcheck": "位置+层轴 12/12；P9 判定 11/11（含新旧闸门对照）；判决脚本 26/26；"
+                     "正交度判定器（Q3）带类型断言",
         "coordinates": coord,
         "readability_static": read,
         "p9_device_benchmark": p9_block,
         "dose_position_scan": dose_block,
         "layer_profile": layer_block,
+        "orthogonality": ortho_block,
         "ladder_mapping": ladder,
         "answerable": [
             "装置在 no_think 上给出干净、单调、符号正确的剂量响应（正控 5/5）",
@@ -228,8 +290,15 @@ def main():
             "但注入点一移出校准点读数即掉进噪声（|ratio| 0.0000–0.0939 且逐层变号）"
             "⇒ w·U 应在校准点读，中间层读到的量与它无可预测的定量关系",
             "同一 w 在两条 think 上给出相反形态 ⇒ 效应对位置/轨迹敏感",
+            "w 与该处激活的对齐度不是效应强度的度量：think 上 `w·ĥ>0` 的 "
+            "20 个超地板位点 20/20 全负（中位 −1.92），`w·ĥ≈0` 的 100 个中位 +1.50 "
+            "⇒ 正交度假设 H 被证伪（Q1 方向反、ρ=−0.418、Q4 有 56/133 单调降的不利证据）",
         ],
         "not_answerable": [
+            "正交度假设 H 在 no_think 上**无法判定**（Q3）："
+            f"超地板位点仅 {nt['n']} 个、其中 |w·ĥ|>0.1 的只有 {nt['n_above_0.1_orth']} 个，"
+            "分组边界切不出样本，两组同号率打平（6/6 vs 6/6）"
+            "⇒ 既不报 PASS 也不报 FAIL",
             "R-6 的 P6（correct vs wrong 效应方向是否不同）在 think 上做不了",
             "「这条方向能稳定 steering 模型行为」在 think 分布上不成立",
         ],

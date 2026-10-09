@@ -7,10 +7,13 @@
   ".cache/mutbak/r6_smoke_L19m0.json",
   ".cache/mutbak/marker_freq5.json",
   ".cache/mutbak/layer_sweep_B.json",
-  ".cache/mutbak/dose_sweep_B.json"
+  ".cache/mutbak/dose_sweep_B.json",
+  ".cache/mutbak/orthogonality.json",
+  ".cache/mutbak/orthogonality_nt8.json",
+  ".cache/mutbak/q3_verdict.json"
  ],
  "selfcheck_passed": true,
- "selfcheck": "位置+层轴 12/12；P9 判定 11/11（含新旧闸门对照）；判决脚本 26/26",
+ "selfcheck": "位置+层轴 12/12；P9 判定 11/11（含新旧闸门对照）；判决脚本 26/26；正交度判定器（Q3）带类型断言",
  "coordinates": {
   "layer_block": 20,
   "npz_layer": 19,
@@ -376,13 +379,63 @@
    }
   ]
  },
+ "orthogonality": {
+  "what": "正交度探针：w 与该处激活的对齐度，不是效应强度的度量",
+  "prereg": "R6_RERUN_PREREG.md 修订 15–18",
+  "hypothesis": "**H（已证伪）**：有效剂量 ≈ α·(w·ĥ)/‖h‖，即 w 与该处激活对齐越好、注入越有效、符号跟随 w·ĥ。",
+  "headline": "**`w` 与该处激活对齐得越好，注入效果越负。**think 上 `w·ĥ>0` 的 20 个超地板位点，Δ(1.0) 中位 -1.9159、**100% 为负**；而 `w·ĥ≈0` 的 100 个位点中位 +1.5042、67% 为正。⇒ H 的每一个预测都与实测相反。",
+  "scale": "think 10/40（对齐大的 1/3） vs 28/40（对齐小的 1/3）同号，ρ(Δ, 有效剂量) = **-0.4177**（H 预测为正）。",
+  "q3": {
+   "no_think_above_noise": 19,
+   "no_think_direction": "打平（无方向证据）",
+   "no_think_rho": 0.1563,
+   "final": "无法判定：no_think 两组同号率打平（6/6 vs 6/6），且 |w·ĥ|>0.1 的位点仅 4 个 ⇒ Q1 的分组边界在这批数据上切不出样本",
+   "note": "**Q3 报「无法判定」**：no_think 超地板位点只有 19 个，其中 `|w·ĥ|>0.1` 的仅 2 个，Q1 的分组边界在这批数据上切不出样本；两组同号率打平（6/6 vs 6/6）。**不报 PASS 也不报 FAIL。**"
+  },
+  "q4_caveat": "不利证据：**p01__think 有 56/133 个位点随剂量单调降**，H 与「反转」结论都覆盖不到它（反转只占 24 个位点）。",
+  "scope": "⚠ 只在 `rel ≤ 1.0`（相对 class_gap）、臂 B、`L=20`、Qwen3-1.7B、marker 位点上成立，**不外推**。",
+  "groups_think": {
+   "w·ĥ>0": {
+    "n": 20,
+    "median": -1.9159,
+    "frac_pos": 0.0
+   },
+   "w·ĥ≈0": {
+    "n": 100,
+    "median": 1.5042,
+    "frac_pos": 0.67
+   },
+   "w·ĥ<0": {
+    "n": 1,
+    "median": 1.0003,
+    "frac_pos": 1.0
+   }
+  },
+  "groups_no_think": {
+   "w·ĥ>0": {
+    "n": 1,
+    "median": 1.1249,
+    "frac_pos": 1.0
+   },
+   "w·ĥ≈0": {
+    "n": 17,
+    "median": 1.126,
+    "frac_pos": 0.941
+   },
+   "w·ĥ<0": {
+    "n": 1,
+    "median": 1.004,
+    "frac_pos": 1.0
+   }
+  }
+ },
  "ladder_mapping": [
   {
    "level": "L2",
    "claim": "这个方向线性编码了观测量 y",
    "bpath_state": "done",
    "here": "频次加权 w·U = +0.18424，7/7 个 marker id 为正",
-   "note": "这是**静态**读数，一次前向都不用。"
+   "note": "这是**静态**读数，一次前向都不用。⚠ 更强的反证：think 上 `w·ĥ>0` 的 20 个超地板位点**20/20 全负**（中位 −1.92），`w·ĥ≈0` 的 100 个中位 +1.50 —— **对齐得越好，注入效果越负**。见 orthogonality 块。"
   },
   {
    "level": "L5",
@@ -409,9 +462,11 @@
  "answerable": [
   "装置在 no_think 上给出干净、单调、符号正确的剂量响应（正控 5/5）",
   "α·(w·U) 在校准点精确成立（实测/预测 0.987 / 0.981），但注入点一移出校准点读数即掉进噪声（|ratio| 0.0000–0.0939 且逐层变号）⇒ w·U 应在校准点读，中间层读到的量与它无可预测的定量关系",
-  "同一 w 在两条 think 上给出相反形态 ⇒ 效应对位置/轨迹敏感"
+  "同一 w 在两条 think 上给出相反形态 ⇒ 效应对位置/轨迹敏感",
+  "w 与该处激活的对齐度不是效应强度的度量：think 上 `w·ĥ>0` 的 20 个超地板位点 20/20 全负（中位 −1.92），`w·ĥ≈0` 的 100 个中位 +1.50 ⇒ 正交度假设 H 被证伪（Q1 方向反、ρ=−0.418、Q4 有 56/133 单调降的不利证据）"
  ],
  "not_answerable": [
+  "正交度假设 H 在 no_think 上**无法判定**（Q3）：超地板位点仅 19 个、其中 |w·ĥ|>0.1 的只有 2 个，分组边界切不出样本，两组同号率打平（6/6 vs 6/6）⇒ 既不报 PASS 也不报 FAIL",
   "R-6 的 P6（correct vs wrong 效应方向是否不同）在 think 上做不了",
   "「这条方向能稳定 steering 模型行为」在 think 分布上不成立"
  ],

@@ -84,6 +84,17 @@ type BPath = {
     arm: string; arm_note: string; retracted: string;
     rows: { traj: string; mode: string; by_layer: Record<string, number> }[];
   };
+  // 预登记修订 15–18：正交度探针。这是本项目**第一条机制级反直觉结论**，
+  // 且 H 在 no_think 上是「无法判定」而不是「证伪」——两者的措辞必须分开印。
+  orthogonality: {
+    what: string; prereg: string;
+    hypothesis: string; headline: string; scale: string;
+    q3: { no_think_above_noise: number; no_think_direction: string;
+          no_think_rho: number; final: string; note: string };
+    q4_caveat: string; scope: string;
+    groups_think: Record<string, { n: number; median: number; frac_pos: number }>;
+    groups_no_think: Record<string, { n: number; median: number; frac_pos: number }>;
+  };
   ladder_mapping: LadderRow[];
   answerable: string[]; not_answerable: string[];
 };
@@ -195,7 +206,9 @@ export default function BPathPanel() {
          data-think-mono={`${tk ? tk["n_w+_monotone_up"] : "?"}/${tk ? tk.n_traj : "?"}`}
          data-freq-weighted={String(rs.freq_weighted)}
          data-layer-arm={d.layer_profile.arm}
-         data-retracted={d.layer_profile.retracted ? "yes" : "no"}>
+         data-retracted={d.layer_profile.retracted ? "yes" : "no"}
+         data-ortho-think-neg={String(
+           (1 - (d.orthogonality.groups_think["w·ĥ>0"]?.frac_pos ?? 0)) * 100)}>
       <h2 className="text-[12px] font-semibold text-gray-200 mb-0.5">
         干预实验：可读性 ≠ 可控性
       </h2>
@@ -329,6 +342,54 @@ export default function BPathPanel() {
         </p>
       </div>
 
+      {/* ---- 正交度：为什么「对齐好」反而更糟 ---- */}
+      <div className="mb-2" data-bpath-block="ortho">
+        <div className="text-[10px] text-gray-300 mb-1">
+          正交度探针<span className="text-gray-500">（{d.orthogonality.prereg}）</span>
+        </div>
+        <p className="text-[9px] text-gray-500 mb-1 leading-relaxed">
+          曾提出的假设：<Em s={d.orthogonality.hypothesis} />
+        </p>
+        <div className="flex flex-col gap-0.5 mb-1">
+          {(Object.entries(d.orthogonality.groups_think) as
+            [string, { n: number; median: number; frac_pos: number }][]).map(
+            ([lab, g]) => (
+            <div key={lab} className="flex items-center gap-1.5 text-[9px] px-1"
+                 style={{ background: "#101722" }}
+                 data-ortho-group={lab} data-ortho-n={String(g.n)}
+                 data-ortho-median={String(g.median)}
+                 data-ortho-frac-pos={String(g.frac_pos)}>
+              <span className="text-gray-500 w-16">{lab}</span>
+              <span className="text-gray-500 w-12">{g.n} 个</span>
+              <span className={g.median > 0 ? "text-emerald-300" : "text-rose-400"}>
+                Δ 中位 {g.median >= 0 ? "+" : ""}{g.median.toFixed(4)}
+              </span>
+              <span className="text-gray-500">
+                {(g.frac_pos * 100).toFixed(0)}% 为正
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] text-amber-200 mt-1 leading-relaxed">
+          <Em s={d.orthogonality.headline} />
+        </p>
+        <p className="text-[9px] text-gray-400 mt-0.5 leading-relaxed">
+          <Em s={d.orthogonality.scale} />
+        </p>
+        {/* Q3 的「无法判定」必须与 think 的「证伪」分开印：
+            混在一起读起来就像「两边都测了、都反了」。 */}
+        <p className="text-[9px] text-sky-200 mt-1 leading-relaxed"
+           data-ortho-q3={d.orthogonality.q3.no_think_direction}>
+          <Em s={d.orthogonality.q3.note} />
+        </p>
+        <p className="text-[9px] text-gray-500 mt-0.5 leading-relaxed">
+          <Em s={d.orthogonality.q4_caveat} />
+        </p>
+        <p className="text-[9px] text-gray-500 mt-0.5 leading-relaxed">
+          <Em s={d.orthogonality.scope} />
+        </p>
+      </div>
+
       {/* ---- 挂到八级阶梯上 ---- */}
       <div className="flex flex-col gap-1 mb-2" data-bpath-block="ladder">
         {d.ladder_mapping.map((r) => (
@@ -368,11 +429,11 @@ export default function BPathPanel() {
       <div className="flex flex-col gap-1" data-bpath-block="scope">
         <div className="text-[9.5px] text-emerald-200 leading-relaxed">
           <strong>能答：</strong>
-          {d.answerable.map((s, i) => (<span key={i}>（{i + 1}）{s} </span>))}
+          {d.answerable.map((s, i) => (<span key={i}>（{i + 1}）<Em s={s} /> </span>))}
         </div>
         <div className="text-[9.5px] text-rose-200 leading-relaxed">
           <strong>不能答：</strong>
-          {d.not_answerable.map((s, i) => (<span key={i}>（{i + 1}）{s} </span>))}
+          {d.not_answerable.map((s, i) => (<span key={i}>（{i + 1}）<Em s={s} /> </span>))}
         </div>
       </div>
     </div>
