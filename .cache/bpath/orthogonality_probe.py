@@ -112,14 +112,18 @@ def pick_think_fresh(sidecar_dir, n, n_sites):
         k = sum(1 for t in (j.get("tokens") or [])
                 if t.get("token_id") in MARKER_IDS)
         if k:
-            cands.append((tid, k, j.get("n_generated_tokens")))
-    cands.sort()                                   # ← 字典序
+            # ⚠⚠ 必须把该轨迹自己的 tokens 一起带上。
+            # 第一版只存了 (tid, k, n_tok)，循环里再用**残留的上一条 `j`**
+            # 去数 marker 位点 ⇒ 断言 `k == len(ts)` 拿两条不同轨迹的数在比，
+            # 第一条就崩。**断言本身是对的，错的是它比的对象。**
+            cands.append((tid, k, j.get("n_generated_tokens"),
+                          [i for i, t in enumerate(j.get("tokens") or [])
+                           if t.get("token_id") in MARKER_IDS]))
+    cands.sort(key=lambda r: r[0])                # ← 字典序（只按 tid）
     print(f"\n[修订 22] 未测过的 think 轨迹共 {len(cands)} 条，"
           f"按字典序取前 {n} 条：")
     chosen = []
-    for tid, k, nt in cands[:n]:
-        ts = [i for i, t in enumerate(j.get("tokens") or [])
-              if t.get("token_id") in MARKER_IDS]
+    for tid, k, nt, ts in cands[:n]:
         assert k == len(ts), f"{tid} 的 marker 位点数在两次读之间变了"
         # 等距分位（去重后按实有数）
         idx = sorted({int(i * (k - 1) / max(1, n_sites - 1)) for i in range(n_sites)})
