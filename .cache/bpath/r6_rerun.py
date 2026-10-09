@@ -59,14 +59,46 @@ ALPHA = 0.05              # P6
 
 # ---------------------------------------------------------------- 位置抽样 P5
 def sample_markers(marker_idx, n_tok):
+    """按十等分位取样，位置要**铺满整条轨迹**。
+
+    ## 这里修过一个静默偏倚（原实现）
+
+    原实现是 `for b in sorted(buckets)[:6]`，即「前 6 个**非空**分位」。
+    当 10 个分位全非空时它只取第 0–5 分位 ⇒ **轨迹后 40% 被整体丢弃**，
+    而报告里看不出任何异常（位置数照样是 6，代码照样跑通）。
+
+    实测（99 条侧车）：
+
+    | 模式 | 10 分位全非空的轨迹 | 采到分位≥6 的轨迹 | 只覆盖前 60% |
+    |---|---|---|---|
+    | think | 38/50 | 2/50 | **48/50 = 96%** |
+    | no_think | 3/48 | 26/48 | 22/48 = 46% |
+
+    而 think 恰是唯一能过 P6 的模式——原实现会让 R-6 的 think 结论
+    变成一句「**轨迹前 60% 的 marker 上**如何如何」，却照常写成通用结论。
+
+    ## 修法
+
+    1. 在**非空分位**上均匀取最多 MAX_POS_PER_TRAJ 个（覆盖全部跨度），
+       而不是「最靠前的 6 个非空分位」；
+    2. 桶内取**中位**元素而非第一个，避免同一个分位里又偏前。
+
+    改动发生在任何 Δlogprob 产生之前（见预登记修订 6）。
+    """
     if not marker_idx:
         return []
     buckets = defaultdict(list)
     for g in marker_idx:
         buckets[min(9, int(g / max(n_tok, 1) * 10))].append(g)
+    ks = sorted(buckets)
+    if len(ks) > MAX_POS_PER_TRAJ:
+        m = MAX_POS_PER_TRAJ
+        idx = sorted({round(i * (len(ks) - 1) / (m - 1)) for i in range(m)})
+        ks = [ks[j] for j in idx]
     out = []
-    for b in sorted(buckets)[:MAX_POS_PER_TRAJ]:
-        out.append(buckets[b][0])
+    for b in ks:
+        v = sorted(buckets[b])
+        out.append(v[len(v) // 2])          # 桶内中位，不是第一个
     return sorted(out)
 
 
