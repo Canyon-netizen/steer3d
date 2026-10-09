@@ -1,0 +1,162 @@
+{
+ "alpha": 231.97767639160156,
+ "rel": 1.0,
+ "class_gap": 231.97767639160156,
+ "w_norm_raw": 1.0,
+ "n_layer": 28,
+ "layer_ladder": [
+  -1,
+  0,
+  4,
+  8,
+  12,
+  16,
+  20,
+  24,
+  26,
+  27
+ ],
+ "pred_w_dot_Weff_marker": 0.18019922050158554,
+ "rows": [
+  {
+   "traj": "aime__aime25__p00__think",
+   "mode": "think",
+   "t": 204,
+   "n_tok": 3309,
+   "alpha": 231.97767639160156,
+   "rel": 1.0,
+   "class_gap": 231.97767639160156,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "pred_marker_lse": 41.8022,
+   "layers": {
+    "-1": {
+     "d_marker_lse": 41.25,
+     "d_real_token": 41.25,
+     "d_control": 4.875
+    },
+    "0": {
+     "d_marker_lse": 1.0001,
+     "d_real_token": 1.0,
+     "d_control": -5.3906
+    },
+    "4": {
+     "d_marker_lse": -1.4858,
+     "d_real_token": -5.75,
+     "d_control": -3.2188
+    },
+    "8": {
+     "d_marker_lse": 0.5373,
+     "d_real_token": 0.5,
+     "d_control": -4.5
+    },
+    "12": {
+     "d_marker_lse": 3.5025,
+     "d_real_token": 3.5,
+     "d_control": -7.6357
+    },
+    "16": {
+     "d_marker_lse": 1.2682,
+     "d_real_token": 1.25,
+     "d_control": -2.9062
+    },
+    "20": {
+     "d_marker_lse": -0.75,
+     "d_real_token": -0.75,
+     "d_control": -1.1875
+    },
+    "24": {
+     "d_marker_lse": 0.0,
+     "d_real_token": 0.0,
+     "d_control": -0.375
+    },
+    "26": {
+     "d_marker_lse": 0.75,
+     "d_real_token": 0.75,
+     "d_control": 0.8125
+    },
+    "27": {
+     "d_marker_lse": 1.0,
+     "d_real_token": 1.0,
+     "d_control": 0.875
+    }
+   },
+   "h20_norm": 696.066,
+   "w_dot_hhat": -0.009332,
+   "w_dot_h": -6.496,
+   "rel_perturbation": 0.3333,
+   "rms_ratio": 1.05112,
+   "calibration_ratio": 0.9868
+  },
+  {
+   "traj": "aime__aime25__p00__no_think",
+   "mode": "no_think",
+   "t": 252,
+   "n_tok": 757,
+   "alpha": 231.97767639160156,
+   "rel": 1.0,
+   "class_gap": 231.97767639160156,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "pred_marker_lse": 41.8022,
+   "layers": {
+    "-1": {
+     "d_marker_lse": 41.0,
+     "d_real_token": 41.0,
+     "d_control": 4.8906
+    },
+    "0": {
+     "d_marker_lse": 0.0,
+     "d_real_token": 0.0,
+     "d_control": 1.1406
+    },
+    "4": {
+     "d_marker_lse": -2.5952,
+     "d_real_token": -2.625,
+     "d_control": 1.9375
+    },
+    "8": {
+     "d_marker_lse": -3.9239,
+     "d_real_token": -4.75,
+     "d_control": 2.7656
+    },
+    "12": {
+     "d_marker_lse": 0.0,
+     "d_real_token": 0.0,
+     "d_control": -0.1406
+    },
+    "16": {
+     "d_marker_lse": 0.25,
+     "d_real_token": 0.25,
+     "d_control": -0.3438
+    },
+    "20": {
+     "d_marker_lse": 1.25,
+     "d_real_token": 1.25,
+     "d_control": 0.2188
+    },
+    "24": {
+     "d_marker_lse": 0.5,
+     "d_real_token": 0.5,
+     "d_control": 0.125
+    },
+    "26": {
+     "d_marker_lse": 0.5,
+     "d_real_token": 0.5,
+     "d_control": 0.4688
+    },
+    "27": {
+     "d_marker_lse": -0.25,
+     "d_real_token": -0.25,
+     "d_control": 0.3438
+    }
+   },
+   "h20_norm": 671.04,
+   "w_dot_hhat": -0.050668,
+   "w_dot_h": -34.0,
+   "rel_perturbation": 0.3457,
+   "rms_ratio": 1.04138,
+   "calibration_ratio": 0.9808
+  }
+ ]
+}
