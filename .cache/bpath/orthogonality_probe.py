@@ -50,8 +50,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import random
 import statistics as st
+import zlib
 from pathlib import Path
 
 import numpy as np
@@ -71,6 +71,8 @@ TRAJ = [
     "aime__aime25__p00__no_think",
     "aime__aime25__p01__no_think",
 ]
+# ⚠ 冒烟开关（§15.3 第 4 条：正式跑不许用）
+SMOKE = int(os.environ.get("ORTHO_SMOKE_SITES", "0")) or None
 SEED = 42
 
 
@@ -153,29 +155,51 @@ def main():
             hd.remove()
         return o.logits[0, -1].float()
 
-    rng = random.Random(SEED)
     rows = []
     for tid in TRAJ:
-        zp = Path(a.npz_dir) / f"{tid}.npz"
         cti = json.load(
             open(Path(a.sidecar_dir) / f"{tid}.json", encoding="utf-8"))
-        z = np.load(zp)
-        gen = z["token_ids"].tolist()
-        pid = tok(cti["chat_template_input"], return_tensors="pt",
-                  add_special_tokens=False).input_ids[0].tolist()
-        P = (cti.get("extra") or {}).get("prompt_tokens")
-        mode = cti["config"]["mode"]
         sites = [i for i, tk in enumerate(cti.get("tokens") or [])
                  if tk["token_id"] in MARKER_IDS]
+        mode = cti["config"]["mode"]
         print(f"\n=== {tid} mode={mode} n_gen={cti['n_generated_tokens']} "
               f"marker 位点 {len(sites)} 个：{sites[:12]}")
         assert sites, "这条轨迹没有 marker 位点，H 测不了"
+        if SMOKE:
+            sites = sites[:SMOKE]
+        # ⚠⚠ 取 hidden_states 的正确姿势，踩了两次才对：
+        #
+        # v1（循环里逐点 `z["hidden_states"][t-1, ...]`）：
+        #    第 2 次访问就 AttributeError —— NpzFile 的惰性解压句柄是一次性的。
+        # v2（循环前逐点取、立刻 close）：不崩了，但**慢到不可用** ——
+        #    NpzFile.__getitem__ 每次都把**整个数组重新解压一遍**，
+        #    33 个位点 = 33 × 4.7 GB 的解压量，跑十几分钟一个位点都没打印。
+        # v3（本次）：**只取一次** `zs["hidden_states"]` 拿整个数组，
+        #    然后在 numpy 侧切片。
+        #
+        # ⚠ 「大数组不许整块读」是**本机**的约束（`/tmp` 不可写、本机内存紧），
+        # **远端有 503 GB / 135 GB 可用** ⇒ 在远端整块读是对的。
+        # 规矩要跟着环境走，不是无条件的。
+        zs = np.load(Path(a.npz_dir) / f"{tid}.npz")
+        gen = zs["token_ids"].tolist()
+        hs_all = zs["hidden_states"]              # 只解压这一次
+        hs_all = np.asarray(hs_all)              # 独立数组，后续切片不再碰 zip
+        zs.close()
+        print(f"    hidden_states shape={hs_all.shape} "
+              f"({hs_all.nbytes/2**30:.2f} GiB)")
+        # 坐标系（踩过三次）：读 npz 第 NPZ_LAYER 层，不是 LAYER
+        h_at = {t: hs_all[t - 1, R6.NPZ_LAYER, :].astype(np.float64)
+                for t in sites}
+        del hs_all
+
+        pid = tok(cti["chat_template_input"], return_tensors="pt",
+                  add_special_tokens=False).input_ids[0].tolist()
+        P = (cti.get("extra") or {}).get("prompt_tokens")
 
         for t in sites:
             ids = torch.tensor(pid + gen, dtype=torch.long, device="cuda:0")
             up = ids[: P + t]
-            # ⚠ 坐标系：读 NPZ_LAYER，不是 LAYER（见 docstring）
-            h = z["hidden_states"][t - 1, R6.NPZ_LAYER, :].astype(np.float64)
+            h = h_at[t]
             hn = float(np.linalg.norm(h))
             w_dot_hhat = float(W @ (h / hn))
 
@@ -190,7 +214,13 @@ def main():
             base = fwd(up, W, 0.0, 0)
             b_lse = lse(base[mk].cpu().numpy())
             # 同范数随机方向：每个点一个，由 seed 决定（可复算）
-            rnd = np.random.RandomState(SEED * 1000003 + t).randn(W.shape[0]).astype(np.float32)
+            # ⚠ 种子必须**把轨迹也编进去**：第一版用 `SEED*1000003 + t`，
+            # 于是不同轨迹的同 `t` 拿到**同一个随机方向** ——
+            # 对照臂与轨迹绑定，就分不清「效应来自 w」还是「来自这条轨迹」。
+            # 且**不能用内置 `hash()`**：它对 str 受 PYTHONHASHSEED 影响，
+            # 换个进程种子就换一个方向 ⇒ 产物不可复算。用 zlib.crc32（确定性）。
+            h_seed = zlib.crc32(f"{tid}|{t}".encode("utf-8")) % (2 ** 31)
+            rnd = np.random.RandomState(h_seed).randn(W.shape[0]).astype(np.float32)
             rnd = rnd / (float(np.linalg.norm(rnd)) + 1e-12)
 
             for rel in REL:
@@ -204,7 +234,6 @@ def main():
                     "d_rand": round(lse(dr[mk].cpu().numpy()) - b_lse, 4),
                     "effective_dose": round(eff, 4),
                 })
-            z.close()
             rows.append(rec)
             ps = "  ".join(f"{p['rel']}:{p['d_marker']:+.3f}" for p in rec["points"])
             print(f"  t={t:<5} w·ĥ={w_dot_hhat:+.5f}  ||h||={hn:7.1f}  Δmarker {ps}")
@@ -218,6 +247,7 @@ def main():
         "rel_ladder": REL,
         "traj": TRAJ,
         "seed": SEED,
+        "rand_seed_rule": "zlib.crc32(f'{traj}|{t}') —— 确定性，不受 PYTHONHASHSEED 影响",
         "wU_marker": round(wU_marker, 6),
         "npz_layer_read": R6.NPZ_LAYER,
         "inject_hs_index": R6.LAYER,

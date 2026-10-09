@@ -1,0 +1,38 @@
+{
+ "schema": "orthogonality_verdict/1",
+ "prereg": "R6_RERUN_PREREG.md 修订 15",
+ "noise_p95": 1.0,
+ "n_sites": 179,
+ "n_above_noise": 124,
+ "Q1": {
+  "hi_agree": 11,
+  "hi_n": 41,
+  "lo_agree": 29,
+  "lo_n": 41,
+  "fisher_p": 6.975672675435751e-05,
+  "pass": true
+ },
+ "Q2": {
+  "all": {
+   "n": 124,
+   "rho_eff": -0.41226876180397315,
+   "rho_alpha": 0.0
+  },
+  "think": {
+   "n": 121,
+   "rho_eff": -0.4177194401208236,
+   "rho_alpha": 0.0
+  }
+ },
+ "Q4": {
+  "n": 133,
+  "n_neg": 62,
+  "n_monotone_down": 56
+ },
+ "verdict": "H 无证据，保留为待检验假设",
+ "q_flags": {
+  "Q1": true,
+  "Q2": true,
+  "Q3": false
+ }
+}
