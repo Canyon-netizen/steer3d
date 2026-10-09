@@ -77,6 +77,11 @@ type BPath = {
   };
   layer_profile: {
     layer_ladder: number[]; calibration: string; headline: string;
+    // ⚠ `arm` / `arm_note` / `retracted` 是预登记修订 14 加的：
+    // 这一块初版读的是**臂 A**的层扫描，与页面其余部分的臂 B 不是同一个 `w`，
+    // 由此得出的「高估 43 倍」已撤回。三个字段把这件事**印在页面上**，
+    // 否则读者看到的仍是被撤回的结论。
+    arm: string; arm_note: string; retracted: string;
     rows: { traj: string; mode: string; by_layer: Record<string, number> }[];
   };
   ladder_mapping: LadderRow[];
@@ -188,7 +193,9 @@ export default function BPathPanel() {
          data-ids-positive={`${rs.n_ids_positive}/${rs.n_ids}`}
          data-nothink-mono={`${nt ? nt["n_w+_monotone_up"] : "?"}/${nt ? nt.n_traj : "?"}`}
          data-think-mono={`${tk ? tk["n_w+_monotone_up"] : "?"}/${tk ? tk.n_traj : "?"}`}
-         data-freq-weighted={String(rs.freq_weighted)}>
+         data-freq-weighted={String(rs.freq_weighted)}
+         data-layer-arm={d.layer_profile.arm}
+         data-retracted={d.layer_profile.retracted ? "yes" : "no"}>
       <h2 className="text-[12px] font-semibold text-gray-200 mb-0.5">
         干预实验：可读性 ≠ 可控性
       </h2>
@@ -290,9 +297,21 @@ export default function BPathPanel() {
         </p>
       </div>
 
-      {/* ---- 层剖面：一阶预测为什么不可信 ---- */}
+      {/* ---- 层剖面：一阶预测在哪里成立、在哪里失效 ---- */}
       <div className="mb-2" data-bpath-block="layer">
-        <div className="text-[10px] text-gray-300 mb-1">注入层剖面</div>
+        <div className="text-[10px] text-gray-300 mb-1">
+          注入层剖面<span className="text-gray-500">（臂 {d.layer_profile.arm}）</span>
+        </div>
+        {/* ⚠ 撤回声明必须**印在页面上**，不能只躺在产物 JSON 里：
+            初版这里印的是「高估约 43 倍」，而那条已按预登记修订 14 撤回。
+            只在 JSON 留字段、页面不印，读者看到的仍是被撤回的结论。 */}
+        <p className="text-[9px] text-amber-200/90 mb-1 leading-relaxed"
+           data-bpath-retracted>
+          ⚠ 已撤回：<Em s={d.layer_profile.retracted} />
+        </p>
+        <p className="text-[9px] text-gray-500 mb-1 leading-relaxed">
+          <Em s={d.layer_profile.arm_note} />
+        </p>
         {d.layer_profile.rows.map((r) => (
           <div key={r.traj} className="flex items-center gap-2 text-[9px] px-1 mb-0.5"
                style={{ background: "#101722" }}

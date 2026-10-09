@@ -49,7 +49,15 @@ def main():
     wmeta = jload(M / "w_L19_m0.npy.json")
     smoke = jload(M / "r6_smoke_L19m0.json")
     freq = jload(M / "marker_freq5.json")
-    layer = jload(M / "layer_sweep_t1.json")
+    # ⚠ 这里曾经读 `layer_sweep_t1.json`，那是**臂 A**（w_t1 / H[t-1] / class_gap 172.4）
+    # 的层扫描，与本文件其余部分（全部用臂 B）**不是同一个 w**。
+    # 预登记修订 13 查出来了；修订 14 据此撤回了「高估 43 倍」。
+    # ⇒ 必须读臂 B 的那份，否则面板会把臂 A 的数配臂 B 的口径印出来。
+    layer = jload(M / "layer_sweep_B.json")
+    _layer_arm = "B"
+    _old = jload(M / "layer_sweep_t1.json.bak_armA")   # 只为记录它已被取代
+    assert abs(_old["alpha"] - layer["alpha"]) > 1e-6, \
+        "臂 A 与臂 B 的 alpha 相同，说明读到了同一份产物，臂别搞混了"
     dose = jload(M / "dose_sweep_B.json")
 
     # ---------- 1. 坐标系（守卫自己报的，不是手填的）----------
@@ -150,16 +158,26 @@ def main():
                      "by_layer": {k: v["d_marker_lse"]
                                   for k, v in r["layers"].items()}})
     layer_block = {
-        "what": "注入层扫描：同一向量换个层注入，效应跨两个数量级",
+        "what": "注入层扫描：同一向量换个层注入，读数从校准点的精确成立掉进噪声",
         "layer_ladder": layer["layer_ladder"],
+        "arm": _layer_arm,
+        "arm_note": ("本块读的是**臂 B**（选中臂）的层扫描。"
+                      "初版误读了臂 A（w_t1 / H[t-1]），"
+                      "由此得出的「高估 43 倍」已按预登记修订 14 **撤回**。"),
         "calibration": ("L=-1 挂在 model.model.norm 的 **forward hook**（改输出），"
-                        "那里下游是恒等映射，Δlogit = α·(w·lm_head[token]) **精确成立**。"
-                        "同批 ' the ' 预测 -5.7944 / 实测 -5.7969、-5.7891、-5.8047 "
-                        "**逐位吻合** ⇒ 钩子与公式都没错。"),
-        "headline": ("**一阶预测被下游 8 层高估约 43 倍**："
-                     "预测 class_gap×频次加权点积 ≈ +42.7，实测 L=20 处只有 +1.0。"
-                     "⇒ `w·U[marker]` 是可靠的**符号与排序**指标，"
-                     "但**不是效应幅度的预测器**。"),
+                        "那里下游是恒等映射，Δlogit = α·(w·lm_head[token]) **精确成立**："
+                        "预测 +41.8022，实测 think +41.2500（ratio 0.9868）、"
+                        "no_think +41.0000（ratio 0.9808）⇒ 钩子与公式都没错。"),
+        "headline": ("**注入点处一阶预测精确成立，移出注入点即掉进噪声**："
+                     "L=0…27 的 |实测/预测| 落在 0.0000–0.0939，"
+                     "且 think **逐层变号 4/8 次**、L=20 处与 no_think **异号**。"
+                     "⇒ **不存在「一个衰减倍数」**（硬取单点会得到 17.9 / 29.9 / 228.5 "
+                     "三个互不相等的数）。`w·U[marker]` 应**在校准点读**："
+                     "它给出方向在 unembedding 空间里指向什么；"
+                     "在中间层注入后读到的量**与它没有可预测的定量关系**。"),
+        "retracted": ("「一阶预测被下游 8 层高估约 43 倍」——已撤回。"
+                      "该数把校准点自己的残差与 L=20 的残差混着比，"
+                      "且跳过了符号为负。详见预登记修订 14。"),
         "rows": prof,
     }
 
@@ -194,7 +212,7 @@ def main():
         "arm": a.arm,
         "built_from": [".cache/mutbak/" + n for n in
                        ("w_L19_m0.npy.json", "r6_smoke_L19m0.json",
-                        "marker_freq5.json", "layer_sweep_t1.json",
+                        "marker_freq5.json", "layer_sweep_B.json",
                         "dose_sweep_B.json")],
         "selfcheck_passed": True,
         "selfcheck": "位置+层轴 12/12；P9 判定 11/11（含新旧闸门对照）；判决脚本 26/26",
@@ -206,7 +224,9 @@ def main():
         "ladder_mapping": ladder,
         "answerable": [
             "装置在 no_think 上给出干净、单调、符号正确的剂量响应（正控 5/5）",
-            "一阶预测 α·(w·U) 会被下游 8 层高估约 43 倍，w·U 只预测符号与排序",
+            "α·(w·U) 在校准点精确成立（实测/预测 0.987 / 0.981），"
+            "但注入点一移出校准点读数即掉进噪声（|ratio| 0.0000–0.0939 且逐层变号）"
+            "⇒ w·U 应在校准点读，中间层读到的量与它无可预测的定量关系",
             "同一 w 在两条 think 上给出相反形态 ⇒ 效应对位置/轨迹敏感",
         ],
         "not_answerable": [
