@@ -264,6 +264,90 @@ def main():
         "groups_no_think": nt["groups"],
     }
 
+    # ---------- 4b-26. 三处取数口径不一致（修订 26 披露；**不改任何已发布数字**） ----------
+    # ⚠ 这里只**新增**标注字段，不动上面 ortho_block 里任何已发布的数。
+    # 三处口径问题（详见预登记修订 26）：
+    #   F1 噪声地板把三档剂量混在一起取（n=1482 → 1.0000），
+    #      而被判定数据只取 rel=1.0 那一档（同口径 n=494 → 1.5000）；
+    #   F2 Q1 的 p=6.98e-05 出自 179 位点批次（think+no_think 合并池 k=41），
+    #      面板的 10/40 出自 494 位点批次（think-only k=40）——§15 未指明是否按 mode 分开；
+    #   F3 对照臂压过测试臂的比例（此前没报过的正面证据）。
+    _rows26 = ortho_nt8["rows"]
+    _dr_all = sorted(abs(p["d_rand"]) for r in _rows26 for p in r["points"])
+    _dr_last = sorted(abs(p["d_rand"]) for r in _rows26 for p in [r["points"][-1]])
+    _fl_pub = _dr_all[int(0.95 * (len(_dr_all) - 1))]     # 已发布口径
+    _fl_same = _dr_last[int(0.95 * (len(_dr_last) - 1))]  # 同口径（仅 rel=1.0）
+    _site = [{"traj": r["traj"], "mode": r["mode"], "w": r["w_dot_hhat"],
+              "d": r["points"][-1]["d_marker"], "dr": r["points"][-1]["d_rand"]}
+             for r in _rows26]
+    _ab = [s for s in _site if abs(s["d"]) > _fl_pub]
+    _ab_same = [s for s in _site if abs(s["d"]) > _fl_same]
+
+    def _cg(sel):
+        return sum(1 for s in sel if abs(s["dr"]) >= abs(s["d"]))
+
+    def _band(sel, lo, hi):
+        return [s for s in sel if lo < s["w"] <= hi]
+
+    _gsel = {m: [s for s in _ab if s["mode"] == m] for m in ("think", "no_think")}
+    _ctrl_groups = {}
+    for m in ("think", "no_think"):
+        _ctrl_groups[m] = {}
+        for lab, lo, hi in (("w·ĥ>0", 0.1, 9e9), ("w·ĥ≈0", -0.1, 0.1),
+                            ("w·ĥ<0", -9e9, -0.1)):
+            _ctrl_groups[m][lab] = {"n": len(_band(_gsel[m], lo, hi)),
+                                    "ctrl_ge": _cg(_band(_gsel[m], lo, hi))}
+    # 把「对照臂动得更多」的计数并进已发布的 groups（**只加字段，不改原字段**）
+    for m, key in (("think", "groups_think"), ("no_think", "groups_no_think")):
+        for lab, g in ortho_block[key].items():
+            c = _ctrl_groups[m].get(lab, {"n": None, "ctrl_ge": None})
+            g["n_ctrl_ge"] = c["ctrl_ge"]
+            g["verdict_note"] = (
+                "样本不足（n<8）⇒ 按 §17.4 第 3 条**只作描述、不作判决**"
+                if g["n"] < 8 else "")
+
+    _wneg = _band(_gsel["think"], -9e9, -0.1)
+    ortho_block["caliber26"] = {
+        "prereg": "R6_RERUN_PREREG.md 修订 26",
+        "batch": "orthogonality_nt8.json（494 位点）",
+        "q1_split": "think-only，k = 40（修订 18 口径）",
+        "floor_published": _fl_pub,
+        "floor_published_n": len(_dr_all),
+        "floor_same_slice": _fl_same,
+        "floor_same_slice_n": len(_dr_last),
+        "n_above_published": len(_ab),
+        "n_above_same_slice": len(_ab_same),
+        "ctrl_ge_overall": {"n": _cg(_ab), "of": len(_ab)},
+        "ctrl_ge_by_mode": {m: {"n": _cg(_gsel[m]), "of": len(_gsel[m])}
+                            for m in ("think", "no_think")},
+        "ctrl_ge_groups": _ctrl_groups,
+        "w_neg_site": (
+            {"n": len(_wneg),
+             "traj": _wneg[0]["traj"] if _wneg else None,
+             "d": round(_wneg[0]["d"], 4) if _wneg else None,
+             "d_rand": round(_wneg[0]["dr"], 4) if _wneg else None}
+            if _wneg else {"n": 0}),
+        "note_floor": ("⚠ **已发布的地板 1.0000 是把三档剂量混在一起取的 95 分位**，"
+                       "而被判定数据只取 `rel=1.0` 那一档 ⇒ 口径不一致。"
+                       "同口径地板是 **1.5000**，此时 `w·ĥ<0` 组**整个消失**"
+                       "（唯一一个位点 Δ=1.0003 只比地板高 0.03%，"
+                       "而**同一位点上对照臂动得更多**）。"
+                       "**Q1/Q2 方向不变且更强**（ρ −0.4177 → −0.4534），"
+                       "**Q3 仍不出判决** ⇒ 没有任何判决翻转。"
+                       "**已发布数字一律不改**，此处只披露。"),
+        "note_control": (f"对照组（此前没报）：{_cg(_ab)}/{len(_ab)} 个超地板位点上"
+                        "**同范数随机方向动得更多或一样多**"
+                        f"（{_cg(_ab)/len(_ab)*100:.1f}%）"
+                        f"；think {_cg(_gsel['think'])}/{len(_gsel['think'])}、"
+                        f"no_think {_cg(_gsel['no_think'])}/{len(_gsel['no_think'])}。"
+                        "⇒ 超地板位点上的效应**确实超过**同范数随机方向。"),
+        "note_batch": ("⚠ 上面 `Q1` 的 **10/40 来自 494 位点批次（think-only, k=40）**；"
+                       "预登记 §16 印的 **p = 6.98e-05 来自 179 位点批次"
+                       "（think+no_think 合并池, k=41）**。§15 的 Q1 原文只说「点位」、"
+                       "未指明是否按 mode 分开 ⇒ 两个实现都合乎字面但给出不同的数，"
+                       "此处**标明批次**以免混读。"),
+    }
+
     # ---------- 5. 挂到八级阶梯 ----------
     ladder = [
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",

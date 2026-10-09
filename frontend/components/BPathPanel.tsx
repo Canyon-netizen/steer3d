@@ -102,8 +102,21 @@ type BPath = {
       g1: Record<string, unknown>; g3: Record<string, unknown>;
       g4: Record<string, unknown>; final: string;
     };
-    groups_think: Record<string, { n: number; median: number; frac_pos: number }>;
-    groups_no_think: Record<string, { n: number; median: number; frac_pos: number }>;
+    /** 修订 26：每组补 `n_ctrl_ge`（该组里同范数随机方向动得更多或一样多的位点数）
+     *  与 `verdict_note`（n<8 时按 §17.4 只作描述）。⚠ 只增字段，原字段未改。 */
+    groups_think: Record<string, { n: number; median: number; frac_pos: number;
+      n_ctrl_ge?: number; verdict_note?: string }>;
+    groups_no_think: Record<string, { n: number; median: number; frac_pos: number;
+      n_ctrl_ge?: number; verdict_note?: string }>;
+    /** 修订 26：三处取数口径不一致的披露（地板口径 / Q1 批次 / 对照臂比较）。
+     *  **只披露，不替换任何已发布数字。** */
+    caliber26?: {
+      prereg: string; batch: string; q1_split: string;
+      floor_published: number; floor_published_n: number;
+      floor_same_slice: number; floor_same_slice_n: number;
+      n_above_published: number; n_above_same_slice: number;
+      note_floor: string; note_control: string; note_batch: string;
+    };
   };
   ladder_mapping: LadderRow[];
   answerable: string[]; not_answerable: string[];
@@ -368,21 +381,35 @@ export default function BPathPanel() {
         </p>
         <div className="flex flex-col gap-0.5 mb-1">
           {(Object.entries(d.orthogonality.groups_think) as
-            [string, { n: number; median: number; frac_pos: number }][]).map(
+            [string, { n: number; median: number; frac_pos: number;
+              n_ctrl_ge?: number; verdict_note?: string }][]).map(
             ([lab, g]) => (
-            <div key={lab} className="flex items-center gap-1.5 text-[9px] px-1"
+            <div key={lab} className="flex flex-col text-[9px] px-1 py-0.5"
                  style={{ background: "#101722" }}
                  data-ortho-group={lab} data-ortho-n={String(g.n)}
                  data-ortho-median={String(g.median)}
-                 data-ortho-frac-pos={String(g.frac_pos)}>
-              <span className="text-gray-500 w-16">{lab}</span>
-              <span className="text-gray-500 w-12">{g.n} 个</span>
-              <span className={g.median > 0 ? "text-emerald-300" : "text-rose-400"}>
-                Δ 中位 {g.median >= 0 ? "+" : ""}{g.median.toFixed(4)}
-              </span>
-              <span className="text-gray-500">
-                {(g.frac_pos * 100).toFixed(0)}% 为正
-              </span>
+                 data-ortho-frac-pos={String(g.frac_pos)}
+                 data-ortho-ctrl-ge={String(g.n_ctrl_ge ?? "")}>
+              <div className="flex items-center gap-1.5">
+                <span className="text-gray-500 w-16">{lab}</span>
+                <span className="text-gray-500 w-12">{g.n} 个</span>
+                <span className={g.median > 0 ? "text-emerald-300" : "text-rose-400"}>
+                  Δ 中位 {g.median >= 0 ? "+" : ""}{g.median.toFixed(4)}
+                </span>
+                <span className="text-gray-500">
+                  {(g.frac_pos * 100).toFixed(0)}% 为正
+                </span>
+              </div>
+              {/* 修订 26：`n<8` 的组必须自己说清「不作判决」，
+                  并把「同一位点上对照臂动得更多」摆在读者眼前 ——
+                  否则 n=1 的一行看起来和 n=20 一样有分量。 */}
+              {g.n < 8 && (
+                <div className="text-amber-300/90 mt-0.5">
+                  ⚠ 样本不足 ⇒ 按 §17.4 第 3 条只作描述、不作判决
+                  {g.n_ctrl_ge !== undefined && g.n_ctrl_ge > 0 &&
+                    <>；该位点同范数随机方向动得<b>更多</b></>}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -392,6 +419,17 @@ export default function BPathPanel() {
         <p className="text-[9px] text-gray-400 mt-0.5 leading-relaxed">
           <Em s={d.orthogonality.scale} />
         </p>
+        {/* 修订 26：三处口径不一致的披露。放在紧挨 Q1 那句的下面，
+            否则读者会把「p=6.98e-05（179 位点批次）」和「10/40（494 位点批次）」
+            当成同一份数据的两个说法。 */}
+        {d.orthogonality.caliber26 && (
+          <div className="text-[9px] text-amber-200/80 mt-1 leading-relaxed"
+               data-bpath-caliber="rev26">
+            <p><Em s={d.orthogonality.caliber26.note_control} /></p>
+            <p className="text-gray-400"><Em s={d.orthogonality.caliber26.note_batch} /></p>
+            <p className="text-gray-400"><Em s={d.orthogonality.caliber26.note_floor} /></p>
+          </div>
+        )}
         {/* Q3 的「无法判定」必须与 think 的「证伪」分开印：
             混在一起读起来就像「两边都测了、都反了」。 */}
         <p className="text-[9px] text-sky-200 mt-1 leading-relaxed"

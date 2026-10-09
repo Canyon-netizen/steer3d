@@ -428,35 +428,111 @@
    "w·ĥ>0": {
     "n": 20,
     "median": -1.9159,
-    "frac_pos": 0.0
+    "frac_pos": 0.0,
+    "n_ctrl_ge": 0,
+    "verdict_note": ""
    },
    "w·ĥ≈0": {
     "n": 100,
     "median": 1.5042,
-    "frac_pos": 0.67
+    "frac_pos": 0.67,
+    "n_ctrl_ge": 4,
+    "verdict_note": ""
    },
    "w·ĥ<0": {
     "n": 1,
     "median": 1.0003,
-    "frac_pos": 1.0
+    "frac_pos": 1.0,
+    "n_ctrl_ge": 1,
+    "verdict_note": "样本不足（n<8）⇒ 按 §17.4 第 3 条**只作描述、不作判决**"
    }
   },
   "groups_no_think": {
    "w·ĥ>0": {
     "n": 1,
     "median": 1.1249,
-    "frac_pos": 1.0
+    "frac_pos": 1.0,
+    "n_ctrl_ge": 0,
+    "verdict_note": "样本不足（n<8）⇒ 按 §17.4 第 3 条**只作描述、不作判决**"
    },
    "w·ĥ≈0": {
     "n": 17,
     "median": 1.126,
-    "frac_pos": 0.941
+    "frac_pos": 0.941,
+    "n_ctrl_ge": 0,
+    "verdict_note": ""
    },
    "w·ĥ<0": {
     "n": 1,
     "median": 1.004,
-    "frac_pos": 1.0
+    "frac_pos": 1.0,
+    "n_ctrl_ge": 0,
+    "verdict_note": "样本不足（n<8）⇒ 按 §17.4 第 3 条**只作描述、不作判决**"
    }
+  },
+  "caliber26": {
+   "prereg": "R6_RERUN_PREREG.md 修订 26",
+   "batch": "orthogonality_nt8.json（494 位点）",
+   "q1_split": "think-only，k = 40（修订 18 口径）",
+   "floor_published": 1.0,
+   "floor_published_n": 1482,
+   "floor_same_slice": 1.5,
+   "floor_same_slice_n": 494,
+   "n_above_published": 140,
+   "n_above_same_slice": 87,
+   "ctrl_ge_overall": {
+    "n": 5,
+    "of": 140
+   },
+   "ctrl_ge_by_mode": {
+    "think": {
+     "n": 5,
+     "of": 121
+    },
+    "no_think": {
+     "n": 0,
+     "of": 19
+    }
+   },
+   "ctrl_ge_groups": {
+    "think": {
+     "w·ĥ>0": {
+      "n": 20,
+      "ctrl_ge": 0
+     },
+     "w·ĥ≈0": {
+      "n": 100,
+      "ctrl_ge": 4
+     },
+     "w·ĥ<0": {
+      "n": 1,
+      "ctrl_ge": 1
+     }
+    },
+    "no_think": {
+     "w·ĥ>0": {
+      "n": 1,
+      "ctrl_ge": 0
+     },
+     "w·ĥ≈0": {
+      "n": 17,
+      "ctrl_ge": 0
+     },
+     "w·ĥ<0": {
+      "n": 1,
+      "ctrl_ge": 0
+     }
+    }
+   },
+   "w_neg_site": {
+    "n": 1,
+    "traj": "aime__aime25__p00__think",
+    "d": 1.0003,
+    "d_rand": -1.2499
+   },
+   "note_floor": "⚠ **已发布的地板 1.0000 是把三档剂量混在一起取的 95 分位**，而被判定数据只取 `rel=1.0` 那一档 ⇒ 口径不一致。同口径地板是 **1.5000**，此时 `w·ĥ<0` 组**整个消失**（唯一一个位点 Δ=1.0003 只比地板高 0.03%，而**同一位点上对照臂动得更多**）。**Q1/Q2 方向不变且更强**（ρ −0.4177 → −0.4534），**Q3 仍不出判决** ⇒ 没有任何判决翻转。**已发布数字一律不改**，此处只披露。",
+   "note_control": "对照组（此前没报）：5/140 个超地板位点上**同范数随机方向动得更多或一样多**（3.6%）；think 5/121、no_think 0/19。⇒ 超地板位点上的效应**确实超过**同范数随机方向。",
+   "note_batch": "⚠ 上面 `Q1` 的 **10/40 来自 494 位点批次（think-only, k=40）**；预登记 §16 印的 **p = 6.98e-05 来自 179 位点批次（think+no_think 合并池, k=41）**。§15 的 Q1 原文只说「点位」、未指明是否按 mode 分开 ⇒ 两个实现都合乎字面但给出不同的数，此处**标明批次**以免混读。"
   }
  },
  "ladder_mapping": [
