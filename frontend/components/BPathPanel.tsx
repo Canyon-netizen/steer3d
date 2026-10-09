@@ -108,6 +108,19 @@ type BPath = {
       n_ctrl_ge?: number; verdict_note?: string }>;
     groups_no_think: Record<string, { n: number; median: number; frac_pos: number;
       n_ctrl_ge?: number; verdict_note?: string }>;
+    /** 修订 27：取样缺陷的判定（M1/M2/M3）。判据写死于修订 24，判定在修订 27。
+     *  ⚠ 这段的用处是**撤回**「不具推广性」——它必须与 scope_warning 一起出现，
+     *  否则读者只看到更正后的措辞，却拿不出支撑它的数。 */
+    sampling_defect27?: {
+      prereg: string; method_selfcheck: string;
+      n_tracks: number; n_sites_total: number; n_hi_total: number;
+      median: number; fresh_batch_frac: number;
+      M1: { value: number; pass: boolean };
+      M2: { rank: number; pass: boolean };
+      M3_action: string; p01_rank_literal: number;
+      p01_rank_true_value: number; p01_window_track: string;
+      headline: string; debt: string;
+    };
     /** 修订 26：三处取数口径不一致的披露（地板口径 / Q1 批次 / 对照臂比较）。
      *  **只披露，不替换任何已发布数字。** */
     caliber26?: {
@@ -373,9 +386,23 @@ export default function BPathPanel() {
         {/* ⚠⚠ 适用范围警告必须在**数字之前**印：否则读者先看到
             「20/20 全负」再看到限定，顺序会让人把结论带走。 */}
         <p className="text-[9px] text-rose-200 mb-1 leading-relaxed"
-           data-bpath-generalization={d.orthogonality.generalization.g1.pass ? "promoted" : "not-promoted"}>
+           data-bpath-generalization="not-tested">
           <Em s={d.orthogonality.scope_warning} />
         </p>
+        {/* 修订 27：支撑上面那句更正的实测。**紧跟其后**印，
+            否则读者只看到措辞变了、拿不出为什么变。 */}
+        {d.orthogonality.sampling_defect27 && (
+          <div className="text-[9px] text-amber-200/90 mb-1 leading-relaxed"
+               data-bpath-sampling="rev27"
+               data-m1-pass={String(d.orthogonality.sampling_defect27.M1.pass)}
+               data-m2-pass={String(d.orthogonality.sampling_defect27.M2.pass)}>
+            <p><Em s={d.orthogonality.sampling_defect27.headline} /></p>
+            <p className="text-gray-400">
+              <Em s={d.orthogonality.sampling_defect27.method_selfcheck} />
+            </p>
+            <p className="text-gray-400"><Em s={d.orthogonality.sampling_defect27.debt} /></p>
+          </div>
+        )}
         <p className="text-[9px] text-gray-500 mb-1 leading-relaxed">
           曾提出的假设：<Em s={d.orthogonality.hypothesis} />
         </p>

@@ -1,0 +1,442 @@
+{
+ "prereg_section": "§24.1",
+ "n_tracks": 58,
+ "n_sites_total": 5035,
+ "n_hi_total": 812,
+ "median_std": 0.12013221153846154,
+ "median_upper_mid": 0.12307692307692308,
+ "min": 0.0,
+ "max": 0.4675324675324675,
+ "mean": 0.15955872415488093,
+ "p01_frac": 0.1577,
+ "p01_rank": 21,
+ "p01_frac_true_from_counts": 0.15789473684210525,
+ "p01_rank_under_true_value": 20,
+ "p01_percentile_rank_over_n": 36.206896551724135,
+ "M1": {
+  "rule": "median(frac over 58) >= 0.05",
+  "value": 0.12013221153846154,
+  "pass": true
+ },
+ "M2": {
+  "rule": "p01(0.1577) 排名 <= 3",
+  "rank": 21,
+  "above_p01": 20,
+  "rank_under_true_value": 20,
+  "verdict_invariant": true,
+  "pass": false
+ },
+ "M3": {
+  "rule": "M1 过 => 修订23 的更正必须再更正一次；不过 => 维持",
+  "action": "revise_rev23_again",
+  "new_wording_sec242": "在 `p01_think` 一条轨迹上，`w·ĥ > 0` 的 20 个超地板位点 20/20 全负。\n**但 10 条独立轨迹的复核每条只取 8 个等距位点，\n而普通轨迹全量的高对齐位点占比本就低** ⇒ 那次复核**几乎没有采到\n高对齐位点**，「`p = 0.166` 不显著」反映的是**样本里没有可测的东西**，\n**不是**「效应不存在」。\n⇒ 修订 23 的「不具推广性」**判据不足**，应读作\n**「未能在有足够高对齐位点的样本上检验」**。"
+ },
+ "table": [
+  {
+   "rank": 1,
+   "traj": "aime__aime26__p19__think",
+   "n_hi": 36,
+   "n_sites": 77,
+   "frac": 0.4675324675324675
+  },
+  {
+   "rank": 2,
+   "traj": "aime__aime26__p09__think",
+   "n_hi": 16,
+   "n_sites": 36,
+   "frac": 0.4444444444444444
+  },
+  {
+   "rank": 3,
+   "traj": "aime__aime26__p28__think",
+   "n_hi": 26,
+   "n_sites": 59,
+   "frac": 0.4406779661016949
+  },
+  {
+   "rank": 4,
+   "traj": "aime__aime25__p12__think",
+   "n_hi": 56,
+   "n_sites": 132,
+   "frac": 0.42424242424242425
+  },
+  {
+   "rank": 5,
+   "traj": "aime__aime26__p16__think",
+   "n_hi": 15,
+   "n_sites": 39,
+   "frac": 0.38461538461538464
+  },
+  {
+   "rank": 6,
+   "traj": "aime__aime26__p22__think",
+   "n_hi": 24,
+   "n_sites": 64,
+   "frac": 0.375
+  },
+  {
+   "rank": 7,
+   "traj": "aime__aime25__p14__think",
+   "n_hi": 31,
+   "n_sites": 85,
+   "frac": 0.36470588235294116
+  },
+  {
+   "rank": 8,
+   "traj": "aime__aime26__p14__think",
+   "n_hi": 49,
+   "n_sites": 135,
+   "frac": 0.362962962962963
+  },
+  {
+   "rank": 9,
+   "traj": "aime__aime26__p07__think",
+   "n_hi": 38,
+   "n_sites": 110,
+   "frac": 0.34545454545454546
+  },
+  {
+   "rank": 10,
+   "traj": "aime__aime25__p23__think",
+   "n_hi": 23,
+   "n_sites": 79,
+   "frac": 0.2911392405063291
+  },
+  {
+   "rank": 11,
+   "traj": "aime__aime25__p11__think",
+   "n_hi": 24,
+   "n_sites": 87,
+   "frac": 0.27586206896551724
+  },
+  {
+   "rank": 12,
+   "traj": "aime__aime25__p17__think",
+   "n_hi": 31,
+   "n_sites": 120,
+   "frac": 0.25833333333333336
+  },
+  {
+   "rank": 13,
+   "traj": "aime__aime26__p15__think",
+   "n_hi": 28,
+   "n_sites": 109,
+   "frac": 0.25688073394495414
+  },
+  {
+   "rank": 14,
+   "traj": "aime__aime25__p22__think",
+   "n_hi": 19,
+   "n_sites": 74,
+   "frac": 0.25675675675675674
+  },
+  {
+   "rank": 15,
+   "traj": "aime__aime25__p16__think",
+   "n_hi": 16,
+   "n_sites": 64,
+   "frac": 0.25
+  },
+  {
+   "rank": 16,
+   "traj": "aime__aime26__p17__think",
+   "n_hi": 20,
+   "n_sites": 99,
+   "frac": 0.20202020202020202
+  },
+  {
+   "rank": 17,
+   "traj": "aime__aime26__p05__think",
+   "n_hi": 26,
+   "n_sites": 140,
+   "frac": 0.18571428571428572
+  },
+  {
+   "rank": 18,
+   "traj": "aime__aime26__p25__think",
+   "n_hi": 22,
+   "n_sites": 124,
+   "frac": 0.1774193548387097
+  },
+  {
+   "rank": 19,
+   "traj": "aime__aime25__p27__think",
+   "n_hi": 26,
+   "n_sites": 148,
+   "frac": 0.17567567567567569
+  },
+  {
+   "rank": 20,
+   "traj": "aime__aime25__p21__think",
+   "n_hi": 9,
+   "n_sites": 57,
+   "frac": 0.15789473684210525
+  },
+  {
+   "rank": 21,
+   "traj": "aime__aime25__p24__think",
+   "n_hi": 16,
+   "n_sites": 106,
+   "frac": 0.1509433962264151
+  },
+  {
+   "rank": 22,
+   "traj": "aime__aime26__p06__think",
+   "n_hi": 19,
+   "n_sites": 131,
+   "frac": 0.1450381679389313
+  },
+  {
+   "rank": 23,
+   "traj": "aime__aime26__p08__think",
+   "n_hi": 12,
+   "n_sites": 88,
+   "frac": 0.13636363636363635
+  },
+  {
+   "rank": 24,
+   "traj": "aime__aime26__p11__think",
+   "n_hi": 8,
+   "n_sites": 61,
+   "frac": 0.13114754098360656
+  },
+  {
+   "rank": 25,
+   "traj": "aime__aime25__p15__think",
+   "n_hi": 6,
+   "n_sites": 47,
+   "frac": 0.1276595744680851
+  },
+  {
+   "rank": 26,
+   "traj": "aime__aime26__p21__think",
+   "n_hi": 12,
+   "n_sites": 94,
+   "frac": 0.1276595744680851
+  },
+  {
+   "rank": 27,
+   "traj": "aime__aime26__p20__think",
+   "n_hi": 10,
+   "n_sites": 79,
+   "frac": 0.12658227848101267
+  },
+  {
+   "rank": 28,
+   "traj": "aime__aime25__p28__think",
+   "n_hi": 14,
+   "n_sites": 111,
+   "frac": 0.12612612612612611
+  },
+  {
+   "rank": 29,
+   "traj": "aime__aime25__p26__think",
+   "n_hi": 8,
+   "n_sites": 65,
+   "frac": 0.12307692307692308
+  },
+  {
+   "rank": 30,
+   "traj": "aime__aime26__p18__think",
+   "n_hi": 15,
+   "n_sites": 128,
+   "frac": 0.1171875
+  },
+  {
+   "rank": 31,
+   "traj": "aime__aime25__p13__think",
+   "n_hi": 18,
+   "n_sites": 159,
+   "frac": 0.11320754716981132
+  },
+  {
+   "rank": 32,
+   "traj": "aime__aime26__p24__think",
+   "n_hi": 11,
+   "n_sites": 102,
+   "frac": 0.10784313725490197
+  },
+  {
+   "rank": 33,
+   "traj": "aime__aime25__p02__think",
+   "n_hi": 7,
+   "n_sites": 65,
+   "frac": 0.1076923076923077
+  },
+  {
+   "rank": 34,
+   "traj": "aime__aime25__p20__think",
+   "n_hi": 10,
+   "n_sites": 93,
+   "frac": 0.10752688172043011
+  },
+  {
+   "rank": 35,
+   "traj": "aime__aime26__p27__think",
+   "n_hi": 7,
+   "n_sites": 67,
+   "frac": 0.1044776119402985
+  },
+  {
+   "rank": 36,
+   "traj": "aime__aime25__p29__think",
+   "n_hi": 10,
+   "n_sites": 98,
+   "frac": 0.10204081632653061
+  },
+  {
+   "rank": 37,
+   "traj": "aime__aime26__p26__think",
+   "n_hi": 7,
+   "n_sites": 69,
+   "frac": 0.10144927536231885
+  },
+  {
+   "rank": 38,
+   "traj": "aime__aime26__p23__think",
+   "n_hi": 10,
+   "n_sites": 99,
+   "frac": 0.10101010101010101
+  },
+  {
+   "rank": 39,
+   "traj": "aime__aime25__p19__think",
+   "n_hi": 13,
+   "n_sites": 132,
+   "frac": 0.09848484848484848
+  },
+  {
+   "rank": 40,
+   "traj": "aime__aime26__p13__think",
+   "n_hi": 11,
+   "n_sites": 112,
+   "frac": 0.09821428571428571
+  },
+  {
+   "rank": 41,
+   "traj": "aime__aime26__p03__think",
+   "n_hi": 4,
+   "n_sites": 41,
+   "frac": 0.0975609756097561
+  },
+  {
+   "rank": 42,
+   "traj": "aime__aime25__p10__think",
+   "n_hi": 8,
+   "n_sites": 84,
+   "frac": 0.09523809523809523
+  },
+  {
+   "rank": 43,
+   "traj": "aime__aime25__p18__think",
+   "n_hi": 4,
+   "n_sites": 49,
+   "frac": 0.08163265306122448
+  },
+  {
+   "rank": 44,
+   "traj": "aime__aime25__p06__think",
+   "n_hi": 3,
+   "n_sites": 39,
+   "frac": 0.07692307692307693
+  },
+  {
+   "rank": 45,
+   "traj": "aime__aime26__p12__think",
+   "n_hi": 5,
+   "n_sites": 71,
+   "frac": 0.07042253521126761
+  },
+  {
+   "rank": 46,
+   "traj": "aime__aime26__p10__think",
+   "n_hi": 6,
+   "n_sites": 87,
+   "frac": 0.06896551724137931
+  },
+  {
+   "rank": 47,
+   "traj": "aime__aime26__p01__think",
+   "n_hi": 1,
+   "n_sites": 17,
+   "frac": 0.058823529411764705
+  },
+  {
+   "rank": 48,
+   "traj": "aime__aime25__p25__think",
+   "n_hi": 7,
+   "n_sites": 123,
+   "frac": 0.056910569105691054
+  },
+  {
+   "rank": 49,
+   "traj": "aime__aime25__p08__think",
+   "n_hi": 3,
+   "n_sites": 61,
+   "frac": 0.04918032786885246
+  },
+  {
+   "rank": 50,
+   "traj": "aime__aime25__p04__think",
+   "n_hi": 3,
+   "n_sites": 80,
+   "frac": 0.0375
+  },
+  {
+   "rank": 51,
+   "traj": "aime__aime25__p09__think",
+   "n_hi": 1,
+   "n_sites": 31,
+   "frac": 0.03225806451612903
+  },
+  {
+   "rank": 52,
+   "traj": "aime__aime26__p29__think",
+   "n_hi": 5,
+   "n_sites": 177,
+   "frac": 0.02824858757062147
+  },
+  {
+   "rank": 53,
+   "traj": "aime__aime26__p04__think",
+   "n_hi": 1,
+   "n_sites": 45,
+   "frac": 0.022222222222222223
+  },
+  {
+   "rank": 54,
+   "traj": "aime__aime25__p07__think",
+   "n_hi": 1,
+   "n_sites": 48,
+   "frac": 0.020833333333333332
+  },
+  {
+   "rank": 55,
+   "traj": "aime__aime26__p30__think",
+   "n_hi": 1,
+   "n_sites": 151,
+   "frac": 0.006622516556291391
+  },
+  {
+   "rank": 56,
+   "traj": "aime__aime25__p03__think",
+   "n_hi": 0,
+   "n_sites": 63,
+   "frac": 0.0
+  },
+  {
+   "rank": 57,
+   "traj": "aime__aime25__p05__think",
+   "n_hi": 0,
+   "n_sites": 28,
+   "frac": 0.0
+  },
+  {
+   "rank": 58,
+   "traj": "aime__aime26__p02__think",
+   "n_hi": 0,
+   "n_sites": 96,
+   "frac": 0.0
+  }
+ ]
+}
