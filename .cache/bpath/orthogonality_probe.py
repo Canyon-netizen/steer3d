@@ -1,0 +1,232 @@
+"""正交度测量：检验「有效剂量 = α·(w·ĥ)/‖h‖」这个假设（预登记修订 15 §15.1）。
+
+## 为什么测这个
+
+修订 14 确立了「注入点处精确成立，移出注入点即掉进噪声」，
+但没解释**为什么**。层扫描打印了一个诊断量 `w·ĥ`，
+两条轨迹恰好是「|w·ĥ| 大的那条剂量单调、小的那条不单调」——
+⚠ 两条样本是巧合的可能性远大于机制，所以它只是**待检验假设**。
+
+## 假设 H（预登记 §15.1，取数前写死）
+
+真正进入「方向改变」的那部分正比于 `w·ĥ`，与 `‖h‖` 无关：
+
+    有效剂量 ≈ α · (w·ĥ) / ‖h‖      （而不是 α）
+
+## 本脚本测什么
+
+对每条轨迹的**每一个 marker 位置**（不抽样，全量）：
+1. 静态读 `w·ĥ`、`‖h‖`、`α·(w·ĥ)/‖h‖`（numpy，不跑模型）
+2. 真跑模型读 `Δmarker`（注入在 block 20 的**输入** = `hs[20]` = npz 第 19 层）
+3. 同时跑一个**同范数随机方向**作对照（修订 8 起 P9 就在用这个噪声地板）
+
+## 取数前写死的设置（§15.3 第 4 条：跑之前不许改）
+
+- 轨迹：think `aime__aime25__p00`、`p01__think` + no_think 同两条
+  ⇒ **四条全测**，think/no_think 各两条，避免「恰好那条单调」
+- 位置：每条轨迹的**全部 marker 位置**，不抽样、不挑
+- 剂量：`REL = [0.1, 0.3, 1.0]`（三个点，取数前定死）
+- 注入：`layer=20`，`rel` 相对 class_gap，`w` 取臂 B
+- 随机方向：**每个 (轨迹, 位置, 剂量) 配一个**，同范数、由该轨迹的 seed 决定
+
+⚠⚠ 坐标系（踩过三次，别再改）：
+- `npz[k] == HF 的 hs[k+1]`（采集端 `for li in range(1, len(hs))` 丢了 embedding 那层）
+- 注入挂在 `layers[LAYER]` 的 **forward pre**-hook，动的是 block LAYER 的**输入**
+  = `hs[LAYER]` = **npz 第 `LAYER-1` 层** ⇒ 读 `NPZ_LAYER`，不是 `LAYER`
+- 数组是 `(T, L, D)`，下标是 `[t-1, NPZ_LAYER, :]`，**不是** `[NPZ_LAYER][t-1]`
+- `ids[:P+t]` 的最后一位 = 生成段内 `t-1`（npz 只含生成段）
+- `npz` 最后一层已过最终 RMSNorm（HF `all_hidden_states` 末项就是 norm 之后的值）
+
+## 判据（§15.2，取数前写死；本脚本只**测**，判定在 verdict 里）
+
+- Q1 `|w·ĥ|` 最大 1/3 位点 vs 最小 1/3 位点，「Δmarker 与 w·U 同号」的比例
+  Fisher 精确检验 `p < 0.01`
+- Q2 `Δmarker` 与 `α·(w·ĥ)/‖h‖` 的秩相关 vs 与 `α` 的秩相关，后者必须显著更低
+- Q3 `no_think` 上 Q1/Q2 同样成立（否则是与 mode 混淆，不受理 H）
+- Q4 `p01__think` 的反例必须一并报告（§15.1 已指出的不利证据）
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import random
+import statistics as st
+from pathlib import Path
+
+import numpy as np
+
+HERE = Path(__file__).resolve().parent
+import r6_rerun as R6  # noqa: E402
+
+MARKER_IDS = R6.MARKER_IDS          # 从被测模块 import，**不复制**
+CONTROL_ID = R6.CONTROL_ID
+MODEL = "/home/zhourui/.cache/huggingface/models/Qwen--Qwen3-1.7B/snapshots/master"
+
+# ⚠ 取数前定死（§15.3 第 4 条）
+REL = [0.1, 0.3, 1.0]
+TRAJ = [
+    "aime__aime25__p00__think",
+    "aime__aime25__p01__think",
+    "aime__aime25__p00__no_think",
+    "aime__aime25__p01__no_think",
+]
+SEED = 42
+
+
+def lse(v):
+    v = np.asarray(v, dtype=np.float64)
+    m = float(v.max())
+    return m + float(np.log(np.exp(v - m).sum()))
+
+
+def spearman(xs, ys):
+    """秩相关。样本量小时用它而不是 Pearson：判定关心的是**排序**。"""
+    def rank(a):
+        order = sorted(range(len(a)), key=lambda i: a[i])
+        r = [0.0] * len(a)
+        for pos, i in enumerate(order):
+            r[i] = float(pos + 1)
+        return r
+    rx, ry = rank(xs), rank(ys)
+    mx, my = st.mean(rx), st.mean(ry)
+    num = sum((a - mx) * (b - my) for a, b in zip(rx, ry))
+    den = (sum((a - mx) ** 2 for a in rx) * sum((b - my) ** 2 for b in ry)) ** 0.5
+    return (num / den) if den > 1e-12 else 0.0
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--npz-dir", required=True)
+    ap.add_argument("--sidecar-dir", required=True)
+    ap.add_argument("--w", required=True)
+    ap.add_argument("--w-meta", required=True)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--gpu-uuid", default=None)
+    a = ap.parse_args()
+
+    if a.gpu_uuid:
+        os.environ["CUDA_VISIBLE_DEVICES"] = f"GPU-{a.gpu_uuid}"
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    tok = AutoTokenizer.from_pretrained(MODEL)
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL, dtype=torch.bfloat16).to("cuda:0").eval()
+    torch.set_grad_enabled(False)
+
+    W = np.load(a.w).astype(np.float32)
+    W = W / (float(np.linalg.norm(W)) + 1e-12)
+    wmeta = json.load(open(a.w_meta, encoding="utf-8"))
+    gap = float(wmeta["class_gap"])
+    print(f"臂 {a.w_meta}  class_gap {gap:.3f}  "
+          f"pos_offset {wmeta['pos_offset']}  npz_layer {wmeta['npz_layer']}")
+    assert wmeta["npz_layer"] == R6.NPZ_LAYER, \
+        f"w 的 npz_layer({wmeta['npz_layer']}) 与 R6.NPZ_LAYER({R6.NPZ_LAYER}) 不一致"
+
+    U = model.lm_head.weight.detach().float().cpu().numpy().astype(np.float64)
+    tied = bool(torch.equal(model.lm_head.weight,
+                            model.get_input_embeddings().weight))
+    print(f"lm_head 与 embed_tokens 逐位相同 = {tied}")
+    wU_marker = float(W @ U[MARKER_IDS].mean(axis=0))
+    print(f"w·U[marker均值] = {wU_marker:+.6f}")
+    assert wU_marker > 0, \
+        "w 对 marker 的对齐为负，Q1 的「同号」判据无意义，先查 w"
+
+    mk = torch.tensor(MARKER_IDS, device="cuda:0")
+
+    def fwd(ids, vec, alpha_, seed):
+        inj = ids.shape[0] - 1
+
+        def add(h):
+            v = torch.as_tensor(vec, dtype=h.dtype, device=h.device)
+            h = h.clone()
+            h[:, inj, :] = h[:, inj, :] + alpha_ * v
+            return h
+
+        def pre_hook(mod, inp):
+            return (add(inp[0]),) + tuple(inp[1:])
+        hd = model.model.layers[R6.LAYER].register_forward_pre_hook(pre_hook)
+        try:
+            o = model(input_ids=ids.view(1, -1), use_cache=False, return_dict=True)
+        finally:
+            hd.remove()
+        return o.logits[0, -1].float()
+
+    rng = random.Random(SEED)
+    rows = []
+    for tid in TRAJ:
+        zp = Path(a.npz_dir) / f"{tid}.npz"
+        cti = json.load(
+            open(Path(a.sidecar_dir) / f"{tid}.json", encoding="utf-8"))
+        z = np.load(zp)
+        gen = z["token_ids"].tolist()
+        pid = tok(cti["chat_template_input"], return_tensors="pt",
+                  add_special_tokens=False).input_ids[0].tolist()
+        P = (cti.get("extra") or {}).get("prompt_tokens")
+        mode = cti["config"]["mode"]
+        sites = [i for i, tk in enumerate(cti.get("tokens") or [])
+                 if tk["token_id"] in MARKER_IDS]
+        print(f"\n=== {tid} mode={mode} n_gen={cti['n_generated_tokens']} "
+              f"marker 位点 {len(sites)} 个：{sites[:12]}")
+        assert sites, "这条轨迹没有 marker 位点，H 测不了"
+
+        for t in sites:
+            ids = torch.tensor(pid + gen, dtype=torch.long, device="cuda:0")
+            up = ids[: P + t]
+            # ⚠ 坐标系：读 NPZ_LAYER，不是 LAYER（见 docstring）
+            h = z["hidden_states"][t - 1, R6.NPZ_LAYER, :].astype(np.float64)
+            hn = float(np.linalg.norm(h))
+            w_dot_hhat = float(W @ (h / hn))
+
+            rec = {
+                "traj": tid, "mode": mode, "t": t, "n_tok": cti["n_generated_tokens"],
+                "npz_layer_read": R6.NPZ_LAYER, "inject_hs_index": R6.LAYER,
+                "h_norm": round(hn, 3),
+                "w_dot_hhat": round(w_dot_hhat, 6),
+                "w_dot_h": round(float(W @ h), 3),
+                "points": [],
+            }
+            base = fwd(up, W, 0.0, 0)
+            b_lse = lse(base[mk].cpu().numpy())
+            # 同范数随机方向：每个点一个，由 seed 决定（可复算）
+            rnd = np.random.RandomState(SEED * 1000003 + t).randn(W.shape[0]).astype(np.float32)
+            rnd = rnd / (float(np.linalg.norm(rnd)) + 1e-12)
+
+            for rel in REL:
+                alpha = rel * gap
+                d = fwd(up, W, alpha, 0)
+                dr = fwd(up, rnd, alpha, 0)
+                eff = alpha * w_dot_hhat / hn          # H 预测的有效剂量
+                rec["points"].append({
+                    "rel": rel, "alpha": round(alpha, 4),
+                    "d_marker": round(lse(d[mk].cpu().numpy()) - b_lse, 4),
+                    "d_rand": round(lse(dr[mk].cpu().numpy()) - b_lse, 4),
+                    "effective_dose": round(eff, 4),
+                })
+            z.close()
+            rows.append(rec)
+            ps = "  ".join(f"{p['rel']}:{p['d_marker']:+.3f}" for p in rec["points"])
+            print(f"  t={t:<5} w·ĥ={w_dot_hhat:+.5f}  ||h||={hn:7.1f}  Δmarker {ps}")
+
+    out = {
+        "schema": "orthogonality_probe/1",
+        "prereg": "R6_RERUN_PREREG.md 修订 15",
+        "arm": wmeta.get("pos_offset"),
+        "w_meta": {k: wmeta.get(k) for k in
+                   ("class_gap", "pos_offset", "npz_layer", "sign_gap")},
+        "rel_ladder": REL,
+        "traj": TRAJ,
+        "seed": SEED,
+        "wU_marker": round(wU_marker, 6),
+        "npz_layer_read": R6.NPZ_LAYER,
+        "inject_hs_index": R6.LAYER,
+        "rows": rows,
+    }
+    Path(a.out).write_text(json.dumps(out, ensure_ascii=False, indent=1),
+                            encoding="utf-8")
+    print(f"\n写出 {a.out}（{len(rows)} 个位点 × {len(REL)} 个剂量）")
+
+
+if __name__ == "__main__":
+    main()
