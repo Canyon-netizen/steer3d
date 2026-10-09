@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import importlib.util
+import atexit
 import json
 import math
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -100,7 +102,14 @@ print()
 print("=" * 74)
 print("S4-S5 保护分支")
 print("=" * 74)
-tmp = Path(tempfile.mkdtemp())
+tmp = Path(tempfile.mkdtemp(
+    # 显式落到 .cache/mutbak/，不用 tempfile.gettempdir()：
+    # 本机 TMPDIR 指向仓库根目录，mkdtemp() 会把临时产物丢在仓库里
+    # （已经漏出过一次 tmpujiphne5/，18 个文件），正好撞上
+    # 「临时文件不能放在判据扫描目录内」这条规矩。
+    dir=str(HERE.parent / "mutbak")))
+# atexit 而不是手动 shutil.rmtree：脚本中途抛异常时也会清掉。
+atexit.register(lambda: shutil.rmtree(tmp, ignore_errors=True))
 
 # correct 够、wrong 不够
 d = {"pos_ok": True, "rows": mk_rows(12, 5, 1.0, 1.0), "rel_ladder": [1.0],
@@ -239,6 +248,21 @@ withu = up + [mk_traj(f"z{i}", "no_think", "unlabeled", 3.0, 1.0)
 r = V.s3_specificity(withu, "no_think")
 chk("S8g S3 把 unlabeled 也计入 n", r["n"] == len(withu),
     f"n={r['n']}/{len(withu)}")
+
+# S2 牙齿：MISSING（压根不在标签文件里）必须被剔出所有组。
+# 数据造得能区分新旧：unlabeled 全 0.0，MISSING 全 1000.0。
+# 旧实现把 MISSING 并进 unlabeled ⇒ n=18、中位 500；新实现必须是 n=9、中位 0.0。
+# 钉的是**「两组数据被合并」这件事**，不是新加的那个键名 ——
+# 只钉键名的话，改个键名就又变成恒绿。
+miss = ([mk_traj(f"c{i}", "no_think", "correct", 1.0 + 0.1 * i) for i in range(9)]
+        + [mk_traj(f"u{i}", "no_think", "unlabeled", 0.0) for i in range(9)]
+        + [mk_traj(f"m{i}", "no_think", "MISSING", 1000.0) for i in range(9)])
+r = V.s2_three_group(miss, "no_think", "mark_w+_1.0")
+chk("S8h S2 把 MISSING 剔出组外（牙齿：unlabeled 中位不受 MISSING 污染）",
+    r["n"]["unlabeled"] == 9 and r["median"]["unlabeled"] == 0.0
+    and r.get("n_missing_label") == 9 and "【披露】" in r["verdict"],
+    f"unlabeled n={r['n']['unlabeled']} med={r['median']['unlabeled']} "
+    f"missing={r.get('n_missing_label')}")
 
 print()
 print("=" * 74)

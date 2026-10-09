@@ -243,6 +243,45 @@ def lse(v):
     return m + float(np.log(np.exp(v - m).sum()))
 
 
+def p9_verdict(bench, modes):
+    """P9 装置符号基准的判定，**独立于主流程**以便自检。
+
+    bench: {tid: {f"{nm}@{rel}": 读数}}，nm ∈ {w+, w-, rand}，rel 见 REL_LADDER
+    modes: {tid: mode}
+
+    返回 (bench_v, pos_ok)。bench_v[tid]["ok"] 是该条轨迹是否通过。
+
+    判定是两条，合起来才够：
+      1. 剂量单调：+w 随剂量升，-w 随剂量降；
+      2. 比随机方向大：同剂量下 |w±| 必须 **超过** |rand|。
+    只判 1 会让**零响应**通过（0.0 >= 0.0 成立），装置在某条轨迹上完全没动也算过。
+    2 用基准里本就有的随机方向做地板，不另设魔数。
+    """
+    lo, hi = str(REL_LADDER[0]), str(REL_LADDER[-1])
+    bench_v = {}
+    for t, r in bench.items():
+        up_mono = r.get(f"w+@{hi}", 0.0) >= r.get(f"w+@{lo}", 0.0)
+        dn_mono = r.get(f"w-@{hi}", 0.0) <= r.get(f"w-@{lo}", 0.0)
+        up_amp, dn_amp = abs(r.get(f"w+@{hi}", 0.0)), abs(r.get(f"w-@{hi}", 0.0))
+        rnd_amp = abs(r.get(f"rand@{hi}", 0.0))
+        up_beat, dn_beat = up_amp > rnd_amp, dn_amp > rnd_amp
+        why = []
+        if not up_mono:
+            why.append("+w 不单调升")
+        if not dn_mono:
+            why.append("-w 不单调降")
+        if not up_beat:
+            why.append(f"+w 效应 {up_amp} 未超过随机方向 {rnd_amp}")
+        if not dn_beat:
+            why.append(f"-w 效应 {dn_amp} 未超过随机方向 {rnd_amp}")
+        bench_v[t] = {"mode": modes.get(t, "?"), "up_mono": bool(up_mono),
+                      "dn_mono": bool(dn_mono), "w+_amp": up_amp, "w-_amp": dn_amp,
+                      "rand_amp": rnd_amp, "w+_beats_rand": bool(up_beat),
+                      "w-_beats_rand": bool(dn_beat), "why": why,
+                      "ok": bool(up_mono and dn_mono and up_beat and dn_beat)}
+    return bench_v, all(v["ok"] for v in bench_v.values())
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--npz-dir", required=True)
@@ -279,15 +318,26 @@ def main():
             "gen_ids": None,
             "markers": [i for i, t in enumerate(j.get("tokens") or [])
                         if t["token_id"] in MARKER_IDS],
-            "label": lab.get(tid, {}).get("strict", "unlabeled"),
+            # 「标签文件里没有这条」与「文件里写了 strict=unlabeled」是**两回事**。
+            # 早先两者都叫 "unlabeled"：拿只覆盖 99/120 的 labels_dryrun 去跑，
+            # 缺的 21 条被静默并进 unlabeled，打印出来的分布照样像模像样、零报错，
+            # 判决分组因此悄悄少了一批轨迹（think correct 12 而不是 13）。
+            # 分开记；MISSING 不进任何统计组，但必须在产物里被看见。
+            "label": lab[tid]["strict"] if tid in lab else "MISSING",
         }
     if a.limit_traj:
         keep = sorted(metas)[:a.limit_traj]
         metas = {k: metas[k] for k in keep}
+    n_missing = sum(1 for v in metas.values() if v["label"] == "MISSING")
+    coverage = {"n_traj": len(metas), "n_missing": n_missing,
+                "frac": round(1.0 - n_missing / max(len(metas), 1), 4)}
     print(f"[人口] {len(metas)} 条轨迹  "
           f"{ {m: sum(1 for v in metas.values() if v['mode']==m) for m in set(v['mode'] for v in metas.values())} }")
     print(f"[标签] "
           f"{ {m: sum(1 for v in metas.values() if v['label']==m) for m in set(v['label'] for v in metas.values())} }")
+    print(f"[标签覆盖] {len(metas)-n_missing}/{len(metas)} = {coverage['frac']:.1%}"
+          + (f"  **缺 {n_missing} 条不在标签文件里，记为 MISSING，不计入任何统计组**"
+             if n_missing else "  全覆盖"))
 
     # ---- 训练方向（P2a：在本批 think 的动摇点上训）----
     train_tids = {t: metas[t]["markers"] for t in metas
@@ -313,7 +363,8 @@ def main():
         np.save(out_w, W)
         meta = {"npz_dir": a.npz_dir, "n_train_traj": len(train_tids),
                 "sign_gap": sgn, "class_gap": gap, "w_norm": float(np.linalg.norm(W)),
-                "layer": LAYER, "seed": 42, "marker_ids": MARKER_IDS}
+                "layer": LAYER, "seed": 42, "marker_ids": MARKER_IDS,
+                "label_coverage": coverage}
         json.dump(meta, open(out_w + ".json", "w"), ensure_ascii=False, indent=1)
         print(f"[train-only] 写出 {out_w}（|w|={float(np.linalg.norm(W)):.4f}, "
               f"类间间距={gap:.3f}, 训练轨迹 {len(train_tids)} 条）")
@@ -358,17 +409,26 @@ def main():
         bench[tid] = row
         print(f"  {tid[:34]:34s} {row}")
 
-    pos_ok = True
-    for t, r in bench.items():
-        up_mono = r.get("w+@1.0", 0.0) >= r.get("w+@0.5", 0.0)
-        dn_mono = r.get("w-@1.0", 0.0) <= r.get("w-@0.5", 0.0)
-        if not (up_mono and dn_mono):
-            pos_ok = False
-    print(f"  +w 单调升 且 -w 单调降 : {'PASS' if pos_ok else 'FAIL'}")
+    # P9 判定 = 单调性 **加上**「比同剂量的随机方向大」。
+    #
+    # 早先只判单调性，于是**零响应也算过**：p00_no_think 的 w+ 读数是 0.0 -> 0.0，
+    # `0.0 >= 0.0` 成立，闸门给它 PASS —— 装置在一条轨迹上完全没动，也算「符号基准通过」。
+    # 这跟恒绿家族是同一件事：饱和的断言对任何常量偏移都不敏感。
+    #
+    # 噪声地板不另设魔数，直接取基准里**本来就有的随机方向对照**：
+    # 效应不比同剂量随机方向大 ⇒ 与噪声不可区分 ⇒ 判 FAIL。
+    # 剂量阶梯（P3 的 rel{0.5,1.0}）**一个字没动** —— 事后调剂量求绿是本项目明令禁止的。
+    # 改的只是「有响应」这一条：它只能把 PASS 变成 FAIL，不能反过来，故是收紧不是放松。
+    bench_v, pos_ok = p9_verdict(bench, {t: m["mode"] for t, m in metas.items()})
+    for t, v in bench_v.items():
+        print(f"  [{v['mode']:9s}] {t[:30]:30s} {'PASS' if v['ok'] else 'FAIL'}"
+              + ("" if v["ok"] else "   <- " + "；".join(v["why"])))
+    print(f"  合计 {sum(v['ok'] for v in bench_v.values())}/{len(bench_v)} 条通过")
     print(f"  P9 {'通过，可以继续' if pos_ok else '**未通过，先修装置**'}")
 
     if a.smoke:
-        json.dump({"bench": bench, "pos_ok": pos_ok},
+        json.dump({"bench": bench, "bench_v": bench_v, "pos_ok": pos_ok,
+                   "label_coverage": coverage},
                   open(a.out, "w"), ensure_ascii=False, indent=1)
         return 0 if pos_ok else 1
 
@@ -408,9 +468,10 @@ def main():
                   f"({el/max(len(rows),1):.2f} s/位置)")
     print(f"[全量] {len(rows)} 个位置，用时 {(time.time()-t_start)/60:.1f} min")
 
-    json.dump({"bench": bench, "pos_ok": pos_ok, "rows": rows,
+    json.dump({"bench": bench, "bench_v": bench_v, "pos_ok": pos_ok, "rows": rows,
                "rel_ladder": REL_LADDER, "layer": LAYER,
-               "class_gap": gap, "w_norm": float(np.linalg.norm(W))},
+               "class_gap": gap, "w_norm": float(np.linalg.norm(W)),
+               "label_coverage": coverage},
               open(a.out, "w"), ensure_ascii=False, indent=1)
     print("写出", a.out)
     return 0

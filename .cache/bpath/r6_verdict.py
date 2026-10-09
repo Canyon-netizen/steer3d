@@ -304,25 +304,37 @@ def s2_three_group(trajs, mode, field):
     于是最大的一批样本重新进入检验。
     """
     g = {"correct": [], "wrong": [], "unlabeled": []}
+    n_missing = 0
     for t in trajs:
         v = t["traj_d"].get(field)
         if v is None:
             continue
         lab = t.get("label", "unlabeled")
+        # MISSING = 「标签文件里根本没有这条」，与真的 unlabeled 不是一回事。
+        # 混进 unlabeled 会让组里凭空多出一批来源不明的样本，而
+        # Kruskal–Wallis 不会为此发出任何警告 —— 三组照样算得出 p 值。
+        # 剔出来单独计数，并在判决里明写。
+        if lab == "MISSING":
+            n_missing += 1
+            continue
         g[lab if lab in g else "unlabeled"].append(v)
     res = {"mode": mode, "field": field,
            "n": {k: len(v) for k, v in g.items()},
+           "n_missing_label": n_missing,
            "median": {k: (round(statistics.median(v), 4) if v else None)
                       for k, v in g.items()}}
+    caveat = ("" if not n_missing else
+              f"【披露】另有 {n_missing} 条轨迹不在标签文件里，已剔除，未计入任何组；"
+              f"上面的 p 值不含它们。")
     alive = [v for v in g.values() if v]
     if len(alive) < 2:
-        res["verdict"] = "**样本不足，不构成结论**（可用组 < 2）"
+        res["verdict"] = "**样本不足，不构成结论**（可用组 < 2）" + caveat
         return res
     if KRUSKAL is not None:
         res["H"] = round(float(KRUSKAL(*alive).statistic), 4)
         res["p"] = round(float(KRUSKAL(*alive).pvalue), 6)
     else:
-        res["verdict"] = "**无法检验**：无 scipy，Kruskal–Wallis 不可用"
+        res["verdict"] = "**无法检验**：无 scipy，Kruskal–Wallis 不可用" + caveat
         return res
     sig = res["p"] < S_ALPHA / S_BONF
     res["alpha_bonf"] = round(S_ALPHA / S_BONF, 4)
@@ -331,7 +343,7 @@ def s2_three_group(trajs, mode, field):
         "差异可能来自 correct vs unlabeled。必须看下面的两两比较。"
         % (res["p"], S_ALPHA / S_BONF) if sig else
         "**未观察到**三组差异（p=%.4g >= %.4g）；这不等于「无差异」。"
-        % (res["p"], S_ALPHA / S_BONF))
+        % (res["p"], S_ALPHA / S_BONF)) + caveat
     # 两两比较（Mann–Whitney，与 P6 同一套统计量与分支规则）
     pairs = {}
     for a in ("correct", "wrong", "unlabeled"):
