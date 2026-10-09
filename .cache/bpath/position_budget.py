@@ -2,12 +2,18 @@
 
 ## 为什么问这个
 
-think 模式出现了严重的**选择效应**：截顶的那 55% 全部 unlabeled，
-而有标签的 45% 里 83% 是对的 ⇒ 「能打标签的子集」系统性偏向答对。
-按 30 题外推，think 只有约 14 correct / **2 wrong**，wrong 组不足以做秩和检验。
+think 模式存在**选择效应**：截顶轨迹很难打标签，而能打标签的子集偏向答对。
+⚠ 下面这句话是 **n=11 时的旧判断，已被 50 题实测推翻**（见预登记修订 5）：
 
-no_think 相反：100% 有标签，correct 2 / wrong 9，是个可用的对照，
-但 marker 数量少。到底哪条路能走，要看**每条轨迹有多少个可取样位置**。
+    「按 30 题外推，think 只有约 14 correct / 2 wrong，wrong 组不足以做秩和检验。」
+
+n=50 实测：think **12 correct / 8 wrong**，两项都过 P6 门槛；
+反倒是 no_think 的 correct 只有 5，卡在 10 之下。
+原因是 R-27 的散文抽取让截顶轨迹也能打标签（n=50 时触顶轨迹 23% 有标签），
+而这个比例随 n 上升——**n=11 时的外推不足以支撑「不足以」的断言**。
+
+no_think 相反：几乎 100% 有标签，但模型在 AIME 上直接答对的太少
+（correct 10.2%），correct 组始终凑不满。
 
 ## 判决规则（取数前写死）
 
@@ -27,7 +33,10 @@ from pathlib import Path
 
 MARKER_IDS = [13824, 14190, 6771, 10061, 7196, 88190, 80022]
 MAX_POS_PER_TRAJ = 6
-MIN_WRONG_TRAJ = 8
+MIN_CORRECT = 10          # 与 P6 / r6_verdict.py 同源
+MIN_WRONG = 8             # 与 P6 / r6_verdict.py 同源
+MIN_CORRECT_TRAJ = 10      # 与 P6 / r6_verdict.py 同源
+TARGET = 60                # 预登记修订 3/4 的停止点（数据天花板）
 
 
 def sample_markers(marker_idx, n_tok):
@@ -81,30 +90,38 @@ def main(root, labels_path):
         c = [r for r in rs if r["label"] == "correct"]
         w = [r for r in rs if r["label"] == "wrong"]
         u = [r for r in rs if r["label"] == "unlabeled"]
-        ok = len(w) >= MIN_WRONG_TRAJ
+        ok = len(w) >= MIN_WRONG
         agg[mode] = {"n_traj": len(rs), "positions": pos, "correct": len(c),
                      "wrong": len(w), "unlabeled": len(u), "enough": ok}
         print(f"{mode:10s} {len(rs):4d} {pos:10d} {len(c):8d} {len(w):6d} "
               f"{len(u):6d} {len(w):9d} {'是' if ok else '否':>5s}")
 
     print("\n" + "=" * 78)
-    print("Q1/Q2/Q3 判决（按当前 22 条的**比例**外推到 30 题 = 每模式 30 条）")
+    print(f"Q1/Q2/Q3 判决（按当前比例外推到 TARGET={TARGET} 题，"
+          f"即预登记修订 3/4 的停止点）")
     print("=" * 78)
     for mode, a in agg.items():
-        scale = 30 / max(a["n_traj"], 1)
-        w30 = a["wrong"] * scale
-        c30 = a["correct"] * scale
+        scale = TARGET / max(a["n_traj"], 1)
+        wt = a["wrong"] * scale
+        ct = a["correct"] * scale
         v3 = a["enough"]
-        print(f"  {mode:10s} 外推 30 题 -> correct≈{c30:.0f} wrong≈{w30:.0f}  "
-              f"Q3(wrong>=8) {'PASS' if v3 else 'FAIL（外推也只 %.0f）' % w30}")
+        print(f"  {mode:10s} 当前 n={a['n_traj']} 外推 {TARGET} 题 -> "
+              f"correct≈{ct:.0f} wrong≈{wt:.0f}  "
+              f"Q3(wrong>=8) {'PASS' if v3 else 'FAIL（外推也只 %.0f）' % wt}")
+        print(f"             P6(correct>=10 与 wrong>=8 同时) "
+              f"{'PASS' if ct >= MIN_CORRECT and wt >= MIN_WRONG else 'FAIL'}")
 
     usable = [m for m, a in agg.items() if a["enough"]]
     print()
     if usable:
-        print("=> 可用模式:", ", ".join(usable))
+        print("=> wrong 组够 8 条轨迹的模式:", ", ".join(usable))
         for m in usable:
-            print(f"   {m}：外推 correct≈{agg[m]['correct']*30/agg[m]['n_traj']:.0f} / "
-                  f"wrong≈{agg[m]['wrong']*30/agg[m]['n_traj']:.0f}")
+            a = agg[m]
+            ct = a["correct"] * TARGET / max(a["n_traj"], 1)
+            wt = a["wrong"] * TARGET / max(a["n_traj"], 1)
+            ok = ct >= MIN_CORRECT and wt >= MIN_WRONG
+            print(f"   {m}：外推 correct≈{ct:.0f} / wrong≈{wt:.0f}"
+                  f"  ⇒ P6 {'可出判决' if ok else '样本不足'}")
     else:
         print("=> **两种模式的 wrong 组都不足 8 条轨迹**。")
         print("   本轮 R-6 在两个模式上都判「样本不足，不构成结论」——")
@@ -113,7 +130,7 @@ def main(root, labels_path):
     out = Path(".cache/mutbak/bpath_position_budget.json")
     json.dump({"rows": rows, "agg": agg,
                "rules": {"max_pos_per_traj": MAX_POS_PER_TRAJ,
-                         "min_wrong_traj": MIN_WRONG_TRAJ}},
+                         "min_wrong_traj": MIN_WRONG}},
               open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print("\n写出", out)
 
