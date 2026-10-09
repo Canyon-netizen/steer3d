@@ -120,18 +120,49 @@ def pick_negatives(pos, tmap, rng):
     return negs
 
 
-def load_xy(npz_dir, pos, negs):
+def load_xy(npz_dir, pos, negs, tmap):
+    """取训练样本的隐状态。
+
+    ## 坐标系（`coord_triple_check.py` 在 24/24 条上验过）
+
+    npz 的 `hidden_states` **只含生成段**，长度 == `n_generated_tokens`，
+    即它本身已经是「相对生成起点」的索引，**不含 prompt**。
+    注入侧：`ids = pid + gen`、`up = ids[:P+t]`，注入下标 == 生成段内 `t-1`
+    （`len(pid) == extra.prompt_tokens`，24/24 差值为 0）。
+
+    ⇒ **训练必须取 `H[t-1]`**，与注入逐 token 对齐。
+
+    ## 这里踩过两次，都很便宜
+
+    1. 写成 `H[t]`（marker **自己**那个位置）⇒ 与注入点差**一个 token**。
+       不报错、不崩，`w` 照样训得出来，只是与装置对不上。
+    2. 「修」成 `H[extra.prompt_tokens + t - 1]` ⇒ 更糟：把采样点推到
+       108~914 token 之外的**无关文本**，class_gap 从 ~300 塌到 **9.3**、
+       正负打分差归零，注入尺度跟着塌 32×、效应掉进 bf16 量化底噪。
+       **把 npz 的相对索引当成了绝对索引。**
+
+    ⇒ 下面的守卫就是为拦住第 2 类错误而加的。
+    """
     Xs, ys, ts = [], [], []
     for tid in sorted(pos):
         z = np.load(os.path.join(npz_dir, tid + ".npz"))
         H = z["hidden_states"][:, LAYER, :].astype(np.float32)
         T = H.shape[0]
+        # 守卫：npz 必须只含生成段。若哪天它开始存全序列，
+        # 这里要立刻炸，而不是让下标悄悄错位 P 个 token。
+        exp = int(tmap[tid])
+        if T != exp:
+            raise ValueError(
+                f"{tid}: npz hidden_states 长度 {T} != n_generated_tokens {exp}。"
+                "hidden_states 若含 prompt，所有下标都要重算，不能继续用。")
         for t in pos[tid]:
-            if 0 <= t < T:
-                Xs.append(H[t]); ys.append(1); ts.append(tid)
+            a = t - 1                      # 与 fwd() 的注入位置逐 token 对齐
+            if 0 <= a < T:
+                Xs.append(H[a]); ys.append(1); ts.append(tid)
         for t in negs.get(tid, []):
-            if 0 <= t < T:
-                Xs.append(H[t]); ys.append(0); ts.append(tid)
+            a = t - 1                      # 负例同样偏移，不许只改正例
+            if 0 <= a < T:
+                Xs.append(H[a]); ys.append(0); ts.append(tid)
         del H, z
     return np.stack(Xs), np.array(ys, dtype=int), np.array(ts)
 
@@ -140,7 +171,7 @@ def train_direction(npz_dir, pos, tmap, seed=42):
     """LOO 轨迹、岭回归、平衡权重、符号定死（正例打分更高）、单位范数。"""
     rng = np.random.default_rng(seed)
     negs = pick_negatives(pos, tmap, rng)
-    X, y, traj = load_xy(npz_dir, pos, negs)
+    X, y, traj = load_xy(npz_dir, pos, negs, tmap)
     coefs = []
     for held in sorted(set(traj)):
         te = traj == held

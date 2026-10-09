@@ -111,7 +111,7 @@ def main():
     def make_forward():
         blk = model.model.layers[LAYER]
 
-        def logits_at(ids, vec, alpha):
+        def logits_at(ids, _ids2, vec, alpha):   # 与 r6_rerun.fwd 同签名
             inj = len(ids) - 1
 
             def pre(mod, inp):
