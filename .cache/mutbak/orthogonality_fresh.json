@@ -1,0 +1,2762 @@
+{
+ "schema": "orthogonality_probe/1",
+ "prereg": "R6_RERUN_PREREG.md 修订 15",
+ "arm": 0,
+ "w_meta": {
+  "class_gap": 231.97767639160156,
+  "pos_offset": 0,
+  "npz_layer": 19,
+  "sign_gap": 0.21646655611294852
+ },
+ "rel_ladder": [
+  0.1,
+  0.3,
+  1.0
+ ],
+ "traj": [
+  "aime__aime25__p02__think",
+  "aime__aime25__p03__think",
+  "aime__aime25__p04__think",
+  "aime__aime25__p05__think",
+  "aime__aime25__p06__think",
+  "aime__aime25__p07__think",
+  "aime__aime25__p08__think",
+  "aime__aime25__p09__think",
+  "aime__aime25__p10__think",
+  "aime__aime25__p11__think"
+ ],
+ "no_think_top_n": 0,
+ "think_fresh_n": 10,
+ "think_fresh_sites": 8,
+ "think_already_excluded": [
+  "aime__aime25__p00__think",
+  "aime__aime25__p01__think"
+ ],
+ "seed": 42,
+ "rand_seed_rule": "zlib.crc32(f'{traj}|{t}') —— 确定性，不受 PYTHONHASHSEED 影响",
+ "wU_marker": 0.180199,
+ "npz_layer_read": 19,
+ "inject_hs_index": 20,
+ "rows": [
+  {
+   "traj": "aime__aime25__p02__think",
+   "mode": "think",
+   "t": 20,
+   "n_tok": 7938,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 613.374,
+   "w_dot_hhat": -0.007148,
+   "w_dot_h": -4.384,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": -0.25,
+     "effective_dose": -0.0003
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.0,
+     "d_rand": -0.5,
+     "effective_dose": -0.0008
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.5,
+     "d_rand": -2.0,
+     "effective_dose": -0.0027
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p02__think",
+   "mode": "think",
+   "t": 536,
+   "n_tok": 7938,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 634.015,
+   "w_dot_hhat": -0.030707,
+   "w_dot_h": -19.469,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": -0.25,
+     "d_rand": -0.0,
+     "effective_dose": -0.0011
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": -0.25,
+     "d_rand": 0.25,
+     "effective_dose": -0.0034
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.4994,
+     "d_rand": 1.0,
+     "effective_dose": -0.0112
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p02__think",
+   "mode": "think",
+   "t": 1509,
+   "n_tok": 7938,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 710.196,
+   "w_dot_hhat": 0.039986,
+   "w_dot_h": 28.398,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": 0.0013
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5,
+     "d_rand": 0.0,
+     "effective_dose": 0.0039
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.5,
+     "d_rand": -0.5,
+     "effective_dose": 0.0131
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p02__think",
+   "mode": "think",
+   "t": 2210,
+   "n_tok": 7938,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 595.974,
+   "w_dot_hhat": -0.047848,
+   "w_dot_h": -28.516,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0134,
+     "d_rand": 0.2395,
+     "effective_dose": -0.0019
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.0783,
+     "d_rand": 0.5,
+     "effective_dose": -0.0056
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.2353,
+     "d_rand": 1.2311,
+     "effective_dose": -0.0186
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p02__think",
+   "mode": "think",
+   "t": 3114,
+   "n_tok": 7938,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 580.482,
+   "w_dot_hhat": -0.039965,
+   "w_dot_h": -23.199,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.3828,
+     "d_rand": 0.0,
+     "effective_dose": -0.0016
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.2809,
+     "d_rand": -0.1172,
+     "effective_dose": -0.0048
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 3.8088,
+     "d_rand": -0.7191,
+     "effective_dose": -0.016
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p02__think",
+   "mode": "think",
+   "t": 4572,
+   "n_tok": 7938,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 707.638,
+   "w_dot_hhat": 0.019551,
+   "w_dot_h": 13.835,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": 0.25,
+     "effective_dose": 0.0006
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": 0.0019
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.7357,
+     "d_rand": 0.25,
+     "effective_dose": 0.0064
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p02__think",
+   "mode": "think",
+   "t": 5555,
+   "n_tok": 7938,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 667.957,
+   "w_dot_hhat": 0.192194,
+   "w_dot_h": 128.378,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": -0.25,
+     "d_rand": -0.0,
+     "effective_dose": 0.0067
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": -0.25,
+     "d_rand": 0.0,
+     "effective_dose": 0.02
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -2.2497,
+     "d_rand": 0.25,
+     "effective_dose": 0.0667
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p02__think",
+   "mode": "think",
+   "t": 7050,
+   "n_tok": 7938,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 652.558,
+   "w_dot_hhat": 0.027581,
+   "w_dot_h": 17.998,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": 0.0,
+     "effective_dose": 0.001
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": 0.0029
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.5,
+     "d_rand": -0.25,
+     "effective_dose": 0.0098
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p03__think",
+   "mode": "think",
+   "t": 59,
+   "n_tok": 7303,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 574.805,
+   "w_dot_hhat": -0.06952,
+   "w_dot_h": -39.961,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0505,
+     "d_rand": -0.25,
+     "effective_dose": -0.0028
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.1118,
+     "d_rand": -0.0,
+     "effective_dose": -0.0084
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.4355,
+     "d_rand": -0.0,
+     "effective_dose": -0.0281
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p03__think",
+   "mode": "think",
+   "t": 256,
+   "n_tok": 7303,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 655.174,
+   "w_dot_hhat": -0.016845,
+   "w_dot_h": -11.036,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": 0.0,
+     "effective_dose": -0.0006
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": -0.25,
+     "d_rand": 0.0,
+     "effective_dose": -0.0018
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -1.7489,
+     "d_rand": -0.5,
+     "effective_dose": -0.006
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p03__think",
+   "mode": "think",
+   "t": 463,
+   "n_tok": 7303,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 596.273,
+   "w_dot_hhat": 0.010748,
+   "w_dot_h": 6.409,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0003,
+     "d_rand": -0.0,
+     "effective_dose": 0.0004
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": -0.4987,
+     "d_rand": -0.2503,
+     "effective_dose": 0.0013
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -1.494,
+     "d_rand": -0.7506,
+     "effective_dose": 0.0042
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p03__think",
+   "mode": "think",
+   "t": 1586,
+   "n_tok": 7303,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 703.336,
+   "w_dot_hhat": 0.0503,
+   "w_dot_h": 35.378,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.2435,
+     "effective_dose": 0.0017
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.75,
+     "d_rand": 0.25,
+     "effective_dose": 0.005
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.4909,
+     "d_rand": 0.4949,
+     "effective_dose": 0.0166
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p03__think",
+   "mode": "think",
+   "t": 2641,
+   "n_tok": 7303,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 598.343,
+   "w_dot_hhat": -0.011315,
+   "w_dot_h": -6.77,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.4997,
+     "d_rand": -0.0,
+     "effective_dose": -0.0004
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.7493,
+     "d_rand": 0.0001,
+     "effective_dose": -0.0013
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.9989,
+     "d_rand": -0.2501,
+     "effective_dose": -0.0044
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p03__think",
+   "mode": "think",
+   "t": 4361,
+   "n_tok": 7303,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 639.654,
+   "w_dot_hhat": -0.062067,
+   "w_dot_h": -39.702,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.2506,
+     "d_rand": -0.0,
+     "effective_dose": -0.0023
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5043,
+     "d_rand": -0.0002,
+     "effective_dose": -0.0068
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.3493,
+     "d_rand": -0.2506,
+     "effective_dose": -0.0225
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p03__think",
+   "mode": "think",
+   "t": 5106,
+   "n_tok": 7303,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 696.048,
+   "w_dot_hhat": 0.003375,
+   "w_dot_h": 2.349,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.25,
+     "effective_dose": 0.0001
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5,
+     "d_rand": 0.5,
+     "effective_dose": 0.0003
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.5,
+     "d_rand": 1.25,
+     "effective_dose": 0.0011
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p03__think",
+   "mode": "think",
+   "t": 7034,
+   "n_tok": 7303,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 577.452,
+   "w_dot_hhat": -0.022041,
+   "w_dot_h": -12.727,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.25,
+     "effective_dose": -0.0009
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5,
+     "d_rand": -0.25,
+     "effective_dose": -0.0027
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.75,
+     "d_rand": -1.0,
+     "effective_dose": -0.0089
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p04__think",
+   "mode": "think",
+   "t": 51,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 611.944,
+   "w_dot_hhat": -0.116778,
+   "w_dot_h": -71.461,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0003,
+     "d_rand": -0.0003,
+     "effective_dose": -0.0044
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.2503,
+     "d_rand": -0.001,
+     "effective_dose": -0.0133
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.4997,
+     "d_rand": 0.2478,
+     "effective_dose": -0.0443
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p04__think",
+   "mode": "think",
+   "t": 1022,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 641.715,
+   "w_dot_hhat": -0.010416,
+   "w_dot_h": -6.684,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.2499,
+     "effective_dose": -0.0004
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5002,
+     "d_rand": 0.25,
+     "effective_dose": -0.0011
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.501,
+     "d_rand": 0.7499,
+     "effective_dose": -0.0038
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p04__think",
+   "mode": "think",
+   "t": 2579,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 565.046,
+   "w_dot_hhat": -0.081064,
+   "w_dot_h": -45.805,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": -0.0,
+     "d_rand": -0.0,
+     "effective_dose": -0.0033
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5,
+     "d_rand": 0.25,
+     "effective_dose": -0.01
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.5,
+     "d_rand": -0.0,
+     "effective_dose": -0.0333
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p04__think",
+   "mode": "think",
+   "t": 3568,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 745.814,
+   "w_dot_hhat": 0.026319,
+   "w_dot_h": 19.629,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.0105,
+     "effective_dose": 0.0008
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.7395,
+     "d_rand": -0.25,
+     "effective_dose": 0.0025
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.9812,
+     "d_rand": -0.75,
+     "effective_dose": 0.0082
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p04__think",
+   "mode": "think",
+   "t": 4517,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 663.501,
+   "w_dot_hhat": -0.010031,
+   "w_dot_h": -6.656,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": -0.0004
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.75,
+     "d_rand": 0.25,
+     "effective_dose": -0.0011
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.5006,
+     "d_rand": 0.25,
+     "effective_dose": -0.0035
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p04__think",
+   "mode": "think",
+   "t": 5128,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 723.716,
+   "w_dot_hhat": 0.004996,
+   "w_dot_h": 3.616,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.6248,
+     "d_rand": 0.125,
+     "effective_dose": 0.0002
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.3747,
+     "d_rand": 0.3748,
+     "effective_dose": 0.0005
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 3.6243,
+     "d_rand": 0.8746,
+     "effective_dose": 0.0016
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p04__think",
+   "mode": "think",
+   "t": 6785,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 639.752,
+   "w_dot_hhat": 0.025186,
+   "w_dot_h": 16.113,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.2739,
+     "d_rand": 0.2417,
+     "effective_dose": 0.0009
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.9134,
+     "d_rand": -0.0083,
+     "effective_dose": 0.0027
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 3.1222,
+     "d_rand": -0.5148,
+     "effective_dose": 0.0091
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p04__think",
+   "mode": "think",
+   "t": 8119,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 691.666,
+   "w_dot_hhat": -0.035874,
+   "w_dot_h": -24.813,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0001,
+     "d_rand": -0.0,
+     "effective_dose": -0.0012
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.0008,
+     "d_rand": -0.0,
+     "effective_dose": -0.0036
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.2731,
+     "d_rand": -0.5,
+     "effective_dose": -0.012
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p05__think",
+   "mode": "think",
+   "t": 151,
+   "n_tok": 3434,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 641.933,
+   "w_dot_hhat": -0.009824,
+   "w_dot_h": -6.306,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": -0.0,
+     "d_rand": -0.0,
+     "effective_dose": -0.0004
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": 0.25,
+     "effective_dose": -0.0011
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.0,
+     "d_rand": 0.25,
+     "effective_dose": -0.0036
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p05__think",
+   "mode": "think",
+   "t": 338,
+   "n_tok": 3434,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 611.36,
+   "w_dot_hhat": -0.038041,
+   "w_dot_h": -23.257,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.25,
+     "effective_dose": -0.0014
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": -0.0,
+     "d_rand": 0.25,
+     "effective_dose": -0.0043
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.75,
+     "d_rand": 0.25,
+     "effective_dose": -0.0144
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p05__think",
+   "mode": "think",
+   "t": 456,
+   "n_tok": 3434,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 650.718,
+   "w_dot_hhat": -0.008785,
+   "w_dot_h": -5.717,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.2239,
+     "d_rand": -0.0162,
+     "effective_dose": -0.0003
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.6866,
+     "d_rand": 0.2008,
+     "effective_dose": -0.0009
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.3969,
+     "d_rand": -0.0879,
+     "effective_dose": -0.0031
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p05__think",
+   "mode": "think",
+   "t": 523,
+   "n_tok": 3434,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 723.865,
+   "w_dot_hhat": 0.045939,
+   "w_dot_h": 33.254,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.4732,
+     "d_rand": 0.0,
+     "effective_dose": 0.0015
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.9518,
+     "d_rand": -0.0001,
+     "effective_dose": 0.0044
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.3868,
+     "d_rand": -0.5268,
+     "effective_dose": 0.0147
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p05__think",
+   "mode": "think",
+   "t": 700,
+   "n_tok": 3434,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 620.013,
+   "w_dot_hhat": -0.008889,
+   "w_dot_h": -5.511,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.2499,
+     "d_rand": 0.25,
+     "effective_dose": -0.0003
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.7498,
+     "d_rand": 0.4999,
+     "effective_dose": -0.001
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.9996,
+     "d_rand": 0.7499,
+     "effective_dose": -0.0033
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p05__think",
+   "mode": "think",
+   "t": 1312,
+   "n_tok": 3434,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 603.997,
+   "w_dot_hhat": 0.002715,
+   "w_dot_h": 1.64,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": 0.0001
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5,
+     "d_rand": -0.0,
+     "effective_dose": 0.0003
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.0003,
+     "d_rand": -0.5,
+     "effective_dose": 0.001
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p05__think",
+   "mode": "think",
+   "t": 1813,
+   "n_tok": 3434,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 738.563,
+   "w_dot_hhat": 0.028976,
+   "w_dot_h": 21.401,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": -0.0,
+     "effective_dose": 0.0009
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.0,
+     "d_rand": -0.0,
+     "effective_dose": 0.0027
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.7497,
+     "d_rand": -0.25,
+     "effective_dose": 0.0091
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p05__think",
+   "mode": "think",
+   "t": 2828,
+   "n_tok": 3434,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 679.512,
+   "w_dot_hhat": -0.071848,
+   "w_dot_h": -48.822,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": -0.0025
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": -0.0074
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.0,
+     "d_rand": 0.0,
+     "effective_dose": -0.0245
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p06__think",
+   "mode": "think",
+   "t": 420,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 758.847,
+   "w_dot_hhat": 0.000939,
+   "w_dot_h": 0.713,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": 0.0,
+     "effective_dose": 0.0
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": 0.0001
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.5,
+     "d_rand": -0.5,
+     "effective_dose": 0.0003
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p06__think",
+   "mode": "think",
+   "t": 1207,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 723.951,
+   "w_dot_hhat": 0.023664,
+   "w_dot_h": 17.132,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0333,
+     "d_rand": 0.25,
+     "effective_dose": 0.0008
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.4733,
+     "d_rand": 0.2833,
+     "effective_dose": 0.0023
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.952,
+     "d_rand": 1.0745,
+     "effective_dose": 0.0076
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p06__think",
+   "mode": "think",
+   "t": 1883,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 718.578,
+   "w_dot_hhat": 0.002433,
+   "w_dot_h": 1.748,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": 0.0001
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.75,
+     "d_rand": -0.4831,
+     "effective_dose": 0.0002
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.4678,
+     "d_rand": -1.0,
+     "effective_dose": 0.0008
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p06__think",
+   "mode": "think",
+   "t": 2506,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 740.22,
+   "w_dot_hhat": 0.000191,
+   "w_dot_h": 0.141,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": -0.0,
+     "effective_dose": 0.0
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.7435,
+     "d_rand": -0.0,
+     "effective_dose": 0.0
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.9935,
+     "d_rand": -0.5065,
+     "effective_dose": 0.0001
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p06__think",
+   "mode": "think",
+   "t": 3425,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 563.611,
+   "w_dot_hhat": -0.038466,
+   "w_dot_h": -21.68,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": -0.0,
+     "d_rand": -0.0,
+     "effective_dose": -0.0016
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": -0.0047
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.0,
+     "d_rand": -0.25,
+     "effective_dose": -0.0158
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p06__think",
+   "mode": "think",
+   "t": 4231,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 724.842,
+   "w_dot_hhat": -0.007332,
+   "w_dot_h": -5.315,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": 0.0,
+     "effective_dose": -0.0002
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5001,
+     "d_rand": -0.5,
+     "effective_dose": -0.0007
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.7501,
+     "d_rand": -1.75,
+     "effective_dose": -0.0023
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p06__think",
+   "mode": "think",
+   "t": 6058,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 545.245,
+   "w_dot_hhat": -0.046598,
+   "w_dot_h": -25.408,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.2499,
+     "d_rand": 0.0002,
+     "effective_dose": -0.002
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.4999,
+     "d_rand": 0.0002,
+     "effective_dose": -0.0059
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.7496,
+     "d_rand": 0.5002,
+     "effective_dose": -0.0198
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p06__think",
+   "mode": "think",
+   "t": 7834,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 598.706,
+   "w_dot_hhat": -0.061461,
+   "w_dot_h": -36.797,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": -0.0024
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5,
+     "d_rand": -0.25,
+     "effective_dose": -0.0071
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.2499,
+     "d_rand": -1.2499,
+     "effective_dose": -0.0238
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p07__think",
+   "mode": "think",
+   "t": 17,
+   "n_tok": 6003,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 596.34,
+   "w_dot_hhat": -0.0091,
+   "w_dot_h": -5.427,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": -0.0004
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": 0.25,
+     "effective_dose": -0.0011
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.5,
+     "d_rand": 0.5,
+     "effective_dose": -0.0035
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p07__think",
+   "mode": "think",
+   "t": 493,
+   "n_tok": 6003,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 566.984,
+   "w_dot_hhat": -0.047941,
+   "w_dot_h": -27.182,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": -0.002
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5,
+     "d_rand": -0.25,
+     "effective_dose": -0.0059
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.5015,
+     "d_rand": -1.5,
+     "effective_dose": -0.0196
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p07__think",
+   "mode": "think",
+   "t": 1604,
+   "n_tok": 6003,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 615.393,
+   "w_dot_hhat": -0.051691,
+   "w_dot_h": -31.81,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": -0.25,
+     "effective_dose": -0.0019
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": -0.25,
+     "effective_dose": -0.0058
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.0001,
+     "d_rand": -1.75,
+     "effective_dose": -0.0195
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p07__think",
+   "mode": "think",
+   "t": 2364,
+   "n_tok": 6003,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 702.952,
+   "w_dot_hhat": 0.01836,
+   "w_dot_h": 12.906,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.3113,
+     "d_rand": -0.0,
+     "effective_dose": 0.0006
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.4721,
+     "d_rand": 0.1995,
+     "effective_dose": 0.0018
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.9722,
+     "d_rand": 0.6583,
+     "effective_dose": 0.0061
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p07__think",
+   "mode": "think",
+   "t": 3121,
+   "n_tok": 6003,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 667.535,
+   "w_dot_hhat": 0.004132,
+   "w_dot_h": 2.758,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.5,
+     "d_rand": 0.0004,
+     "effective_dose": 0.0001
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.2494,
+     "d_rand": -0.0,
+     "effective_dose": 0.0004
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 3.4988,
+     "d_rand": -0.2508,
+     "effective_dose": 0.0014
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p07__think",
+   "mode": "think",
+   "t": 3423,
+   "n_tok": 6003,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 572.397,
+   "w_dot_hhat": -0.025272,
+   "w_dot_h": -14.466,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.4987,
+     "d_rand": 0.2491,
+     "effective_dose": -0.001
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.9976,
+     "d_rand": 0.4984,
+     "effective_dose": -0.0031
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.9964,
+     "d_rand": 0.4984,
+     "effective_dose": -0.0102
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p07__think",
+   "mode": "think",
+   "t": 3841,
+   "n_tok": 6003,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 614.785,
+   "w_dot_hhat": -0.006102,
+   "w_dot_h": -3.751,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.3828,
+     "d_rand": -0.0,
+     "effective_dose": -0.0002
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.2809,
+     "d_rand": 0.0309,
+     "effective_dose": -0.0007
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 3.2171,
+     "d_rand": -0.4412,
+     "effective_dose": -0.0023
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p07__think",
+   "mode": "think",
+   "t": 5179,
+   "n_tok": 6003,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 616.59,
+   "w_dot_hhat": -0.034665,
+   "w_dot_h": -21.374,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.125,
+     "d_rand": 0.125,
+     "effective_dose": -0.0013
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.125,
+     "d_rand": 0.125,
+     "effective_dose": -0.0039
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.5,
+     "d_rand": 0.0,
+     "effective_dose": -0.013
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p08__think",
+   "mode": "think",
+   "t": 401,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 586.621,
+   "w_dot_hhat": 0.028265,
+   "w_dot_h": 16.581,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.5,
+     "d_rand": 0.0,
+     "effective_dose": 0.0011
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.25,
+     "d_rand": 0.0,
+     "effective_dose": 0.0034
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.5,
+     "d_rand": -0.2499,
+     "effective_dose": 0.0112
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p08__think",
+   "mode": "think",
+   "t": 1685,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 597.446,
+   "w_dot_hhat": 0.040875,
+   "w_dot_h": 24.421,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.25,
+     "effective_dose": 0.0016
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.75,
+     "d_rand": 0.0,
+     "effective_dose": 0.0048
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.9999,
+     "d_rand": 0.25,
+     "effective_dose": 0.0159
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p08__think",
+   "mode": "think",
+   "t": 3842,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 672.227,
+   "w_dot_hhat": 0.014146,
+   "w_dot_h": 9.509,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": -0.25,
+     "effective_dose": 0.0005
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.0,
+     "d_rand": -0.5,
+     "effective_dose": 0.0015
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.0003,
+     "d_rand": -1.5,
+     "effective_dose": 0.0049
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p08__think",
+   "mode": "think",
+   "t": 5165,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 697.961,
+   "w_dot_hhat": 0.090467,
+   "w_dot_h": 63.143,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": -0.25,
+     "effective_dose": 0.003
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.0,
+     "d_rand": -0.0,
+     "effective_dose": 0.009
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -2.25,
+     "d_rand": 0.25,
+     "effective_dose": 0.0301
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p08__think",
+   "mode": "think",
+   "t": 5995,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 576.047,
+   "w_dot_hhat": -0.013175,
+   "w_dot_h": -7.589,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.25,
+     "effective_dose": -0.0005
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.0001,
+     "d_rand": -0.25,
+     "effective_dose": -0.0016
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.2524,
+     "d_rand": -1.75,
+     "effective_dose": -0.0053
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p08__think",
+   "mode": "think",
+   "t": 7025,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 605.886,
+   "w_dot_hhat": 0.029689,
+   "w_dot_h": 17.988,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": 0.0011
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.0,
+     "d_rand": 0.0,
+     "effective_dose": 0.0034
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.6764,
+     "d_rand": -0.75,
+     "effective_dose": 0.0114
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p08__think",
+   "mode": "think",
+   "t": 7374,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 689.828,
+   "w_dot_hhat": -0.030348,
+   "w_dot_h": -20.935,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": -0.25,
+     "effective_dose": -0.001
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": -0.25,
+     "d_rand": -0.25,
+     "effective_dose": -0.0031
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -1.0,
+     "d_rand": -1.0,
+     "effective_dose": -0.0102
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p08__think",
+   "mode": "think",
+   "t": 8145,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 639.766,
+   "w_dot_hhat": -0.02847,
+   "w_dot_h": -18.214,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": -0.001
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": -0.0031
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.5,
+     "d_rand": -0.75,
+     "effective_dose": -0.0103
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p09__think",
+   "mode": "think",
+   "t": 196,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 696.231,
+   "w_dot_hhat": -0.011136,
+   "w_dot_h": -7.753,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.3828,
+     "d_rand": 0.0,
+     "effective_dose": -0.0004
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.1937,
+     "d_rand": 0.0,
+     "effective_dose": -0.0011
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.7171,
+     "d_rand": -0.2499,
+     "effective_dose": -0.0037
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p09__think",
+   "mode": "think",
+   "t": 872,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 674.765,
+   "w_dot_hhat": -0.055218,
+   "w_dot_h": -37.259,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": 0.0,
+     "effective_dose": -0.0019
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": -0.0057
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.0003,
+     "d_rand": 0.0,
+     "effective_dose": -0.019
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p09__think",
+   "mode": "think",
+   "t": 1381,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 749.429,
+   "w_dot_hhat": 0.01951,
+   "w_dot_h": 14.621,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.0004,
+     "effective_dose": 0.0006
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.75,
+     "d_rand": 0.2504,
+     "effective_dose": 0.0018
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.7504,
+     "d_rand": 0.251,
+     "effective_dose": 0.006
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p09__think",
+   "mode": "think",
+   "t": 2298,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 660.852,
+   "w_dot_hhat": -0.044524,
+   "w_dot_h": -29.424,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": -0.0016
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.0,
+     "d_rand": 0.0,
+     "effective_dose": -0.0047
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.75,
+     "d_rand": 0.5,
+     "effective_dose": -0.0156
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p09__think",
+   "mode": "think",
+   "t": 4035,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 637.875,
+   "w_dot_hhat": -0.035497,
+   "w_dot_h": -22.642,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": -0.0,
+     "effective_dose": -0.0013
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.2501,
+     "d_rand": -0.0,
+     "effective_dose": -0.0039
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.7567,
+     "d_rand": 0.25,
+     "effective_dose": -0.0129
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p09__think",
+   "mode": "think",
+   "t": 4806,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 591.937,
+   "w_dot_hhat": -0.047942,
+   "w_dot_h": -28.379,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0322,
+     "d_rand": -0.25,
+     "effective_dose": -0.0019
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.6305,
+     "d_rand": 0.2384,
+     "effective_dose": -0.0056
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.1071,
+     "d_rand": 0.4788,
+     "effective_dose": -0.0188
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p09__think",
+   "mode": "think",
+   "t": 6123,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 636.731,
+   "w_dot_hhat": -0.026849,
+   "w_dot_h": -17.095,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": -0.001
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.2501,
+     "d_rand": -0.25,
+     "effective_dose": -0.0029
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.761,
+     "d_rand": -0.75,
+     "effective_dose": -0.0098
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p09__think",
+   "mode": "think",
+   "t": 7986,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 640.389,
+   "w_dot_hhat": -0.02921,
+   "w_dot_h": -18.706,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0003,
+     "d_rand": -0.25,
+     "effective_dose": -0.0011
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.0023,
+     "d_rand": -0.2501,
+     "effective_dose": -0.0032
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.3287,
+     "d_rand": -1.0001,
+     "effective_dose": -0.0106
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p10__think",
+   "mode": "think",
+   "t": 541,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 634.302,
+   "w_dot_hhat": 0.015027,
+   "w_dot_h": 9.531,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": 0.0,
+     "effective_dose": 0.0005
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.0,
+     "d_rand": -0.25,
+     "effective_dose": 0.0016
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.9999,
+     "d_rand": -1.0,
+     "effective_dose": 0.0055
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p10__think",
+   "mode": "think",
+   "t": 1455,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 632.933,
+   "w_dot_hhat": 0.007581,
+   "w_dot_h": 4.799,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.25,
+     "effective_dose": 0.0003
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.5,
+     "d_rand": 0.25,
+     "effective_dose": 0.0008
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.0003,
+     "d_rand": 0.0,
+     "effective_dose": 0.0028
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p10__think",
+   "mode": "think",
+   "t": 2377,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 730.255,
+   "w_dot_hhat": 0.022909,
+   "w_dot_h": 16.729,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0105,
+     "d_rand": -0.0,
+     "effective_dose": 0.0007
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.2605,
+     "d_rand": -0.0083,
+     "effective_dose": 0.0022
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.25,
+     "d_rand": -0.0199,
+     "effective_dose": 0.0073
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p10__think",
+   "mode": "think",
+   "t": 3499,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 566.8,
+   "w_dot_hhat": -0.0261,
+   "w_dot_h": -14.794,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": 0.0,
+     "effective_dose": -0.0011
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.0,
+     "d_rand": -0.25,
+     "effective_dose": -0.0032
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.25,
+     "d_rand": -0.75,
+     "effective_dose": -0.0107
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p10__think",
+   "mode": "think",
+   "t": 4406,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 613.382,
+   "w_dot_hhat": 0.030194,
+   "w_dot_h": 18.52,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.5,
+     "d_rand": 0.25,
+     "effective_dose": 0.0011
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 1.0,
+     "d_rand": 0.0,
+     "effective_dose": 0.0034
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.0,
+     "d_rand": -1.0,
+     "effective_dose": 0.0114
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p10__think",
+   "mode": "think",
+   "t": 5996,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 759.678,
+   "w_dot_hhat": 0.030024,
+   "w_dot_h": 22.809,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.4935,
+     "d_rand": -0.25,
+     "effective_dose": 0.0009
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.9935,
+     "d_rand": -0.2565,
+     "effective_dose": 0.0028
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.4844,
+     "d_rand": -1.0065,
+     "effective_dose": 0.0092
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p10__think",
+   "mode": "think",
+   "t": 6827,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 554.92,
+   "w_dot_hhat": -0.064078,
+   "w_dot_h": -35.558,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.2503,
+     "d_rand": -0.2498,
+     "effective_dose": -0.0027
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.751,
+     "d_rand": -0.25,
+     "effective_dose": -0.008
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.2534,
+     "d_rand": -0.7505,
+     "effective_dose": -0.0268
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p10__think",
+   "mode": "think",
+   "t": 8036,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 738.965,
+   "w_dot_hhat": 0.037807,
+   "w_dot_h": 27.938,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": 0.25,
+     "effective_dose": 0.0012
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.0,
+     "d_rand": 0.5,
+     "effective_dose": 0.0036
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -1.5,
+     "d_rand": 0.75,
+     "effective_dose": 0.0119
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p11__think",
+   "mode": "think",
+   "t": 175,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 572.673,
+   "w_dot_hhat": -0.069716,
+   "w_dot_h": -39.924,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": -0.0,
+     "effective_dose": -0.0028
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": -0.5,
+     "d_rand": -0.0,
+     "effective_dose": -0.0085
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -2.7497,
+     "d_rand": -0.25,
+     "effective_dose": -0.0282
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p11__think",
+   "mode": "think",
+   "t": 1176,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 717.191,
+   "w_dot_hhat": 0.038935,
+   "w_dot_h": 27.924,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": 0.0013
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": -0.25,
+     "effective_dose": 0.0038
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.3631,
+     "d_rand": -1.75,
+     "effective_dose": 0.0126
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p11__think",
+   "mode": "think",
+   "t": 1962,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 723.555,
+   "w_dot_hhat": 0.041226,
+   "w_dot_h": 29.829,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": 0.0,
+     "effective_dose": 0.0013
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": -0.25,
+     "d_rand": 0.0,
+     "effective_dose": 0.004
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -0.5,
+     "d_rand": -0.75,
+     "effective_dose": 0.0132
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p11__think",
+   "mode": "think",
+   "t": 2312,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 702.308,
+   "w_dot_hhat": 0.034144,
+   "w_dot_h": 23.979,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.0,
+     "d_rand": 0.0,
+     "effective_dose": 0.0011
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.0,
+     "d_rand": -0.25,
+     "effective_dose": 0.0034
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -1.2448,
+     "d_rand": -0.75,
+     "effective_dose": 0.0113
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p11__think",
+   "mode": "think",
+   "t": 3093,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 690.211,
+   "w_dot_hhat": -0.025895,
+   "w_dot_h": -17.873,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.2501,
+     "d_rand": -0.0,
+     "effective_dose": -0.0009
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.2508,
+     "d_rand": -0.25,
+     "effective_dose": -0.0026
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 0.5297,
+     "d_rand": -1.0001,
+     "effective_dose": -0.0087
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p11__think",
+   "mode": "think",
+   "t": 4707,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 764.684,
+   "w_dot_hhat": 0.349513,
+   "w_dot_h": 267.267,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.25,
+     "d_rand": -0.0,
+     "effective_dose": 0.0106
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.25,
+     "d_rand": 0.25,
+     "effective_dose": 0.0318
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": -2.2482,
+     "d_rand": -0.0,
+     "effective_dose": 0.106
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p11__think",
+   "mode": "think",
+   "t": 6501,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 589.201,
+   "w_dot_hhat": -0.028569,
+   "w_dot_h": -16.833,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.2449,
+     "d_rand": 0.2442,
+     "effective_dose": -0.0011
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.4887,
+     "d_rand": 0.2449,
+     "effective_dose": -0.0034
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 1.482,
+     "d_rand": 0.7409,
+     "effective_dose": -0.0112
+    }
+   ]
+  },
+  {
+   "traj": "aime__aime25__p11__think",
+   "mode": "think",
+   "t": 7914,
+   "n_tok": 8192,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "h_norm": 609.081,
+   "w_dot_hhat": -0.051036,
+   "w_dot_h": -31.085,
+   "points": [
+    {
+     "rel": 0.1,
+     "alpha": 23.1978,
+     "d_marker": 0.4811,
+     "d_rand": -0.0,
+     "effective_dose": -0.0019
+    },
+    {
+     "rel": 0.3,
+     "alpha": 69.5933,
+     "d_marker": 0.9811,
+     "d_rand": -0.0,
+     "effective_dose": -0.0058
+    },
+    {
+     "rel": 1.0,
+     "alpha": 231.9777,
+     "d_marker": 2.96,
+     "d_rand": -0.4697,
+     "effective_dose": -0.0194
+    }
+   ]
+  }
+ ]
+}

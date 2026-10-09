@@ -92,6 +92,16 @@ type BPath = {
     q3: { no_think_above_noise: number; no_think_direction: string;
           no_think_rho: number; final: string; note: string };
     q4_caveat: string; scope: string;
+    // ⚠ 预登记修订 22–23：独立复核**不支持**推广 ——
+    // 「对齐度反向」是 p01_think 一条轨迹的局部性质。
+    // 这段必须印在页面上，否则读者会把下面那些数字当成一般结论。
+    scope_warning: string;
+    generalization: {
+      prereg: string; n_traj: number; excluded: string[];
+      n_sites: number; n_above: number;
+      g1: Record<string, unknown>; g3: Record<string, unknown>;
+      g4: Record<string, unknown>; final: string;
+    };
     groups_think: Record<string, { n: number; median: number; frac_pos: number }>;
     groups_no_think: Record<string, { n: number; median: number; frac_pos: number }>;
   };
@@ -347,6 +357,12 @@ export default function BPathPanel() {
         <div className="text-[10px] text-gray-300 mb-1">
           正交度探针<span className="text-gray-500">（{d.orthogonality.prereg}）</span>
         </div>
+        {/* ⚠⚠ 适用范围警告必须在**数字之前**印：否则读者先看到
+            「20/20 全负」再看到限定，顺序会让人把结论带走。 */}
+        <p className="text-[9px] text-rose-200 mb-1 leading-relaxed"
+           data-bpath-generalization={d.orthogonality.generalization.g1.pass ? "promoted" : "not-promoted"}>
+          <Em s={d.orthogonality.scope_warning} />
+        </p>
         <p className="text-[9px] text-gray-500 mb-1 leading-relaxed">
           曾提出的假设：<Em s={d.orthogonality.hypothesis} />
         </p>

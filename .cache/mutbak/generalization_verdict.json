@@ -1,0 +1,90 @@
+{
+ "schema": "generalization_verdict/1",
+ "prereg": "R6_RERUN_PREREG.md 修订 22",
+ "traj": [
+  "aime__aime25__p02__think",
+  "aime__aime25__p03__think",
+  "aime__aime25__p04__think",
+  "aime__aime25__p05__think",
+  "aime__aime25__p06__think",
+  "aime__aime25__p07__think",
+  "aime__aime25__p08__think",
+  "aime__aime25__p09__think",
+  "aime__aime25__p10__think",
+  "aime__aime25__p11__think"
+ ],
+ "excluded": [
+  "aime__aime25__p00__think",
+  "aime__aime25__p01__think"
+ ],
+ "noise_p95": 1.0001,
+ "n_sites": 80,
+ "n_above": 49,
+ "G1": {
+  "hi": 12,
+  "lo": 15,
+  "k": 16,
+  "fisher_p": 0.16629588431590658,
+  "pass": false
+ },
+ "G2": {
+  "detail": {
+   "aime__aime25__p02__think": {
+    "n": 4,
+    "verdict": "不判"
+   },
+   "aime__aime25__p03__think": {
+    "n": 6,
+    "verdict": "不判"
+   },
+   "aime__aime25__p04__think": {
+    "n": 6,
+    "verdict": "不判"
+   },
+   "aime__aime25__p05__think": {
+    "n": 4,
+    "verdict": "不判"
+   },
+   "aime__aime25__p06__think": {
+    "n": 4,
+    "verdict": "不判"
+   },
+   "aime__aime25__p07__think": {
+    "n": 3,
+    "verdict": "不判"
+   },
+   "aime__aime25__p08__think": {
+    "n": 5,
+    "verdict": "不判"
+   },
+   "aime__aime25__p09__think": {
+    "n": 5,
+    "verdict": "不判"
+   },
+   "aime__aime25__p10__think": {
+    "n": 7,
+    "verdict": "不判"
+   },
+   "aime__aime25__p11__think": {
+    "n": 5,
+    "verdict": "不判"
+   }
+  },
+  "n_opposite": 0,
+  "n_skip": 10,
+  "pass": true
+ },
+ "G3": {
+  "rho": -0.1327,
+  "old": 0.4177,
+  "pass": false
+ },
+ "G4": {
+  "mono_down": 16,
+  "n": 80,
+  "frac": 0.2,
+  "pass": true
+ },
+ "final": "G1 不过：按 §22.5 做披露式更正 ——「对齐度反向」是 p01_think 的局部性质，不具推广性（只改适用范围，不改数字）",
+ "g4_note": "G4 通过：旧批次的 Q4 不利证据在新批次复现"
+}

@@ -20,7 +20,7 @@ L7 是「改变的是这个**概念**，不是位置或格式」（needs 行为�
 
 ## 只测量，不判决
 
-本脚本不判定任何一���「过没过」，只把实测值摆出来。
+本脚本不判定任何一条「过没过」，只把实测值摆出来。
 「最高有数据」与「最高能声称」由人（或既有的 evidence_ladder）分开印。
 """
 from __future__ import annotations
@@ -65,6 +65,14 @@ def main():
     ortho = jload(M / "orthogonality.json")          # 179 位点，修订 16 的 Q1/Q2/Q4
     ortho_nt8 = jload(M / "orthogonality_nt8.json")  # 494 位点，修订 17/18 的 Q3
     q3v = jload(M / "q3_verdict.json")
+    # 预登记修订 22/23：独立复核批次（10 条**从未测过**的 think 轨迹）
+    fresh = jload(M / "orthogonality_fresh.json")
+    genv = jload(M / "generalization_verdict.json")
+    # ⚠ 断言这批确实**不含**旧批次的两条轨迹，否则「独立复核」名不副实
+    assert not (set(fresh["traj"]) & set(fresh["think_already_excluded"])), \
+        "复核批次里混进了已测过的轨迹"
+    assert fresh["think_fresh_n"] == 10, "复核批次应是 10 条轨迹"
+    assert genv["traj"] == fresh["traj"], "判定用的轨迹与产物不一致"
 
     # ⚠ 断言两份是不同批次的读数（与层扫描那个坑同一类：文件名不含作用域）
     # `no_think_top_n` 是修订 17 才加进探针的 ⇒ 旧批次（orthogonality.json）里
@@ -204,12 +212,19 @@ def main():
     tk_ortho = {"largest_third": tk["agree_hi"], "smallest_third": tk["agree_lo"],
                 "k": tk["k"]}
     ortho_block = {
-        "what": "正交度探针：w 与该处激活的对齐度，不是效应强度的度量",
-        "prereg": "R6_RERUN_PREREG.md 修订 15–18",
+        "what": "正交度探针：在一条长轨迹上，对齐度反向；独立复核后不具推广性",
+        "prereg": "R6_RERUN_PREREG.md 修订 15–18、22–23",
         "hypothesis": ("**H（已证伪）**：有效剂量 ≈ α·(w·ĥ)/‖h‖，"
                        "即 w 与该处激活对齐越好、注入越有效、符号跟随 w·ĥ。"),
-        "headline": ("**`w` 与该处激活对齐得越好，注入效果越负。**"
-                     f"think 上 `w·ĥ>0` 的 {tk['groups']['w·ĥ>0']['n']} 个超地板位点，"
+        "scope_warning": ("⚠⚠ **「对齐度反向」是 `p01_think` 一条 8192-token 轨迹的"
+                          "局部性质，不具推广性。** 预登记修订 22 用 10 条**从未测过**的"
+                          "think 轨迹做独立复核：方向**仍是反的**，但 "
+                          "`|ρ|` 从 **0.4177 掉到 0.1327**、Fisher `p = 0.166` 不显著，"
+                          "且每条轨迹超地板位点仅 3–7 个、逐轨迹无法判定。"
+                          "⇒ 下面的数字全部来自 `p01_think`，**不得**当成一般结论。"),
+        "headline": ("**在 `p01_think` 这一条轨迹上，`w` 与该处激活对齐得越好，"
+                     "注入效果越负。**"
+                     f"该轨迹 `w·ĥ>0` 的 {tk['groups']['w·ĥ>0']['n']} 个超地板位点，"
                      f"Δ(1.0) 中位 {tk['groups']['w·ĥ>0']['median']:+.4f}、"
                      f"**{(1-tk['groups']['w·ĥ>0']['frac_pos'])*100:.0f}% 为负**；"
                      f"而 `w·ĥ≈0` 的 {tk['groups']['w·ĥ≈0']['n']} 个位点中位 "
@@ -230,7 +245,19 @@ def main():
                      "**不报 PASS 也不报 FAIL。**"),
         },
         "q4_caveat": ("不利证据：**p01__think 有 56/133 个位点随剂量单调降**，"
-                      "H 与「反转」结论都覆盖不到它（反转只占 24 个位点）。"),
+"H 与「反转」结论都覆盖不到它（反转只占 24 个位点）。"
+                      "该现象在新批次**复现**（"
+                      f"{genv['G4']['mono_down']}/{genv['G4']['n']}"
+                      f" = {genv['G4']['frac']:.2f}），但**恰好压线**，不构成强证据。"),
+        "generalization": {
+            "prereg": "R6_RERUN_PREREG.md 修订 22–23",
+            "n_traj": len(fresh["traj"]),
+            "excluded": fresh["think_already_excluded"],
+            "n_sites": len(fresh["rows"]),
+            "n_above": genv["n_above"],
+            "g1": genv["G1"], "g3": genv["G3"], "g4": genv["G4"],
+            "final": genv["final"],
+        },
         "scope": ("⚠ 只在 `rel ≤ 1.0`（相对 class_gap）、臂 B、`L=20`、"
                   "Qwen3-1.7B、marker 位点上成立，**不外推**。"),
         "groups_think": tk["groups"],
@@ -244,9 +271,10 @@ def main():
          "here": f"频次加权 w·U = {read['freq_weighted']:+.5f}，"
                  f"{read['n_ids_positive']}/{read['n_ids']} 个 marker id 为正",
          "note": ("这是**静态**读数，一次前向都不用。"
-                 "⚠ 更强的反证：think 上 `w·ĥ>0` 的 20 个超地板位点"
-                 "**20/20 全负**（中位 −1.92），`w·ĥ≈0` 的 100 个中位 +1.50 —— "
-                 "**对齐得越好，注入效果越负**。见 orthogonality 块。")},
+                 "⚠ 反证（**仅在 p01_think 一条轨迹上**）：该轨迹 `w·ĥ>0` 的 "
+                 "20 个超地板位点**20/20 全负**（中位 −1.92），`w·ĥ≈0` 的 100 个中位 +1.50。"
+                 "⚠ **独立复核后不具推广性**（|ρ| 0.4177→0.1327、不显著）。"
+                 "见 orthogonality 块。")},
         {"level": "L5", "claim": "这条配方专一到能注入",
          "bpath_state": "missing",
          "here": "0 条（同范数随机方向对照在本项目里只做到了 P9 的基准规模）",
@@ -290,9 +318,9 @@ def main():
             "但注入点一移出校准点读数即掉进噪声（|ratio| 0.0000–0.0939 且逐层变号）"
             "⇒ w·U 应在校准点读，中间层读到的量与它无可预测的定量关系",
             "同一 w 在两条 think 上给出相反形态 ⇒ 效应对位置/轨迹敏感",
-            "w 与该处激活的对齐度不是效应强度的度量：think 上 `w·ĥ>0` 的 "
-            "20 个超地板位点 20/20 全负（中位 −1.92），`w·ĥ≈0` 的 100 个中位 +1.50 "
-            "⇒ 正交度假设 H 被证伪（Q1 方向反、ρ=−0.418、Q4 有 56/133 单调降的不利证据）",
+            "在 p01_think 一条轨迹上，w 与该处激活的对齐度反向："
+            "`w·ĥ>0` 的 20 个超地板位点 20/20 全负（中位 −1.92），"
+            "`w·ĥ≈0` 的 100 个中位 +1.50 ⇒ 正交度假设 H 在该轨迹上被证伪",
         ],
         "not_answerable": [
             "正交度假设 H 在 no_think 上**无法判定**（Q3）："
