@@ -208,7 +208,7 @@ P9 读的是 `lse(lg[MARKER_IDS])`，一阶近似是 `Σ_j p_j·α·(w·U[j])`�
   —— 它的 §8 自称是「本项目真正的产物」：**八级证据阶梯 + 六条可迁移断言**。
 - `docs/VECTOR_FUNCTION_THEORY.md`（40 KB，**今天 19:58 生成，尚未提交**）。
 
-**⚠ 以下是别人的在制品，不要改动、不要提交、���要用 `git add -A`：**
+**⚠ 以下是别人的在制品，不要改动、不要提交、不要用 `git add -A`：**
 ```
  M README.md
  M backend/README.md
