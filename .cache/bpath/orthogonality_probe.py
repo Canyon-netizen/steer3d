@@ -76,8 +76,58 @@ TRAJ = [
 # 第 15 版把 no_think 写死成 2 条，导致 Q3 只有 3 个超地板位点 ——
 # 那是**样本选择**造成的缺陷，不是数据缺陷（该批实际有 59 条 / 652 个位点）。
 NO_THINK_TOP_N = int(os.environ.get("ORTHO_NO_THINK_TOP_N", "0") or 0)
+# ⚠⚠ 修订 22：think 侧的**独立轨迹复核**。
+# 排除已测过的 p00/p01，按 **trajectory_id 字典序**取前 N 条
+# —— 字典序是**无信息**规则，不可能挑到对结论有利的轨迹
+# （若改成「位点最多的 N 条」，就会偏向长轨迹，等于把 p01 的效应再放大一遍）。
+# 位点用**等距分位**取 8 个，不抽样到「看起来好」的位置。
+THINK_FRESH_N = int(os.environ.get("ORTHO_THINK_FRESH_N", "0") or 0)
+THINK_FRESH_SITES = int(os.environ.get("ORTHO_THINK_FRESH_SITES", "8") or 8)
+THINK_ALREADY = {"aime__aime25__p00__think", "aime__aime25__p01__think"}
 # ⚠ 冒烟开关（§15.3 第 4 条：正式跑不许用）
 SMOKE = int(os.environ.get("ORTHO_SMOKE_SITES", "0")) or None
+
+
+def pick_think_fresh(sidecar_dir, n, n_sites):
+    """按字典序取前 n 条**未测过**的 think 轨迹（修订 22 §22.1）。
+
+    ⚠ 三条规则都是取数前写死的，这里由代码保证：
+      1. 排除 `THINK_ALREADY`（已测过的 p00/p01）；
+      2. 按 `trajectory_id` **字典序**排序（无信息规则）；
+      3. 位点按**等距分位**取 `n_sites` 个（`floor(i*(k-1)/(n_sites-1))`）。
+    打印完整候选表与排序结果，便于事后核对「确实没挑」。
+    """
+    import glob
+    cands = []
+    for f in sorted(glob.glob(str(Path(sidecar_dir) / "*.json"))):
+        try:
+            j = json.load(open(f, encoding="utf-8"))
+        except Exception:
+            continue
+        if (j.get("config") or {}).get("mode") != "think":
+            continue
+        tid = j["trajectory_id"]
+        if tid in THINK_ALREADY:
+            continue
+        k = sum(1 for t in (j.get("tokens") or [])
+                if t.get("token_id") in MARKER_IDS)
+        if k:
+            cands.append((tid, k, j.get("n_generated_tokens")))
+    cands.sort()                                   # ← 字典序
+    print(f"\n[修订 22] 未测过的 think 轨迹共 {len(cands)} 条，"
+          f"按字典序取前 {n} 条：")
+    chosen = []
+    for tid, k, nt in cands[:n]:
+        ts = [i for i, t in enumerate(j.get("tokens") or [])
+              if t.get("token_id") in MARKER_IDS]
+        assert k == len(ts), f"{tid} 的 marker 位点数在两次读之间变了"
+        # 等距分位（去重后按实有数）
+        idx = sorted({int(i * (k - 1) / max(1, n_sites - 1)) for i in range(n_sites)})
+        sites = [ts[i] for i in idx]
+        print(f"   {tid:<32} marker位点={k:<4} n_tok={nt:<6} 取 {len(sites)} 个：{sites}")
+        chosen.append((tid, sites))
+    print(f"（已排除：{sorted(THINK_ALREADY)}）")
+    return chosen
 
 
 def pick_no_think_top(sidecar_dir, n):
@@ -192,9 +242,15 @@ def main():
     rows = []
     # 修订 17：用机械规则（位点数降序前 N）挑 no_think 补测子集
     traj_list = list(TRAJ)
+    site_override = None                    # {traj: [位点]}，修订 22 用
+    if THINK_FRESH_N:
+        fresh = pick_think_fresh(a.sidecar_dir, THINK_FRESH_N,
+                                 THINK_FRESH_SITES)
+        traj_list = [tid for tid, _ in fresh]
+        site_override = {tid: sites for tid, sites in fresh}
     if NO_THINK_TOP_N:
         extra = pick_no_think_top(a.sidecar_dir, NO_THINK_TOP_N)
-        traj_list = extra + [t for t in TRAJ if not t.endswith("no_think")]
+        traj_list = traj_list + extra      # ⚠ 不覆盖 think 侧（修订 22 与 17 互斥使用）
     print(f"\n本轮轨迹 {len(traj_list)} 条：{traj_list}")
 
     for tid in traj_list:
@@ -202,6 +258,12 @@ def main():
             open(Path(a.sidecar_dir) / f"{tid}.json", encoding="utf-8"))
         sites = [i for i, tk in enumerate(cti.get("tokens") or [])
                  if tk["token_id"] in MARKER_IDS]
+        # 修订 22：若该轨迹有**指定位点**（等距分位选的），用它而不是全量
+        if site_override and tid in site_override:
+            want = site_override[tid]
+            assert set(want) <= set(sites), \
+                f"{tid} 的指定位点不在 marker 位点集里"
+            sites = want
         mode = cti["config"]["mode"]
         print(f"\n=== {tid} mode={mode} n_gen={cti['n_generated_tokens']} "
               f"marker 位点 {len(sites)} 个：{sites[:12]}")
@@ -288,6 +350,9 @@ def main():
         "rel_ladder": REL,
         "traj": traj_list,
         "no_think_top_n": NO_THINK_TOP_N,
+        "think_fresh_n": THINK_FRESH_N,
+        "think_fresh_sites": THINK_FRESH_SITES,
+        "think_already_excluded": sorted(THINK_ALREADY),
         "seed": SEED,
         "rand_seed_rule": "zlib.crc32(f'{traj}|{t}') —— 确定性，不受 PYTHONHASHSEED 影响",
         "wU_marker": round(wU_marker, 6),
