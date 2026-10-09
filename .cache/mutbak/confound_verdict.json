@@ -1,0 +1,46 @@
+{
+ "schema": "confound_verdict/1",
+ "prereg": "R6_RERUN_PREREG.md 修订 21",
+ "n": 121,
+ "traj": [
+  "aime__aime25__p00__think",
+  "aime__aime25__p01__think"
+ ],
+ "by_mode": {},
+ "C1": {
+  "rho_w_t": 0.1789,
+  "pass": true
+ },
+ "C2": {
+  "detail": {
+   "aime__aime25__p00__think": {
+    "n": 18,
+    "k": 6,
+    "hi": 4,
+    "lo": 5,
+    "direction": "反",
+    "ok": true
+   },
+   "aime__aime25__p01__think": {
+    "n": 103,
+    "k": 34,
+    "hi": 5,
+    "lo": 22,
+    "direction": "反",
+    "ok": true
+   }
+  },
+  "pass": true
+ },
+ "C3": {
+  "rho_w": -0.4207,
+  "rho_t": 0.2195,
+  "rho_within": 0.2312,
+  "pass": true
+ },
+ "C4": {
+  "rho_residual": -0.5034,
+  "pass": true
+ },
+ "final": "C1–C4 都过：修订 16 的结论维持，且已排除位置与轨迹的混杂"
+}
