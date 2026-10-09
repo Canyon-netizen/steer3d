@@ -48,6 +48,23 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 LAYER = 20
+# Qwen3-1.7B 的 block 数。**用来判 npz 存了几个层**，见 NPZ_LAYER。
+N_BLOCKS = 28
+# npz 的第 k 层 == HF 的 hs[k+1]，不是 hs[k]。
+#
+# 采集端 collect_qwen3_aime.py:198-203 是 `for li in range(1, len(hs))`，
+# 即 hs[0]（embedding 输出）被丢弃，存下来的是 hs[1..28]，共 28 层。
+# 这条映射**实测钉死**（hs_layer_index_check.py J1，两条轨迹各验一次）：
+# `last_hidden` 与 `hidden_states[:, 27]` **逐位相同**（最大绝对差 0），
+# 而与第 26 层的最大绝对差已达 1928。
+#
+# 注入侧（make_forward）：`model.model.layers[LAYER]` 上的 forward **pre**-hook，
+# 动的是 **block LAYER 的输入** = hs[LAYER] = **npz 第 LAYER-1 层**。
+#
+# ⇒ 早先写 `hidden_states[:, LAYER, :]`（= hs[LAYER+1] = block LAYER 的**输出**）
+#   是在**注入点的下一层**上训 `w`，差一层。不报错、不崩，`w` 照样训得出来，
+#   只是与装置对不上 —— 与修订 7 修掉的「一个 token」同一族，只是错在层这个轴上。
+NPZ_LAYER = LAYER - 1
 MARKER_IDS = [13824, 14190, 6771, 10061, 7196, 88190, 80022]
 CONTROL_ID = 279          # ` the `
 REL_LADDER = [0.5, 1.0]   # P3
@@ -120,7 +137,45 @@ def pick_negatives(pos, tmap, rng):
     return negs
 
 
-def load_xy(npz_dir, pos, negs, tmap):
+def verify_npz_layer_map(npz_dir, tids):
+    """开训前在**真实 npz** 上验一次层映射，不靠文档、不靠记忆。
+
+    只做一次（挑第一条），因为 `last_hidden` 有 (T, 2048) 大小，
+    每条都读一遍在网络盘上不划算；层数守卫在 `load_xy` 里逐条查。
+
+    验的是 `last_hidden == hidden_states[:, -1]`（**逐位**相等，不是近似）：
+    采集端把 `hs[0]`（embedding 输出）丢掉了，所以最后一层就是 `hs[N_BLOCKS]`
+    —— 这条相等成立，就把 `npz[k] == hs[k+1]` 钉死了。
+
+    ⚠ 与本项目已犯的错同类：**不验就改**。三层（token 位置、绝对/相对索引、层）
+    各栽过一次，每次都不报错。
+    """
+    for tid in tids:
+        with np.load(os.path.join(npz_dir, tid + ".npz")) as z:
+            if "last_hidden" not in z:
+                print(f"[层映射] {tid} 没有 last_hidden，跳过逐位核对"
+                      "（层数守卫仍然生效）")
+                return False
+            hs = z["hidden_states"]
+            if hs.shape[1] != N_BLOCKS:
+                raise ValueError(
+                    f"{tid}: npz 存了 {hs.shape[1]} 层，期望 {N_BLOCKS}。"
+                    "层数一变 npz[k] 与 hs[k] 的对应就变了，NPZ_LAYER 必须重算。")
+            lh = z["last_hidden"]
+            ok = np.array_equal(lh, hs[:, -1, :])
+            n = hs.shape[1]
+            print(f"[层映射] {tid}  存 {n} 层；last_hidden 与最后一层逐位相同 = {ok}")
+            if not ok:
+                raise ValueError(
+                    f"{tid}: last_hidden 与 hidden_states[:, {n-1}] 不逐位相同，"
+                    "层映射假设 `npz[k]==hs[k+1]` 不成立，NPZ_LAYER 必须重算。")
+            print(f"        ⇒ npz[k] == hs[k+1]；注入点 hs[{LAYER}] = "
+                  f"npz 第 {NPZ_LAYER} 层")
+            return True
+    return False
+
+
+def load_xy(npz_dir, pos, negs, tmap, pos_offset=-1):
     """取训练样本的隐状态。
 
     ## 坐标系（`coord_triple_check.py` 在 24/24 条上验过）
@@ -130,9 +185,14 @@ def load_xy(npz_dir, pos, negs, tmap):
     注入侧：`ids = pid + gen`、`up = ids[:P+t]`，注入下标 == 生成段内 `t-1`
     （`len(pid) == extra.prompt_tokens`，24/24 差值为 0）。
 
-    ⇒ **训练必须取 `H[t-1]`**，与注入逐 token 对齐。
+    ⇒ 注入点在 `t-1`，所以 `pos_offset=-1` 时训练必须取 `H[t-1]`。
+    `pos_offset=0`（取 `H[t]`，marker 自身）是**另一个臂**，见预登记修订 10。
 
-    ## 这里踩过两次，都很便宜
+    **层那一轴**（`hs_layer_index_check.py` J1 实测钉死）：
+    npz 第 `k` 层 == HF `hs[k+1]`，而注入动的是 `hs[LAYER]`，
+    所以取的是 **npz 第 `NPZ_LAYER = LAYER-1` 层**。
+
+    ## 这里踩过三次
 
     1. 写成 `H[t]`（marker **自己**那个位置）⇒ 与注入点差**一个 token**。
        不报错、不崩，`w` 照样训得出来，只是与装置对不上。
@@ -140,15 +200,29 @@ def load_xy(npz_dir, pos, negs, tmap):
        108~914 token 之外的**无关文本**，class_gap 从 ~300 塌到 **9.3**、
        正负打分差归零，注入尺度跟着塌 32×、效应掉进 bf16 量化底噪。
        **把 npz 的相对索引当成了绝对索引。**
+    3. 修完 1、2 之后仍差**一层**：写成 `hidden_states[:, LAYER, :]`
+       （那是 block 20 的**输出**），而注入动的是它的**输入**。
+       与第 1 类同形，只是错在层这个轴上。
 
-    ⇒ 下面的守卫就是为拦住第 2 类错误而加的。
+    ⇒ 三条守卫：层数（`== N_BLOCKS`）、token 长度（`== n_generated_tokens`）、
+      以及 `verify_npz_layer_map()` 在开训前对真实文件做一次 `last_hidden` 逐位比对。
     """
     Xs, ys, ts = [], [], []
     for tid in sorted(pos):
         z = np.load(os.path.join(npz_dir, tid + ".npz"))
-        H = z["hidden_states"][:, LAYER, :].astype(np.float32)
+        hs = z["hidden_states"]
+        # 守卫 1（层数）：npz 必须只存 block 输出、丢掉 embedding 那层，
+        # 也就是 `npz[k] == hs[k+1]`。若哪天采集端改成保留 29 层，
+        # 这个映射就翻成 `npz[k] == hs[k]`，NPZ_LAYER 必须同步改成 LAYER。
+        # **这里要立刻炸，而不是让 w 悄悄训在错误的层上。**
+        if hs.shape[1] != N_BLOCKS:
+            raise ValueError(
+                f"{tid}: npz hidden_states 存了 {hs.shape[1]} 层，"
+                f"期望 {N_BLOCKS}（= Qwen3-1.7B 的 block 数，embedding 层已丢弃）。"
+                "层数一变，npz[k] 与 hs[k] 的对应关系就变了，NPZ_LAYER 必须重算。")
+        H = hs[:, NPZ_LAYER, :].astype(np.float32)
         T = H.shape[0]
-        # 守卫：npz 必须只含生成段。若哪天它开始存全序列，
+        # 守卫 2（token 轴）：npz 必须只含生成段。若哪天它开始存全序列，
         # 这里要立刻炸，而不是让下标悄悄错位 P 个 token。
         exp = int(tmap[tid])
         if T != exp:
@@ -156,22 +230,22 @@ def load_xy(npz_dir, pos, negs, tmap):
                 f"{tid}: npz hidden_states 长度 {T} != n_generated_tokens {exp}。"
                 "hidden_states 若含 prompt，所有下标都要重算，不能继续用。")
         for t in pos[tid]:
-            a = t - 1                      # 与 fwd() 的注入位置逐 token 对齐
+            a = t + pos_offset          # 与 fwd() 的注入位置逐 token 对齐
             if 0 <= a < T:
                 Xs.append(H[a]); ys.append(1); ts.append(tid)
         for t in negs.get(tid, []):
-            a = t - 1                      # 负例同样偏移，不许只改正例
+            a = t + pos_offset          # 负例同样偏移，不许只改正例
             if 0 <= a < T:
                 Xs.append(H[a]); ys.append(0); ts.append(tid)
-        del H, z
+        del H, hs, z
     return np.stack(Xs), np.array(ys, dtype=int), np.array(ts)
 
 
-def train_direction(npz_dir, pos, tmap, seed=42):
+def train_direction(npz_dir, pos, tmap, seed=42, pos_offset=-1):
     """LOO 轨迹、岭回归、平衡权重、符号定死（正例打分更高）、单位范数。"""
     rng = np.random.default_rng(seed)
     negs = pick_negatives(pos, tmap, rng)
-    X, y, traj = load_xy(npz_dir, pos, negs, tmap)
+    X, y, traj = load_xy(npz_dir, pos, negs, tmap, pos_offset)
     coefs = []
     for held in sorted(set(traj)):
         te = traj == held
@@ -298,6 +372,9 @@ def main():
                          "训练只吃 npz 的 hidden_states，所以可以在本机跑，"
                          "用来产出 P2b 需要的 w_old。")
     ap.add_argument("--w-out", default=None, help="--train-only 时 w 的输出路径")
+    ap.add_argument("--pos-offset", type=int, default=-1, choices=[-1, 0],
+                    help="训练取 H[t+offset]。-1 = 注入点（与装置同位，修订 7 的结论）；\n"
+                         "0 = marker 自身位置。两者都写进 w 的 .json，不许事后不说。")
     a = ap.parse_args()
 
     MODEL = "/home/zhourui/.cache/huggingface/models/Qwen--Qwen3-1.7B/snapshots/master"
@@ -345,12 +422,15 @@ def main():
     if not train_tids:
         print("没有可用的 think 动摇点，无法训 w"); return 2
     tmap = {t: metas[t]["n_tok"] for t in metas}
+    verify_npz_layer_map(a.npz_dir, sorted(train_tids))
     if a.w:
         W = np.load(a.w).astype(np.float32); gap = None; sgn = None
         print(f"[方向] 用外部 w: {a.w}  |w|={np.linalg.norm(W):.4f}")
     else:
-        print(f"[方向] 在 {len(train_tids)} 条 think 轨迹的动摇点上重训 …")
-        W, sgn, X, y, _ = train_direction(a.npz_dir, train_tids, tmap)
+        print(f"[方向] 在 {len(train_tids)} 条 think 轨迹的动摇点上重训 …"
+              f"  pos_offset={a.pos_offset:+d} npz_layer={NPZ_LAYER}")
+        W, sgn, X, y, _ = train_direction(a.npz_dir, train_tids, tmap,
+                                            pos_offset=a.pos_offset)
         gap = class_gap(W, X, y)
         print(f"[方向] |w|={np.linalg.norm(W):.4f}  正负打分差={sgn:.3f}  类间间距={gap:.3f}")
         del X, y
@@ -363,7 +443,9 @@ def main():
         np.save(out_w, W)
         meta = {"npz_dir": a.npz_dir, "n_train_traj": len(train_tids),
                 "sign_gap": sgn, "class_gap": gap, "w_norm": float(np.linalg.norm(W)),
-                "layer": LAYER, "seed": 42, "marker_ids": MARKER_IDS,
+                "layer": LAYER, "npz_layer": NPZ_LAYER,
+                "pos_offset": a.pos_offset, "seed": 42,
+                "marker_ids": MARKER_IDS,
                 "label_coverage": coverage}
         json.dump(meta, open(out_w + ".json", "w"), ensure_ascii=False, indent=1)
         print(f"[train-only] 写出 {out_w}（|w|={float(np.linalg.norm(W)):.4f}, "

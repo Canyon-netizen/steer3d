@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import atexit
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -48,12 +50,21 @@ def chk(name, cond, extra=""):
 
 
 # 造一个假 npz：H 在每个位置第 0 维放行号，便于反查取到的是哪一行
-TMP = Path(tempfile.mkdtemp())
+TMP = Path(tempfile.mkdtemp(
+    # 显式落到 .cache/mutbak/：本机 TMPDIR 指向仓库根目录，
+    # mkdtemp() 会把夹具丢在仓库里（已经漏出过一次 tmpujiphne5/，18 个文件）。
+    dir=str(Path(__file__).resolve().parent.parent / "mutbak")))
+# atxit：脚本中途抛异常时也会清掉
+atexit.register(lambda: shutil.rmtree(TMP, ignore_errors=True))
 T = 400
-LAYER = 20
-H = np.ones((T, 28, 2048), dtype=np.float16)
-for i in range(T):
-    H[i, LAYER, 0] = np.float16(i)
+# **每一层标上自己的层号**（`L*1000 + i`），这样「取错了哪一层」一眼能看出来，
+# 而不是所有层长得一样、只能靠猜。修订 9 的层错位就是被这个办法钉住的。
+# 用 float32：float16 的尾数只有 11 位，`L*1000+i`（最大 27399）存不下会被舍入，
+# 夹具自己先坏掉，报出来的红是假的。
+H = np.zeros((T, R.N_BLOCKS, 2048), dtype=np.float32)
+for L in range(R.N_BLOCKS):
+    for i in range(T):
+        H[i, L, 0] = np.float32(L * 1000 + i)
 np.savez(TMP / "t1.npz", hidden_states=H, token_ids=np.arange(T))
 
 markers = [10, 50, 200, 280]
@@ -62,17 +73,16 @@ tmap = {"t1": T}                        # n_generated_tokens
 
 X, y, traj = R.load_xy(str(TMP), {"t1": markers}, {"t1": negs}, tmap)
 got_pos = [float(v[0]) for v, lab in zip(X, y) if lab == 1]
-want_pos = [float(t - 1) for t in markers]
+want_pos = [float(R.NPZ_LAYER * 1000 + t - 1) for t in markers]
 got_neg = [float(v[0]) for v, lab in zip(X, y) if lab == 0]
-want_neg = [float(t - 1) for t in negs]
+want_neg = [float(R.NPZ_LAYER * 1000 + t - 1) for t in negs]
 
 print("=" * 74)
 print("L1 正例取样位置 == t-1（与注入下标对齐）")
 print("=" * 74)
 chk("L1a 正例位置逐条相等", got_pos == want_pos, f"取到={got_pos} 应为={want_pos}")
-chk("L1b 与旧的 H[t] 明显不同（差 1）",
-    got_pos == [float(t - 1) for t in markers] != [float(t) for t in markers],
-    f"旧口径会取到 {[float(t) for t in markers]}")
+# 旧版这里还有一条 L1b「与 H[t] 明显不同」，它只比行号、不看层，
+# 且与 L3a/L3b 重复。L3 把 token 轴与层轴分开比，更严也更准，L1b 已删。
 
 print()
 print("=" * 74)
@@ -82,13 +92,20 @@ chk("L2 负例位置逐条相等", got_neg == want_neg, f"取到={got_neg}")
 
 print()
 print("=" * 74)
-print("L3 牙齿：错一位的实现必须被 L1 判红")
+print("L3 牙齿：错一位（token 轴）与错一层（层轴）都必须被 L1 判红")
 print("=" * 74)
-got_old = [float(t) for t in markers]
-chk("L3a H[t] 与 H[t-1] 确实不同行",
-    all(a != b for a, b in zip(got_old, want_pos)))
-chk("L3b 旧口径会被 L1a 判红", got_old != want_pos,
-    f"旧={got_old} 新={want_pos}")
+# token 轴：H[t]
+got_old_tok = [float(R.NPZ_LAYER * 1000 + t) for t in markers]
+chk("L3a token 轴：H[t] 与 H[t-1] 确实取到不同值",
+    all(a != b for a, b in zip(got_old_tok, want_pos)))
+chk("L3b token 轴：旧口径会被 L1a 判红", got_old_tok != want_pos,
+    f"旧={got_old_tok} 新={want_pos}")
+# 层轴：npz[k] == hs[k+1]，注入动的是 hs[LAYER]，所以是 npz[LAYER-1]
+got_old_layer = [float(R.LAYER * 1000 + t - 1) for t in markers]
+chk("L3c 层轴：npz[LAYER] 与 npz[LAYER-1] 确实取到不同值",
+    all(a != b for a, b in zip(got_old_layer, want_pos)))
+chk("L3d 层轴：写 [:, LAYER, :] 的旧口径会被 L1a 判红",
+    got_old_layer != want_pos, f"旧={got_old_layer} 新={want_pos}")
 
 print()
 print("=" * 74)
@@ -99,6 +116,24 @@ try:
     chk("L4a 长度不符必须抛错", False, "竟然算出了数")
 except ValueError:
     chk("L4a 长度不符必须抛错", True, "已正确抛错（这正是能拦住相对/绝对索引混用的那条）")
+
+print()
+print("=" * 74)
+print("L4b 层数守卫：npz 存了 29 层（embedding 没丢）必须抛错")
+print("=" * 74)
+# 这正是修订 9 的那个错的反面：若哪天采集端改成保留 embedding 那层，
+# npz 会变成 29 层，映射 `npz[k]==hs[k+1]` 翻成 `npz[k]==hs[k]`，
+# NPZ_LAYER 必须重算成 LAYER。守卫要在这时候炸，而不是静默训错层。
+H29 = np.zeros((T, R.N_BLOCKS + 1, 2048), dtype=np.float32)
+for L in range(R.N_BLOCKS + 1):
+    for i in range(T):
+        H29[i, L, 0] = np.float32(L * 1000 + i)
+np.savez(TMP / "t29.npz", hidden_states=H29, token_ids=np.arange(T))
+try:
+    R.load_xy(str(TMP), {"t29": markers}, {"t29": negs}, {"t29": T})
+    chk("L4b 层数不符必须抛错", False, "竟然算出了数 —— 层错位会静默复发")
+except ValueError as e:
+    chk("L4b 层数不符必须抛错", True, f"已抛错：{str(e)[:52]}…")
 
 print()
 print("=" * 74)
