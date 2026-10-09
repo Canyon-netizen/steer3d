@@ -364,6 +364,9 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--mode", default="both", choices=["think", "no_think", "both"])
     ap.add_argument("--w", default=None, help="外部 w（.npy）；不给则本批重训")
+    ap.add_argument("--w-meta", default=None,
+                    help="外部 w 对应的 .npy.json；**不给则剂量回落到 375.0**，\n"
+                         "与预登记的 `rel×class_gap` 不一致，会超量且不报错")
     ap.add_argument("--limit-traj", type=int, default=None)
     ap.add_argument("--gpu-uuid", default=None)
     ap.add_argument("--smoke", action="store_true", help="只跑 3 条轨迹的装置符号基准")
@@ -424,8 +427,23 @@ def main():
     tmap = {t: metas[t]["n_tok"] for t in metas}
     verify_npz_layer_map(a.npz_dir, sorted(train_tids))
     if a.w:
-        W = np.load(a.w).astype(np.float32); gap = None; sgn = None
-        print(f"[方向] 用外部 w: {a.w}  |w|={np.linalg.norm(W):.4f}")
+        W = np.load(a.w).astype(np.float32)
+        sgn = None
+        # ⚠ 早先这里直接 `gap = None`，于是下面两处 `rel * (gap or 375.0)`
+        #   悄悄用 375 当剂量 —— 而预登记的口径是 **`rel × class_gap`**。
+        #   对臂 B（class_gap=231.98）那是**超量 62%**，而且**一声不吭**。
+        #   本项目栽的每一次都是这种静默默认值。
+        # ⇒ 用 --w 时必须同时给 --w-meta（训练时写下的那个 class_gap）。
+        gap = None
+        if a.w_meta:
+            _m = json.load(open(a.w_meta, encoding="utf-8"))
+            gap = float(_m["class_gap"])
+            print(f"[方向] 用外部 w: {a.w}  |w|={np.linalg.norm(W):.4f}"
+                  f"  class_gap={gap:.3f}（取自 {a.w_meta}）")
+        else:
+            print(f"[方向] 用外部 w: {a.w}  |w|={np.linalg.norm(W):.4f}"
+                  "  **没给 --w-meta ⇒ class_gap 未知，剂量将回落到 375.0，"
+                  "与预登记口径 `rel×class_gap` 不一致**")
     else:
         print(f"[方向] 在 {len(train_tids)} 条 think 轨迹的动摇点上重训 …"
               f"  pos_offset={a.pos_offset:+d} npz_layer={NPZ_LAYER}")
@@ -553,6 +571,7 @@ def main():
     json.dump({"bench": bench, "bench_v": bench_v, "pos_ok": pos_ok, "rows": rows,
                "rel_ladder": REL_LADDER, "layer": LAYER,
                "class_gap": gap, "w_norm": float(np.linalg.norm(W)),
+               "dose_source": ("w_meta" if a.w_meta else ("retrained" if not a.w else "FALLBACK_375")),
                "label_coverage": coverage},
               open(a.out, "w"), ensure_ascii=False, indent=1)
     print("写出", a.out)

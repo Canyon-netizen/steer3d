@@ -161,10 +161,15 @@ def main():
         z = np.load(os.path.join(a.npz_dir, tid + ".npz"))
         gen = z["token_ids"].tolist()
         if "hidden_states" in z:
-            # 用 NPZ_LAYER（= LAYER-1），不是 LAYER：npz[k] == hs[k+1]，
+            # 下标必须是 [t-1, LAYER, :]，**不是** [LAYER][t-1]。
+            # `z["hidden_states"][19]` 切的是**第 0 轴（token 轴）**，
+            # 拿到 (28, 2048)，再 [203] 就越界了 —— 第一版就是这么写的，
+            # 第一次运行就 IndexError。数组是 (T, L, D)，token 在前、层在后。
+            #
+            # 用 NPZ_LAYER（= LAYER-1）而不是 LAYER：npz[k] == hs[k+1]，
             # 而注入动的是 hs[LAYER]。写成 LAYER 会读到 block LAYER 的**输出**，
             # 也就是注入点的下一层 —— 那正是 r6_rerun.py 修掉的那个错。
-            h20 = z["hidden_states"][R6.NPZ_LAYER][t - 1].astype(np.float64)
+            h20 = z["hidden_states"][t - 1, R6.NPZ_LAYER, :].astype(np.float64)
             rec_hs_layer = R6.NPZ_LAYER
         else:
             h20, rec_hs_layer = None, None
