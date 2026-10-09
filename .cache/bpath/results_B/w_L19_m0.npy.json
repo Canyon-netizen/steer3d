@@ -1,0 +1,25 @@
+{
+ "npz_dir": "/home/zhourui/steer3d_bpath/gen_b2/aime",
+ "n_train_traj": 60,
+ "sign_gap": 0.21646655611294852,
+ "class_gap": 231.97767639160156,
+ "w_norm": 1.0,
+ "layer": 20,
+ "npz_layer": 19,
+ "pos_offset": 0,
+ "seed": 42,
+ "marker_ids": [
+  13824,
+  14190,
+  6771,
+  10061,
+  7196,
+  88190,
+  80022
+ ],
+ "label_coverage": {
+  "n_traj": 120,
+  "n_missing": 0,
+  "frac": 1.0
+ }
+}

@@ -1,0 +1,76 @@
+{
+ "bench": {
+  "aime__aime25__p00__no_think": {
+   "w+@0.5": 0.5,
+   "w+@1.0": 1.0,
+   "w-@0.5": -1.0,
+   "w-@1.0": -3.0,
+   "rand@0.5": -0.0,
+   "rand@1.0": -0.25
+  },
+  "aime__aime25__p00__think": {
+   "w+@0.5": 0.0,
+   "w+@1.0": -0.5,
+   "w-@0.5": -1.0,
+   "w-@1.0": -7.75,
+   "rand@0.5": 0.25,
+   "rand@1.0": -0.25
+  },
+  "aime__aime25__p01__no_think": {
+   "w+@0.5": 0.5,
+   "w+@1.0": 1.0,
+   "w-@0.5": -1.25,
+   "w-@1.0": -3.125,
+   "rand@0.5": -0.25,
+   "rand@1.0": -1.0
+  }
+ },
+ "bench_v": {
+  "aime__aime25__p00__no_think": {
+   "mode": "no_think",
+   "up_mono": true,
+   "dn_mono": true,
+   "w+_amp": 1.0,
+   "w-_amp": 3.0,
+   "rand_amp": 0.25,
+   "w+_beats_rand": true,
+   "w-_beats_rand": true,
+   "why": [],
+   "ok": true
+  },
+  "aime__aime25__p00__think": {
+   "mode": "think",
+   "up_mono": false,
+   "dn_mono": true,
+   "w+_amp": 0.5,
+   "w-_amp": 7.75,
+   "rand_amp": 0.25,
+   "w+_beats_rand": true,
+   "w-_beats_rand": true,
+   "why": [
+    "+w 不单调升"
+   ],
+   "ok": false
+  },
+  "aime__aime25__p01__no_think": {
+   "mode": "no_think",
+   "up_mono": true,
+   "dn_mono": true,
+   "w+_amp": 1.0,
+   "w-_amp": 3.125,
+   "rand_amp": 1.0,
+   "w+_beats_rand": false,
+   "w-_beats_rand": true,
+   "why": [
+    "+w 效应 1.0 未超过随机方向 1.0"
+   ],
+   "ok": false
+  }
+ },
+ "pos_ok": false,
+ "label_coverage": {
+  "n_traj": 120,
+  "n_missing": 0,
+  "frac": 1.0
+ }
+}

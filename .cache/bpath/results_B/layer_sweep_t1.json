@@ -1,0 +1,232 @@
+{
+ "alpha": 172.41778564453125,
+ "rel": 1.0,
+ "class_gap": 172.41778564453125,
+ "w_norm_raw": 1.0,
+ "n_layer": 28,
+ "layer_ladder": [
+  -1,
+  0,
+  4,
+  8,
+  12,
+  16,
+  20,
+  24,
+  26,
+  27
+ ],
+ "pred_w_dot_Weff_marker": 0.03173217208907005,
+ "rows": [
+  {
+   "traj": "aime__aime25__p00__think",
+   "mode": "think",
+   "t": 204,
+   "n_tok": 3309,
+   "alpha": 172.41778564453125,
+   "rel": 1.0,
+   "class_gap": 172.41778564453125,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "pred_marker_lse": 5.4712,
+   "layers": {
+    "-1": {
+     "d_marker_lse": -1.0,
+     "d_real_token": -1.0,
+     "d_control": -5.7969
+    },
+    "0": {
+     "d_marker_lse": -32.675,
+     "d_real_token": -40.2969,
+     "d_control": 6.9688
+    },
+    "4": {
+     "d_marker_lse": -28.044,
+     "d_real_token": -32.125,
+     "d_control": 1.7188
+    },
+    "8": {
+     "d_marker_lse": -27.7388,
+     "d_real_token": -32.25,
+     "d_control": 1.4688
+    },
+    "12": {
+     "d_marker_lse": -29.5432,
+     "d_real_token": -33.5,
+     "d_control": -2.6562
+    },
+    "16": {
+     "d_marker_lse": -14.2441,
+     "d_real_token": -19.375,
+     "d_control": -1.2812
+    },
+    "20": {
+     "d_marker_lse": -1.25,
+     "d_real_token": -1.25,
+     "d_control": -0.4688
+    },
+    "24": {
+     "d_marker_lse": -0.25,
+     "d_real_token": -0.25,
+     "d_control": 0.7812
+    },
+    "26": {
+     "d_marker_lse": 0.0,
+     "d_real_token": 0.0,
+     "d_control": 0.7188
+    },
+    "27": {
+     "d_marker_lse": 0.5,
+     "d_real_token": 0.5,
+     "d_control": 0.6562
+    }
+   },
+   "h20_norm": 696.066,
+   "w_dot_hhat": 0.19312,
+   "w_dot_h": 134.424,
+   "rel_perturbation": 0.2477,
+   "rms_ratio": 1.07565,
+   "calibration_ratio": -0.1828
+  },
+  {
+   "traj": "aime__aime25__p00__no_think",
+   "mode": "no_think",
+   "t": 252,
+   "n_tok": 757,
+   "alpha": 172.41778564453125,
+   "rel": 1.0,
+   "class_gap": 172.41778564453125,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "pred_marker_lse": 5.4712,
+   "layers": {
+    "-1": {
+     "d_marker_lse": -0.9874,
+     "d_real_token": -1.0,
+     "d_control": -5.8047
+    },
+    "0": {
+     "d_marker_lse": -27.3158,
+     "d_real_token": -32.0938,
+     "d_control": 10.5703
+    },
+    "4": {
+     "d_marker_lse": -20.8255,
+     "d_real_token": -24.125,
+     "d_control": 9.5703
+    },
+    "8": {
+     "d_marker_lse": -20.6454,
+     "d_real_token": -23.4375,
+     "d_control": 9.0078
+    },
+    "12": {
+     "d_marker_lse": -20.1797,
+     "d_real_token": -22.3125,
+     "d_control": 6.8203
+    },
+    "16": {
+     "d_marker_lse": -8.4769,
+     "d_real_token": -9.375,
+     "d_control": 1.1328
+    },
+    "20": {
+     "d_marker_lse": 0.0,
+     "d_real_token": 0.0,
+     "d_control": 0.2578
+    },
+    "24": {
+     "d_marker_lse": -0.75,
+     "d_real_token": -0.75,
+     "d_control": 0.4297
+    },
+    "26": {
+     "d_marker_lse": -1.0,
+     "d_real_token": -1.0,
+     "d_control": 0.5703
+    },
+    "27": {
+     "d_marker_lse": -0.5,
+     "d_real_token": -0.5,
+     "d_control": 0.4609
+    }
+   },
+   "h20_norm": 671.04,
+   "w_dot_hhat": 0.161684,
+   "w_dot_h": 108.496,
+   "rel_perturbation": 0.2569,
+   "rms_ratio": 1.07196,
+   "calibration_ratio": -0.1805
+  },
+  {
+   "traj": "aime__aime25__p01__no_think",
+   "mode": "no_think",
+   "t": 422,
+   "n_tok": 2515,
+   "alpha": 172.41778564453125,
+   "rel": 1.0,
+   "class_gap": 172.41778564453125,
+   "npz_layer_read": 19,
+   "inject_hs_index": 20,
+   "pred_marker_lse": 5.4712,
+   "layers": {
+    "-1": {
+     "d_marker_lse": -1.2493,
+     "d_real_token": -1.25,
+     "d_control": -5.7891
+    },
+    "0": {
+     "d_marker_lse": -24.5558,
+     "d_real_token": -28.6562,
+     "d_control": 6.8125
+    },
+    "4": {
+     "d_marker_lse": -18.5114,
+     "d_real_token": -21.5625,
+     "d_control": 8.125
+    },
+    "8": {
+     "d_marker_lse": -18.0658,
+     "d_real_token": -20.25,
+     "d_control": 9.5
+    },
+    "12": {
+     "d_marker_lse": -15.8871,
+     "d_real_token": -18.125,
+     "d_control": 8.0625
+    },
+    "16": {
+     "d_marker_lse": -8.2268,
+     "d_real_token": -8.25,
+     "d_control": 4.8125
+    },
+    "20": {
+     "d_marker_lse": -0.75,
+     "d_real_token": -0.75,
+     "d_control": 0.75
+    },
+    "24": {
+     "d_marker_lse": -0.75,
+     "d_real_token": -0.75,
+     "d_control": 0.7812
+    },
+    "26": {
+     "d_marker_lse": -0.75,
+     "d_real_token": -0.75,
+     "d_control": 0.5625
+    },
+    "27": {
+     "d_marker_lse": -0.5,
+     "d_real_token": -0.5,
+     "d_control": 0.3438
+    }
+   },
+   "h20_norm": 658.606,
+   "w_dot_hhat": 0.198036,
+   "w_dot_h": 130.428,
+   "rel_perturbation": 0.2618,
+   "rms_ratio": 1.08269,
+   "calibration_ratio": -0.2283
+  }
+ ]
+}

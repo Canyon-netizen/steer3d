@@ -198,6 +198,9 @@ export default function ArchivedExperiments() {
       <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">
         Archived experiments
       </h2>
+      <a href="/bpath-explorer" className="mt-2 block text-xs text-sky-300">
+        B 路逐位置干预：剂量响应、token 反查与 3D 状态位移 →
+      </a>
 
       <select
         data-archived-file={String(idx)}

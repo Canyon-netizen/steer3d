@@ -1,0 +1,4 @@
+{"A_L19_m1(H[t-1])": "/home/zhourui/steer3d_bpath/w_L19_m1.npy",
+ "B_L19_m0(H[t])":   "/home/zhourui/steer3d_bpath/w_L19_m0.npy",
+ "old_w_real(错层)": "/home/zhourui/steer3d_bpath/w_real.npy",
+ "old_w_t1(错层)":   "/home/zhourui/steer3d_bpath/w_t1.npy"}
