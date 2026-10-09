@@ -71,8 +71,42 @@ TRAJ = [
     "aime__aime25__p00__no_think",
     "aime__aime25__p01__no_think",
 ]
+# ⚠⚠ 修订 17：Q3 补测用的 no_think 子集。
+# **由机械规则选出，不许人工挑选**（§17.2）：按 marker 位点数降序取前 N。
+# 第 15 版把 no_think 写死成 2 条，导致 Q3 只有 3 个超地板位点 ——
+# 那是**样本选择**造成的缺陷，不是数据缺陷（该批实际有 59 条 / 652 个位点）。
+NO_THINK_TOP_N = int(os.environ.get("ORTHO_NO_THINK_TOP_N", "0") or 0)
 # ⚠ 冒烟开关（§15.3 第 4 条：正式跑不许用）
 SMOKE = int(os.environ.get("ORTHO_SMOKE_SITES", "0")) or None
+
+
+def pick_no_think_top(sidecar_dir, n):
+    """按 marker 位点数降序取前 n 条 no_think 轨迹（§17.2 的机械规则）。
+
+    ⚠ **不允许人工挑**：只按位点数排序，排序键与阈值都在判据里写死。
+    打印完整排序表，便于事后核对「确实没挑」。
+    """
+    import glob
+    rows = []
+    for f in sorted(glob.glob(str(Path(sidecar_dir) / "*.json"))):
+        try:
+            j = json.load(open(f, encoding="utf-8"))
+        except Exception:
+            continue
+        mode = (j.get("config") or {}).get("mode")
+        if mode != "no_think":
+            continue
+        k = sum(1 for t in (j.get("tokens") or [])
+                if t.get("token_id") in MARKER_IDS)
+        if k:
+            rows.append((k, j["trajectory_id"], j.get("n_generated_tokens")))
+    rows.sort(key=lambda r: (-r[0], r[1]))       # 位点降序，同数按 id 升序（确定性）
+    print(f"\n[修订 17] no_think 按 marker 位点数降序，前 {n} 条：")
+    for k, tid, nt in rows[:n]:
+        print(f"   位点={k:<4} n_tok={nt:<6} {tid}")
+    print(f"（该 mode 共有 {len(rows)} 条带 marker 的轨迹，"
+          f"合计 {sum(r[0] for r in rows)} 个位点）")
+    return [r[1] for r in rows[:n]]
 SEED = 42
 
 
@@ -156,7 +190,14 @@ def main():
         return o.logits[0, -1].float()
 
     rows = []
-    for tid in TRAJ:
+    # 修订 17：用机械规则（位点数降序前 N）挑 no_think 补测子集
+    traj_list = list(TRAJ)
+    if NO_THINK_TOP_N:
+        extra = pick_no_think_top(a.sidecar_dir, NO_THINK_TOP_N)
+        traj_list = extra + [t for t in TRAJ if not t.endswith("no_think")]
+    print(f"\n本轮轨迹 {len(traj_list)} 条：{traj_list}")
+
+    for tid in traj_list:
         cti = json.load(
             open(Path(a.sidecar_dir) / f"{tid}.json", encoding="utf-8"))
         sites = [i for i, tk in enumerate(cti.get("tokens") or [])
@@ -245,7 +286,8 @@ def main():
         "w_meta": {k: wmeta.get(k) for k in
                    ("class_gap", "pos_offset", "npz_layer", "sign_gap")},
         "rel_ladder": REL,
-        "traj": TRAJ,
+        "traj": traj_list,
+        "no_think_top_n": NO_THINK_TOP_N,
         "seed": SEED,
         "rand_seed_rule": "zlib.crc32(f'{traj}|{t}') —— 确定性，不受 PYTHONHASHSEED 影响",
         "wU_marker": round(wU_marker, 6),
