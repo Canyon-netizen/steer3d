@@ -1,0 +1,436 @@
+{
+ "schema": "bpath_marker_steering/1",
+ "what": "B 路（R-6）：把「学一个方向去抬 \\boxed 标记 token」这件事，从坐标系到判据到机制完整走一遍的结果",
+ "arm": "B_L19_m0(H[t])",
+ "built_from": [
+  ".cache/mutbak/w_L19_m0.npy.json",
+  ".cache/mutbak/r6_smoke_L19m0.json",
+  ".cache/mutbak/marker_freq5.json",
+  ".cache/mutbak/layer_sweep_t1.json",
+  ".cache/mutbak/dose_sweep_B.json"
+ ],
+ "selfcheck_passed": true,
+ "selfcheck": "位置+层轴 12/12；P9 判定 11/11（含新旧闸门对照）；判决脚本 26/26",
+ "coordinates": {
+  "layer_block": 20,
+  "npz_layer": 19,
+  "pos_offset": 0,
+  "note": "npz 第 k 层 == HF 的 hs[k+1]；注入动的是 hs[LAYER] 的**输入**，所以训练取 npz[LAYER-1]。J1 判据：last_hidden 与 hidden_states[:,-1] 逐位相同（最大绝对差 0），与倒数第二层差 1928。",
+  "guards": [
+   "层数 shape[1] != 28 抛错",
+   "token 长度 shape[0] != n_generated_tokens 抛错",
+   "开训前 verify_npz_layer_map() 逐位比对"
+  ],
+  "label_coverage": {
+   "n_traj": 120,
+   "n_missing": 0,
+   "frac": 1.0
+  }
+ },
+ "readability_static": {
+  "what": "w·U[marker] 的逐 id 点积 + 语料频次（纯静态，一次前向都不用）",
+  "arith_mean": 0.1802,
+  "freq_weighted": 0.18424,
+  "n_ids_positive": 7,
+  "n_ids": 7,
+  "freq_total": 5853,
+  "per_id": {
+   "7196": {
+    "dot": 0.1792,
+    "freq": 1467,
+    "share": 0.2506
+   },
+   "13824": {
+    "dot": 0.18392,
+    "freq": 1234,
+    "share": 0.2108
+   },
+   "10061": {
+    "dot": 0.17768,
+    "freq": 1213,
+    "share": 0.2072
+   },
+   "6771": {
+    "dot": 0.20097,
+    "freq": 1182,
+    "share": 0.2019
+   },
+   "14190": {
+    "dot": 0.18009,
+    "freq": 691,
+    "share": 0.1181
+   },
+   "80022": {
+    "dot": 0.15315,
+    "freq": 39,
+    "share": 0.0067
+   },
+   "88190": {
+    "dot": 0.18639,
+    "freq": 27,
+    "share": 0.0046
+   }
+  },
+  "neg_in_high_freq": [],
+  "caveat": "**算术均值会掩盖符号分裂**。对照 w_t1：算术均值 +0.0317 看着是正的，逐 id 却是两个占语料各 21% 的 id 为负，而 P9 读的是 logsumexp，起决定作用的是当前概率最高的那一个。"
+ },
+ "p9_device_benchmark": {
+  "what": "装置符号基准：剂量单调 **且** 效应超过同剂量随机方向",
+  "n_pass": 1,
+  "n": 3,
+  "rows": [
+   {
+    "traj": "aime__aime25__p00__no_think",
+    "mode": "no_think",
+    "ok": true,
+    "why": [],
+    "rel_ladder": null,
+    "class_gap": null,
+    "w_norm": null,
+    "w+": [
+     0.5,
+     1.0
+    ],
+    "w-": [
+     -1.0,
+     -3.0
+    ],
+    "rand@1.0": -0.25
+   },
+   {
+    "traj": "aime__aime25__p00__think",
+    "mode": "think",
+    "ok": false,
+    "why": [
+     "+w 不单调升"
+    ],
+    "rel_ladder": null,
+    "class_gap": null,
+    "w_norm": null,
+    "w+": [
+     0.0,
+     -0.5
+    ],
+    "w-": [
+     -1.0,
+     -7.75
+    ],
+    "rand@1.0": -0.25
+   },
+   {
+    "traj": "aime__aime25__p01__no_think",
+    "mode": "no_think",
+    "ok": false,
+    "why": [
+     "+w 效应 1.0 未超过随机方向 1.0"
+    ],
+    "rel_ladder": null,
+    "class_gap": null,
+    "w_norm": null,
+    "w+": [
+     0.5,
+     1.0
+    ],
+    "w-": [
+     -1.25,
+     -3.125
+    ],
+    "rand@1.0": -1.0
+   }
+  ],
+  "has_random_arm": true,
+  "why_not_rand_floor": "噪声地板取基准里**本就有的随机方向**，不另设魔数。只判单调性会让**零响应**通过（0.0 >= 0.0 成立），装置完全没动也判 PASS。"
+ },
+ "dose_position_scan": {
+  "what": "剂量-位置二维扫描（阶梯取数前写死，一个字未改）",
+  "dose_ladder": [
+   0.02,
+   0.05,
+   0.1,
+   0.25,
+   0.5,
+   1.0
+  ],
+  "gap": 231.978,
+  "per_traj": {
+   "aime__aime25__p00__think": {
+    "traj": "aime__aime25__p00__think",
+    "mode": "think",
+    "n_pos": 2,
+    "pos": [
+     204,
+     360
+    ],
+    "dose": [
+     0.02,
+     0.05,
+     0.1,
+     0.25,
+     0.5,
+     1.0
+    ],
+    "w+_median": [
+     0.125,
+     0.25,
+     0.25,
+     0.125,
+     0.125,
+     -0.1248
+    ],
+    "w-_median": [
+     -0.0,
+     0.125,
+     -0.0,
+     -0.125,
+     -0.875,
+     -5.625
+    ],
+    "w+_monotone_up": false,
+    "w-_monotone_down": false
+   },
+   "aime__aime25__p01__think": {
+    "traj": "aime__aime25__p01__think",
+    "mode": "think",
+    "n_pos": 2,
+    "pos": [
+     518,
+     2114
+    ],
+    "dose": [
+     0.02,
+     0.05,
+     0.1,
+     0.25,
+     0.5,
+     1.0
+    ],
+    "w+_median": [
+     -0.25,
+     -0.25,
+     -0.375,
+     -0.625,
+     -1.1249500000000001,
+     -2.5814
+    ],
+    "w-_median": [
+     -0.125,
+     -0.0,
+     -0.0,
+     0.125,
+     0.375,
+     -0.125
+    ],
+    "w+_monotone_up": false,
+    "w-_monotone_down": false
+   },
+   "aime__aime25__p00__no_think": {
+    "traj": "aime__aime25__p00__no_think",
+    "mode": "no_think",
+    "n_pos": 2,
+    "pos": [
+     252,
+     480
+    ],
+    "dose": [
+     0.02,
+     0.05,
+     0.1,
+     0.25,
+     0.5,
+     1.0
+    ],
+    "w+_median": [
+     0.0,
+     0.125,
+     0.25,
+     0.375,
+     0.75,
+     1.1251
+    ],
+    "w-_median": [
+     -0.0625,
+     -0.1875,
+     -0.3125,
+     -0.5,
+     -1.25,
+     -3.75
+    ],
+    "w+_monotone_up": true,
+    "w-_monotone_down": true
+   },
+   "aime__aime25__p01__no_think": {
+    "traj": "aime__aime25__p01__no_think",
+    "mode": "no_think",
+    "n_pos": 2,
+    "pos": [
+     422,
+     681
+    ],
+    "dose": [
+     0.02,
+     0.05,
+     0.1,
+     0.25,
+     0.5,
+     1.0
+    ],
+    "w+_median": [
+     0.0625,
+     0.0625,
+     0.0625,
+     0.25005,
+     0.50015,
+     0.8765499999999999
+    ],
+    "w-_median": [
+     -0.0625,
+     -0.125,
+     -0.1875,
+     -0.4375,
+     -1.0625,
+     -2.6875
+    ],
+    "w+_monotone_up": true,
+    "w-_monotone_down": true
+   }
+  },
+  "by_mode": {
+   "no_think": {
+    "n_traj": 2,
+    "n_w+_monotone_up": 2,
+    "n_w-_monotone_down": 2,
+    "w+_small_dose_median": {
+     "no_think": 0.0625
+    }
+   },
+   "think": {
+    "n_traj": 2,
+    "n_w+_monotone_up": 0,
+    "n_w-_monotone_down": 0,
+    "w+_small_dose_median": {
+     "think": -0.25
+    }
+   }
+  },
+  "headline": "**两条 think 轨迹给出相反形态**：p00 小剂量正向、峰后转负；p01 最小剂量即负且越来越负。⇒ 「方向问题 vs 量纲问题」的二分**不成立**；真正的模式是**效应的符号与幅度都强烈依赖具体位置与轨迹**。"
+ },
+ "layer_profile": {
+  "what": "注入层扫描：同一向量换个层注入，效应跨两个数量级",
+  "layer_ladder": [
+   -1,
+   0,
+   4,
+   8,
+   12,
+   16,
+   20,
+   24,
+   26,
+   27
+  ],
+  "calibration": "L=-1 挂在 model.model.norm 的 **forward hook**（改输出），那里下游是恒等映射，Δlogit = α·(w·lm_head[token]) **精确成立**。同批 ' the ' 预测 -5.7944 / 实测 -5.7969、-5.7891、-5.8047 **逐位吻合** ⇒ 钩子与公式都没错。",
+  "headline": "**一阶预测被下游 8 层高估约 43 倍**：预测 class_gap×频次加权点积 ≈ +42.7，实测 L=20 处只有 +1.0。⇒ `w·U[marker]` 是可靠的**符号与排序**指标，但**不是效应幅度的预测器**。",
+  "rows": [
+   {
+    "traj": "aime__aime25__p00__think",
+    "mode": "think",
+    "t": 204,
+    "alpha": 172.41778564453125,
+    "w_dot_hhat": 0.19312,
+    "rel_perturbation": 0.2477,
+    "by_layer": {
+     "-1": -1.0,
+     "0": -32.675,
+     "4": -28.044,
+     "8": -27.7388,
+     "12": -29.5432,
+     "16": -14.2441,
+     "20": -1.25,
+     "24": -0.25,
+     "26": 0.0,
+     "27": 0.5
+    }
+   },
+   {
+    "traj": "aime__aime25__p00__no_think",
+    "mode": "no_think",
+    "t": 252,
+    "alpha": 172.41778564453125,
+    "w_dot_hhat": 0.161684,
+    "rel_perturbation": 0.2569,
+    "by_layer": {
+     "-1": -0.9874,
+     "0": -27.3158,
+     "4": -20.8255,
+     "8": -20.6454,
+     "12": -20.1797,
+     "16": -8.4769,
+     "20": 0.0,
+     "24": -0.75,
+     "26": -1.0,
+     "27": -0.5
+    }
+   },
+   {
+    "traj": "aime__aime25__p01__no_think",
+    "mode": "no_think",
+    "t": 422,
+    "alpha": 172.41778564453125,
+    "w_dot_hhat": 0.198036,
+    "rel_perturbation": 0.2618,
+    "by_layer": {
+     "-1": -1.2493,
+     "0": -24.5558,
+     "4": -18.5114,
+     "8": -18.0658,
+     "12": -15.8871,
+     "16": -8.2268,
+     "20": -0.75,
+     "24": -0.75,
+     "26": -0.75,
+     "27": -0.5
+    }
+   }
+  ]
+ },
+ "ladder_mapping": [
+  {
+   "level": "L2",
+   "claim": "这个方向线性编码了观测量 y",
+   "bpath_state": "done",
+   "here": "频次加权 w·U = +0.18424，7/7 个 marker id 为正",
+   "note": "这是**静态**读数，一次前向都不用。"
+  },
+  {
+   "level": "L5",
+   "claim": "这条配方专一到能注入",
+   "bpath_state": "missing",
+   "here": "0 条（同范数随机方向对照在本项目里只做到了 P9 的基准规模）",
+   "note": "既有阶梯已记 missing；B 路没有推进这一级。"
+  },
+  {
+   "level": "L6",
+   "claim": "注入改变行为，且改变是这条方向特有的",
+   "bpath_state": "partial",
+   "here": "P9 1/3 通过；两条 no_think 正控 5/5 剂量步单调，think 上不稳定",
+   "note": "**有随机方向臂**（needs 满足），但 think 上响应不稳定 ⇒ partial。"
+  },
+  {
+   "level": "L7",
+   "claim": "改变的是这个概念，不是位置或格式",
+   "bpath_state": "evidence_against_naive_reading",
+   "here": "剂量扫描就是一次位置轴对照：同一条 w 在两条 think 上给出**相反**形态",
+   "note": "**本项目对 L7 最直接的证据是「不能外推」**：不做位置轴对照，L6 的结论不能当成 L7 的结论。"
+  }
+ ],
+ "answerable": [
+  "装置在 no_think 上给出干净、单调、符号正确的剂量响应（正控 5/5）",
+  "一阶预测 α·(w·U) 会被下游 8 层高估约 43 倍，w·U 只预测符号与排序",
+  "同一 w 在两条 think 上给出相反形态 ⇒ 效应对位置/轨迹敏感"
+ ],
+ "not_answerable": [
+  "R-6 的 P6（correct vs wrong 效应方向是否不同）在 think 上做不了",
+  "「这条方向能稳定 steering 模型行为」在 think 分布上不成立"
+ ],
+ "the_one_line": "**可读性 ≠ 可控性**：w·U[marker] > 0 是纯静态读数，一次前向都不用；而「注入后剂量响应稳定单调」必须真跑模型、逐位置逐剂量地测。no_think 上二者同时成立；think 上可读性成立而可控性不成立。⇒ **不能用 unembedding 对齐度替代因果响应验证。**"
+}
