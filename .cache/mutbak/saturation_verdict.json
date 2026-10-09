@@ -1,0 +1,40 @@
+{
+ "schema": "saturation_verdict/1",
+ "prereg": "R6_RERUN_PREREG.md 修订 19",
+ "n_sites": 494,
+ "n_above": 140,
+ "floor": 1.0,
+ "by_mode": {
+  "think": {
+   "n": 121,
+   "rho_base": 0.3259,
+   "rho_w": -0.4207,
+   "S1": false,
+   "S2": false,
+   "S3": false,
+   "neg_hi": 11,
+   "neg_lo": 26,
+   "k": 40,
+   "fisher_p": 0.0007618613886546966,
+   "top1_all": 1.0,
+   "top1_hi": 1.0,
+   "top1_lo": 1.0
+  },
+  "no_think": {
+   "n": 19,
+   "rho_base": 0.0668,
+   "rho_w": 0.1045,
+   "S1": false,
+   "S2": false,
+   "S3": false,
+   "neg_hi": 1,
+   "neg_lo": 0,
+   "k": 6,
+   "fisher_p": 1.0,
+   "top1_all": 1.0,
+   "top1_hi": 1.0,
+   "top1_lo": 1.0
+  }
+ },
+ "final": "饱和解释无证据：修订 16 的结论维持（仍只报现象，不报机制）"
+}
