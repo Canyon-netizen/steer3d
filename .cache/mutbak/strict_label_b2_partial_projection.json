@@ -2,47 +2,47 @@
  "input": ".cache/mutbak/strict_label_b2_partial.json",
  "summary": {
   "no_think": {
-   "n_problems": 49,
-   "correct": 5,
-   "wrong": 39,
-   "truncated": 5,
-   "rate_correct": 0.10204081632653061,
-   "rate_wrong": 0.7959183673469388,
+   "n_problems": 60,
+   "correct": 6,
+   "wrong": 48,
+   "truncated": 6,
+   "rate_correct": 0.1,
+   "rate_wrong": 0.8,
    "wilson_correct": [
-    0.04437889248703989,
-    0.21756624164970087
+    0.04664219945723587,
+    0.20149694492511044
    ],
    "wilson_wrong": [
-    0.6636272988905617,
-    0.8851827295718618
+    0.6821795390818299,
+    0.8817161026314104
    ]
   },
   "think": {
-   "n_problems": 50,
-   "correct": 12,
+   "n_problems": 60,
+   "correct": 13,
    "wrong": 8,
-   "truncated": 39,
-   "rate_correct": 0.24,
-   "rate_wrong": 0.16,
+   "truncated": 49,
+   "rate_correct": 0.21666666666666667,
+   "rate_wrong": 0.13333333333333333,
    "wilson_correct": [
-    0.14297252401872207,
-    0.37412949375192367
+    0.13122921046407013,
+    0.3362026834734252
    ],
    "wilson_wrong": [
-    0.08337321362087696,
-    0.2851448096176598
+    0.06914026978309641,
+    0.241653945900721
    ]
   }
  },
  "targets": {
   "60": {
    "no_think": {
-    "correct": 6.122448979591837,
-    "wrong": 47.755102040816325
+    "correct": 6.0,
+    "wrong": 48.0
    },
    "think": {
-    "correct": 14.399999999999999,
-    "wrong": 9.6
+    "correct": 13.0,
+    "wrong": 8.0
    }
   }
  },
