@@ -14,6 +14,7 @@ import AxisReadoutPanel from "@/components/AxisReadoutPanel";
 import SubspacePanel from "@/components/SubspacePanel";
 import HeldoutPanel from "@/components/HeldoutPanel";
 import EvidenceLadderPanel from "@/components/EvidenceLadderPanel";
+import BPathPanel from "@/components/BPathPanel";
 import StrengthLawPanel from "@/components/StrengthLawPanel";
 import RandomControlPanel from "@/components/RandomControlPanel";
 import VerifyRandomControl from "@/components/verifyRandomControl";
@@ -168,6 +169,11 @@ export default function Page() {
           <SubspacePanel />
           <HeldoutPanel />
           <EvidenceLadderPanel />
+          {/* 紧跟在 EvidenceLadderPanel 之后：那一块讲「一条断言要走到第几级才算数」，
+              这一块是**同一条阶梯在干预臂上的实测读数**，
+              核心是一句「可读性 ≠ 可控性」。
+              刻意挂在阶梯后面：读者先看到分级标准，再看到这一臂站在哪。 */}
+          <BPathPanel />
           <StrengthLawPanel />
           {/* 紧跟在 StrengthLawPanel 之后：它读 steer_directions.json，
               这个面板讲的是那个面板的「跑飞」口径为什么不够用
