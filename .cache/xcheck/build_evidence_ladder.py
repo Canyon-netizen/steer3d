@@ -238,6 +238,39 @@ def main(argv=None):
             l1_thr[_key] = float(_m2.group(1))
     l1_arr_max = max(_walk_len(law), default=0)
 
+    # ---------- 修订 54：方向依赖到底测不测得出（从每点量现算） ----------
+    # ⚠⚠ 关键简化（先推导再写）：本统计量对每个方向先**沿点轴平均**，
+    #   所以整件事塌成一维 —— 每个方向只剩**一个**数（`dm`）。
+    #   ⇒ 96 个点在这个统计量里**被平均掉了**，一点都不进结果。
+    #   真正决定「差多少算显著」的是**方向轴**：真实臂只有 %d 个方向。
+    # ⇒ 「真实 vs 随机」的零分布必须**按方向重采样**，不能用点轴 t。
+    l1_dirs = int(law["design"].get("n_random") or 16)
+    l1_safe = law["conclusions"]["safe_regime"]["strength_max"]
+    l1_p, l1_npt, l1_nsig = [], 0, 0
+    try:
+        import numpy as _np
+        _rs = _np.random.default_rng(20261004)
+        for _r in law["rows"]:
+            if _r["strength"] > l1_safe:
+                continue
+            _pr = _np.asarray(_r["pred_points"], dtype=_np.float64)
+            _dm_r = _np.array([_np.mean(_np.asarray(v, dtype=_np.float64) / _pr)
+                               for v in _r["real_dev_points"].values()])
+            _dm_n = _np.array([_np.mean(_np.asarray(v, dtype=_np.float64) / _pr)
+                               for v in _r["random_dev_points"]])
+            _obs = float(_dm_r.mean() - _dm_n.mean())
+            _null = _np.array([
+                float(_dm_n[_ix[:4]].mean() - _dm_n[_ix[4:8]].mean())
+                for _ix in (_rs.permutation(_dm_n.size) for _ in range(2000))])
+            _p = float((_np.abs(_null) >= abs(_obs)).mean())
+            l1_p.append(_p)
+            l1_npt += 1
+            l1_nsig += int(_p < 0.05)
+        l1_nrand = len(_dm_n)
+    except Exception as _e:                      # 产物里没有每点量 ⇒ 如实降级
+        l1_p, l1_npt, l1_nsig, l1_nrand = [], 0, 0, l1_dirs
+        need(False, "修订 54：算方向重采样 p 时炸了：%s" % _e)
+
     # ---------- L2：可读下界 ----------
     h = sub["headline"]
     l2 = int(h["readable_directions_lower_bound"])
@@ -303,12 +336,27 @@ def main(argv=None):
                  "⚠ 修订 51：那句 null 的判定阈值是**硬编码的 %s 个百分点**"
                  "（现读 `linearity_law.py` 的 `summarise()`），而基线信号是 "
                  "%.3f%% ⇒ 「不可区分」允许差到**信号的 %.1f%%**；实测 0.037pp "
-                 "离阈值 %.1f×。且**分辨率从这份产物算不出来**：真实臂只存了"
-                 "均值与极差（方向间 std 没存，n=4 时极差不能唯一确定 std），"
-                 "每点量（n_points=%d）也已被聚合成方向级（产物里最长的数组"
-                 "只有 %d 个元素）⇒ 修订 50 印出的「分辨率 1.82%%」**是错的**"
+                 "离阈值 %.1f×。修订 50 印出的「分辨率 1.82%%」**是错的**"
                  "（把**实测间隙**当成了分辨率），已更正。"
-                 "⇒ 它**不构成**「与语义无关」的证据（预登记 §50 / §51）。"
+                 "⚠⚠ 修订 54：分辨率**现在算得出来了**——每点量已接出并存进产物"
+                 "（产物里最长的数组已从方向级变成逐点级，长度 = n_points=%d）。"
+                 "但**零分布必须换**：按点轴做 t 检验称安全区 %d 行里 %d 行显著，"
+                 "而这个口径在零假设下（两组各 4 个**随机**方向）实测拒绝率 **90%%**、"
+                 "名义只有 5%% ⇒ **分母用错**。"
+                 "机理（先推导再写）：这个量对每个方向先沿点轴取平均，**整件事塌成"
+                 "一维**——每个方向只剩一个数，**%d 个点全被平均掉了**；真实臂只有 "
+                 "%d 个方向，随机性来自「挑了哪 4 个」，点轴平均**不会**缩小它，"
+                 "t 检验却除以 √%d。"
+                 "⇒ 换成**按方向重采样**的零分布后，安全区 %d 行里 **%d 行显著**"
+                 "（α=0.05 下 %d 次检验期望假阳性 %.1f 个）"
+                 "⇒ **真实方向与随机方向是可分辨的**，且不是点轴 t 造出来的假象。"
+                 "⚠ 符号**随强度翻转**（s=0.05 为负、s=0.20 多为正）⇒ 这是**模式**"
+                 "而不是单一效应；%d 次检验未做多重比较校正，如实标注。"
+                 "⇒ 产物里 `random_indistinguishable=true` 并不矛盾："
+                 "它的阈值硬编码为 1 个百分点、**允许差到信号的 %.1f%%**，"
+                 "答的是「小于 1pp 吗」，**不是**「测得出来吗」。"
+                 "⇒ 与修订 49 的「存在 c 依赖」**一致**（那是另一个量：行间的 c 依赖）。"
+                 "⇒ 它**不构成**「与语义无关」的证据（预登记 §50 / §51 / §54）。"
                  % (l1_spread, l1_rndgap, beyond["strengths"][0],
                     beyond["max_direction_spread_pp"], s_max,
                     100.0 * l1_c_spread,
@@ -319,7 +367,12 @@ def main(argv=None):
                     100.0 * l1_thr["random_indistinguishable"] / l1_base,
                     1.0 / l1_thr["random_indistinguishable"] / l1_rndgap
                     if l1_rndgap else 0.0,
-                    int(law["design"]["n_points"]), l1_arr_max)},
+                    int(law["design"]["n_points"]),
+                    l1_npt, 10,
+                    int(law["design"]["n_points"]), len(l1_real),
+                    int(law["design"]["n_points"]),
+                    l1_npt, l1_nsig, l1_npt, l1_npt * 0.05, l1_npt,
+                    100.0 * l1_thr["random_indistinguishable"] / l1_base)},
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
          "needs": "留出轨迹 + 打乱地板",
          "state": "done", "here": "%d 条" % l2,
@@ -400,7 +453,11 @@ def main(argv=None):
          "没印出那条 null 的真实判定阈值"),
         ("%.1f%%" % (100.0 * l1_thr["random_indistinguishable"] / l1_base),
          "没把阈值换算成「占信号的百分之几」"),
-        ("分辨率从这份产物算不出来", "没说明为什么**不能**给一个分辨率数字"),
+        ("修订 54", "没交代分辨率现在算得出来了"),
+        ("方向重采样", "没交代判决用的是**方向重采样**零分布而不是点轴 t"),
+        ("分母用错", "没披露点轴 t 口径在零假设下失标定（90% vs 5%）"),
+        ("可分辨", "没给出「真实方向与随机方向可分辨」这个判决本身"),
+        ("随强度翻转", "没披露符号随强度翻转 ⇒ 是模式不是单一效应"),
         ("是错的", "没披露修订 50 那句「分辨率 1.82%」已被更正"),
         # ⚠ 只钉数字不够：实测一次变异把「（现读 linearity_law.py 的 summarise()）」、
         #   「而基线信号是 2.018% ⇒ …49.5%」整句删掉，只留「1 个百分点」那个数，
@@ -412,15 +469,26 @@ def main(argv=None):
     ):
         need(_frag in _l1["note"],
              "L1 的 note 缺了「%s」—— %s" % (_frag, _why))
-    # ⚠ 反向自检：若将来产物里真有了每点量或真实臂 std，那句
-    #   「分辨率从这份产物算不出来」就变成假的，必须要求改写。
-    need(l1_arr_max < int(law["design"]["n_points"]),
-         "产物里出现了长度 ≥ n_points 的数组（%d）⇒ L1 note 里"
-         "「点级量已被聚合摧毁」与「分辨率算不出来」两句都要重写"
-         % l1_arr_max)
-    need("real_dev_std" not in law["rows"][0],
-         "产物里出现了 real_dev_std ⇒ SE(真实臂) 现在可算，"
-         "「分辨率从这份产物算不出来」这句必须重写")
+    # ⚠⚠ 修订 54：下面这两条**方向反过来了**。
+    #   原来它们是「不许出现每点量 / real_dev_std」—— 一旦出现就要求改写 note。
+    #   现在每点量**已经接出并存进产物**（这是修订 54 的目的），
+    #   所以这两条必须反过来钉：每点量**必须存在**，且 note **必须**已经改写。
+    #   ⚠ 事实变了、断言方向也得变 —— 但**不能顺手删掉**，
+    #   删掉就变成「没有任何机制保证 note 与产物同步」。
+    need(l1_arr_max >= int(law["design"]["n_points"]),
+         "产物里又看不到长度 ≥ n_points 的逐点数组（最长 %d < n_points=%d）⇒ "
+         "修订 54 接出的每点量丢了，note 里「分辨率现在算得出来」变成假的，必须重写"
+         % (l1_arr_max, int(law["design"]["n_points"])))
+    for _k in ("real_dev_points", "random_dev_points", "pred_points",
+               "points_meta", "npz_sha256"):
+        need(_k in law["rows"][0],
+             "修订 54 要求的字段 `%s` 不在产物里 ⇒ note 与产物不同步" % _k)
+    # ⚠ 判决本身也要钉：点轴口径显著的行数**必须**多于方向重采样口径，
+    #   否则 note 里「换成方向重采样后只剩 %d 行」这句话可能反过来。
+    need(l1_npt > 0 and l1_nsig < 10,
+         "方向重采样后显著 %d/%d 行 —— 若变成 ≥10 行，note 里"
+         "「点轴 %d 行 vs 方向重采样 %d 行」的对照必须重写"
+         % (l1_nsig, l1_npt, l1_npt, l1_nsig))
 
     # ⚠ 自称「哪一级没测」的那段话，本身必须和上面这张表**逐级一致**。
     #   我原来写死「L5 及以上：一行都没有」，而同一份产物的 L6 是 partial

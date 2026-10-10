@@ -246,19 +246,28 @@ def main() -> int:
        f"bare={sorted(ex_bare)}（basename 命中={'axis_readouts.json' in _tb}）")
 
     # N5：A4 的反空洞条款 —— 一个都没执行时必须自己判红
-    saved_nr = chain._NEEDS_REMOTE
-    chain._NEEDS_REMOTE = re.compile(".*")          # 谁都变成「要 torch/远端」
+    # ⚠⚠ 修订 54：第一版靠打桩 `_NEEDS_REMOTE` 触发，而那个静态预判
+    #   **已经被删掉了**（它把 linearity_law 误分类）⇒ 变异随之失效。
+    #   ⇒ 换成不依赖已删机制的触发：把 UPSTREAMS 换成**一个都没有生成器**的名字，
+    #     `targets` 为空 ⇒ `attempted == 0` ⇒ 必须触发反空洞条款。
+    saved_up5 = chain.UPSTREAMS
+    chain.UPSTREAMS = ("__no_such_artifact__",)
     okN5, detN5 = chain.a4_report()
-    chain._NEEDS_REMOTE = saved_nr
+    chain.UPSTREAMS = saved_up5
     ok(okN5 is False and "本项无判据" in detN5,
        "N5 一个都没执行时 A4 必须自己判红并报「本项无判据」，不许报「0 失败」",
        detN5[:110])
 
     # ---------------- A4 的牙齿（在真实数据上） ----------------
     okA4, detA4 = chain.a4_report()
-    ok("2/3 跑通且逐字节相同" in detA4,
-       "T4 A4 在干净克隆里真跑：2/3 逐字节相同（heldout + arm_asymmetry）",
+    ok("2/4 跑通且逐字节相同" in detA4,
+       "T4 A4 在干净克隆里真跑：2/4 逐字节相同（heldout + arm_asymmetry）"
+       "—— ⚠ 修订 54 把分母从 3 改成 4：旧的静态预判把 linearity_law 划进"
+       "「未执行」并排除出分母，2/3 藏了一个失败",
        detA4[:130])
+    ok("linearity_law.json → 执行失败·缺输入" in detA4,
+       "T4e linearity_law 归到**缺输入**而不是「要 torch/远端」"
+       "（它本机跑得通，真因是 npz 未跟踪）", "")
     ok("执行失败·缺输入" in detA4 and "**未**被跟踪" in detA4,
        "T4b A4 的执行失败必须点名**缺哪个输入**并说明它在仓库里未被跟踪"
        "（不许合成一句「跑不起来」）", "")
@@ -266,7 +275,7 @@ def main() -> int:
     #   **绝对路径**且被 [:90] 截断 ⇒ 抠出来的是个残串，拿它去问
     #   「在不在 git ls-files 里」必然答「不在」⇒ **空洞通过**。
     #   修法：从 note 里抠**仓库相对路径**，并要求它**没被截断**（含 "/" 且够长）。
-    _m = re.search(r"执行失败·缺输入：(\S+?)（(\S+) 在仓库里\*\*未\*\*被跟踪）", detA4)
+    _m = re.search(r"readable_subspace\.json → 执行失败·缺输入：(\S+?)（(\S+) 在仓库里\*\*未\*\*被跟踪）", detA4)
     _rel = _m.group(1) if _m else None
     ok(_m is not None and _rel == _m.group(2)
        and "/" in _rel and _rel not in _tset and os.path.exists(

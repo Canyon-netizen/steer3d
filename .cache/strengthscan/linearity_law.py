@@ -24,6 +24,7 @@
 先跑通再上真数据。
 """
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -53,16 +54,33 @@ DEFAULT_OUT = (ROOT / "frontend/public/latent/data/linearity_law.json")
 TOPIC = "强度定律：注入的几何代价与方向无关"
 
 
-def measure(H, un, inj_abs):
-    """给定一批 hidden states 和一个单位方向，返回 (实测, 一阶, 解析 ½a²)。"""
+def measure_points(H, un, inj_abs):
+    """逐点核心：返回 (dev, pred, c, hn, a) 五个**数组**（长度 = 点数）。
+
+    ⚠⚠ 修订 54：原来这里算出 `dev` 之后**直接 `.mean()` 塌成单值**，
+      于是「点间离散度」在计算现场就被丢弃 —— 阶梯 L1 note 那条
+      真实-vs-随机 null 的分辨率因此永远算不出来。
+      ⇒ 这里返回数组，`.mean()` 下放到 `measure()` 这个包装层，
+      **既有数字逐位不变**（同一批数、同一处求平均）。
+    """
     hn = np.linalg.norm(H, axis=1)
     c = (H @ un) / hn
     a = inj_abs / hn
     actual = np.linalg.norm(H + inj_abs * un[None, :], axis=1)
     lin = hn * (1.0 + a * c)
     dev = (actual / lin - 1.0)
+    return dev, (0.5 * a ** 2), c, hn, a
+
+
+def measure(H, un, inj_abs):
+    """给定一批 hidden states 和一个单位方向，返回 (实测, 一阶, 解析 ½a²)。
+
+    ⚠ 修订 54：这是 `measure_points` 的薄包装，求平均的位置与原来**完全相同**
+      ⇒ 已发布的每一个数字逐位不变。`toy_check` 的五元解包也照旧能用。
+    """
+    dev, pred, c, hn, a = measure_points(H, un, inj_abs)
     return (dev.mean() * 100.0,
-            (0.5 * a ** 2).mean() * 100.0,
+            pred.mean() * 100.0,
             float(c.mean()), float(hn.mean()), float(a.mean()))
 
 
@@ -82,6 +100,17 @@ def toy_check():
     return ok
 
 
+def _sha(path, _cache={}):
+    """npz 的 sha256。⚠ 大文件要**分块**读，一次 read() 整个会把内存吃穿。"""
+    if path not in _cache:
+        hsh = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 22), b""):
+                hsh.update(chunk)
+        _cache[path] = hsh.hexdigest()
+    return _cache[path]
+
+
 def main():
     toy_check()
     runner = NpzReplayRunner()
@@ -94,6 +123,22 @@ def main():
     rand = rs.standard_normal((N_RANDOM, 2048))
     rand /= np.linalg.norm(rand, axis=1, keepdims=True)
 
+    # ⚠ 修订 54：记下每点来自哪条记录的哪个 step，以及**读到的 npz 的 sha256** ——
+    #   否则「这些数是从哪读出来的」无从回答（与预登记 §53 第 15 条同源）。
+    # ⚠⚠ 点与**层无关**（每个层都取同一批 (record, step)），所以这份元数据
+    #   **必须在层循环之外建一次**。第一版把它写在 `for L in LAYERS` 里面，
+    #   4 层会累加出 384 条而基线是 96 —— 而每个 `H[L]` 都只有 96 行，
+    #   元数据与数据对不上，配对差会直接算错。
+    #   （这不是「写起来啰嗦」，是**静默的形状错配**。）
+    POINTS_META, _npz_paths = [], []
+    for ri, r in enumerate(runner.records[:N_REC]):
+        _npz_paths.append(r["npz"])
+        T = np.load(r["npz"], mmap_mode="r")["hidden_states"].shape[0]
+        idx = np.linspace(int(T * 0.35), T - 1, N_STEPS).round().astype(int)
+        POINTS_META += [{"record": ri, "step": int(j)} for j in idx]
+    _npz_paths = list(dict.fromkeys(_npz_paths))
+    NPZ_SHA = {os.path.basename(p): _sha(p) for p in _npz_paths}
+
     # 缓存 hidden states，避免每个强度/方向都重读 npz
     H = {}
     for L in LAYERS:
@@ -104,6 +149,13 @@ def main():
             idx = np.linspace(int(T * 0.35), T - 1, N_STEPS).round().astype(int)
             chunks.append(np.asarray(z["hidden_states"][idx, L, :], dtype=np.float64))
         H[L] = np.concatenate(chunks, 0)
+
+    # ⚠ 元数据长度必须与 H 的行数一致 —— 这不是「顺手检查」，是**配对的前提**：
+    #   元数据错位时 `points_meta[i]` 说的不是 `H[L][i]` 那一行。
+    for _L, _h in H.items():
+        if _h.shape[0] != len(POINTS_META):
+            raise SystemExit("ABORT L%s 的点数 %d 与 points_meta 的 %d 对不上"
+                             % (_L, _h.shape[0], len(POINTS_META)))
 
     out = {
         "schema": "steer3d.linearity_law/1",
@@ -124,15 +176,25 @@ def main():
         h = H[L]
         for s in STRENGTHS:
             inj = s * rms
-            real = {}
+            real, real_pts = {}, {}
             for name in REAL:
                 u = np.asarray(reg._vectors[name], dtype=np.float64)
                 u = u / np.linalg.norm(u)
-                dev, pred, c, hn, a = measure(h, u, inj)
-                real[name] = {"dev_pct": dev, "pred_pct": pred,
-                              "cos_mean": c, "h_norm_mean": hn, "a_mean": a}
-            rnd = [measure(h, rand[i], inj) for i in range(N_RANDOM)]
-            rdev = np.array([x[0] for x in rnd])
+                devp, predp, c_arr, hn, a = measure_points(h, u, inj)
+                real[name] = {"dev_pct": devp.mean() * 100.0,
+                              "pred_pct": predp.mean() * 100.0,
+                              "cos_mean": float(c_arr.mean()),
+                              "h_norm_mean": float(hn.mean()),
+                              "a_mean": float(a.mean())}
+                real_pts[name] = devp.tolist()
+            rnd = [measure_points(h, rand[i], inj) for i in range(N_RANDOM)]
+            # ⚠⚠ 这里**必须**显式 `.mean()*100`：改用 `measure_points` 之后
+            #   `x[0]` 是**原始数组**（分数），不是原来的「×100 的均值」。
+            #   若直接 `np.array([x[0] for x in rnd])`，`random_dev_mean`
+            #   会**差 100 倍** —— 而「既有数字逐位不变」正是修订 54 的承诺。
+            #   同理 `random_dev_std/min/max` 都必须是**方向间**的量，保持原口径。
+            rdev = np.array([x[0].mean() for x in rnd]) * 100.0
+            rdev_pts = np.array([x[0] for x in rnd])          # (16, 96) 分数
             out["rows"].append({
                 "layer": L, "strength": s, "layer_rms": rms,
                 "a_mean": real[REAL[0]]["a_mean"],
@@ -145,6 +207,13 @@ def main():
                 "random_dev_std": float(rdev.std()),
                 "random_dev_min": float(rdev.min()),
                 "random_dev_max": float(rdev.max()),
+                # ---- 修订 54 新增：每点量（既有字段与算法一个字未动） ----
+                "points_unit": "fraction（×100 才是 pp；相对偏离 rel=dev/pred 与单位无关）",
+                "real_dev_points": real_pts,
+                "random_dev_points": rdev_pts.tolist(),
+                "pred_points": (0.5 * (inj / np.linalg.norm(h, axis=1)) ** 2).tolist(),
+                "points_meta": POINTS_META,
+                "npz_sha256": NPZ_SHA,
             })
             r = out["rows"][-1]
             print("L%-3d s=%.2f  解析 %6.3f%% | 真实 %6.3f%% (跨方向极差 %.3fpp) "

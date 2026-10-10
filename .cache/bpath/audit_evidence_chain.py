@@ -485,8 +485,28 @@ def check_a3():
 #   ⇒ A4 验的是**本项目自己的数据与代码是否闭合**，**不验第三方库是否可得**。
 #   一个缺 numpy 的干净环境照样会让它失败 —— 那时失败原因是「缺库」，已单独分档。
 _A4_ORDER = ("跑通且逐字节相同", "跑通但产物不同", "执行失败",
-             "未执行（要 torch/npz/远端）", "克隆内无生成器")
-_NEEDS_REMOTE = re.compile(r"import torch|NpzReplayRunner|\.npz")
+             "克隆内无生成器")
+
+
+# ⚠⚠ 修订 54：**同一个根因会抛出不同类型的异常**，所以只认 `FileNotFoundError`
+#   是不够的。实测：`linearity_law.py` 在干净克隆里之所以失败，
+#   不是「某个文件不存在」，而是 `runner.records` **一条都没找到**（npz 未跟踪）
+#   ⇒ `np.concatenate([])` 抛的是 `ValueError: need at least one array to concatenate`。
+#   ⇒ 第一版把它归到「缺库·要远端」，与真因不符。
+_MISS_LIB = re.compile(r"ModuleNotFoundError|ImportError|cannot import")
+_MISS_INPUT = re.compile(
+    r"No such file or directory|need at least one array to concatenate"
+    r"|cannot concatenate|zero-size array|is a directory|NotADirectoryError"
+    r"|object has no attribute|expected .+ array-like")
+
+
+def _why(err):
+    """把一次失败归到「缺输入」还是「缺库」，并说明判据是什么。"""
+    if _MISS_LIB.search(err):
+        return "缺库·要远端", "（按 ImportError/ModuleNotFoundError 判）"
+    if _missing_input(err, None)[0] or _MISS_INPUT.search(err):
+        return "缺输入", "（按「文件缺失/结果集为空」的报错判）"
+    return "其它失败", "（既不是缺输入也不是缺库 ⇒ 需要人看）"
 
 
 def _missing_input(err, clone):
@@ -497,8 +517,8 @@ def _missing_input(err, clone):
     ⇒ 不解析的话 `startswith` 会假阴性，把「缺输入」误报成「缺库·要远端」。
     """
     m = re.search(r"No such file or directory: '([^']+)'", err)
-    if not m:
-        return None, None
+    if not m or not clone:
+        return (m.group(1), None) if m else (None, None)
     p = m.group(1)
     cl, pp = os.path.realpath(clone), os.path.realpath(p)
     rel = os.path.relpath(pp, cl) if pp.startswith(cl) else None
@@ -555,17 +575,25 @@ def a4_report():
                 buckets["克隆内无生成器"].append(u)
                 detail.append("%s.json → 克隆内无 %s" % (u, rel))
                 continue
-            src = open(p, encoding="utf-8", errors="ignore").read()
-            if _NEEDS_REMOTE.search(src):
-                buckets["未执行（要 torch/npz/远端）"].append(u)
-                detail.append("%s.json → 未执行（要 torch/npz/远端）" % u)
-                continue
+            # ⚠⚠⚠ 修订 54：这一版的**静态预判被删掉了**。
+            #   原先用 `_NEEDS_REMOTE`（匹配 `import torch|NpzReplayRunner|\.npz`）
+            #   预判「这个脚本本机跑不了」，于是把它划进「未执行」并**排除出分母**。
+            #   实测**完全错了**：`linearity_law.py` 在本机跑得通
+            #   （torch 2.8.0 在 `.cache/pylibs`、npz 在 `datasets/` 下、
+            #   `replay_runner` 只依赖 numpy + stdlib），
+            #   而它在**干净克隆**里跑不了的真因是**输入未跟踪**（npz 被 gitignore）。
+            #   ⇒ 「要 torch/远端」与「输入不在仓库」被合并成一档 ⇒
+            #   报出来的 `2/3` 其实是 `2/3` **加一个被藏起来的失败**。
+            # ⇒ 改法：**一律真跑**，按**实际报错**分档。
+            #   跑不动的东西本来就跑不快（缺 npz 会立刻 FileNotFoundError），
+            #   预判既没有信息量、还引入了一个错误分类。
             r = subprocess.run([sys.executable, os.path.relpath(p, td)], cwd=td,
                                env=env, capture_output=True, text=True,
                                timeout=900)
             if r.returncode != 0:
                 miss_abs, miss_rel = _missing_input(r.stderr or r.stdout, td)
-                why = "缺输入" if miss_rel else "缺库·要远端"
+                why, why_because = _why(r.stderr or r.stdout)
+                why_because = "" if why == "缺输入" else why_because
                 # ⚠⚠ 这里第一版写成了 `(miss_abs or …splitlines() or [...])[-1]` ——
                 #   miss_abs 是**字符串**不是列表，`[-1]` 取到的是它的**最后一个字符**
                 #   （实测打出来是「执行失败·缺输入：y」）。字符串不许套 `[-1]`。
@@ -585,8 +613,8 @@ def a4_report():
                     note = "（%s 在仓库里%s被跟踪）" % (
                         miss_rel, "" if miss_rel in tracked else "**未**")
                 buckets["执行失败"].append("%s:%s" % (u, why))
-                detail.append("%s.json → 执行失败·%s：%s%s" % (
-                    u, why, tail[:90], note))
+                detail.append("%s.json → 执行失败·%s%s：%s%s" % (
+                    u, why, why_because, tail[:90], note))
                 continue
             out = os.path.join(td, DELIVERED_DIR, u + ".json")
             ref = os.path.join(ROOT, DELIVERED_DIR, u + ".json")
@@ -600,15 +628,14 @@ def a4_report():
                 buckets["跑通但产物不同"].append(u)
                 detail.append("%s.json → **跑通但产物不同**（exit=0，cmp 不等）" % u)
 
-    attempted = len(targets) - len(buckets["未执行（要 torch/npz/远端）"])
+    # ⚠ 修订 54：既然不再静态预判，**分母就是「有生成器且在克隆里存在」的个数**
+    #   （cot_texts 无生成器，不进分母）；失败的**计入**分母。
+    attempted = len(targets) - len(buckets["克隆内无生成器"])
     ok_items = buckets["跑通且逐字节相同"]
-    summary = ("%d/%d 跑通且逐字节相同（另：产物不同 %d、执行失败 %d、"
-               "未执行 %d、克隆内无 %d）" % (
-                   len(ok_items), attempted,
-                   len(buckets["跑通但产物不同"]),
-                   len(buckets["执行失败"]),
-                   len(buckets["未执行（要 torch/npz/远端）"]),
-                   len(buckets["克隆内无生成器"])))
+    summary = ("%d/%d 跑通且逐字节相同（产物不同 %d、执行失败 %d、克隆内无生成器 %d）"
+               % (len(ok_items), attempted,
+                  len(buckets["跑通但产物不同"]), len(buckets["执行失败"]),
+                  len(buckets["克隆内无生成器"])))
     detail.insert(0, summary)
     # ⚠⚠ 反空洞条款：一个都没执行 ⇒ 判红，不许报「0 失败」
     if attempted == 0:
