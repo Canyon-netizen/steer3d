@@ -193,6 +193,12 @@ def main():
     ap.add_argument("--w-meta", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--gpu-uuid", default=None)
+    # 修订 28：高对齐位点批次。选材由 `pick_hi_sites.py` 预先算好，
+    # 探针**只按那份清单跑**，不在这里重新挑（挑的地方必须唯一、可单测）。
+    ap.add_argument("--pick", default=None,
+                    help="hi_sites_pick.json：{tracks:[{traj,n_hi,...}]}")
+    ap.add_argument("--orth-threshold", type=float, default=0.1,
+                    help="--pick 模式下只跑 w·ĥ 大于这个值的位点")
     a = ap.parse_args()
 
     if a.gpu_uuid:
@@ -247,6 +253,14 @@ def main():
     # 修订 17：用机械规则（位点数降序前 N）挑 no_think 补测子集
     traj_list = list(TRAJ)
     site_override = None                    # {traj: [位点]}，修订 22 用
+    pick_nhi = None                         # {traj: n_hi}，修订 28 用
+    if a.pick:
+        _pk = json.load(open(a.pick, encoding="utf-8"))
+        pick_nhi = {t["traj"]: int(t["n_hi"]) for t in _pk["tracks"]}
+        traj_list = sorted(pick_nhi)        # 字典序，与选材器一致
+        print(f"\n修订 28 选材：{len(traj_list)} 条轨迹，"
+              f"声明位点合计 {sum(pick_nhi.values())}，"
+              f"正交边界 w·ĥ > {a.orth_threshold}")
     if THINK_FRESH_N:
         fresh = pick_think_fresh(a.sidecar_dir, THINK_FRESH_N,
                                  THINK_FRESH_SITES)
@@ -272,7 +286,9 @@ def main():
         print(f"\n=== {tid} mode={mode} n_gen={cti['n_generated_tokens']} "
               f"marker 位点 {len(sites)} 个：{sites[:12]}")
         assert sites, "这条轨迹没有 marker 位点，H 测不了"
-        if SMOKE:
+        # ⚠ pick 模式下**先筛后截断**：SMOKE 若在筛选前截断，条数守卫
+        # 会拿「截断后的数」去比选材清单，冒烟测试永远过不了。
+        if SMOKE and pick_nhi is None:
             sites = sites[:SMOKE]
         # ⚠⚠ 取 hidden_states 的正确姿势，踩了两次才对：
         #
@@ -297,6 +313,31 @@ def main():
         # 坐标系（踩过三次）：读 npz 第 NPZ_LAYER 层，不是 LAYER
         h_at = {t: hs_all[t - 1, R6.NPZ_LAYER, :].astype(np.float64)
                 for t in sites}
+
+        # ---- 修订 28：按 w·ĥ 阈值筛位点（选材的第二段，纯 numpy，不前向）----
+        # ⚠ 筛选**只用到 w·ĥ**（预测量），不看任何 Δ ⇒ 不可能偏向结果。
+        if pick_nhi is not None:
+            w_at = {t: float(W @ (h_at[t] / np.linalg.norm(h_at[t])))
+                    for t in sites}
+            keep = [t for t in sites if w_at[t] > a.orth_threshold]
+            want = pick_nhi.get(tid)
+            # ⚠ 与静态扫描逐条对齐：选材清单说这条有 n_hi 个高对齐位点，
+            # 探针按同一阈值数出来必须**完全一样**。不一样 ⇒ 两套口径分家了，
+            # 此时继续跑就是拿一个说不清的样本去判 G1–G4 ⇒ 拒跑。
+            if want is None:
+                raise SystemExit(f"{tid} 不在选材清单里，拒绝跑")
+            if len(keep) != want and not SMOKE:
+                raise SystemExit(
+                    f"{tid}：选材清单说 {want} 个 w·ĥ>{a.orth_threshold} 的位点，"
+                    f"探针按同一阈值数出 {len(keep)} 个 ⇒ 口径不一致，拒绝跑")
+            print(f"    修订28 筛选：{len(sites)} 个 marker 位点 → "
+                  f"{len(keep)} 个高对齐位点"
+                  f"{'（清单一致）' if len(keep) == want else '（SMOKE 模式，跳过条数比对）'}")
+            sites = keep
+            if SMOKE:
+                sites = sites[:SMOKE]
+            del w_at
+            h_at = {t: h_at[t] for t in sites}
         del hs_all
 
         pid = tok(cti["chat_template_input"], return_tensors="pt",
