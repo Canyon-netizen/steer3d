@@ -32,7 +32,7 @@
 
 import { useEffect, useState } from "react";
 
-type LadderRow = { level: string; claim: string; bpath_state: string; here: string; note: string };
+type LadderRow = { level: string; claim: string; bpath_state: LadderState; here: string; note: string };
 type DoseTraj = {
   traj: string; mode: string; n_pos: number; pos: number[];
   dose: number[];
@@ -257,20 +257,40 @@ type BPath = {
   answerable: string[]; not_answerable: string[];
 };
 
-const STATE_TXT: Record<string, string> = {
+/**
+ * ⚠ 修订 43：阶梯状态是一个**封闭词表**。
+ *
+ * 原来这里是 `Record<string, string>`，任何新状态都能悄悄进来 ——
+ * L7 就曾带着 `evidence_against_naive_reading` 混进去，而它自己的 note
+ * 写的是「不能外推」⇒ 状态标签在断言一件**没测**的事。
+ *
+ * 现在用 `LadderState` 联合类型 + 穷尽映射：加一个状态必须同时补齐
+ * 三张表（文字 / 颜色 / 记号），漏一处 `tsc` 就红。
+ * ⚠ 这里**故意不给** `evidence_against_*` 留位置 —— 预登记 §43.1 的 L-2
+ *   规定它不是合法状态；产物里若再出现，页面会显式印「未知状态」而不是
+ *   渲染成空白（预登记 §43.1 的 L-1 / L-2）。
+ */
+const LADDER_STATES = ["done", "partial", "missing", "not_adjudicable"] as const;
+type LadderState = (typeof LADDER_STATES)[number];
+
+const STATE_TXT: Record<LadderState, string> = {
   done: "有",
   partial: "部分",
   missing: "没有",
-  evidence_against_naive_reading: "反例",
+  not_adjudicable: "不可判定",
 };
-const STATE_CLS: Record<string, string> = {
+const STATE_CLS: Record<LadderState, string> = {
   done: "text-emerald-300",
   partial: "text-amber-300",
   missing: "text-gray-500",
-  evidence_against_naive_reading: "text-sky-300",
+  not_adjudicable: "text-rose-300",
 };
-const MARK: Record<string, string> = {
-  done: "✓", partial: "◐", missing: "—", evidence_against_naive_reading: "⊘",
+const MARK: Record<LadderState, string> = {
+  done: "✓", partial: "◐", missing: "—", not_adjudicable: "∅",
+};
+/** 左侧色条：同样只对合法状态取值。 */
+const BAR_CLS: Record<LadderState, string> = {
+  done: "#3f8f6b", partial: "#a8792e", missing: "#39414f", not_adjudicable: "#8a4a5f",
 };
 
 /**
@@ -1128,24 +1148,35 @@ export default function BPathPanel() {
 
       {/* ---- 挂到八级阶梯上 ---- */}
       <div className="flex flex-col gap-1 mb-2" data-bpath-block="ladder">
-        {d.ladder_mapping.map((r) => (
+        {d.ladder_mapping.map((r) => {
+          // ⚠ 运行时兜底：产物是 fetch 进来的，TS 查不到它的内容。
+          //   非法状态不能静默渲染成空白 —— 要显式说「产物里有非法状态」。
+          const known = (LADDER_STATES as readonly string[]).includes(r.bpath_state);
+          return (
           <div key={r.level} className="px-1.5 py-1 rounded"
                style={{ background: "#101722", borderLeft: `2px solid ${
-                 r.bpath_state === "done" ? "#3f8f6b"
-                   : r.bpath_state === "partial" ? "#a8792e"
-                     : r.bpath_state === "missing" ? "#39414f" : "#4a7fa5" }` }}
-               data-bpath-rung={r.level} data-bpath-rung-state={r.bpath_state}>
+                 known ? BAR_CLS[r.bpath_state] : "#b91c1c" }` }}
+               data-bpath-rung={r.level}
+               data-bpath-rung-state={r.bpath_state}
+               data-bpath-rung-known={known ? "true" : "false"}>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-gray-500 w-6">{r.level}</span>
-              <span className={STATE_CLS[r.bpath_state]}>
-                {MARK[r.bpath_state]} {STATE_TXT[r.bpath_state]}
-              </span>
+              {known ? (
+                <span className={STATE_CLS[r.bpath_state]}>
+                  {MARK[r.bpath_state]} {STATE_TXT[r.bpath_state]}
+                </span>
+              ) : (
+                <span className="text-rose-400">
+                  ⚠ 未知状态「{r.bpath_state}」——产物里的阶梯状态不在封闭词表内
+                </span>
+              )}
               <span className="text-[10px] text-gray-300">{r.claim}</span>
             </div>
             <div className="text-[9px] text-gray-400 pl-7"><Em s={r.here} /></div>
             <div className="text-[9px] text-gray-500 pl-7 leading-relaxed"><Em s={r.note} /></div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ---- 坐标系：三条守卫，别只写在这里 ---- */}
