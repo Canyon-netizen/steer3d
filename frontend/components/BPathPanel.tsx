@@ -121,6 +121,21 @@ type BPath = {
       p01_rank_true_value: number; p01_window_track: string;
       headline: string; debt: string;
     };
+    /** 修订 28/29：高对齐位点批次。⚠ 其 `scope`（作用域限定）**必须与 G1–G4 同屏显示**
+     *  —— 位点条件于 w·ĥ>0.1 取，这批结论只能读作「在它自己的作用域内」。 */
+    hi_sites28?: {
+      prereg: string; n_tracks: number; n_sites: number; n_above: number;
+      floor_same_slice: number; floor_note: string; scope: string;
+      control_arm?: { ctrl_ge: number; of: number };
+      G1: { hi: number; lo: number; k: number; fisher_p: number;
+            direction: string; pass: boolean };
+      G2: { n_judge: number; n_skip: number; n_diff: number;
+            max_allowed: number; pass: boolean; verdict: string };
+      G3: { rho_eff: number; old: number; pass: boolean };
+      G4: { mono_down: number; n: number; frac: number;
+            threshold: number; pass: boolean };
+      final: string;
+    };
     /** 修订 26：三处取数口径不一致的披露（地板口径 / Q1 批次 / 对照臂比较）。
      *  **只披露，不替换任何已发布数字。** */
     caliber26?: {
@@ -446,6 +461,86 @@ export default function BPathPanel() {
         <p className="text-[9px] text-gray-400 mt-0.5 leading-relaxed">
           <Em s={d.orthogonality.scale} />
         </p>
+        {/* 修订 28/29：在高对齐位点充足的样本上重做 G1–G4。
+            作用域限定必须与结论同屏 —— 它决定这批数字能读作什么。 */}
+        {d.orthogonality.hi_sites28 && (
+          <div className="text-[9px] text-emerald-200/90 mb-1 leading-relaxed"
+               data-bpath-hi-sites="rev28"
+               data-hi-g1={String(d.orthogonality.hi_sites28.G1.pass)}
+               data-hi-final={d.orthogonality.hi_sites28.final}>
+            <div className="text-gray-300 mb-1">
+              高对齐位点批次（{d.orthogonality.hi_sites28.prereg}）：
+              {d.orthogonality.hi_sites28.n_tracks} 条轨迹 /{" "}
+              {d.orthogonality.hi_sites28.n_sites} 个位点 /
+              超地板 {d.orthogonality.hi_sites28.n_above} 个
+            </div>
+            <div className="flex flex-col gap-0.5 mb-1">
+              <div className="flex items-center gap-1.5 px-1"
+                   data-hi-crit="G1"
+                   data-hi-pass={String(d.orthogonality.hi_sites28.G1.pass)}>
+                <span className="text-gray-500 w-8">G1</span>
+                <span>大 1/3 同号 {d.orthogonality.hi_sites28.G1.hi}/
+                  {d.orthogonality.hi_sites28.G1.k} vs 小 1/3 同号{" "}
+                  {d.orthogonality.hi_sites28.G1.lo}/{d.orthogonality.hi_sites28.G1.k}</span>
+                <span className="text-gray-500">
+                  p = {d.orthogonality.hi_sites28.G1.fisher_p.toExponential(2)}
+                </span>
+                <span className={d.orthogonality.hi_sites28.G1.pass
+                  ? "text-emerald-300" : "text-rose-400"}>
+                  方向 {d.orthogonality.hi_sites28.G1.direction} ⇒{" "}
+                  {d.orthogonality.hi_sites28.G1.pass ? "通过" : "不通过"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 px-1"
+                   data-hi-crit="G2"
+                   data-hi-pass={String(d.orthogonality.hi_sites28.G2.pass)}>
+                <span className="text-gray-500 w-8">G2</span>
+                <span>可判轨迹 {d.orthogonality.hi_sites28.G2.n_judge} 条，
+                  不同向 {d.orthogonality.hi_sites28.G2.n_diff} 条
+                  （≤{d.orthogonality.hi_sites28.G2.max_allowed}）</span>
+                <span className={d.orthogonality.hi_sites28.G2.pass
+                  ? "text-emerald-300" : "text-rose-400"}>
+                  {d.orthogonality.hi_sites28.G2.verdict}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 px-1"
+                   data-hi-crit="G3"
+                   data-hi-pass={String(d.orthogonality.hi_sites28.G3.pass)}>
+                <span className="text-gray-500 w-8">G3</span>
+                <span>ρ(Δ, 有效剂量) ={" "}
+                  {d.orthogonality.hi_sites28.G3.rho_eff.toFixed(4)}</span>
+                <span className="text-gray-500">
+                  (|ρ| ≥ {d.orthogonality.hi_sites28.G3.old})
+                </span>
+                <span className={d.orthogonality.hi_sites28.G3.pass
+                  ? "text-emerald-300" : "text-rose-400"}>
+                  {d.orthogonality.hi_sites28.G3.pass ? "通过" : "不通过"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 px-1"
+                   data-hi-crit="G4"
+                   data-hi-pass={String(d.orthogonality.hi_sites28.G4.pass)}>
+                <span className="text-gray-500 w-8">G4</span>
+                <span>随剂量单调降 {d.orthogonality.hi_sites28.G4.mono_down}/
+                  {d.orthogonality.hi_sites28.G4.n} ={" "}
+                  {d.orthogonality.hi_sites28.G4.frac.toFixed(2)}</span>
+                <span className={d.orthogonality.hi_sites28.G4.pass
+                  ? "text-emerald-300" : "text-rose-400"}>
+                  {d.orthogonality.hi_sites28.G4.pass ? "通过" : "不通过"}
+                </span>
+              </div>
+            </div>
+            <p className="text-amber-200"><Em s={d.orthogonality.hi_sites28.scope} /></p>
+            <p className="text-gray-400">
+              地板 <strong>{d.orthogonality.hi_sites28.floor_same_slice.toFixed(4)}</strong>
+              <Em s={d.orthogonality.hi_sites28.floor_note} />
+              {d.orthogonality.hi_sites28.control_arm && (
+                <>；对照组：{d.orthogonality.hi_sites28.control_arm.ctrl_ge}/
+                  {d.orthogonality.hi_sites28.control_arm.of} 个超地板位点上随机方向动得更多</>
+              )}
+            </p>
+          </div>
+        )}
         {/* 修订 26：三处口径不一致的披露。放在紧挨 Q1 那句的下面，
             否则读者会把「p=6.98e-05（179 位点批次）」和「10/40（494 位点批次）」
             当成同一份数据的两个说法。 */}

@@ -391,6 +391,43 @@ def main():
                      "本轮**未做**那批重测。"),
         }
 
+    # ---------- 4d-29. 高对齐位点批次（修订 28/29；判据 §28.3，判决见 hi_sites_verdict） ----------
+    # 缺这个文件时**不报错**：本块承载 2026-10-10 之后才有的那批数据，
+    # 缺它不应让构建器整体失败（但面板上会看不到这段，读者应知道为什么）。
+    _hv_path = M / "hi_sites_verdict.json"
+    _pick_path = M / "hi_sites_pick.json"
+    if _hv_path.exists():
+        _hv = jload(_hv_path)
+        _pk = jload(_pick_path) if _pick_path.exists() else None
+        if _pk is not None:
+            # ⚠ 交叉核对：判决里的轨迹集合必须与选材清单一致，
+            # 且总位点数必须等于清单声明的 453（§28.5）—— 两份产物不同源时拒绝。
+            assert sorted(_hv["traj"]) == sorted(t["traj"] for t in _pk["tracks"]), \
+                "判决的轨迹集合与选材清单不一致"
+            assert _hv["n_sites"] == _pk["n_sites"], (
+                f"判决位点数 {_hv['n_sites']} != 选材清单 {_pk['n_sites']}")
+        assert abs(_hv["floor_n"] - _hv["n_sites"]) < 1e-9, \
+            "噪声地板的分母应与被判位点数相同（同档），否则口径修正没生效"
+        _G = {k: _hv[k] for k in ("G1", "G2", "G3", "G4") if k in _hv}
+        ortho_block["hi_sites28"] = {
+            "prereg": "R6_RERUN_PREREG.md 修订 28（判据）/ 修订 29（判定）",
+            "n_tracks": len(_hv["traj"]),
+            "n_sites": _hv["n_sites"],
+            "n_above": _hv["n_above"],
+            "floor_same_slice": _hv["floor_same_slice"],
+            "floor_note": _hv["floor_note"],
+            "control_arm": _hv.get("control_arm"),
+            "G1": _hv["G1"], "G2": {k: v for k, v in _hv["G2"].items()
+                                    if k != "per_track"},
+            "G3": _hv["G3"], "G4": _hv["G4"],
+            "final": _hv.get("final"),
+            "scope": ("⚠⚠ **作用域限定（修订 28 §28.2，取数前写死）**："
+                      "本批次位点**条件于 `w·ĥ>0.1` 取**，"
+                      "只能回答「在 `w·ĥ>0.1` 的位点上，对齐度与 Δ 的关系」。"
+                      "**即使 G1–G4 全过，也不得升级为一般结论**。"
+                      "代价：`|w·ĥ|` 取值范围变窄 ⇒ G1 的 1/3 分组功效下降。"),
+        }
+
     # ---------- 5. 挂到八级阶梯 ----------
     ladder = [
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
