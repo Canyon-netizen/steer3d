@@ -44,10 +44,55 @@ INPUTS = ["linearity_law.json", "readable_subspace.json",
 PROBLEMS = []
 
 
+CHECKS = [0]
+
+
+def _abort_if_problems():
+    """⚠⚠ 修订 51：这道门原来只有**一道**，位置在 `ladder` 列表构建**之前**。
+
+    而自检 7（claim 措辞）、自检 8（note 措辞）与两条反向自检都是在
+    `ladder` 建好之后才能跑的 —— 它们 `PROBLEMS.append(...)` 了，
+    却**再没有人看** ⇒ 文件照写、exit 照 0。
+    ⇒ 修订 49/50 的提交信息里「去掉限定产物不会红」这句话是错的：
+      它不是「不会红」，是**门根本没接上**。
+    现在写文件前再查一次，两处都拦。
+    """
+    if not PROBLEMS:
+        return
+    print("ABORT 阶梯构建自检不过，**不产出文件**（已查 %d 条）：" % CHECKS[0])
+    for p in PROBLEMS:
+        print("  ✗ " + p)
+    raise SystemExit(2)
+
+
+
 def need(cond, msg):
+    """记一条自检。⚠ `CHECKS` 必须在**任何** `need()` 之前初始化。
+
+    ⚠⚠ 修订 51：原来那句打印是**硬编码字面量**「阶梯自检全过（6 条跨产物一致性）」——
+      它从来没数过，而且「全过」是无条件打印的。加了自检 7、8 与两条反向自检
+      之后它仍然说「6 条」。
+      ⇒ 这正是本项目在治的那个病（「标签比实际宽」）的最小复现：**自己家的
+      生成器里也有一处**。现在改成数出来的。
+    """
+    CHECKS[0] += 1
     if not cond:
         PROBLEMS.append(msg)
     return bool(cond)
+
+
+def _walk_len(o, acc=None):
+    """产物里最长的数组字段长度（修订 51 T3 用）。"""
+    if acc is None:
+        acc = []
+    if isinstance(o, dict):
+        for v in o.values():
+            _walk_len(v, acc)
+    elif isinstance(o, list):
+        acc.append(len(o))
+        for v in o[:1]:
+            _walk_len(v, acc)
+    return acc
 
 
 def main(argv=None):
@@ -169,6 +214,30 @@ def main(argv=None):
     _m = re.search(r"cos\([^)]*\)\s*=\s*([0-9.]+)", _abs)
     l1_caution_cos = _m.group(1) if _m else ""
 
+    # ---------- 修订 51：那句 null 的判定阈值是**硬编码常数** ----------
+    # ⚠ `direction_independent` / `random_indistinguishable` 两个布尔来自
+    #   `linearity_law.py` 的 `summarise()`，那里写的是 `sp < 1.0` / `gap < 1.0`
+    #   —— 阈值与任何噪声地板**没有**关系，而基线信号是 2.018%，
+    #   等于「允许差到信号的一半」。
+    # ⚠ 这里**从生成器源码现读**，不抄字面量：抄的话改阈值时不会红。
+    #   （`linearity_law.py` 本地跑不起来 —— 它 import 了 torch 依赖链 ——
+    #   所以只能文本读，已在注释里显式声明。）
+    # ⚠ 为什么不报「分辨率」：修订 50 报过 1.824%，**那是错的** ——
+    #   它把**实测间隙**当成了**分辨率**。分辨率要 SE，而 SE(真实臂)
+    #   从产物算不出来（见 T2/T4，修订 51 §51.2）。
+    GEN = ROOT / ".cache/strengthscan/linearity_law.py"
+    need(GEN.exists(), "找不到线性定律生成器 %s —— 阈值无出处" % GEN)
+    _gsrc = GEN.read_text(encoding="utf-8")
+    l1_thr = {}
+    for _key, _var in (("direction_independent", "sp"),
+                       ("random_indistinguishable", "gap")):
+        _m2 = re.search(rf'"{_key}"\s*:\s*{_var}\s*<\s*([0-9.]+)', _gsrc)
+        need(_m2 is not None,
+             "在 %s 里读不到 %s 的判定阈值（表达式变了？）" % (GEN.name, _key))
+        if _m2:
+            l1_thr[_key] = float(_m2.group(1))
+    l1_arr_max = max(_walk_len(law), default=0)
+
     # ---------- L2：可读下界 ----------
     h = sub["headline"]
     l2 = int(h["readable_directions_lower_bound"])
@@ -202,11 +271,7 @@ def main(argv=None):
     l6_pairs = int(arm["n_pairs"])
     l6_sep = [m["metric"] for m in arm["metrics"] if m["distinguishable"]]
 
-    if PROBLEMS:
-        print("ABORT 阶梯构建自检不过，**不产出文件**：")
-        for p in PROBLEMS:
-            print("  ✗ " + p)
-        return 2
+    _abort_if_problems()
 
     ladder = [
         {"level": "L0", "claim": "注进去模型变了",
@@ -235,17 +300,26 @@ def main(argv=None):
                  "（`%s`）与 **%d 个随机方向**。这些轴的语义来自各自的构造式，"
                  "**不是**本项目的可读性判据 —— `linearity_law.json` 的 %d 个键名里"
                  "**没有**任何一个记载它们的可读性或专属性%s。"
-                 "且该比较的分辨率只有 **%.2f%%**，**低于**上面那个 %.1f%% 的"
-                 "已知方向依赖（**%.2f×**）⇒ 它**不构成**「与语义无关」的证据，"
-                 "只能读作「在 %.2f%% 的分辨率以内未测出差别」（预登记 §50）。"
+                 "⚠ 修订 51：那句 null 的判定阈值是**硬编码的 %s 个百分点**"
+                 "（现读 `linearity_law.py` 的 `summarise()`），而基线信号是 "
+                 "%.3f%% ⇒ 「不可区分」允许差到**信号的 %.1f%%**；实测 0.037pp "
+                 "离阈值 %.1f×。且**分辨率从这份产物算不出来**：真实臂只存了"
+                 "均值与极差（方向间 std 没存，n=4 时极差不能唯一确定 std），"
+                 "每点量（n_points=%d）也已被聚合成方向级（产物里最长的数组"
+                 "只有 %d 个元素）⇒ 修订 50 印出的「分辨率 1.82%%」**是错的**"
+                 "（把**实测间隙**当成了分辨率），已更正。"
+                 "⇒ 它**不构成**「与语义无关」的证据（预登记 §50 / §51）。"
                  % (l1_spread, l1_rndgap, beyond["strengths"][0],
                     beyond["max_direction_spread_pp"], s_max,
                     100.0 * l1_c_spread,
                     len(l1_real), "/".join(l1_real), l1_nrnd, len(_lk),
                     ("；其中 caution 还被可读性判据记为「被 confidence 吸收」"
                      "（cos=%s）" % l1_caution_cos) if l1_caution_cos else "",
-                    100.0 * l1_res, 100.0 * l1_c_spread,
-                    l1_c_spread / l1_res, 100.0 * l1_res)},
+                    ("%g" % l1_thr["random_indistinguishable"]), l1_base,
+                    100.0 * l1_thr["random_indistinguishable"] / l1_base,
+                    1.0 / l1_thr["random_indistinguishable"] / l1_rndgap
+                    if l1_rndgap else 0.0,
+                    int(law["design"]["n_points"]), l1_arr_max)},
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
          "needs": "留出轨迹 + 打乱地板",
          "state": "done", "here": "%d 条" % l2,
@@ -309,21 +383,44 @@ def main(argv=None):
          "L1 的 claim 必须写出二阶因子，否则读者只看到 ½a² 与「无关」")
     need("%.1f%%" % (100.0 * l1_c_spread) in _l1["note"],
          "L1 的 note 必须印出那个从产物算出来的二阶幅度，否则 note 无出处")
-    # ⚠⚠ 自检 8（修订 50）：那条「真实-vs-随机」的 null **不构成**「与语义无关」的
-    #   证据，理由有两条，缺一不可：
-    #   (a) 分辨率 1.82% **低于**同一个观测量里已知的方向依赖 6.5%（3.56×）；
+    # ⚠⚠ 自检 8（修订 50 立，修订 51 改钉）：那句「真实-vs-随机」的 null
+    #   **不构成**「与语义无关」的证据，理由两条，缺一不可：
+    #   (a) 它的判定阈值是**硬编码的 1.0 个百分点**（≈ 基线信号的一半），
+    #       与任何噪声地板无关；
     #   (b) `linearity_law.json` 的键名里**没有任何一个**记载那四条命名轴的
     #       可读性 / 专属性 / 语义地位 ⇒ 决定「语义」的那个标量从未进入这次测量。
-    #   ⚠ 两者都与那个数**本身**无关（间隙还是 0.037pp、还是 <1pp），
-    #     所以去掉这三句**产物不会红** —— 只能在这里单独钉。
+    #   ⚠ 修订 51 起，**不再报「分辨率」**：修订 50 报过的 1.824% 是错的
+    #     （把实测间隙当成了分辨率；分辨率要 SE，而 SE(真实臂) 从产物算不出来）。
+    #   ⚠ 与自检 7 同理 —— 去掉这些限定**产物不会红**：间隙还是 0.037pp、
+    #     还是 <1pp、两个布尔仍是 True。只能在这里单独钉。
     for _frag, _why in (
         ("命名轴", "没说明「真实」那一臂是什么"),
         ("不构成", "没声明这条 null 不是「与语义无关」的证据"),
-        ("%.2f%%" % (100.0 * l1_res), "没印出那条比较的分辨率"),
-        ("%.2f×" % (l1_c_spread / l1_res), "没给出分辨率与已知效应量的比"),
+        ("%g 个百分点" % l1_thr["random_indistinguishable"],
+         "没印出那条 null 的真实判定阈值"),
+        ("%.1f%%" % (100.0 * l1_thr["random_indistinguishable"] / l1_base),
+         "没把阈值换算成「占信号的百分之几」"),
+        ("分辨率从这份产物算不出来", "没说明为什么**不能**给一个分辨率数字"),
+        ("是错的", "没披露修订 50 那句「分辨率 1.82%」已被更正"),
+        # ⚠ 只钉数字不够：实测一次变异把「（现读 linearity_law.py 的 summarise()）」、
+        #   「而基线信号是 2.018% ⇒ …49.5%」整句删掉，只留「1 个百分点」那个数，
+        #   自检照样全过（exit=0）⇒ 数字还在、出处没了，而**读者无从知道
+        #   那个数是从哪读的**。所以出处也要钉。
+        ("linearity_law.py", "没交代阈值的出处（读者无从知道那个数从哪读）"),
+        ("%.1f%%" % (100.0 * l1_thr["random_indistinguishable"] / l1_base),
+         "没把阈值换算成占信号的百分比"),
     ):
         need(_frag in _l1["note"],
              "L1 的 note 缺了「%s」—— %s" % (_frag, _why))
+    # ⚠ 反向自检：若将来产物里真有了每点量或真实臂 std，那句
+    #   「分辨率从这份产物算不出来」就变成假的，必须要求改写。
+    need(l1_arr_max < int(law["design"]["n_points"]),
+         "产物里出现了长度 ≥ n_points 的数组（%d）⇒ L1 note 里"
+         "「点级量已被聚合摧毁」与「分辨率算不出来」两句都要重写"
+         % l1_arr_max)
+    need("real_dev_std" not in law["rows"][0],
+         "产物里出现了 real_dev_std ⇒ SE(真实臂) 现在可算，"
+         "「分辨率从这份产物算不出来」这句必须重写")
 
     # ⚠ 自称「哪一级没测」的那段话，本身必须和上面这张表**逐级一致**。
     #   我原来写死「L5 及以上：一行都没有」，而同一份产物的 L6 是 partial
@@ -376,9 +473,12 @@ def main(argv=None):
         "overreach_numbers": {"readable_directions": l2, "usable_axes": 0,
                               "note": "「0」是**未测**，不是「实测为 0」"},
     }
+    _abort_if_problems()          # 第二道门（见 _abort_if_problems 的 docstring）
     out.write_text(json.dumps(payload, ensure_ascii=False, indent=1),
                    encoding="utf-8")
-    print("阶梯自检全过（6 条跨产物一致性）")
+    print("阶梯自检 %s（%d 条一致性）%s"
+          % ("全过" if not PROBLEMS else "**未过**", CHECKS[0],
+             "" if not PROBLEMS else "：" + "；".join(PROBLEMS)))
     for x in ladder:
         print("  %-3s %-8s %s" % (x["level"], x["state"], x["here"]))
     print()
