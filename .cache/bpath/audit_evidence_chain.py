@@ -63,6 +63,9 @@ LOCAL_ONLY = {"q3_verdict.json", "saturation_verdict.json",
               # 清单派生的（远端那份只是副本，本地才是源）⇒ 比对无意义。
               # extreme_verdict.json 是判决，产物不落远端。
               "extreme_pick_abs.json", "extreme_verdict.json",
+              # 修订 36/37：token_id_verdict* 是**本地**判决（由本地
+              # probe + 本地 site_tokens 映射算出），产物不落远端。
+              "token_id_verdict.json", "token_id_verdict_hi.json",
               # 本地备份（原始文件仍在远端），比对它没有意义
               "layer_sweep_t1.json.bak_armA"}
 
@@ -71,6 +74,7 @@ SUITES = ["test_ortho_frac_verdict.py", "test_pick_hi_sites.py",
           "test_ortho_extreme_scan.py",
           "test_apply_abs_boundary.py",
           "test_ortho_nt_scan.py",
+          "test_token_id_verdict.py",
           "test_docs_repro_list.py"]
 
 results = []

@@ -618,6 +618,64 @@ def main():
             "final": _ev.get("final"),
         }
 
+    # ---------- 4f-37. marker token 身份 × Δ 符号（修订 36 判据 / 修订 37 判定） ----------
+    _t1_path = M / "token_id_verdict.json"
+    _t2_path = M / "token_id_verdict_hi.json"
+    if _t1_path.exists() and _t2_path.exists():
+        _t1 = jload(M / "token_id_verdict.json")
+        _t2 = jload(M / "token_id_verdict_hi.json")
+        ortho_block["token_id37"] = {
+            "prereg": ("R6_RERUN_PREREG.md 修订 36 §36.4（判据，**取数前**写死）/ "
+                       "修订 37（判定）"),
+            "claim": ("`w` **不是** token 无关的「抬高 marker」方向："
+                      "注入 `+w` 会**压制**占比最大的 marker 7196（**「 maybe」**），"
+                      "同时**抬高**其余全部 marker —— **两边符号相反**"),
+            "batches": [
+                {"name": "E 批次（修订 32）", "n_tracks": 26,
+                 "n_sites": _t1["n_sites"], "n_dom": _t1["n_dom"],
+                 "n_rest": _t1["n_rest"],
+                 "dom_neg": f"{_t1['dom_neg']}/{_t1['n_dom']}",
+                 "rest_neg": f"{_t1['rest_neg']}/{_t1['n_rest']}",
+                 "dom_neg_frac": _t1["dom_neg_frac"],
+                 "rest_neg_frac": _t1["rest_neg_frac"],
+                 "n_shared_tracks": _t1["n_shared_tracks"],
+                 "chi2_mh": _t1["T1"]["chi2_mh"], "p": _t1["T1"]["p_two_sided"],
+                 "T1_pass": _t1["T1"]["pass"], "per_token": _t1["per_token"]},
+                {"name": "高对齐批次（修订 28）", "n_tracks": 29,
+                 "n_sites": _t2["n_sites"], "n_dom": _t2["n_dom"],
+                 "n_rest": _t2["n_rest"],
+                 "dom_neg": f"{_t2['dom_neg']}/{_t2['n_dom']}",
+                 "rest_neg": f"{_t2['rest_neg']}/{_t2['n_rest']}",
+                 "dom_neg_frac": _t2["dom_neg_frac"],
+                 "rest_neg_frac": _t2["rest_neg_frac"],
+                 "n_shared_tracks": _t2["n_shared_tracks"],
+                 "chi2_mh": _t2["T1"]["chi2_mh"], "p": _t2["T1"]["p_two_sided"],
+                 "T1_pass": _t2["T1"]["pass"], "per_token": _t2["per_token"]},
+            ],
+            "replication_note": ("两批**轨迹集合不相交**（26 vs 29 条），"
+                                 "7196 的负向率 **0.968 vs 0.970**（差 0.2 个百分点）"
+                                 "⇒ **独立复制**"),
+            "position_check": (
+                "⚠ §36.4 预先声明「位置/token 身份不可分离」，故查了位置"
+                "（**补充分析，非预登记判决**）：按位置三分位分层，"
+                "7196 的负向率 0.978 / 0.957 / 0.970，**每层都几乎一样**；"
+                "按位置分层 CMH χ² = 144.86、p ≈ 0 ⇒ **位置解释不了这个差异**"),
+            "scope_warning": (
+                "⚠⚠ **仍然不说「由 token 身份造成」** —— 这是观察数据，"
+                "位置与 token 在这批语料里共线。要拿因果需要"
+                "**按位置匹配**的采样设计，本项目**不**去构造"
+                "（那会再做一次事后挑选）。"
+                "⚠ 「这解释了『对齐度反向』为何反复」是**假说，未检验**"
+                "（预登记 §37.4），检验它须单独立修订"),
+            "theory_link": ("⇒ 理论文档 §4 新增**第 8 条**可判定检查："
+                            "「`w` 编码了概念 X」的断言**必须报组内逐 token 的"
+                            "响应符号**；符号分裂时只能读作"
+                            "「对该 token 集合的**加权平均**」，"
+                            "**禁止**表述为「把 X 抬起来」"),
+            "verdict": ("**通过**（T1 两批都过）—— 但作用域限定见 "
+                        "`scope_warning`"),
+        }
+
     # ---------- 5. 挂到八级阶梯 ----------
     ladder = [
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",

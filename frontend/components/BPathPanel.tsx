@@ -173,6 +173,23 @@ type BPath = {
       rev35_note: string;
       teeth_note: string; scope_note: string; final: string;
     };
+    /** 修订 36/37：marker token 身份 × Δ 符号。**`w` 不是 token 无关的
+     *  「抬高 marker」方向** —— 占比最大的 marker 被**压制**，其余被抬高。
+     *  ⚠ `scope_warning` **必须与 verdict 同屏**：它只支持「两组不同」，
+     *    **不**支持「由 token 身份造成」（位置与 token 共线）。 */
+    token_id37?: {
+      prereg: string; claim: string;
+      batches: { name: string; n_tracks: number; n_sites: number;
+                 n_dom: number; n_rest: number; dom_neg: string;
+                 rest_neg: string; dom_neg_frac: number; rest_neg_frac: number;
+                 n_shared_tracks: number; chi2_mh: number; p: number;
+                 T1_pass: boolean;
+                 per_token: Record<string, { n: number; neg: number;
+                                             neg_frac: number;
+                                             reportable: boolean }> }[];
+      replication_note: string; position_check: string;
+      scope_warning: string; theory_link: string; verdict: string;
+    };
     /** 修订 26：三处取数口径不一致的披露（地板口径 / Q1 批次 / 对照臂比较）。
      *  **只披露，不替换任何已发布数字。** */
     caliber26?: {
@@ -741,6 +758,79 @@ export default function BPathPanel() {
                 <Em s={d.orthogonality.extreme33.shape_contrast.caveat} />
               </p>
             </div>
+          </div>
+        )}
+        {d.orthogonality.token_id37 && (
+          <div className="mt-2 text-[9px] leading-relaxed"
+               data-token-id="rev37"
+               data-token-t1-e={String(d.orthogonality.token_id37.batches[0].T1_pass)}
+               data-token-t1-hi={String(d.orthogonality.token_id37.batches[1].T1_pass)}
+               data-token-dom-frac-e={String(
+                 d.orthogonality.token_id37.batches[0].dom_neg_frac)}
+               data-token-dom-frac-hi={String(
+                 d.orthogonality.token_id37.batches[1].dom_neg_frac)}>
+            <p className="text-fuchsia-100/90">
+              <Em s={d.orthogonality.token_id37.claim} />
+            </p>
+            <div className="mt-1" data-token-table="per-token">
+              <table className="text-gray-300">
+                <thead>
+                  <tr>
+                    <th className="text-left pr-2">marker id</th>
+                    {d.orthogonality.token_id37.batches.map((b) => (
+                      <th key={b.name} className="text-right pr-2">
+                        {b.name} 负向
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(
+                    d.orthogonality.token_id37.batches[0].per_token).map(
+                    ([tid, a]) => {
+                      const b = d.orthogonality.token_id37!.batches[1]
+                        .per_token[tid];
+                      return (
+                        <tr key={tid}
+                            data-token-row={tid === "7196" ? "dominant" : undefined}>
+                          <td className="pr-2">{tid}</td>
+                          <td className="text-right pr-2"
+                              data-token-cell={`e-${tid}`}>
+                            {a.neg}/{a.n} = {a.neg_frac.toFixed(3)}
+                          </td>
+                          <td className="text-right pr-2">
+                            {b ? `${b.neg}/${b.n} = ${b.neg_frac.toFixed(3)}`
+                               : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+            <ul className="list-disc pl-4 mt-1 text-gray-300">
+              {d.orthogonality.token_id37.batches.map((b) => (
+                <li key={b.name} data-token-batch={b.name.startsWith("E") ? "extreme" : "hi"}>
+                  {b.name}：{b.n_tracks} 条 / {b.n_sites} 位点；
+                  主导 {b.dom_neg} 负向 vs 其余 {b.rest_neg}；
+                  按轨迹分层 CMH χ² = {b.chi2_mh.toFixed(1)}（{b.n_shared_tracks} 层）
+                  p = {b.p === 0 ? "≈0" : b.p.toExponential(1)} ⇒{" "}
+                  <strong>{b.T1_pass ? "T1 通过" : "T1 不通过"}</strong>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-gray-300">
+              <Em s={d.orthogonality.token_id37.replication_note} />
+            </p>
+            <p className="text-gray-400">
+              <Em s={d.orthogonality.token_id37.position_check} />
+            </p>
+            <p className="mt-1 text-amber-200/90">
+              <Em s={d.orthogonality.token_id37.scope_warning} />
+            </p>
+            <p className="text-gray-400">
+              <Em s={d.orthogonality.token_id37.theory_link} />
+            </p>
           </div>
         )}
         {/* 修订 26：三处口径不一致的披露。放在紧挨 Q1 那句的下面，
