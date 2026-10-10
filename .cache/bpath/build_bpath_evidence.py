@@ -527,6 +527,9 @@ def main():
         _pick = jload(M / "extreme_pick_abs.json")
         _J = jload(M / "orthogonality_extreme.json")
         # 极对齐带自己的四分位（判决之外的形状，必须与判决同屏）
+        # ⚠ 每档同时算**对「无方向性」零假设（50%）的双尾 p**。
+        #   少这一步就会把「0.522」读成「同向」—— 修订 35 的更正就是这个。
+        from scipy.stats import binomtest, fisher_exact
         _sg = 1 if _J["wU_marker"] > 0 else -1
         _es = [{"aw": abs(r["w_dot_hhat"]), "d": r["points"][-1]["d_marker"],
                 "dr": r["points"][-1]["d_rand"], "traj": r["traj"],
@@ -540,11 +543,25 @@ def main():
             if not _s:
                 continue
             _ds = sorted(x["d"] for x in _s)
+            _k = sum(1 for x in _s if (x["d"] > 0) == _sg)
             _qs.append({"q": lab + ("（最高）" if i == 3 else "（最低）" if i == 0 else ""),
-                        "n": len(_s),
-                        "agree_frac": round(sum(1 for x in _s
-                                                if (x["d"] > 0) == _sg) / len(_s), 4),
-                        "d_median": _ds[len(_ds) // 2]})
+                        "n": len(_s), "agree_n": _k,
+                        "agree_frac": round(_k / len(_s), 4),
+                        "d_median": _ds[len(_ds) // 2],
+                        "p_vs_none": round(
+                            float(binomtest(_k, len(_s), 0.5).pvalue), 4)})
+        # 档间对比（Q4 vs Q1–Q3 合并）——**事后**切的，只能算弱线索
+        _q4 = _ab[3 * _n // 4:]
+        _r3 = _ab[:3 * _n // 4]
+        _k4 = sum(1 for x in _q4 if (x["d"] > 0) == _sg)
+        _kr = sum(1 for x in _r3 if (x["d"] > 0) == _sg)
+        _orr, _pv = fisher_exact([[_k4, len(_q4) - _k4],
+                                  [_kr, len(_r3) - _kr]])
+        _contrast = {"q4": f"{_k4}/{len(_q4)}", "rest": f"{_kr}/{len(_r3)}",
+                     "or": round(float(_orr), 3), "p_two_sided": round(float(_pv), 4),
+                     "caveat": ("⚠ 4 档是**事后**切的；纯噪声下也有约 19% 的概率"
+                                "在某档上冒出 p ≤ 0.05 ⇒ 最多算「新数据再看一眼」"
+                                "的弱线索，**不构成证据**")}
         _E = _ev["E2"]
         _e1_ok = bool(_ev["E1"]["pass"])
         _e2_und = (_E["verdict"] == "无法判定")
@@ -572,6 +589,17 @@ def main():
             "verdict_ok": {"E1": _e1_ok, "E2_undetermined": _e2_und,
                            "E3": _e3_ok},
             "shape": _qs,
+            "shape_contrast": _contrast,
+            "rev35_note": (
+                "⚠⚠ **修订 35 的更正**：四分位的「Δ 中位转正」**不是**"
+                "「极对齐端同向」的证据。逐档对「无方向性」零假设检验，"
+                f"**Q4 的同号率 0.522 双尾 p = {_qs[-1]['p_vs_none']:.3f}**"
+                "⇒ 与掷硬币完全不可区分。唯一剩下的是档间对比"
+                f"（OR = {_contrast['or']}，p = {_contrast['p_two_sided']}），"
+                "但那 4 档是**事后**切的 ⇒ 只算弱线索。"
+                "⚠ 「越对齐越反向没得到支持」这个结论**仍然成立**，"
+                "但依据是「四档全都没给出可判的方向性证据」，"
+                "**不是**「Q4 反向」。"),
             "teeth_note": (
                 "⚠⚠ **E2 那一栏不是「通过」，是「无法判定」** —— "
                 f"判定器原始输出为「通过」，但可判轨迹只有 {_E['n_judge']} 条，"

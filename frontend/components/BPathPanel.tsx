@@ -166,7 +166,11 @@ type BPath = {
             noisy_ratio_ok: boolean; a_ok: boolean; pass: boolean };
       verdict: string;
       verdict_ok: { E1: boolean; E2_undetermined: boolean; E3: boolean };
-      shape: { q: string; n: number; agree_frac: number; d_median: number }[];
+      shape: { q: string; n: number; agree_n: number; agree_frac: number;
+               d_median: number; p_vs_none: number }[];
+      shape_contrast: { q4: string; rest: string; or: number;
+                        p_two_sided: number; caveat: string };
+      rev35_note: string;
       teeth_note: string; scope_note: string; final: string;
     };
     /** 修订 26：三处取数口径不一致的披露（地板口径 / Q1 批次 / 对照臂比较）。
@@ -688,8 +692,13 @@ export default function BPathPanel() {
             <p className="mt-1 text-amber-200/90">
               <Em s={d.orthogonality.extreme33.verdict} />
             </p>
-            {/* 判决之外的形状：二元判据会把非单调压掉，梯度必须同屏。 */}
-            <div className="mt-1" data-extreme-shape="quartile">
+            {/* 判决之外的形状：二元判据会把非单调压掉，梯度必须同屏。
+                ⚠ 每档必须带 p_vs_none —— 没有 p 时「0.522」会被读成「同向」，
+                   而它对「无方向性」零假设 p=1.000，与掷硬币不可区分（修订 35）。 */}
+            <div className="mt-1" data-extreme-shape="quartile"
+                 data-extreme-q4-p-vs-none={
+                   String(d.orthogonality.extreme33.shape[
+                     d.orthogonality.extreme33.shape.length - 1]?.p_vs_none)}>
               <p className="text-gray-400">
                 ⚠ 事后四分位（<strong>不用于</strong>推翻上面的判定）：
               </p>
@@ -699,7 +708,8 @@ export default function BPathPanel() {
                     <th className="text-left pr-2">分位</th>
                     <th className="text-right pr-2">n</th>
                     <th className="text-right pr-2">同号率</th>
-                    <th className="text-right">Δ 中位</th>
+                    <th className="text-right pr-2">Δ 中位</th>
+                    <th className="text-right">p（vs 无方向）</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -708,14 +718,28 @@ export default function BPathPanel() {
                         data-extreme-quartile={q.q.startsWith("Q4") ? "highest" : undefined}>
                       <td className="pr-2">{q.q}</td>
                       <td className="text-right pr-2">{q.n}</td>
-                      <td className="text-right pr-2">{q.agree_frac.toFixed(3)}</td>
-                      <td className="text-right">
+                      <td className="text-right pr-2">
+                        {q.agree_frac.toFixed(3)}
+                        <span className="text-gray-500"> ({q.agree_n}/{q.n})</span>
+                      </td>
+                      <td className="text-right pr-2">
                         {q.d_median >= 0 ? "+" : ""}{q.d_median.toFixed(3)}
                       </td>
+                      <td className="text-right">{q.p_vs_none.toFixed(3)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              <p className="mt-1 text-amber-200/90">
+                <Em s={d.orthogonality.extreme33.rev35_note} />
+              </p>
+              <p className="text-gray-400" data-extreme-contrast="post-hoc">
+                档间对比：Q4 {d.orthogonality.extreme33.shape_contrast.q4} vs Q1–Q3{" "}
+                {d.orthogonality.extreme33.shape_contrast.rest}，OR ={" "}
+                {d.orthogonality.extreme33.shape_contrast.or}，双尾 p ={" "}
+                {d.orthogonality.extreme33.shape_contrast.p_two_sided}
+                <Em s={d.orthogonality.extreme33.shape_contrast.caveat} />
+              </p>
             </div>
           </div>
         )}
