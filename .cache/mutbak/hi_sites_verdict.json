@@ -1,0 +1,227 @@
+{
+ "schema": "hi_sites_verdict/1",
+ "prereg": "R6_RERUN_PREREG.md 修订 28 §28.3/§28.4",
+ "input": ".cache/mutbak/orthogonality_hi.json",
+ "traj": [
+  "aime__aime25__p12__think",
+  "aime__aime25__p13__think",
+  "aime__aime25__p14__think",
+  "aime__aime25__p15__think",
+  "aime__aime25__p16__think",
+  "aime__aime25__p17__think",
+  "aime__aime25__p18__think",
+  "aime__aime25__p19__think",
+  "aime__aime25__p20__think",
+  "aime__aime25__p21__think",
+  "aime__aime25__p22__think",
+  "aime__aime25__p23__think",
+  "aime__aime25__p24__think",
+  "aime__aime25__p25__think",
+  "aime__aime25__p26__think",
+  "aime__aime25__p27__think",
+  "aime__aime25__p28__think",
+  "aime__aime25__p29__think",
+  "aime__aime26__p01__think",
+  "aime__aime26__p02__think",
+  "aime__aime26__p03__think",
+  "aime__aime26__p04__think",
+  "aime__aime26__p05__think",
+  "aime__aime26__p06__think",
+  "aime__aime26__p07__think",
+  "aime__aime26__p08__think",
+  "aime__aime26__p09__think",
+  "aime__aime26__p10__think",
+  "aime__aime26__p11__think",
+  "aime__aime26__p12__think"
+ ],
+ "floor_same_slice": 1.4996,
+ "floor_n": 453,
+ "floor_note": "**只取 rel=1.0 那一档**的对照臂 |d_rand| 95 分位（修订 26 F1 的口径修正）；旧批次的地板一律不动",
+ "n_sites": 453,
+ "n_above": 205,
+ "by_mode": {},
+ "G1": {
+  "hi": 35,
+  "lo": 13,
+  "k": 68,
+  "fisher_p": 0.9999859007953021,
+  "direction": "正",
+  "pass": false
+ },
+ "G2": {
+  "n_judge": 11,
+  "n_skip": 18,
+  "n_diff": 10,
+  "max_allowed": 1,
+  "pass": false,
+  "verdict": "不具轨迹间一致性",
+  "per_track": {
+   "aime__aime25__p12__think": {
+    "n": 34,
+    "hi": 11,
+    "lo": 11,
+    "k": 11,
+    "direction": "打平"
+   },
+   "aime__aime25__p13__think": {
+    "n": 9,
+    "hi": 0,
+    "lo": 0,
+    "k": 3,
+    "direction": "打平"
+   },
+   "aime__aime25__p14__think": {
+    "n": 15,
+    "hi": 3,
+    "lo": 1,
+    "k": 5,
+    "direction": "正"
+   },
+   "aime__aime25__p15__think": {
+    "n": 4,
+    "verdict": "不判"
+   },
+   "aime__aime25__p16__think": {
+    "n": 11,
+    "hi": 0,
+    "lo": 0,
+    "k": 3,
+    "direction": "打平"
+   },
+   "aime__aime25__p17__think": {
+    "n": 13,
+    "hi": 2,
+    "lo": 1,
+    "k": 4,
+    "direction": "正"
+   },
+   "aime__aime25__p18__think": {
+    "n": 1,
+    "verdict": "不判"
+   },
+   "aime__aime25__p19__think": {
+    "n": 5,
+    "verdict": "不判"
+   },
+   "aime__aime25__p20__think": {
+    "n": 6,
+    "verdict": "不判"
+   },
+   "aime__aime25__p21__think": {
+    "n": 3,
+    "verdict": "不判"
+   },
+   "aime__aime25__p22__think": {
+    "n": 10,
+    "hi": 3,
+    "lo": 1,
+    "k": 3,
+    "direction": "正"
+   },
+   "aime__aime25__p23__think": {
+    "n": 13,
+    "hi": 4,
+    "lo": 1,
+    "k": 4,
+    "direction": "正"
+   },
+   "aime__aime25__p24__think": {
+    "n": 3,
+    "verdict": "不判"
+   },
+   "aime__aime25__p25__think": {
+    "n": 0,
+    "verdict": "不判"
+   },
+   "aime__aime25__p26__think": {
+    "n": 5,
+    "verdict": "不判"
+   },
+   "aime__aime25__p27__think": {
+    "n": 13,
+    "hi": 3,
+    "lo": 0,
+    "k": 4,
+    "direction": "正"
+   },
+   "aime__aime25__p28__think": {
+    "n": 7,
+    "verdict": "不判"
+   },
+   "aime__aime25__p29__think": {
+    "n": 2,
+    "verdict": "不判"
+   },
+   "aime__aime26__p01__think": {
+    "n": 1,
+    "verdict": "不判"
+   },
+   "aime__aime26__p03__think": {
+    "n": 2,
+    "verdict": "不判"
+   },
+   "aime__aime26__p04__think": {
+    "n": 1,
+    "verdict": "不判"
+   },
+   "aime__aime26__p05__think": {
+    "n": 5,
+    "verdict": "不判"
+   },
+   "aime__aime26__p06__think": {
+    "n": 8,
+    "hi": 0,
+    "lo": 1,
+    "k": 2,
+    "direction": "反"
+   },
+   "aime__aime26__p07__think": {
+    "n": 15,
+    "hi": 4,
+    "lo": 3,
+    "k": 5,
+    "direction": "正"
+   },
+   "aime__aime26__p08__think": {
+    "n": 2,
+    "verdict": "不判"
+   },
+   "aime__aime26__p09__think": {
+    "n": 10,
+    "hi": 3,
+    "lo": 3,
+    "k": 3,
+    "direction": "打平"
+   },
+   "aime__aime26__p10__think": {
+    "n": 3,
+    "verdict": "不判"
+   },
+   "aime__aime26__p11__think": {
+    "n": 2,
+    "verdict": "不判"
+   },
+   "aime__aime26__p12__think": {
+    "n": 2,
+    "verdict": "不判"
+   }
+  }
+ },
+ "G3": {
+  "rho_eff": 0.15914268044248295,
+  "old": 0.4177,
+  "pass": false
+ },
+ "G4": {
+  "mono_down": 127,
+  "n": 453,
+  "frac": 0.2803532008830022,
+  "threshold": 0.2,
+  "pass": true
+ },
+ "control_arm": {
+  "ctrl_ge": 5,
+  "of": 205
+ },
+ "final": "见逐条"
+}

@@ -192,6 +192,7 @@ python3 .cache/bpath/build_bpath_evidence.py \
 | `layer_sweep_t1.json.bak_armA` | 只为记录「臂 A 已被取代」，**不取数** |
 | `dose_sweep_B.json` | 剂量-位置扫描 |
 | `orthogonality.json` / `orthogonality_nt8.json` / `orthogonality_fresh.json` | 正交度探针三个批次 |
+| **`orthogonality_hi.json`** | **高对齐位点批次**（30 条轨迹 / 453 个 `w·ĥ>0.1` 位点，修订 28–29） |
 | `q3_verdict.json` / `generalization_verdict.json` | Q3 与独立复核的判决 |
 | `ortho_frac_verdict.json` / `hi_sites_pick.json` / `hi_sites_verdict.json` | 取样缺陷判定与高对齐批次（可选，缺了就不印对应块） |
 

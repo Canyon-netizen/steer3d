@@ -134,6 +134,10 @@ type BPath = {
       G3: { rho_eff: number; old: number; pass: boolean };
       G4: { mono_down: number; n: number; frac: number;
             threshold: number; pass: boolean };
+      verdict: string;
+      shape: { quartile: string; n: number; aw_median: number;
+               agree: number; d_median: number }[];
+      shape_note: string;
       final: string;
     };
     /** 修订 26：三处取数口径不一致的披露（地板口径 / Q1 批次 / 对照臂比较）。
@@ -401,7 +405,7 @@ export default function BPathPanel() {
         {/* ⚠⚠ 适用范围警告必须在**数字之前**印：否则读者先看到
             「20/20 全负」再看到限定，顺序会让人把结论带走。 */}
         <p className="text-[9px] text-rose-200 mb-1 leading-relaxed"
-           data-bpath-generalization="not-tested">
+           data-bpath-generalization="refuted">
           <Em s={d.orthogonality.scope_warning} />
         </p>
         {/* 修订 27：支撑上面那句更正的实测。**紧跟其后**印，
@@ -531,6 +535,49 @@ export default function BPathPanel() {
               </div>
             </div>
             <p className="text-amber-200"><Em s={d.orthogonality.hi_sites28.scope} /></p>
+            {/* 判决必须印在 G1–G4 之后、作用域限定之前：
+                读者先看到四条判据，再看到结论，再看到它能读作什么。 */}
+            <p className="text-rose-200 mt-1" data-hi-verdict="rev29">
+              <Em s={d.orthogonality.hi_sites28.verdict} />
+            </p>
+            {/* ⚠ G1 只比首尾两档，会把**非单调**读成单调 —— 四分位必须同屏。 */}
+            {d.orthogonality.hi_sites28.shape?.length > 0 && (
+              <div className="mt-1" data-hi-shape="quartile">
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1.5 text-gray-600 px-1">
+                    <span className="w-16">对齐度四分位</span>
+                    <span className="w-12">n</span>
+                    <span className="w-16">|w·ĥ| 中位</span>
+                    <span className="w-14">同号率</span>
+                    <span>Δ 中位</span>
+                  </div>
+                  {d.orthogonality.hi_sites28.shape.map((s) => (
+                    <div key={s.quartile}
+                         className="flex items-center gap-1.5 px-1"
+                         data-hi-quartile={s.quartile}
+                         data-hi-agree={String(s.agree)}
+                         data-hi-d-median={String(s.d_median)}
+                         style={{ background: "#101722" }}>
+                      <span className="text-gray-500 w-16">{s.quartile}</span>
+                      <span className="text-gray-500 w-12">{s.n}</span>
+                      <span className="text-gray-400 w-16">
+                        {s.aw_median.toFixed(4)}</span>
+                      <span
+                        className={s.agree >= 0.5 ? "text-emerald-300"
+                          : "text-rose-400"}>
+                        {(s.agree * 100).toFixed(1)}%</span>
+                      <span className={s.d_median > 0 ? "text-emerald-300"
+                        : "text-rose-400"}>
+                        {s.d_median >= 0 ? "+" : ""}
+                        {s.d_median.toFixed(3)}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-gray-400 mt-1">
+                  <Em s={d.orthogonality.hi_sites28.shape_note} />
+                </p>
+              </div>
+            )}
             <p className="text-gray-400">
               地板 <strong>{d.orthogonality.hi_sites28.floor_same_slice.toFixed(4)}</strong>
               <Em s={d.orthogonality.hi_sites28.floor_note} />
