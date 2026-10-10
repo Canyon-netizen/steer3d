@@ -213,6 +213,30 @@ type BPath = {
       reading: string; revision_chain: string; theory_link: string;
       untouched: string; final: string;
     };
+    /** 修订 40：**筛选本身就在挑 token**（`w·ĥ>0.1` 把 7196 富集 2.28×）。
+     *  ⚠ `mechanism_note` **必须同屏** —— A2 与 B1 不是两条独立证据。 */
+    selection40?: {
+      prereg: string; claim: string; marker_all_total: number;
+      marker_all_n_traj: number;
+      B1: { median_dom: number; median_rest: number; p: number;
+            max_p: number; pass: boolean };
+      B2: { sel_frac_dom: number; baseline_frac_dom: number;
+            enrich: number | null; or: number; p: number;
+            max_p: number; pass: boolean; note: string };
+      /** ⚠ `rho_obs` / `p` 在**超地板位点不足**或**地板吃光全部**时是 `null`。
+       *  渲染必须防 null —— 直接 `.toFixed()` 会让整页白屏。 */
+      A0: { rho_obs: number | null; p: number | null; max_p: number;
+            pass: boolean; n: number; why?: string | null };
+      A1: { median_dom: number | null; median_rest: number | null;
+            p: number | null; max_p: number; pass: boolean;
+            applicable: boolean; why: string | null };
+      A2: { rho_null: number | null; cover: number | null;
+            need_cover: number; pass: boolean; applicable: boolean;
+            note: string; why: string | null;
+            rho_within?: Record<string, { rho: number; p: number; n: number }> };
+      mechanism_note: string; reading: string; theory_link: string;
+      verdict_note: string; final: string;
+    };
     /** 修订 26：三处取数口径不一致的披露（地板口径 / Q1 批次 / 对照臂比较）。
      *  **只披露，不替换任何已发布数字。** */
     caliber26?: {
@@ -266,6 +290,19 @@ function Em({ s }: { s: string }) {
       {parts.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : <span key={i}>{p}</span>))}
     </>
   );
+}
+
+/** 数值 → 定长字符串。
+ *
+ * ⚠ 判据**不适用**时产物里的数值位是 `null`（判据的「不适用」分支刻意保留
+ * 完整键集合，好让下游永远不必处理 undefined）。直接 `.toFixed()` 会崩掉
+ * 整页 React 树 ⇒ 一换数据就白屏。这里统一显示破折号。
+ * ⚠ `!Number.isFinite` 也要挡：Python 的 `Infinity`/`NaN` 若混进 JSON，
+ * 浏览器 `JSON.parse` 本身就抛，压根到不了这里；但同一段代码也服务本地拼的
+ * 临时数据，挡一道不亏。 */
+function fx(v: number | null | undefined, digits = 4): string {
+  if (v === null || v === undefined || !Number.isFinite(v)) return "—";
+  return v.toFixed(digits);
 }
 
 /** 极简折线：只画形状，不引入图表依赖。 */
@@ -934,6 +971,95 @@ export default function BPathPanel() {
             </p>
             <p className="text-gray-400">
               <Em s={d.orthogonality.mixture39.untouched} />
+            </p>
+          </div>
+        )}
+        {d.orthogonality.selection40 && (
+          <div className="mt-2 text-[9px] leading-relaxed"
+               data-selection="rev40"
+               data-selection-b2-enrich={String(d.orthogonality.selection40.B2.enrich)}
+               data-selection-a2-cover={String(d.orthogonality.selection40.A2.cover)}
+               data-selection-b2-pass={String(d.orthogonality.selection40.B2.pass)}
+               data-selection-a1-pass={String(d.orthogonality.selection40.A1.pass)}>
+            <p className="text-orange-100/90">
+              <Em s={d.orthogonality.selection40.claim} />
+            </p>
+            <ul className="list-disc pl-4 mt-1 text-gray-300">
+              <li data-selection-crit="B1">
+                <strong>B1</strong> |w·ĥ| 中位{" "}
+                {fx(d.orthogonality.selection40.B1.median_dom)}
+                {" "}vs{" "}
+                {fx(d.orthogonality.selection40.B1.median_rest)}，
+                p = {d.orthogonality.selection40.B1.p.toExponential(2)}
+                （须 &lt; {d.orthogonality.selection40.B1.max_p}）⇒{" "}
+                <strong>{d.orthogonality.selection40.B1.pass ? "过" : "不过"}</strong>
+              </li>
+              <li data-selection-crit="B2">
+                <strong>⚠ B2 富集</strong>：选中里 7196 占{" "}
+                {(d.orthogonality.selection40.B2.sel_frac_dom * 100).toFixed(1)}%
+                ，全体 marker 里占{" "}
+                {(d.orthogonality.selection40.B2.baseline_frac_dom * 100).toFixed(1)}%
+                {" "}⇒ 富集 <strong>
+                  {fx(d.orthogonality.selection40.B2.enrich, 2)}×
+                </strong>，p ={" "}
+                {d.orthogonality.selection40.B2.p.toExponential(2)} ⇒{" "}
+                <strong>{d.orthogonality.selection40.B2.pass ? "过" : "不过"}</strong>
+              </li>
+              <li data-selection-crit="A0">
+                <strong>A0 前提</strong>：ρ_obs ={" "}
+                {fx(d.orthogonality.selection40.A0.rho_obs)}，
+                p = {fx(d.orthogonality.selection40.A0.p, 4)}（须 &lt;{" "}
+                {d.orthogonality.selection40.A0.max_p}）⇒{" "}
+                {d.orthogonality.selection40.A0.pass ? (
+                  <strong>适用</strong>
+                ) : (
+                  <strong className="text-gray-400">
+                    不适用
+                    {d.orthogonality.selection40.A0.why
+                      ? `（${d.orthogonality.selection40.A0.why}）`
+                      : ""}
+                  </strong>
+                )}
+              </li>
+              <li data-selection-crit="A1">
+                <strong>A1</strong> |Δ| 中位{" "}
+                {fx(d.orthogonality.selection40.A1.median_dom)} vs{" "}
+                {fx(d.orthogonality.selection40.A1.median_rest)}，p ={" "}
+                {fx(d.orthogonality.selection40.A1.p, 4)}
+                （须 &lt; {d.orthogonality.selection40.A1.max_p}）⇒{" "}
+                <strong>
+                  {d.orthogonality.selection40.A1.pass
+                    ? "过"
+                    : d.orthogonality.selection40.A1.applicable
+                      ? "不过"
+                      : "不适用"}
+                </strong>
+              </li>
+              <li data-selection-crit="A2">
+                <strong>A2</strong> ρ_null ={" "}
+                {fx(d.orthogonality.selection40.A2.rho_null)}，覆盖度 ={" "}
+                {fx(d.orthogonality.selection40.A2.cover, 3)}
+                （须 ≥ {d.orthogonality.selection40.A2.need_cover}）⇒{" "}
+                <strong>
+                  {d.orthogonality.selection40.A2.pass
+                    ? "过"
+                    : d.orthogonality.selection40.A2.applicable
+                      ? "不过"
+                      : "不适用"}
+                </strong>
+              </li>
+            </ul>
+            <p className="mt-1 text-amber-200/90">
+              <Em s={d.orthogonality.selection40.mechanism_note} />
+            </p>
+            <p className="text-gray-400">
+              <Em s={d.orthogonality.selection40.reading} />
+            </p>
+            <p className="text-gray-300">
+              <Em s={d.orthogonality.selection40.theory_link} />
+            </p>
+            <p className="text-gray-400">
+              <Em s={d.orthogonality.selection40.verdict_note} />
             </p>
           </div>
         )}

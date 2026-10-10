@@ -720,6 +720,58 @@ def main():
             "final": _mx["final"],
         }
 
+    # ---------- 4h-40. 筛选是否在挑 token / 幅度是否被污染（修订 40） ----------
+    _sc_path = M / "selection_contamination.json"
+    if _sc_path.exists():
+        _sc = jload(M / "selection_contamination.json")
+        # ⚠ B2 的**分母**必须与判决产物里的 marker 总数一致 —— 否则屏幕上
+        #   「全体 marker 里占 25.8%」与判决用的那个「全体」可能不是同一批位点。
+        #   这条交叉核对也让 marker 构成产物进入「与远端同源」检查
+        #   （它是由远端只读 sidecar 脚本生成的，不该被当成本地私货）。
+        _mk = jload(M / "marker_all_hi.json")
+        if int(_mk["n_marker_total"]) != int(_sc["marker_all_total"]):
+            raise SystemExit(
+                f"marker 总数对不上：构成 {int(_mk['n_marker_total'])} vs "
+                f"判决 {int(_sc['marker_all_total'])} ⇒ 拒绝构建")
+        # ⚠ 散文里的数字**一律从产物取**，不写死。
+        #   写死的后果很具体：重跑一遍数据 → 产物变了、列表里的数字自动跟着变，
+        #   而首句 claim 和 mechanism_note 还停在旧值 ⇒ 同一屏两个数打架，
+        #   而且没有任何守卫会发现（构建器逐字节复算照样通过）。
+        _n = lambda v, d=4: "—" if v is None else f"{v:.{d}f}"
+        ortho_block["selection40"] = {
+            "prereg": "R6_RERUN_PREREG.md 修订 40 §40.2（判据，**取数前**写死）",
+            "claim": ("`w·ĥ > 0.1` 这个**筛选本身就在挑 token**："
+                      f"把主导 marker 富集了 **{_n(_sc['B2']['enrich'], 2)} 倍**。"
+                      "⇒ 「高对齐位点」**同时**是「7196 富集的位点」"),
+            "B1": _sc["B1"], "B2": _sc["B2"],
+            "A0": _sc["A0"], "A1": _sc["A1"], "A2": _sc["A2"],
+            "marker_all_total": _sc["marker_all_total"],
+            "marker_all_n_traj": _mk["n_traj"],
+            "final": _sc["final"],
+            "mechanism_note": (
+                "⚠ **A2 不是独立于 B1 的证据**：A1 不过说明两组 `|Δ|` 中位数几乎"
+                "相同 ⇒ 「换成组中位数」产生的是**二元**信号，"
+                "`ρ_null` 实际测的是「`|w·ĥ|` 能否预测 token 组」，"
+                "那正是 B1 测的东西。"
+                "⚠ 但 A2 的措辞更强也更稳：把 `|Δ|` **整个换成**组中位数后，"
+                f"`ρ` 从 {_n(_sc['A0']['rho_obs'])} **不降反升**到 "
+                f"{_n(_sc['A2']['rho_null'])} ⇒ `ρ_obs` 里"
+                "**没有任何超出 token 构成的成分**"),
+            "reading": (
+                "⚠ B1 与 B2 不矛盾：7196 只在部分轨迹里能过 0.1 这条线，"
+                "但一旦过了，它的 `|w·ĥ|` 就**低于**同批其他 token"
+                f"（中位 {_n(_sc['B1']['median_dom'])} vs "
+                f"{_n(_sc['B1']['median_rest'])}）"),
+            "theory_link": ("⇒ 理论文档 §4 **第 10 条**：任何「在某筛选条件下」"
+                            "得到的结论**必须报该筛选对分组变量的富集倍数**；"
+                            "≥ 2× 就必须标注「该筛选同时改变了分组构成」"),
+            "verdict_note": ("⚠ G3 的「**不过**」这个**判决**仍然成立、"
+                             "不需要改动；变的是**读法** —— 不是"
+                             "「有相关性但推广不开」，而是"
+                             "「这个相关性测的是 token 构成」。"
+                             "**本节没有说 G3 算错了。**"),
+        }
+
     # ---------- 5. 挂到八级阶梯 ----------
     ladder = [
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
