@@ -18,7 +18,10 @@ import numpy as np
 warnings.filterwarnings("ignore")
 np.seterr(all="ignore")
 
-ROOT = Path("/Users/zhourui/code/steer3d")
+# ⚠ 修订 53：这一行原本写死本机绝对路径 ⇒ 干净克隆上第一行就 FileNotFoundError。
+#   改为从 __file__ 推导，深度同上 ⇒ parents[2] 即仓库根。
+# ⚠⚠ 注释里不许写出 A3「写死路径」正则匹配的字面形态（修订 52 踩过，注释会毒化正则）。
+ROOT = Path(__file__).resolve().parents[2]
 X = ROOT / ".cache/xcheck"
 CACHE = X / "dir_cache"
 DST = ROOT / "frontend/public/latent/data/readable_subspace.json"

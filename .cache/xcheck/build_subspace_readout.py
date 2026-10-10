@@ -18,7 +18,13 @@ import numpy as np
 warnings.filterwarnings("ignore")
 np.seterr(all="ignore")
 
-ROOT = Path("/Users/zhourui/code/steer3d")
+# ⚠ 修订 53：这一行原本写死本机绝对路径 ⇒ 干净克隆上第一行就 FileNotFoundError。
+#   改为从 __file__ 推导。本脚本在 <repo>/.cache/xcheck/ 下，深度与
+#   .cache/strengthscan/linearity_law.py 相同 ⇒ parents[2] 即仓库根。
+# ⚠⚠ 注释里**不许**写出证据链 A3「写死路径」正则所匹配的字面形态 —— 修订 52 踩过：
+#   注释抄了原文，于是扫描把**已经修好的**这一行判成命中（注释把正则毒化了）。
+#   所以上面描述的是「绝对路径字面量」，不抄原文。
+ROOT = Path(__file__).resolve().parents[2]
 X = ROOT / ".cache/xcheck"
 CACHE = X / "dir_cache"
 DST = ROOT / "frontend/public/latent/data/readable_subspace.json"
