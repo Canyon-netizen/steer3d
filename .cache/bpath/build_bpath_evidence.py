@@ -31,11 +31,51 @@ import statistics as st
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent.parent          # 仓库根（判决产物里的路径是相对它记的）
 
 
 def jload(p):
     with open(p, encoding="utf-8") as f:
         return json.load(f)
+
+
+def _pos_txt(ps):
+    """把 §37.3 的位置分层叙述**从产物拼出来**，不写死任何数字。
+
+    ⚠ 修订 42：这里原来是一个**硬编码字符串**，写着
+      `0.978 / 0.957 / 0.970` 与 `χ² = 144.86`，没有任何产物兜底
+      ⇒ 改了 `orthogonality_extreme.json` 而忘了改它，逐字节复算照样通过。
+    ⚠ `p_two_sided == 0.0` 时**不能**去 format 一个 0，读者要看到的是「≈ 0」。
+    """
+    rates = " / ".join(format(s["dom_neg_frac"], ".3f") for s in ps["strata"])
+    chi2 = format(ps["chi2_mh"], ".2f")
+    ptxt = ("≈ 0" if ps["p_two_sided"] == 0.0
+            else format(ps["p_two_sided"], ".2g"))
+    return (
+        "⚠ §36.4 预先声明「位置/token 身份不可分离」，故查了位置"
+        "（**补充分析，非预登记判决**）：按位置三分位分层（"
+        f"切点定义 `{ps['cutpoint_def']}`，切点 {ps['cutpoints'][0]}"
+        f" / {ps['cutpoints'][1]}），7196 的负向率 {rates}，"
+        f"**每层都几乎一样**；按位置分层 CMH χ² = {chi2}、p {ptxt}"
+        f"（{ps['n_strata_used']} 层）⇒ **位置解释不了这个差异**"
+        f"　⚠ 切点定义会改答案（换成 `np.percentile` 中间层「其余」是 13 "
+        f"而不是 14），见 `cutpoint_sensitivity`")
+
+
+def _n_tracks(verdict):
+    """从**该判决自己记录的那个探针产物**里取轨迹数。
+
+    ⚠ 修订 42：面板会渲染 `b.n_tracks`，而它原来在构建器里是
+      写死的 `26` / `29`。轨迹数不在判决产物里，但它就在
+      判决产物**点名的那份探针**里 —— 从那儿数，链路才闭合。
+    """
+    p = Path(verdict["probe"])
+    if not p.is_absolute():
+        p = Path(ROOT) / p
+    if not p.exists():
+        raise SystemExit(
+            f"判决产物点名了探针 {p}，但它不在 ⇒ 无法取轨迹数，拒绝构建")
+    return len({r["traj"] for r in jload(p)["rows"]})
 
 
 def main():
@@ -619,6 +659,14 @@ def main():
         }
 
     # ---------- 4f-37. marker token 身份 × Δ 符号（修订 36 判据 / 修订 37 判定） ----------
+    # ⚠ 必须走 `jload` 配**字面路径**那条分支：证据链 C 项是照这个形状
+    #   扫描构建器、决定哪些产物要去和远端比对的。用变量路径会让
+    #   `pos_strat.json` **悄悄逃出**这项检查 —— 那时「远端同源」
+    #   对它根本没跑过，而报告看起来一切正常。
+    #   （本注释刻意不写出那条调用的完整形态：审计的正则会把它
+    #     当成一个真文件名扫进去。）
+    _ps_path = M / "pos_strat.json"
+    _ps = jload(M / "pos_strat.json") if _ps_path.exists() else None
     _t1_path = M / "token_id_verdict.json"
     _t2_path = M / "token_id_verdict_hi.json"
     if _t1_path.exists() and _t2_path.exists():
@@ -631,7 +679,7 @@ def main():
                       "注入 `+w` 会**压制**占比最大的 marker 7196（**「 maybe」**），"
                       "同时**抬高**其余全部 marker —— **两边符号相反**"),
             "batches": [
-                {"name": "E 批次（修订 32）", "n_tracks": 26,
+                {"name": "E 批次（修订 32）", "n_tracks": _n_tracks(_t1),
                  "n_sites": _t1["n_sites"], "n_dom": _t1["n_dom"],
                  "n_rest": _t1["n_rest"],
                  "dom_neg": f"{_t1['dom_neg']}/{_t1['n_dom']}",
@@ -641,7 +689,7 @@ def main():
                  "n_shared_tracks": _t1["n_shared_tracks"],
                  "chi2_mh": _t1["T1"]["chi2_mh"], "p": _t1["T1"]["p_two_sided"],
                  "T1_pass": _t1["T1"]["pass"], "per_token": _t1["per_token"]},
-                {"name": "高对齐批次（修订 28）", "n_tracks": 29,
+                {"name": "高对齐批次（修订 28）", "n_tracks": _n_tracks(_t2),
                  "n_sites": _t2["n_sites"], "n_dom": _t2["n_dom"],
                  "n_rest": _t2["n_rest"],
                  "dom_neg": f"{_t2['dom_neg']}/{_t2['n_dom']}",
@@ -655,11 +703,14 @@ def main():
             "replication_note": ("两批**轨迹集合不相交**（26 vs 29 条），"
                                  "7196 的负向率 **0.968 vs 0.970**（差 0.2 个百分点）"
                                  "⇒ **独立复制**"),
-            "position_check": (
-                "⚠ §36.4 预先声明「位置/token 身份不可分离」，故查了位置"
-                "（**补充分析，非预登记判决**）：按位置三分位分层，"
-                "7196 的负向率 0.978 / 0.957 / 0.970，**每层都几乎一样**；"
-                "按位置分层 CMH χ² = 144.86、p ≈ 0 ⇒ **位置解释不了这个差异**"),
+            "position_check": _pos_txt(_ps) if _ps else (
+                "⚠ 位置分层产物 `pos_strat.json` 不在本机，"
+                "§37.3 的数字**无法**在本屏复算"),
+            "position_strat": (
+                # ⚠ 剥掉 `probe` / `map`：那两条是**本机相对路径**，
+                #   交付给网页的东西不该带构建机的目录结构。
+                {k: v for k, v in _ps.items()
+                 if k not in ("probe", "map")} if _ps else None),
             "scope_warning": (
                 "⚠⚠ **仍然不说「由 token 身份造成」** —— 这是观察数据，"
                 "位置与 token 在这批语料里共线。要拿因果需要"

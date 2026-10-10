@@ -51,6 +51,14 @@ def mh_stat(tables):
 
     ⚠ 某层边际合计为 0（该层没有两组中任一者）时跳过并如实计数。
     """
+    # ⚠⚠ 修订 42：**先在函数内部把 χ² 算好再返回**。
+    #   本函数原来返回 `(num, var, used, skipped)`，把**统计量**的推导责任
+    #   推给了每个调用方 —— 而 `num/var` 与正确的 `num²/var` 只差一个平方：
+    #   前者小 33 倍，`p = 0.037` 看起来也像一个正常的「不显著」结果。
+    #   2026-10-10 复算预登记 §37.3 时就按位置把返回值当成
+    #   `(chi2, var, …)` 解包过，拿到 `33.3350` 而不是 `144.86`，
+    #   第一反应是「预登记算错了」——**它没错，是解包错了**。
+    #   ⇒ 现在 χ² 是函数的返回值，调用方没有任何机会取错。
     num, var, used, skipped = 0.0, 0.0, 0, 0
     for a, b, c, d in tables:
         n = a + b + c + d
@@ -62,7 +70,11 @@ def mh_stat(tables):
         num += a - e
         var += row1 * (c + d) * col1 * (b + d) / (n * n) / (n - 1)
         used += 1
-    return num, var, used, skipped
+    # 分层 CMH = [Σ(a−E)]² / ΣV  ⇒ **分子必须平方**。
+    # 单层时它恰好等于 Pearson 无校正卡方（selfcheck() 验的就是这条），
+    # 不平方会得到一个不是卡方的量。
+    chi2 = (num * num / var) if var > 0 else float("nan")
+    return chi2, num, var, used, skipped
 
 
 def selfcheck():
@@ -86,16 +98,23 @@ def selfcheck():
     for tab in ([[7, 5], [3, 9]], [[11, 2], [1, 4]], [[30, 12], [25, 41]]):
         a, b, c, d = tab[0][0], tab[0][1], tab[1][0], tab[1][1]
         n = a + b + c + d
-        num, var, used, _ = mh_stat([(a, b, c, d)])
+        chi2, num, var, used, _ = mh_stat([(a, b, c, d)])
         if used != 1 or var <= 0:
             raise SystemExit(f"自校验失败：单层未用上（used={used}, var={var}）")
-        mine = num * num / var
         ref = float(chi2_contingency(np.array(tab), correction=False)[0])
         want = ref * (n - 1) / n
-        if abs(mine - want) > 1e-9:
+        # ⚠ 修订 42：直接验**函数返回的那个数**，而不是在调用方重算一遍。
+        #   原来这里是 `mine = num * num / var`，等于把「分子要平方」这件事
+        #   又抄了一遍到调用点 —— 抄错不会被任何东西抓到。
+        if abs(chi2 - want) > 1e-9:
             raise SystemExit(
-                f"⚠ MH 实现与推导式不一致：自校验 {mine!r} vs "
+                f"⚠ MH 实现与推导式不一致：自校验 {chi2!r} vs "
                 f"Pearson×(N-1)/N = {want!r} ⇒ 实现有问题，拒绝判定")
+        # ⚠ 反向锚点：未平方的 `num/var` 必须**不等于**参考值。
+        #   否则上面的断言可能被一个退化的实现蒙过去。
+        if abs(num / var - want) < 1e-9 and n > 2:
+            raise SystemExit(
+                f"⚠ num/var 与参考值相同，断言失去区分力（N={n}）")
         z = abs(num) / np.sqrt(var)
         p = 2 * (1 - norm.cdf(z))
         if not (0.0 <= p <= 1.0):
@@ -226,7 +245,7 @@ def main():
         return
 
     # ---- T1 分层 CMH ----
-    num, var, used, skipped = mh_stat(tables)
+    chi, num, var, used, skipped = mh_stat(tables)
     if var <= 0:
         res["T1"] = {"pass": False, "why": "MH 方差为 0"}
         res["final"] = "无法判定"
@@ -234,7 +253,6 @@ def main():
         json.dump(res, open(a.out, "w", encoding="utf-8"),
                   ensure_ascii=False, indent=1)
         return
-    chi = num * num / var
     p1 = float(2 * (1 - norm.cdf(abs(num) / np.sqrt(var))))
     t1_pass = p1 < T1_MAX_P
     res["T1"] = {"chi2_mh": round(chi, 4), "p_two_sided": p1,

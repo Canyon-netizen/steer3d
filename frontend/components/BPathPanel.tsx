@@ -188,6 +188,12 @@ type BPath = {
                                              neg_frac: number;
                                              reportable: boolean }> }[];
       replication_note: string; position_check: string;
+      /** 修订 42：位置分层由**产物** `pos_strat.json` 兜底（修订 41 之前
+       *  `position_check` 是一段硬编码散文，改了产物没人拦）。 */
+      position_strat?: {
+        cutpoint_def: string; cutpoints: number[];
+        chi2_mh: number; n_strata_used: number;
+      };
       scope_warning: string; theory_link: string; verdict: string;
     };
     /** 修订 38/39：**倒 U 完全是 token 混合的伪影**。层内「其余组」四档全是
@@ -823,6 +829,12 @@ export default function BPathPanel() {
         {d.orthogonality.token_id37 && (
           <div className="mt-2 text-[9px] leading-relaxed"
                data-token-id="rev37"
+               data-token-pos-chi2={
+                 d.orthogonality.token_id37.position_strat?.chi2_mh
+               }
+               data-token-pos-cutdef={
+                 d.orthogonality.token_id37.position_strat?.cutpoint_def
+               }
                data-token-t1-e={String(d.orthogonality.token_id37.batches[0].T1_pass)}
                data-token-t1-hi={String(d.orthogonality.token_id37.batches[1].T1_pass)}
                data-token-dom-frac-e={String(

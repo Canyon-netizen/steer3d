@@ -865,7 +865,109 @@
     }
    ],
    "replication_note": "两批**轨迹集合不相交**（26 vs 29 条），7196 的负向率 **0.968 vs 0.970**（差 0.2 个百分点）⇒ **独立复制**",
-   "position_check": "⚠ §36.4 预先声明「位置/token 身份不可分离」，故查了位置（**补充分析，非预登记判决**）：按位置三分位分层，7196 的负向率 0.978 / 0.957 / 0.970，**每层都几乎一样**；按位置分层 CMH χ² = 144.86、p ≈ 0 ⇒ **位置解释不了这个差异**",
+   "position_check": "⚠ §36.4 预先声明「位置/token 身份不可分离」，故查了位置（**补充分析，非预登记判决**）：按位置三分位分层（切点定义 `rank_third`，切点 2934 / 5110），7196 的负向率 0.978 / 0.957 / 0.970，**每层都几乎一样**；按位置分层 CMH χ² = 144.86、p ≈ 0（3 层）⇒ **位置解释不了这个差异**　⚠ 切点定义会改答案（换成 `np.percentile` 中间层「其余」是 13 而不是 14），见 `cutpoint_sensitivity`",
+   "position_strat": {
+    "schema": "pos_strat/1",
+    "prereg": "R6_RERUN_PREREG.md 修订 37 §37.3（**补充分析，非预登记判决**）",
+    "role": "补充分析：查位置这个混淆项，**不输出 pass/fail**",
+    "dom_id": 7196,
+    "n_sites": 179,
+    "cutpoint_def": "rank_third",
+    "cutpoints": [
+     2934,
+     5110
+    ],
+    "strata": [
+     {
+      "label": "low",
+      "n_sites": 60,
+      "dom_n": 46,
+      "dom_neg": 45,
+      "dom_pos": 1,
+      "rest_n": 14,
+      "rest_neg": 0,
+      "rest_pos": 14,
+      "dom_neg_frac": 0.9782608695652174,
+      "rest_neg_frac": 0.0
+     },
+     {
+      "label": "mid",
+      "n_sites": 60,
+      "dom_n": 46,
+      "dom_neg": 44,
+      "dom_pos": 2,
+      "rest_n": 14,
+      "rest_neg": 2,
+      "rest_pos": 12,
+      "dom_neg_frac": 0.9565217391304348,
+      "rest_neg_frac": 0.14285714285714285
+     },
+     {
+      "label": "high",
+      "n_sites": 59,
+      "dom_n": 33,
+      "dom_neg": 32,
+      "dom_pos": 1,
+      "rest_n": 26,
+      "rest_neg": 0,
+      "rest_pos": 26,
+      "dom_neg_frac": 0.9696969696969697,
+      "rest_neg_frac": 0.0
+     }
+    ],
+    "chi2_mh": 144.8615,
+    "p_two_sided": 0.0,
+    "n_strata_used": 3,
+    "n_strata_skipped": 0,
+    "cutpoint_sensitivity": {
+     "why": "切点定义会改格子数：秩三分位得中间层「其余」14，np.percentile 得 13 ⇒ 表里 2/14 变 2/13。守卫只认 cutpoint_def，不接受其他切法。",
+     "other_def": "np.percentile",
+     "other_cutpoints": [
+      2938.3333333333335,
+      5105.666666666667
+     ],
+     "other_strata": [
+      {
+       "label": "low",
+       "n_sites": 60,
+       "dom_n": 46,
+       "dom_neg": 45,
+       "dom_pos": 1,
+       "rest_n": 14,
+       "rest_neg": 0,
+       "rest_pos": 14,
+       "dom_neg_frac": 0.9782608695652174,
+       "rest_neg_frac": 0.0
+      },
+      {
+       "label": "mid",
+       "n_sites": 59,
+       "dom_n": 46,
+       "dom_neg": 44,
+       "dom_pos": 2,
+       "rest_n": 13,
+       "rest_neg": 2,
+       "rest_pos": 11,
+       "dom_neg_frac": 0.9565217391304348,
+       "rest_neg_frac": 0.15384615384615385
+      },
+      {
+       "label": "high",
+       "n_sites": 60,
+       "dom_n": 33,
+       "dom_neg": 32,
+       "dom_pos": 1,
+       "rest_n": 27,
+       "rest_neg": 0,
+       "rest_pos": 27,
+       "dom_neg_frac": 0.9696969696969697,
+       "rest_neg_frac": 0.0
+      }
+     ]
+    },
+    "scope_warning": "⚠ 位置与 token 在这批语料里共线，本分析**只能**说「差异在每个位置层里都还在」，**不能**说「差异由 token 身份造成」",
+    "selfcheck": "mh_stat 的单层自校验已在本进程跑过"
+   },
    "scope_warning": "⚠⚠ **仍然不说「由 token 身份造成」** —— 这是观察数据，位置与 token 在这批语料里共线。要拿因果需要**按位置匹配**的采样设计，本项目**不**去构造（那会再做一次事后挑选）。⚠ 「这解释了『对齐度反向』为何反复」是**假说，未检验**（预登记 §37.4），检验它须单独立修订",
    "theory_link": "⇒ 理论文档 §4 新增**第 8 条**可判定检查：「`w` 编码了概念 X」的断言**必须报组内逐 token 的响应符号**；符号分裂时只能读作「对该 token 集合的**加权平均**」，**禁止**表述为「把 X 抬起来」",
    "verdict": "**通过**（T1 两批都过）—— 但作用域限定见 `scope_warning`"
