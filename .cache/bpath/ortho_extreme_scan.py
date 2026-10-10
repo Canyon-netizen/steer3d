@@ -37,20 +37,27 @@ MK = {13824, 14190, 6771, 10061, 7196, 88190, 80022}
 NPZ = 19
 DECILE = 0.10
 ROOT = "/home/zhourui/steer3d_bpath"
+# ⚠ 修订 32：**绝对边界**。逐轨迹的「最高十分位」对一条整体低对齐的轨迹来说，
+#   仍然可能全是 |w·ĥ| < 0.1 的位点（实测 p07/p08 的十分位下界只有 0.054/0.079）。
+#   那样的位点相对该轨迹「极端」，但**绝对上不是高对齐位点** ——
+#   把它们当极对齐位点会让「极对齐端」这个说法失去意义。
+ORTH_MIN = 0.10
 
 EXPECT_POOL = 28          # 58 − 修订 28/29 已测的 30 条
 
 
-def pick_top_decile(pairs, decile=DECILE):
-    """pairs: [(t, w)] -> 取 |w| 最高 decile 的位点（并列时取 |w| 更大的）。
+def pick_top_decile(pairs, decile=DECILE, orth_min=ORTH_MIN):
+    """pairs: [(t, w)] -> 取 |w| 最高 decile **且** |w| > orth_min 的位点。
 
     ⚠ 返回值**保序**（按 t 升序），让清单可逐条比对、diff 稳定。
+    ⚠ 先按十分位取、再按绝对边界筛 —— 顺序不能反：
+       先筛会改变十分位的分母，取到的就不是「该轨迹的最高十分位」了。
     """
     if not pairs:
         return []
     k = max(1, int(len(pairs) * decile))     # 与 §30.3 的「最高十分位」一致
     order = sorted(pairs, key=lambda p: (-abs(p[1]), p[0]))
-    top = order[:k]
+    top = [p for p in order[:k] if abs(p[1]) > orth_min]
     return sorted(top, key=lambda p: p[0])
 
 
@@ -108,9 +115,10 @@ def main():
     rows.sort(key=lambda r: -len(r["sites"]))
     out = {"schema": "extreme_pick/1",
            "prereg": "R6_RERUN_PREREG.md 修订 30 §30.3",
-           "rule": ("逐轨迹取 |w·ĥ| 最高 10% 的 marker 位点；"
-                    "并列时取 |w·ĥ| 更大的；选材只依赖预测量，不依赖 Δ"),
-           "decile": DECILE,
+           "rule": ("逐轨迹取 |w·ĥ| 最高 10% 的 marker 位点，"
+                    "**且** |w·ĥ| > 0.10（修订 32 的绝对边界）；"
+                    "并列时按 t 升序；选材只依赖预测量，不依赖 Δ"),
+           "decile": DECILE, "orth_min": ORTH_MIN,
            "excluded_already_measured": sorted(measured),
            "n_tracks": len(rows), "n_sites": total,
            "n_tracks_ge8": n_judge,
