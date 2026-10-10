@@ -127,6 +127,48 @@ def main(argv=None):
          "L1 二阶因子的跨方向幅度算出来只有 %.4f —— 若产物变了（cos 不再随方向变），"
          "阶梯 L1 的措辞要重新判" % l1_c_spread)
 
+    # ---------- L1 的「真实 vs 随机」那条 null：它测的是什么（修订 50）----------
+    # `conclusions.safe_regime.random_indistinguishable = True` 是框架文档
+    # §2095「强度…**与语义无关**」的唯一支撑。本段把两个前提算出来印到 note 上：
+    #   (a) **分辨率** —— 那条比较能分辨多小的差别？它报的是
+    #       `max_real_vs_random_gap_pp`，基线是 `pred_pct`。拿它和上面那个
+    #       **同一个观测量里已经实测到的方向依赖**比：若后者更大，
+    #       这条 null 就分不清「与语义无关」与「测不出差别」。
+    #   (b) **「真实」那一臂是什么** —— `design.real_directions` 的那几条是
+    #       **命名轴**；`linearity_law.json` 的键名里有没有任何一个记载它们的
+    #       可读性 / 专属性 / 语义地位？判据第 14 条要求「与 X 无关」必须报出
+    #       决定 X 的那个标量。⚠ 这里**只判在不在**，不判取值：
+    #       连键名都没有 = 那个标量**从未进入这次测量**，
+    #       与「记了但值不好看」是两回事，必须分开说。
+    l1_base = min(preds)
+    l1_res = float(safe["max_real_vs_random_gap_pp"]) / l1_base
+    _lk = set()
+
+    def _collect(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                _lk.add(k)
+                _collect(v)
+        elif isinstance(o, list):
+            for v in o:
+                _collect(v)
+    _collect(law)
+    _sem = re.compile(r"readab|specific|exclusive|dedicat|semantic|meaning|"
+                      r"concept|margin|specificity|separat", re.I)
+    l1_sem_keys = sorted(k for k in _lk if _sem.search(k))
+    l1_real = list(law["design"]["real_directions"])
+    l1_nrnd = int(law["design"]["n_random"])
+    need(not l1_sem_keys,
+         "linearity_law.json 出现了语义/可读性类键名 %s ⇒ L1 note 的「从未进入"
+         "这次测量」这句要重写（前提变了）" % l1_sem_keys)
+    need(len(l1_real) == 4 and l1_nrnd > 0,
+         "L1 的两臂定义读不出来：real=%s n_random=%s" % (l1_real, l1_nrnd))
+    # `caution` 被本项目自己的可读性判据记为不合格 —— 这句在 `readable_subspace`
+    # 里（已是本脚本的第二个输入，不新增依赖）。
+    _abs = sub["headline"].get("caution_absorbed", "")
+    _m = re.search(r"cos\([^)]*\)\s*=\s*([0-9.]+)", _abs)
+    l1_caution_cos = _m.group(1) if _m else ""
+
     # ---------- L2：可读下界 ----------
     h = sub["headline"]
     l2 = int(h["readable_directions_lower_bound"])
@@ -189,9 +231,21 @@ def main(argv=None):
                  "⚠ 修订 49：二阶因子 `(1−a·c)/(1+a·c)` 在 s ≤ %.1f 内"
                  "已实测到跨方向相对幅度最大 **%.1f%%**（逐行 a、c 取自本产物；"
                  "预登记 §49.4）⇒ 「与方向无关」只在领头阶成立。"
+                 "　⚠ 修订 50：上面那个「真实-vs-随机」比的是 **%d 条命名轴**"
+                 "（`%s`）与 **%d 个随机方向**。这些轴的语义来自各自的构造式，"
+                 "**不是**本项目的可读性判据 —— `linearity_law.json` 的 %d 个键名里"
+                 "**没有**任何一个记载它们的可读性或专属性%s。"
+                 "且该比较的分辨率只有 **%.2f%%**，**低于**上面那个 %.1f%% 的"
+                 "已知方向依赖（**%.2f×**）⇒ 它**不构成**「与语义无关」的证据，"
+                 "只能读作「在 %.2f%% 的分辨率以内未测出差别」（预登记 §50）。"
                  % (l1_spread, l1_rndgap, beyond["strengths"][0],
                     beyond["max_direction_spread_pp"], s_max,
-                    100.0 * l1_c_spread)},
+                    100.0 * l1_c_spread,
+                    len(l1_real), "/".join(l1_real), l1_nrnd, len(_lk),
+                    ("；其中 caution 还被可读性判据记为「被 confidence 吸收」"
+                     "（cos=%s）" % l1_caution_cos) if l1_caution_cos else "",
+                    100.0 * l1_res, 100.0 * l1_c_spread,
+                    l1_c_spread / l1_res, 100.0 * l1_res)},
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
          "needs": "留出轨迹 + 打乱地板",
          "state": "done", "here": "%d 条" % l2,
@@ -255,6 +309,21 @@ def main(argv=None):
          "L1 的 claim 必须写出二阶因子，否则读者只看到 ½a² 与「无关」")
     need("%.1f%%" % (100.0 * l1_c_spread) in _l1["note"],
          "L1 的 note 必须印出那个从产物算出来的二阶幅度，否则 note 无出处")
+    # ⚠⚠ 自检 8（修订 50）：那条「真实-vs-随机」的 null **不构成**「与语义无关」的
+    #   证据，理由有两条，缺一不可：
+    #   (a) 分辨率 1.82% **低于**同一个观测量里已知的方向依赖 6.5%（3.56×）；
+    #   (b) `linearity_law.json` 的键名里**没有任何一个**记载那四条命名轴的
+    #       可读性 / 专属性 / 语义地位 ⇒ 决定「语义」的那个标量从未进入这次测量。
+    #   ⚠ 两者都与那个数**本身**无关（间隙还是 0.037pp、还是 <1pp），
+    #     所以去掉这三句**产物不会红** —— 只能在这里单独钉。
+    for _frag, _why in (
+        ("命名轴", "没说明「真实」那一臂是什么"),
+        ("不构成", "没声明这条 null 不是「与语义无关」的证据"),
+        ("%.2f%%" % (100.0 * l1_res), "没印出那条比较的分辨率"),
+        ("%.2f×" % (l1_c_spread / l1_res), "没给出分辨率与已知效应量的比"),
+    ):
+        need(_frag in _l1["note"],
+             "L1 的 note 缺了「%s」—— %s" % (_frag, _why))
 
     # ⚠ 自称「哪一级没测」的那段话，本身必须和上面这张表**逐级一致**。
     #   我原来写死「L5 及以上：一行都没有」，而同一份产物的 L6 是 partial
