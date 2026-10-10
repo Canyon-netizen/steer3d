@@ -182,10 +182,28 @@ python3 .cache/bpath/build_bpath_evidence.py \
 ```
 
 输入产物（`.cache/mutbak/`，均由远端 `/home/zhourui/steer3d_bpath/` 拉回）：
-`w_L19_m0.npy.json`、`r6_smoke_L19m0.json`、`marker_freq5.json`、
-`layer_sweep_t1.json`、`dose_sweep_B.json`。
+
+| 文件 | 供给哪一块 |
+|---|---|
+| `w_L19_m0.npy.json` | 臂 B 的 `w` 元信息（`class_gap` / `pos_offset` / `npz_layer`） |
+| `r6_smoke_L19m0.json` | P9 符号基准 |
+| `marker_freq5.json` | marker 频次、可读性 |
+| **`layer_sweep_B.json`** | 层剖面（**臂 B**） |
+| `layer_sweep_t1.json.bak_armA` | 只为记录「臂 A 已被取代」，**不取数** |
+| `dose_sweep_B.json` | 剂量-位置扫描 |
+| `orthogonality.json` / `orthogonality_nt8.json` / `orthogonality_fresh.json` | 正交度探针三个批次 |
+| `q3_verdict.json` / `generalization_verdict.json` | Q3 与独立复核的判决 |
+| `ortho_frac_verdict.json` / `hi_sites_pick.json` / `hi_sites_verdict.json` | 取样缺陷判定与高对齐批次（可选，缺了就不印对应块） |
+
+⚠⚠ **`layer_sweep_t1.json`（臂 A，`w_t1` / `H[t-1]` / `class_gap 172.418`）
+**不是**本文件的输入**。它与臂 B 是**两个不同的 `w`**，
+早期版本误读了它，由此得出的「高估 43 倍」已按预登记修订 14 **撤回**。
+它与 `layer_sweep_B.json` 并排放在同一个目录里，是本项目**最贵的一个坑**。
+
+⚠ 上表由 `test_docs_repro_list.py` **对着构建器实际读取的文件自动核对**；
+构建器新增输入而本文没更新时，该先验会失败。
 
 **脚本不新增任何数字**，只读数与求汇总；每个字段的来源写在
 `built_from` 与各块的 `what` 里。
-完整预登记（含坐标系三条守卫、作废清单、修订 1–12 的披露）：
+完整预登记（含坐标系三条守卫、作废清单、修订 1–27 的披露）：
 `.cache/xcheck/R6_RERUN_PREREG.md`。
