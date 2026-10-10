@@ -845,22 +845,48 @@ export default function BPathPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(
-                    d.orthogonality.token_id37.batches[0].per_token).map(
-                    ([tid, a]) => {
+                  {/* ⚠ 遍历**两批 token 的键并集**，不能只遍历 E 批：
+                      高对齐独有的 80022 原本不渲染，而文档表格里有它
+                      ⇒ 网页与文档列出的 marker 不一致。 */}
+                  {Array.from(new Set([
+                    ...Object.keys(
+                      d.orthogonality.token_id37.batches[0].per_token),
+                    ...Object.keys(
+                      d.orthogonality.token_id37.batches[1].per_token),
+                  ])).map((tid) => {
+                      const a = d.orthogonality.token_id37!.batches[0]
+                        .per_token[tid];
                       const b = d.orthogonality.token_id37!.batches[1]
                         .per_token[tid];
                       return (
                         <tr key={tid}
-                            data-token-row={tid === "7196" ? "dominant" : undefined}>
-                          <td className="pr-2">{tid}</td>
-                          <td className="text-right pr-2"
-                              data-token-cell={`e-${tid}`}>
-                            {a.neg}/{a.n} = {a.neg_frac.toFixed(3)}
+                            data-token-row={tid === "7196" ? "dominant" : undefined}
+                            data-token-reportable={
+                              a?.reportable ? "true" : "false"}>
+                          <td className="pr-2">
+                            {tid}
+                            {a && !a.reportable ? (
+                              <span className="ml-1 text-gray-500"
+                                    data-token-small="true">
+                                （n&lt;10，不单独判决）
+                              </span>
+                            ) : null}
                           </td>
-                          <td className="text-right pr-2">
+                          <td className={`text-right pr-2${
+                            a && a.reportable ? "" : " text-gray-500"}`}
+                              data-token-cell={`e-${tid}`}>
+                            {a ? `${a.neg}/${a.n} = ${a.neg_frac.toFixed(3)}`
+                               : "—"}
+                          </td>
+                          <td className={`text-right pr-2${
+                            b && b.reportable ? "" : " text-gray-500"}`}>
                             {b ? `${b.neg}/${b.n} = ${b.neg_frac.toFixed(3)}`
                                : "—"}
+                            {b && !b.reportable ? (
+                              <span className="ml-1" data-token-small="true">
+                                （n&lt;10）
+                              </span>
+                            ) : null}
                           </td>
                         </tr>
                       );

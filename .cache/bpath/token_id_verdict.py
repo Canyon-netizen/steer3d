@@ -190,7 +190,18 @@ def main():
         d["neg"] += 1 if s["neg"] else 0
     for k, v in per_token.items():
         v["neg_frac"] = round(v["neg"] / v["n"], 4)
-        v["reportable"] = v["n"] >= 10      # <10 的组只列数，不参与任何结论
+        # ⚠⚠ 这个标志**只管「逐 token 单组」能不能单独读**，与「它有没有
+        #   参与判据」无关。旧注释说这些组**完全不进结论**，那是错的：T1/T2/T3
+        #   用的是 `dom`（tid == 7196）与 `rest`（tid != 7196 的**全部**
+        #   位点，见上面的 `rest` 取法），n<10 的 token **全都计在 rest 里**。
+        #   准确表述：n<10 的组**不单独下判决**（0/n 只是「没观察到负向」，
+        #   不是「证明全正」），但**计入**「其余」这个整体的二分判据；
+        #   rest 整体样本量充足，所以 T1 不因这些小组受影响。
+        #   ⚠ 呈现层必须显示这个标志，否则小样本组的 0/n 与大样本组的
+        #   0/n 在读者眼里同等可信（§4 第 11 条的来源）。
+        v["reportable"] = v["n"] >= 10
+        v["reportable_why"] = (
+            "" if v["n"] >= 10 else f"n={v['n']} < 10，不单独判决（仍计入其余组）")
     res["per_token"] = dict(sorted(
         per_token.items(), key=lambda kv: -kv[1]["n"]))
 

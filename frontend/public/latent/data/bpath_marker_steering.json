@@ -771,31 +771,36 @@
        "n": 125,
        "neg": 121,
        "neg_frac": 0.968,
-       "reportable": true
+       "reportable": true,
+       "reportable_why": ""
       },
       "14190": {
        "n": 29,
        "neg": 0,
        "neg_frac": 0.0,
-       "reportable": true
+       "reportable": true,
+       "reportable_why": ""
       },
       "10061": {
        "n": 15,
        "neg": 2,
        "neg_frac": 0.1333,
-       "reportable": true
+       "reportable": true,
+       "reportable_why": ""
       },
       "13824": {
        "n": 6,
        "neg": 0,
        "neg_frac": 0.0,
-       "reportable": false
+       "reportable": false,
+       "reportable_why": "n=6 < 10，不单独判决（仍计入其余组）"
       },
       "6771": {
        "n": 4,
        "neg": 0,
        "neg_frac": 0.0,
-       "reportable": false
+       "reportable": false,
+       "reportable_why": "n=4 < 10，不单独判决（仍计入其余组）"
       }
      }
     },
@@ -818,37 +823,43 @@
        "n": 266,
        "neg": 258,
        "neg_frac": 0.9699,
-       "reportable": true
+       "reportable": true,
+       "reportable_why": ""
       },
       "14190": {
        "n": 117,
        "neg": 0,
        "neg_frac": 0.0,
-       "reportable": true
+       "reportable": true,
+       "reportable_why": ""
       },
       "10061": {
        "n": 46,
        "neg": 1,
        "neg_frac": 0.0217,
-       "reportable": true
+       "reportable": true,
+       "reportable_why": ""
       },
       "6771": {
        "n": 9,
        "neg": 1,
        "neg_frac": 0.1111,
-       "reportable": false
+       "reportable": false,
+       "reportable_why": "n=9 < 10，不单独判决（仍计入其余组）"
       },
       "80022": {
        "n": 9,
        "neg": 3,
        "neg_frac": 0.3333,
-       "reportable": false
+       "reportable": false,
+       "reportable_why": "n=9 < 10，不单独判决（仍计入其余组）"
       },
       "13824": {
        "n": 6,
        "neg": 0,
        "neg_frac": 0.0,
-       "reportable": false
+       "reportable": false,
+       "reportable_why": "n=6 < 10，不单独判决（仍计入其余组）"
       }
      }
     }
