@@ -29,6 +29,11 @@
 
 import { useEffect, useState } from "react";
 
+// ⚠ 修订 44：阶梯的 `claim` / `needs` / `here` / `note` 是**判据本身**，
+//   此前这四处是把产物字符串直接印出来的 ⇒ 产物里的 `**…**` 以**字面量**
+//   出现在页面上（读者看到「改变的是这个**概念**」）。改走 `Em`。
+import { Em } from "./md";
+
 type Rung = {
   level: string;
   claim: string;
@@ -124,17 +129,17 @@ export default function EvidenceLadderPanel() {
                     data-rung-mark={r.state}>
                 {MARK[r.state]} {STATE_TXT[r.state]}
               </span>
-              <span className="text-[10px] text-gray-300">{r.claim}</span>
+              <span className="text-[10px] text-gray-300"><Em s={r.claim} /></span>
             </div>
             <div className="text-[9px] text-gray-500 leading-snug mt-0.5 pl-[4.4rem]">
-              需要：{r.needs}
+              需要：<Em s={r.needs} />
             </div>
             <div className="text-[9.5px] text-gray-400 leading-snug mt-0.5 pl-[4.4rem]">
-              本项目：<span className="font-mono">{r.here}</span>
+              本项目：<span className="font-mono"><Em s={r.here} /></span>
             </div>
             {r.note && (
               <div className="text-[9px] text-gray-500 leading-snug mt-0.5 pl-[4.4rem]">
-                {r.note}
+                <Em s={r.note} />
               </div>
             )}
           </div>
@@ -148,7 +153,7 @@ export default function EvidenceLadderPanel() {
         <b>最常见的越级：</b>{d.most_common_overreach}。
         本项目 <b>{d.overreach_numbers.readable_directions}</b> 条可读方向，
         可用的轴 <b>{d.overreach_numbers.usable_axes}</b> 条 ——
-        {d.overreach_numbers.note}。
+        <Em s={d.overreach_numbers.note} />。
       </p>
 
       {/* ---- 它能回答 / 不能回答 ---- */}

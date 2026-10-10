@@ -88,6 +88,7 @@ SUITES = ["test_ortho_frac_verdict.py", "test_pick_hi_sites.py",
           "test_selection_contamination.py",
           "test_docs_token_tables.py",
           "test_bpath_verdict.py",
+          "test_ladder_cross_consistency.py",
           "test_docs_repro_list.py"]
 
 results = []

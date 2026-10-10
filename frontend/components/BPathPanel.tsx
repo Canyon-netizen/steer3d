@@ -32,6 +32,10 @@
 
 import { useEffect, useState } from "react";
 
+// ⚠ 修订 44：`Em` 已抽到共享模块，`EvidenceLadderPanel.tsx` 也要用它
+//   —— 那边此前把产物里的 `**…**` 当字面量印出来了。
+import { Em } from "./md";
+
 type LadderRow = { level: string; claim: string; bpath_state: LadderState; here: string; note: string };
 type DoseTraj = {
   traj: string; mode: string; n_pos: number; pos: number[];
@@ -308,15 +312,6 @@ const BAR_CLS: Record<LadderState, string> = {
  * 用 React 子节点渲染天然免掉 XSS；正则只需处理成对的 `**`，
  * 且**奇数个 `**` 时原样保留**（宁可露出标记，也不要悄悄吃掉半个强调）。
  */
-function Em({ s }: { s: string }) {
-  const parts = s.split("**");
-  if (parts.length < 3) return <>{s}</>;
-  return (
-    <>
-      {parts.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : <span key={i}>{p}</span>))}
-    </>
-  );
-}
 
 /** 数值 → 定长字符串。
  *
