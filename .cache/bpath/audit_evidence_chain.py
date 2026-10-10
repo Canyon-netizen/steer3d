@@ -20,6 +20,13 @@
 | C | `.cache/mutbak/` 与远端同名产物 **sha256 一致** | 本地证据副本已被改动，文档里的数字追不回源头 |
 | D | 交付 JSON 里每个 `built_from` 引用的文件**确实存在** | 引用了不存在的产物 |
 | E | 全部先验套件通过 | 判据/选材/地板口径的实现被人改坏 |
+| **A2** | 阶梯产物重跑**逐字节**一致 | 阶梯表里混进了「生成器不产出」的手写数字 |
+| **A3** | 阶梯的**五个上游快照**都有仓库内生成器 | 阶梯的**上游**没有机械出处（A2 只管第二层） |
+
+⚠⚠ **A2 的覆盖范围比它的名字窄**（修订 48 改写过一次措辞）：它验的是
+「阶梯 = 五个冻结快照的确定性函数」，**不是**「阶梯里的数字能被重造出来」。
+A2 曾做过牙齿实测（改 L2 可读下界 14→13 即红），那次实测恰恰**只覆盖第二层**。
+A3 把这一层缺口单独报出来，落地时是 **0/5 ⇒ 故意保持红**。
 
 ⚠ C 在**连不上远端时跳过并明说**，不静默当作通过 ——
 「没查」和「查过了」必须能分辨。
@@ -39,6 +46,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -82,7 +90,8 @@ LOCAL_ONLY = {"q3_verdict.json", "saturation_verdict.json",
               # 本地备份（原始文件仍在远端），比对它没有意义
               "layer_sweep_t1.json.bak_armA"}
 
-SUITES = ["test_ortho_frac_verdict.py", "test_pick_hi_sites.py",
+SUITES = ["test_evidence_chain_scope.py",
+          "test_ortho_frac_verdict.py", "test_pick_hi_sites.py",
           "test_hi_sites_verdict.py", "test_extreme_verdict.py",
           "test_ortho_extreme_scan.py",
           "test_apply_abs_boundary.py",
@@ -136,21 +145,151 @@ def check_a2():
       而 `evidence_ladder.json` 是框架文档称为「这份文档真正的产物」的那张表，
       此前**没有任何字节级复现检查**。
     ⚠ 临时目录放在 `.cache/mutbak/` 下而不是系统 temp：**`/tmp` 在本机不可写**。
+
+    ⚠⚠ 条目名在修订 48 改过一次（这是本轮唯一的**措辞**更正，不是判决变更）。
+      原名「阶梯产物可复算」覆盖范围**大于**本函数验证的范围：它验的是
+      「重跑 `build_evidence_ladder.py` 的输出 == 交付文件」，而那个脚本的五个输入
+      （`linearity_law` / `readable_subspace` / `heldout_readability` /
+      `arm_asymmetry` / `cot_texts`）**全部是仓库里的冻结快照，全部没有生成器**。
+      ⇒ 本项只证明「阶梯 = 五个冻结快照的确定性函数」，
+      **不**证明「阶梯里的数字能被重造出来」。第二层由 A3 单独报。
     """
     delivered = os.path.join(DATA, "evidence_ladder.json")
+    name = "A2 阶梯产物可复算（仅：重跑==五个冻结快照的确定性函数）"
     if not os.path.exists(delivered):
-        return check("A2 阶梯产物可复算", False, "evidence_ladder.json 不存在")
+        return check(name, False, "evidence_ladder.json 不存在")
     with tempfile.TemporaryDirectory(prefix="chainaudit_a2_",
                                      dir=os.path.join(ROOT, ".cache/mutbak")) as td:
         out = os.path.join(td, "ladder.json")
         r = subprocess.run([sys.executable, LADDER, "--out", out],
                            capture_output=True, text=True)
         if r.returncode != 0:
-            return check("A2 阶梯产物可复算", False,
+            return check(name, False,
                          (r.stderr or r.stdout).strip().splitlines()[-1:])
         same = open(out, "rb").read() == open(delivered, "rb").read()
-    return check("A2 阶梯产物可复算", same,
+    return check(name, same,
                  "逐字节一致" if same else "重跑输出与交付文件不同")
+
+
+# ---- 修订 48 W3：证据链第二层。A2 的覆盖到此为止。----------------------
+# 「在仓库内」= 被 `git ls-files` 跟踪。`.cache/` 整个被 ignore，
+# 那里的脚本**不算**仓库内的生成器 —— 想算数必须先被跟踪。
+UPSTREAMS = ("linearity_law", "readable_subspace", "heldout_readability",
+             "arm_asymmetry", "cot_texts")
+DELIVERED_DIR = "frontend/public/latent/data"
+
+# ⚠⚠ 判「生成器」不能只看「文件里出现了这个名字」+「文件里有写盘调用」。
+#   `build_evidence_ladder.py` 五个名字**全部**出现、也**确实**写盘 ——
+#   但它写的是 `evidence_ladder.json`，是这五份产物的**消费者**不是生成器。
+#   反过来第一版把写条件写成无名的 `write_text|json\.dump|OUT|--out`，
+#   再叠加一个只认 `read_text(...name...)` 的读条件（项目实际都写成
+#   `json.loads((DATA / "x.json").read_text())`，名字在 `read_text(` **之前**），
+#   结果把 4/5 个真实存在的生成器全判成 0 个 ⇒ A3 报出一条**假的欠账**。
+#   ⚠ 这是本项目第 N 次「独立复算的实现本身才是坏的东西」。
+#
+# 现在三条都**带名字**：
+#   ① 名字出现在某个**输出声明**上（OUT/DST/--out = …name.json）
+#   ② 或名字所在行的 ±3 行窗口内有写盘调用（覆盖 `path = …` 下一行才 dump 的写法）
+#   ③ 且该路径落在**交付目录** `frontend/public/latent/data/` 下
+#      —— 只写到 `.cache/` 本地副本不算，那不是读者拿到的那一份。
+_OUT_DECL = re.compile(r"(?:OUT|DST|OUTFILE|OUTPATH|OUTPUT|--out)\w*\s*[=:]")
+_WRITE_CALL = re.compile(r"write_text|json\.dump|json\.dumps|\bopen\s*\([^)]*[\"']w[\"']")
+
+
+def tracked_files():
+    try:
+        r = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True,
+                           text=True)
+        if r.returncode == 0:
+            return r.stdout.split()
+    except OSError:
+        pass
+    return []
+
+
+def _name_lines(txt, name):
+    base = re.compile(rf"\b{re.escape(name)}\.json\b")
+    return [i for i, ln in enumerate(txt.splitlines()) if base.search(ln)]
+
+
+def writes_named_artifact(name):
+    """被跟踪的源文件里，**把 `name.json` 当输出写下来**的那些。
+
+    返回 (相对路径, 写到交付目录了吗)。两者要分开：脚本存在 ≠ 交付的那份
+    能从干净克隆重造出来。
+    """
+    hits = []
+    for rel in tracked_files():
+        if not rel.endswith((".py", ".sh")):
+            continue
+        try:
+            txt = open(os.path.join(ROOT, rel), encoding="utf-8",
+                       errors="ignore").read()
+        except OSError:
+            continue
+        lines = txt.splitlines()
+        for i in _name_lines(txt, name):
+            window = lines[max(0, i - 3): i + 4]
+            is_write = (_OUT_DECL.search(lines[i])
+                        or any(_WRITE_CALL.search(w) for w in window))
+            if not is_write:
+                continue
+            # 这一行（及窗口）里该名字所在的完整路径
+            ctx = "\n".join(window)
+            hits.append((rel, DELIVERED_DIR in ctx))
+            break
+    return hits
+
+
+def generator_of(name):
+    """判据口径：**写到交付目录**的那一个才算数。
+
+    ⚠ 只写到 `.cache/` 本地副本的生成器（`linearity_law.py` 就是）不算 ——
+      它证明的是「这些数在本机上量过一次」，不是「读者能重造」。
+    """
+    for rel, to_delivery in writes_named_artifact(name):
+        if to_delivery:
+            return rel
+    return None
+
+
+def check_a3():
+    """五个上游快照都能从**交付的那一份**重造吗（修订 48 W3）。
+
+    ⚠ 本项**不改判 A2**：A2 判的命题为真，错的只是它的条目名（已改写）。
+      这一项红表示「阶梯的**上游**没有机械出处」，是一个**已知欠账**，
+      不是「阶梯产物算错了」。
+    ⚠ 本项在修订 48 落地时红，且**故意保持红**：它记的是欠账，不是回归。
+      把一个真实的缺口标成绿才是假通过。
+
+    三档分开报，因为它们要开的药方不同：
+
+    | 档 | 含义 | 药方 |
+    |---|---|---|
+    | `交付路径` | 生成器在仓库内且写的就是交付那份 | 已闭环 |
+    | `本地副本` | 生成器在，但只写 `.cache/` 下的副本 | 改输出路径（修订 46 对阶梯做过的同一件事） |
+    | `无` | 生成器不在仓库内 | 找或补 |
+    """
+    buckets = {"交付路径": [], "本地副本": [], "仓库内无": []}
+    for u in UPSTREAMS:
+        hits = writes_named_artifact(u)
+        if generator_of(u):
+            buckets["交付路径"].append(u)
+        elif hits:
+            buckets["本地副本"].append(u)
+        else:
+            buckets["仓库内无"].append(u)
+    ok = not buckets["本地副本"] and not buckets["仓库内无"]
+    # ⚠⚠ 空档的占位符**不能**写成「无」：它同时也是第三档的档名
+    #   （「无生成器」那一档）。第一版两处都用「无」，渲染出来是
+    #   「本地副本 无；无 cot_texts.json」，按标签解析时
+    #   「本地副本」那一档会被读成装着一个叫「无」的东西 ——
+    #   守卫 `test_evidence_chain_scope.py` 的 D1d 就是被它逼红的。
+    #   ⇒ 空档一律写「（空）」，第三档改叫「仓库内无」。
+    fmt = lambda ks: ("（空）" if not ks else "、".join(f"{k}.json" for k in ks))
+    detail = ("；".join(f"{lab} {fmt(ks)}" for lab, ks in buckets.items())
+              + " ⇒ 阶梯的上游无机械出处（已知欠账，A2 仍为绿）")
+    return check("A3 五个上游快照都能从交付那份重造", ok, detail)
 
 
 def check_b():
@@ -249,6 +388,7 @@ def main():
     print("=== 证据链完整性自检 ===")
     check_a()
     check_a2()
+    check_a3()
     check_b()
     check_c(not a.no_remote)
     check_d()

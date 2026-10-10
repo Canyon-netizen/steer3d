@@ -23,12 +23,19 @@
 装置自检：用玩具输入验一次（‖h‖=100、rms=100、s=0.2 ⇒ a=0.2 ⇒ ½a²=2%）
 先跑通再上真数据。
 """
+import argparse
 import json
+import os
 import sys
+from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, "/Users/zhourui/code/steer3d")
+# 修订 48：原来这里写死 `sys.path.insert(0, "/Users/zhourui/code/steer3d")`，
+# 干净克隆上必然 ImportError ⇒ 本脚本在仓库内却只在那一台机器上能跑。
+# 与 `build_evidence_ladder.py` 修订 46 R-1 同一处毛病，一层更深。
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 from backend.core.replay_runner import NpzReplayRunner  # noqa: E402
 from backend.core.steering import get_registry  # noqa: E402
 
@@ -38,6 +45,8 @@ N_REC = 8
 N_STEPS = 12
 N_RANDOM = 16
 SEED = 20261003
+# 修订 48：交付的那一份。阶梯生成器 `build_evidence_ladder.py` 读的是它。
+DEFAULT_OUT = (ROOT / "frontend/public/latent/data/linearity_law.json")
 TOPIC = "强度定律：注入的几何代价与方向无关"
 
 
@@ -178,10 +187,20 @@ def main():
         print("%-20s 跨方向极差 max %.3f pp | 真实 vs 随机 max %.3f pp"
               % (k, c["max_direction_spread_pp"], c["max_real_vs_random_gap_pp"]))
 
-    path = "/Users/zhourui/code/steer3d/.cache/strengthscan/linearity_law.json"
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(out, fh, ensure_ascii=False, indent=1)
-    print("wrote " + path)
+    # 修订 48：原来写死写到 `.cache/strengthscan/` 下的**本地副本**，
+    # 而读者拿到的是 `frontend/public/latent/data/linearity_law.json`。
+    # 证据链的 A3 因此判它「生成器在、但不写交付那份」。
+    # 现在默认就写交付路径；仍要本地副本时显式 `--out`。
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=str(DEFAULT_OUT))
+    ap.add_argument("--local-copy", default=None,
+                    help="额外再写一份到这个路径（如 .cache/strengthscan/）")
+    a = ap.parse_args()
+    for path in ([a.out] + ([a.local_copy] if a.local_copy else [])):
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, ensure_ascii=False, indent=1)
+        print("wrote " + path)
 
 
 if __name__ == "__main__":
