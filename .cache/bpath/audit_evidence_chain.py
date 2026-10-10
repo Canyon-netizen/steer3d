@@ -50,6 +50,9 @@ DELIVERED = os.path.join(ROOT, "frontend/public/latent/data/"
 MUTBAK = os.path.join(ROOT, ".cache/mutbak")
 REMOTE_DIR = "/home/zhourui/steer3d_bpath"
 REMOTE_HOST = "zju-53"
+# 修订 46 R-3：阶梯生成器 + 它的交付产物（A2 项用）
+LADDER = os.path.join(ROOT, ".cache/xcheck/build_evidence_ladder.py")
+DATA = os.path.join(ROOT, "frontend/public/latent/data")
 DELIVERED = os.path.join(ROOT, "frontend/public/latent/data/"
                                    "bpath_marker_steering.json")
 
@@ -122,6 +125,30 @@ def check_a():
                          (r.stderr or r.stdout).strip().splitlines()[-1:])
         same = open(out, "rb").read() == open(DELIVERED, "rb").read()
     return check("A 构建器可复算", same,
+                 "逐字节一致" if same else "重跑输出与交付文件不同")
+
+
+def check_a2():
+    """证据链 A 项的姊妹：阶梯产物也必须**逐字节**可复算（修订 46 R-3）。
+
+    ⚠ 为什么单列：A 项只重建 `bpath_marker_steering.json`，
+      而 `evidence_ladder.json` 是框架文档称为「这份文档真正的产物」的那张表，
+      此前**没有任何字节级复现检查**。
+    ⚠ 临时目录放在 `.cache/mutbak/` 下而不是系统 temp：**`/tmp` 在本机不可写**。
+    """
+    delivered = os.path.join(DATA, "evidence_ladder.json")
+    if not os.path.exists(delivered):
+        return check("A2 阶梯产物可复算", False, "evidence_ladder.json 不存在")
+    with tempfile.TemporaryDirectory(prefix="chainaudit_a2_",
+                                     dir=os.path.join(ROOT, ".cache/mutbak")) as td:
+        out = os.path.join(td, "ladder.json")
+        r = subprocess.run([sys.executable, LADDER, "--out", out],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            return check("A2 阶梯产物可复算", False,
+                         (r.stderr or r.stdout).strip().splitlines()[-1:])
+        same = open(out, "rb").read() == open(delivered, "rb").read()
+    return check("A2 阶梯产物可复算", same,
                  "逐字节一致" if same else "重跑输出与交付文件不同")
 
 
@@ -220,6 +247,7 @@ def main():
     a = ap.parse_args()
     print("=== 证据链完整性自检 ===")
     check_a()
+    check_a2()
     check_b()
     check_c(not a.no_remote)
     check_d()

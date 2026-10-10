@@ -24,10 +24,22 @@ import json
 import re
 from pathlib import Path
 
-ROOT = Path("/Users/zhourui/code/steer3d")
+# ⚠ 修订 46（R-1）：ROOT 由 __file__ 推导，**不得**写死本机绝对路径
+#   —— 原来写的是 /Users/zhourui/code/steer3d，换机器/远端直接跑不起来，
+#   而其余构建器一律从 __file__ 自定位。
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[1]
+
+# ⚠ 修订 46（R-2）：五个输入**必须全部被 git 跟踪**。原来 linearity_law.json
+#   读的是 `.cache/strengthscan/` 下那份**未被跟踪**的副本 ⇒ 干净克隆里没有
+#   它，L1 的全部数字无从核对。已跟踪且**逐字节一致**的副本本来就在 DATA 下，
+#   另外四个输入也都在 DATA 下 ⇒ 五个输入本该同源，只是这一个指错了地方。
 DATA = ROOT / "frontend/public/latent/data"
-SCAN = ROOT / ".cache/strengthscan"
 OUT = DATA / "evidence_ladder.json"
+
+# 五个输入的文件名（R-2 的守卫要按这张表核对跟踪状态）
+INPUTS = ["linearity_law.json", "readable_subspace.json",
+          "heldout_readability.json", "arm_asymmetry.json", "cot_texts.json"]
 
 PROBLEMS = []
 
@@ -38,8 +50,15 @@ def need(cond, msg):
     return bool(cond)
 
 
-def main():
-    law = json.loads((SCAN / "linearity_law.json").read_text(encoding="utf-8"))
+def main(argv=None):
+    # ⚠ 修订 46（R-3）：支持 `--out`，让证据链 A2 能重跑到临时路径再逐字节比对。
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=str(OUT),
+                    help="产物输出路径（默认即交付路径）")
+    out = Path(ap.parse_args(argv).out)
+
+    law = json.loads((DATA / "linearity_law.json").read_text(encoding="utf-8"))
     sub = json.loads((DATA / "readable_subspace.json").read_text(encoding="utf-8"))
     hel = json.loads((DATA / "heldout_readability.json").read_text(encoding="utf-8"))
     arm = json.loads((DATA / "arm_asymmetry.json").read_text(encoding="utf-8"))
@@ -235,13 +254,13 @@ def main():
         "overreach_numbers": {"readable_directions": l2, "usable_axes": 0,
                               "note": "「0」是**未测**，不是「实测为 0」"},
     }
-    OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=1),
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=1),
                    encoding="utf-8")
     print("阶梯自检全过（6 条跨产物一致性）")
     for x in ladder:
         print("  %-3s %-8s %s" % (x["level"], x["state"], x["here"]))
     print()
-    print("已写", OUT)
+    print("已写", out)
 
 
 if __name__ == "__main__":
