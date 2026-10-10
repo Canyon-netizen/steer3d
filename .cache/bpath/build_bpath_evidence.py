@@ -676,6 +676,50 @@ def main():
                         "`scope_warning`"),
         }
 
+    # ---------- 4g-39. 混合伪影（修订 38 判据 / 修订 39 闭环） ----------
+    _mx_path = M / "mixture_verdict.json"
+    if _mx_path.exists():
+        _mx = jload(M / "mixture_verdict.json")
+        _p, _s = _mx["primary"], _mx["secondary"]
+        ortho_block["mixture39"] = {
+            "prereg": ("R6_RERUN_PREREG.md 修订 38 §38.3（判据，**取数前**写死）/ "
+                       "修订 39（闭环）"),
+            "claim": ("「对齐度 → Δ 符号」**从来没有成立过**："
+                      "整体那个倒 U **完全**是 token 混合比例的伪影"),
+            "calibers": [{"name": _p["caliber"], "n": _p["n_sites"],
+                          "overall": _p["overall"], "dom": _p["dom"],
+                          "rest": _p["rest"],
+                          "M1": _p["M1"], "M2": _p["M2"], "M3": _p["M3"],
+                          "final": _p["final"]},
+                         {"name": _s["caliber"], "n": _s["n_sites"],
+                          "overall": _s["overall"], "dom": _s["dom"],
+                          "rest": _s["rest"],
+                          "M1": _s["M1"], "M2": _s["M2"], "M3": _s["M3"],
+                          "final": _s["final"]}],
+            "floor_same_slice": _mx["floor_same_slice"],
+            "reading": ("⚠ **「其余组」在四个分位上全部是 1.000** —— "
+                        "层内一个形状都没有。整体倒 U 100% 来自"
+                        "两个符号相反的群体在分位间的**比例**变化"
+                        "（7196 占比 78%→57%→40%→61%）"),
+            "revision_chain": (
+                "⚠ **结论一个字没改，变的是解释**："
+                "24/27「20/20 全负」是混合；29「G1 不过」推翻对了但**理由错了**"
+                "（不是「方向为正」，是**从来没有方向效应**）；"
+                "33「E1 不过」是**弱**否定（E1 本就在测混合）；"
+                "35「Q4 与噪声不可区分」结论对，**真正原因**是 Q4 的 7196 占比回升"),
+            "theory_link": ("⇒ 对「hidden states 如何推导出 token」："
+                            "不是「对齐得越好越会推导出某个 token」，"
+                            "而是「推导出哪个 token 由该位置**是什么 token**决定，"
+                            "与它和 `w` 的对齐度**无关**」；"
+                            "⇒ 理论文档 §4 **第 9 条**："
+                            "任何「符号率 vs 某预测量」的判据"
+                            "**必须先按 token 分层**并报层内形状"),
+            "untouched": ("⚠ G3（`|w·ĥ|` 与 Δ **幅度**的相关）"
+                          "**没有被本次分析触及**，不作处置；"
+                          "但同一批数据上**符号**维度已被证明是混合伪影"),
+            "final": _mx["final"],
+        }
+
     # ---------- 5. 挂到八级阶梯 ----------
     ladder = [
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",

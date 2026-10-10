@@ -190,6 +190,29 @@ type BPath = {
       replication_note: string; position_check: string;
       scope_warning: string; theory_link: string; verdict: string;
     };
+    /** 修订 38/39：**倒 U 完全是 token 混合的伪影**。层内「其余组」四档全是
+     *  1.000 ⇒ 层内没有任何形状。⚠ 这是 Simpson 悖论的标准形态。 */
+    mixture39?: {
+      prereg: string; claim: string; floor_same_slice: number;
+      calibers: { name: string; n: number;
+                  overall: { rates: (number | null)[]; n: number[];
+                             range: number | null };
+                  dom: { rates: (number | null)[]; n: number[];
+                         range: number | null };
+                  rest: { rates: (number | null)[]; n: number[];
+                          range: number | null };
+                  M1: { chi2: number | null; p: number | null;
+                        max_p: number; pass: boolean;
+                        composition: number[][] };
+                  M2: { max_range: number; dom_range: number | null;
+                        rest_range: number | null; pass: boolean };
+                  M3: { min_gain: number; overall_range: number | null;
+                        inner_range: number | null; gain: number | null;
+                        pass: boolean };
+                  final: string }[];
+      reading: string; revision_chain: string; theory_link: string;
+      untouched: string; final: string;
+    };
     /** 修订 26：三处取数口径不一致的披露（地板口径 / Q1 批次 / 对照臂比较）。
      *  **只披露，不替换任何已发布数字。** */
     caliber26?: {
@@ -830,6 +853,87 @@ export default function BPathPanel() {
             </p>
             <p className="text-gray-400">
               <Em s={d.orthogonality.token_id37.theory_link} />
+            </p>
+          </div>
+        )}
+        {d.orthogonality.mixture39 && (
+          <div className="mt-2 text-[9px] leading-relaxed"
+               data-mixture="rev39"
+               data-mixture-final={d.orthogonality.mixture39.final}
+               data-mixture-primary-gain={String(
+                 d.orthogonality.mixture39.calibers[0].M3.gain)}>
+            <p className="text-cyan-100/90">
+              <Em s={d.orthogonality.mixture39.claim} />
+            </p>
+            {d.orthogonality.mixture39.calibers.map((c) => (
+              <div key={c.name} className="mt-1"
+                   data-mixture-caliber={c.name.startsWith("超地板")
+                                          ? "primary" : "secondary"}>
+                <p className="text-gray-400">{c.name}（n={c.n}）</p>
+                <table className="text-gray-300">
+                  <thead>
+                    <tr>
+                      <th className="text-left pr-2">分层</th>
+                      {["Q1", "Q2", "Q3", "Q4"].map((q) => (
+                        <th key={q} className="text-right pr-2">{q}</th>
+                      ))}
+                      <th className="text-right">极差</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr data-mixture-row="overall">
+                      <td className="pr-2">整体</td>
+                      {c.overall.rates.map((v, i) => (
+                        <td key={i} className="text-right pr-2">
+                          {v == null ? "—" : v.toFixed(3)}</td>
+                      ))}
+                      <td className="text-right">
+                        {c.overall.range?.toFixed(3)}</td>
+                    </tr>
+                    <tr data-mixture-row="dominant-token">
+                      <td className="pr-2">7196 组</td>
+                      {c.dom.rates.map((v, i) => (
+                        <td key={i} className="text-right pr-2">
+                          {v == null ? "—" : v.toFixed(3)}</td>
+                      ))}
+                      <td className="text-right">
+                        {c.dom.range?.toFixed(3)}</td>
+                    </tr>
+                    <tr data-mixture-row="rest-tokens">
+                      <td className="pr-2">其余组</td>
+                      {c.rest.rates.map((v, i) => (
+                        <td key={i} className="text-right pr-2"
+                            data-mixture-cell={`rest-q${i + 1}`}>
+                          {v == null ? "—" : v.toFixed(3)}</td>
+                      ))}
+                      <td className="text-right">
+                        {c.rest.range?.toFixed(3)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="text-gray-400">
+                  M1 混合 p = {c.M1.p == null ? "—"
+                    : c.M1.p.toExponential(1)}（须 &lt; {c.M1.max_p}）
+                  {" "}{c.M1.pass ? "✓" : "✗"}；
+                  M2 层内极差 ≤ {c.M2.max_range}
+                  {" "}{c.M2.pass ? "✓" : "✗"}；
+                  M3 增益 = {c.M3.gain?.toFixed(3)}
+                  （须 ≥ {c.M3.min_gain}）{c.M3.pass ? "✓" : "✗"} ⇒{" "}
+                  <strong>{c.final}</strong>
+                </p>
+              </div>
+            ))}
+            <p className="mt-1 text-gray-300">
+              <Em s={d.orthogonality.mixture39.reading} />
+            </p>
+            <p className="text-amber-200/90">
+              <Em s={d.orthogonality.mixture39.revision_chain} />
+            </p>
+            <p className="text-gray-300">
+              <Em s={d.orthogonality.mixture39.theory_link} />
+            </p>
+            <p className="text-gray-400">
+              <Em s={d.orthogonality.mixture39.untouched} />
             </p>
           </div>
         )}
