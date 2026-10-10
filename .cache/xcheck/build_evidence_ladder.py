@@ -101,6 +101,32 @@ def main(argv=None):
          "与文档 §2 的 2.026%%–2.245%% / 2.018%%–2.268%% 不一致"
          % (s_max, l1_lo, l1_hi, l1_p_lo, l1_p_hi))
 
+    # ---------- L1 的方向依赖（修订 49，判据见预登记 §49.1 / 结果 §49.4）----------
+    # ⚠ `safe_regime.direction_independent = True` 这句话只能读作
+    #   「跨那四个**真实方向**的极差 < 1pp」，**不是**「与方向无关」。
+    #   生成这份产物的 `linearity_law.py` 自己的 docstring 就写着
+    #   「偏离一阶的比例 ≈ ½a²(1−**ac**)/(1+**ac**)」—— 二阶因子里有
+    #   `c = cos(h,v)`，解析式只是**按构造**把它丢掉了。
+    #   预登记 §49.4 在安全区（s ≤ 0.2）实测到该二阶因子：`cos_mean` 逐行都在，
+    #   此前**从未被任何判据检验过**（那是修订 48 触发的第 14 条检查）。
+    #
+    # 这里只做一件事：把这个二阶因子的**跨方向相对幅度**从产物自己的
+    # `a_mean` / `cos_mean` 算出来，让阶梯那一行能印出一个**有出处的数**。
+    # ⚠ 判据的统计部分在 `.cache/bpath/direction_power.py`，本函数不重复它；
+    #   这里只取它判决要用到的那一个标量。
+    _top = [r for r in law["rows"] if abs(r["strength"] - s_max) < 1e-9]
+    need(len(_top) >= 4, "L1 取二阶因子时在 s=%s 档只读到 %d 层" % (s_max, len(_top)))
+    l1_c_spread = 0.0
+    for _r in _top:
+        _a = max(float(_r["real"][k]["a_mean"]) for k in _r["real"])
+        _f = [(1 - _a * float(_r["real"][k]["cos_mean"]))
+              / (1 + _a * float(_r["real"][k]["cos_mean"]))
+              for k in _r["real"]]
+        l1_c_spread = max(l1_c_spread, max(_f) - min(_f))
+    need(l1_c_spread > 0.01,
+         "L1 二阶因子的跨方向幅度算出来只有 %.4f —— 若产物变了（cos 不再随方向变），"
+         "阶梯 L1 的措辞要重新判" % l1_c_spread)
+
     # ---------- L2：可读下界 ----------
     h = sub["headline"]
     l2 = int(h["readable_directions_lower_bound"])
@@ -144,7 +170,14 @@ def main(argv=None):
         {"level": "L0", "claim": "注进去模型变了",
          "needs": "一次前向，比较两个 logits",
          "state": "done", "here": "随手可得", "note": "任何方向都成立，不能区分方向"},
-        {"level": "L1", "claim": "破坏量 = ½(s·rms/‖h‖)²，与方向无关",
+        # ⚠ 修订 49（2026-10-11，用户决定后落地）：`claim` 原写
+        #   「破坏量 = ½(s·rms/‖h‖)²，与方向无关」，而 §49.4 在**安全区内**
+        #   实测到二阶因子 `(1−a·c)/(1+a·c)` 的方向依赖（p_exact = 0.0030）。
+        #   ⇒ 「与方向无关」只在**领头阶**成立，必须写进这句话本身 ——
+        #   页面上最醒目的一行不能是一个已被本项目自己证伪的断言。
+        #   措辞与框架文档 §8.1 表的 L1 行由用户同步（见预登记 §49.5）。
+        {"level": "L1",
+         "claim": "破坏量 ≈ ½(s·rms/‖h‖)²·(1−a·c)/(1+a·c)，**仅领头阶**与方向无关",
          "needs": "解析式 + 玩具自检 + 逐方向实测",
          "state": "done",
          "here": "s ≤ %.1f：实测 %.3f%%–%.3f%% vs 解析 %.3f%%–%.3f%%"
@@ -152,8 +185,13 @@ def main(argv=None):
          "note": "跨方向极差 %.3fpp、真实-vs-随机 %.3fpp。"
                  "⚠ s = %s 时该近似本身失效（极差涨到 %.2fpp），"
                  "那些点不是反例，是解析式超范围。"
+                 "（a = s·rms/‖h‖，c = cos(h,v)）"
+                 "⚠ 修订 49：二阶因子 `(1−a·c)/(1+a·c)` 在 s ≤ %.1f 内"
+                 "已实测到跨方向相对幅度最大 **%.1f%%**（逐行 a、c 取自本产物；"
+                 "预登记 §49.4）⇒ 「与方向无关」只在领头阶成立。"
                  % (l1_spread, l1_rndgap, beyond["strengths"][0],
-                    beyond["max_direction_spread_pp"])},
+                    beyond["max_direction_spread_pp"], s_max,
+                    100.0 * l1_c_spread)},
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
          "needs": "留出轨迹 + 打乱地板",
          "state": "done", "here": "%d 条" % l2,
@@ -202,6 +240,21 @@ def main(argv=None):
     ]
     assert not any(x["state"] == "done" for x in ladder[5:]), \
         "L5 及以上不允许标 done"
+
+    # ⚠ 自检 7（修订 49）：L1 那句 `claim` 必须带着它的限定。
+    #   为什么单独写一条：`claim` 是页面上最醒目的一行，历史上它就是那句
+    #   「与方向无关」——而 §49.4 已经测到二阶有 `c` 依赖。只要有人（或以后
+    #   某次改写）把限定去掉，**产物本身不会红**：跨方向极差 0.10pp 仍然
+    #   远小于 1pp，`direction_independent` 仍然是 True。
+    #   ⇒ 这句话的强度与产物里的布尔**不同源**，只能在这里单独钉住。
+    _l1 = next(x for x in ladder if x["level"] == "L1")
+    need("仅领头阶" in _l1["claim"],
+         "L1 的 claim 丢掉了「仅领头阶」这个限定 ⇒ 它在断言一件被 §49.4 "
+         "测到反例的事。claim=%r" % _l1["claim"])
+    need("(1−a·c)/(1+a·c)" in _l1["claim"],
+         "L1 的 claim 必须写出二阶因子，否则读者只看到 ½a² 与「无关」")
+    need("%.1f%%" % (100.0 * l1_c_spread) in _l1["note"],
+         "L1 的 note 必须印出那个从产物算出来的二阶幅度，否则 note 无出处")
 
     # ⚠ 自称「哪一级没测」的那段话，本身必须和上面这张表**逐级一致**。
     #   我原来写死「L5 及以上：一行都没有」，而同一份产物的 L6 是 partial
