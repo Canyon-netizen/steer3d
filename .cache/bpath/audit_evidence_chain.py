@@ -59,12 +59,17 @@ LOCAL_ONLY = {"q3_verdict.json", "saturation_verdict.json",
               "orthogonality_verdict.json", "ortho_frac_verdict.json",
               "ortho_frac_full.json", "hi_sites_pick.json",
               "hi_sites_verdict.json",
+              # 修订 32/33：extreme_pick_abs.json 是**本地**过滤器从远端扫描
+              # 清单派生的（远端那份只是副本，本地才是源）⇒ 比对无意义。
+              # extreme_verdict.json 是判决，产物不落远端。
+              "extreme_pick_abs.json", "extreme_verdict.json",
               # 本地备份（原始文件仍在远端），比对它没有意义
               "layer_sweep_t1.json.bak_armA"}
 
 SUITES = ["test_ortho_frac_verdict.py", "test_pick_hi_sites.py",
           "test_hi_sites_verdict.py", "test_extreme_verdict.py",
           "test_ortho_extreme_scan.py",
+          "test_apply_abs_boundary.py",
           "test_docs_repro_list.py"]
 
 results = []

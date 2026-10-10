@@ -92,6 +92,45 @@ assert two(2)["E2"]["pass"] is False, "2 条例外应不通过"
 assert two(2)["E2"]["verdict"] == "不具轨迹间一致性"
 print("用例4 PASS  E2：1 条例外仍过，2 条即不具轨迹间一致性")
 
+# ---- 用例 4b（修订 33 §33.7）：n_judge 太小 ⇒ 判据无牙齿 ----
+# ⚠ 夹具必须**先过 MIN_TOTAL=20**，否则会先被总样本量守卫拦下、
+#    根本走不到 E2（第一版就踩了这个：9 个位点 ⇒ 产物里压根没有 E2 键）。
+# 构造：1 条 12 位点的主轨迹 + 8 条各 1 位点的填充轨迹 = 20 个超地板位点，
+# 但只有主轨迹够「≥8 位点」⇒ n_judge = 1。
+def solo_track(d_main):
+    rows = [site("solo", i, 0.40, d=d_main, dr=0.5) for i in range(12)]
+    rows += [site(f"f{j}", 0, 0.35, d=-2.0, dr=0.5) for j in range(8)]
+    return rows
+
+
+for d, tag in ((-2.0, "主轨迹全负"), (2.0, "主轨迹全正")):
+    v = run(solo_track(d), expect=20)
+    assert v["E2"]["n_judge"] == 1, f"{tag}：{v['E2']['n_judge']}"
+    assert v["E2"]["teeth_ok"] is False, f"{tag}：n_judge=1 应标记无牙齿"
+    assert v["E2"]["verdict"] == "无法判定", \
+        f"{tag}：n_judge=1 必须报无法判定，实得 {v['E2']['verdict']}"
+    assert v["E2"]["pass"] is False, f"{tag}：n_judge=1 不得报 PASS"
+# 关键：两种**相反**的数据得到**同一个**「无法判定」⇒ 判据没在区分它们，
+# 这正是「无牙齿」的证据。若这里任何一侧报 PASS，就是回归。
+print("用例4b PASS  n_judge=1 时主轨迹全负/全正**都**判「无法判定」⇒ 无牙齿，不可判")
+
+# 反向对照 1：n_judge=2 同样无牙齿（2 条都全正 ⇒ 2 条例外 > 1，才 FAIL）
+two = [site("s0", i, 0.40, d=-2.0, dr=0.5) for i in range(8)] + \
+      [site("s1", i, 0.40, d=2.0, dr=0.5) for i in range(8)] + \
+      [site(f"g{j}", 0, 0.35, d=-2.0, dr=0.5) for j in range(4)]
+v2 = run(two, expect=20)
+assert v2["E2"]["n_judge"] == 2, v2["E2"]["n_judge"]
+assert v2["E2"]["teeth_ok"] is False, "n_judge=2 仍应标记无牙齿"
+assert v2["E2"]["verdict"] == "无法判定", v2["E2"]["verdict"]
+
+# 反向对照 2：n_judge=3 时同一构造**能**判出 2 条例外 ⇒ 守卫没有过度拦截
+three = two + [site("s2", i, 0.40, d=2.0, dr=0.5) for i in range(8)]
+v3 = run(three, expect=28)
+assert v3["E2"]["n_judge"] == 3, v3["E2"]["n_judge"]
+assert v3["E2"]["teeth_ok"] is True, "n_judge=3 应标记有牙齿"
+assert v3["E2"]["pass"] is False and v3["E2"]["verdict"] == "不具轨迹间一致性", v3["E2"]
+print("用例4c PASS  n_judge=2 判无法判定、n_judge=3 能判「不具轨迹间一致性」⇒ 守卫不过度拦截")
+
 # ---- 用例 5：E3′ 两条子判据各自能不过 ----
 # 基准：全体 36 个位点，对照臂 |Δrand| 恒为 0.1 ⇒ p95 = 0.1
 rest = [site("r0", i, 0.20, d=-2.0, dr=0.1) for i in range(36)]

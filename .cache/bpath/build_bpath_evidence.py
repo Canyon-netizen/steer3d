@@ -513,6 +513,83 @@ def main():
                       "代价：`|w·ĥ|` 取值范围变窄 ⇒ G1 的 1/3 分组功效下降。"),
         }
 
+    # ---------- 4e-33. 极对齐端 E 批次（修订 30–32 判据，修订 33 判定） ----------
+    _ev_path = M / "extreme_verdict.json"
+    if _ev_path.exists():
+        # ⚠ 三处都必须走 `jload` 这条路径，不能写成
+        #    `json.loads((M / …).read_text())` —— 审计脚本按调用形式正则
+        #    抽取「构建器读了哪些文件」，换个写法就**抓不到**，
+        #    新产物会静默逃出远端同源检查。
+        # ⚠ 同理：**注释里不要写出该调用的完整字面形态**（连引号带文件名），
+        #    否则会被同一条正则当成真的文件读，审计会报一个不存在的
+        #    文件名 `...`。这条注释就是第二次踩到的现场。
+        _ev = jload(M / "extreme_verdict.json")
+        _pick = jload(M / "extreme_pick_abs.json")
+        _J = jload(M / "orthogonality_extreme.json")
+        # 极对齐带自己的四分位（判决之外的形状，必须与判决同屏）
+        _sg = 1 if _J["wU_marker"] > 0 else -1
+        _es = [{"aw": abs(r["w_dot_hhat"]), "d": r["points"][-1]["d_marker"],
+                "dr": r["points"][-1]["d_rand"], "traj": r["traj"],
+                "t": r["t"]} for r in _J["rows"]]
+        _fl = sorted(abs(x["dr"]) for x in _es)[int(0.95 * (len(_es) - 1))]
+        _ab = sorted([x for x in _es if abs(x["d"]) > _fl], key=lambda x: x["aw"])
+        _n = len(_ab)
+        _qs = []
+        for i, lab in enumerate(["Q1", "Q2", "Q3", "Q4"]):
+            _s = _ab[i * _n // 4:(i + 1) * _n // 4]
+            if not _s:
+                continue
+            _ds = sorted(x["d"] for x in _s)
+            _qs.append({"q": lab + ("（最高）" if i == 3 else "（最低）" if i == 0 else ""),
+                        "n": len(_s),
+                        "agree_frac": round(sum(1 for x in _s
+                                                if (x["d"] > 0) == _sg) / len(_s), 4),
+                        "d_median": _ds[len(_ds) // 2]})
+        _E = _ev["E2"]
+        _e1_ok = bool(_ev["E1"]["pass"])
+        _e2_und = (_E["verdict"] == "无法判定")
+        _e3_ok = bool(_ev["E3"]["pass"])
+        _vd = ("**极对齐端的方向性主张不成立。** E1 不过（同号率 "
+               f"{_ev['E1']['frac']} ≥ 0.25）；E2 判「无法判定」（"
+               f"可判轨迹只有 {_E['n_judge']} 条，判据无牙齿）；E3′ 过"
+               " ⇒ 但 E3′ 是**对照健全性**检查，"
+               "**不构成任何方向性支持**，不能读成「三项里过了两项」。")
+        ortho_block["extreme33"] = {
+            "prereg": ("R6_RERUN_PREREG.md 修订 30 §30.3（判据 E1–E3）/ "
+                       "修订 31（E3 改有牙齿）/ 修订 32（绝对边界）/ 修订 33（判定）"),
+            "n_tracks": _ev["n_traj"],
+            "n_sites": _ev["n_sites"],
+            "n_above": _ev["n_above"],
+            "floor_same_slice": _ev["floor_same_slice"],
+            "n_dropped_tracks": _pick.get("n_dropped_tracks"),
+            "dropped_tracks": [d["traj"] for d in _pick.get("dropped_tracks", [])],
+            "E1": _ev["E1"],
+            "E2": {k: _E[k] for k in ("n_judge", "n_pass", "n_skip",
+                                      "max_exc", "pass", "verdict",
+                                      "teeth_ok")},
+            "E3": _ev["E3"],
+            "verdict": _vd,
+            "verdict_ok": {"E1": _e1_ok, "E2_undetermined": _e2_und,
+                           "E3": _e3_ok},
+            "shape": _qs,
+            "teeth_note": (
+                "⚠⚠ **E2 那一栏不是「通过」，是「无法判定」** —— "
+                f"判定器原始输出为「通过」，但可判轨迹只有 {_E['n_judge']} 条，"
+                f"而例外数上限是 {_E['max_exc']} 条 ⇒ 最多 {_E['n_judge']} 个例外"
+                f" ≤ {_E['max_exc'] + 1} ⇒ **该判据对任何数据都返回 PASS**。"
+                "唯一那条可判轨迹即便全部变成正向，照样打「通过」。"
+                "⇒ 报「测了但没测到」比失败更糟，故判**无法判定**。"
+                "已在 `extreme_verdict.py` 落成守卫："
+                "`n_judge ≤ max_exc+1` 直接判无法判定，不许输出 PASS。"),
+            "scope_note": (
+                "⚠ 判据阈值在修订 30–32 **取数前**写死，修订 33 **一个阈值都没动**。 "
+                "⚠ §33.6 的四分位是**事后切片**，只能作后续线索，**不升级为结论**。"
+                "⚠ `hi_sites28.extreme_band`（修订 30 的探索性观察）是**另一个批次、"
+                "另一种取材**，数字不同且**不冲突** —— 它没有绝对边界，"
+                "本批次有。"),
+            "final": _ev.get("final"),
+        }
+
     # ---------- 5. 挂到八级阶梯 ----------
     ladder = [
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
@@ -555,7 +632,8 @@ def main():
                        ("w_L19_m0.npy.json", "r6_smoke_L19m0.json",
                         "marker_freq5.json", "layer_sweep_B.json",
                         "dose_sweep_B.json", "orthogonality.json",
-                        "orthogonality_nt8.json", "q3_verdict.json")],
+                        "orthogonality_nt8.json", "q3_verdict.json",
+                        "orthogonality_extreme.json", "extreme_pick_abs.json")],
         "selfcheck_passed": True,
         "selfcheck": "位置+层轴 12/12；P9 判定 11/11（含新旧闸门对照）；判决脚本 26/26；"
                      "正交度判定器（Q3）带类型断言",

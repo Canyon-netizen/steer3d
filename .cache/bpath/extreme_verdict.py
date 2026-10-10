@@ -132,6 +132,18 @@ def main():
                        "verdict": "通过" if ok else "例外"}
     if n_judge == 0:
         e2_verdict, e2_pass = "无法判定", False
+    elif n_judge <= E2_MAX_EXC + 1:
+        # ---- 修订 33 §33.7：样本量守卫，让判据「有牙齿」----
+        # ⚠ 「例外数 ≤k」形式的判据，在 n_judge ≤ k+1 时**恒过**：
+        #    最多 k+1 条轨迹 ⇒ 例外数最多 k+1 ⇒ 永远 ≤k。
+        #    也就是说 n_judge=1 时，哪怕唯一那条轨迹 100% 正向，照样 PASS
+        #    ⇒ 那是「测了但没测到」，比失败更糟，必须报「无法判定」。
+        e2_pass = False
+        e2_verdict = "无法判定"
+        print(f"\n⚠⚠ E2 样本量守卫：可判轨迹只有 {n_judge} 条，"
+              f"而允许的例外数是 {E2_MAX_EXC} 条 ⇒ 例外数最多 "
+              f"{n_judge} ≤ {E2_MAX_EXC + 1}，本判据对**任何**数据都返回 PASS"
+              f"（无牙齿）⇒ 判「无法判定」，不报 PASS")
     else:
         e2_pass = (n_judge - n_pass) <= E2_MAX_EXC
         e2_verdict = "通过" if e2_pass else "不具轨迹间一致性"
@@ -140,7 +152,10 @@ def main():
           f"{n_judge - n_pass} 条（须 ≤{E2_MAX_EXC}）⇒ {e2_verdict}")
     res["E2"] = {"n_judge": n_judge, "n_pass": n_pass, "n_skip": len(detail) - n_judge,
                  "max_exc": E2_MAX_EXC, "pass": bool(e2_pass),
-                 "verdict": e2_verdict, "per_track": detail}
+                 "verdict": e2_verdict, "per_track": detail,
+                 "teeth_ok": bool(n_judge > E2_MAX_EXC + 1),
+                 "teeth_note": "修订 33 §33.7：n_judge ≤ max_exc+1 时本判据恒过，"
+                               "必须判「无法判定」；teeth_ok=False 即该状态"}
 
     # ---- E3 ----
     # ---- E3′（修订 31 §31.2：改成有牙齿的版本）----

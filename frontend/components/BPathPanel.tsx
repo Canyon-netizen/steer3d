@@ -147,6 +147,28 @@ type BPath = {
       shape_note: string;
       final: string;
     };
+    /** 修订 33：极对齐端 E 批次（26 条 / 179 位点）。**判决**，
+     *  与上面 `hi_sites28.extreme_band` 的**探索性观察**不是同一件事：
+     *  那是修订 30 的另一批次、**没有绝对边界**的切片。
+     *  ⚠ `E2.verdict` 若是「无法判定」而 `pass` 为 false，
+     *    必须原样显示成「无法判定」，**不许**显示成「通过」——
+     *    那个 `n_judge ≤ max_exc+1` 时判定器对任何数据都返回 PASS。 */
+    extreme33?: {
+      prereg: string; n_tracks: number; n_sites: number; n_above: number;
+      floor_same_slice: number;
+      n_dropped_tracks: number; dropped_tracks: string[];
+      E1: { agree: number; n: number; frac: number;
+            fisher_two_sided_p: number; or: number; pass: boolean };
+      E2: { n_judge: number; n_pass: number; n_skip: number; max_exc: number;
+            pass: boolean; verdict: string; teeth_ok: boolean };
+      E3: { ctrl_ge: number; n: number; frac: number;
+            p95_rand_here: number; p95_rand_baseline: number;
+            noisy_ratio_ok: boolean; a_ok: boolean; pass: boolean };
+      verdict: string;
+      verdict_ok: { E1: boolean; E2_undetermined: boolean; E3: boolean };
+      shape: { q: string; n: number; agree_frac: number; d_median: number }[];
+      teeth_note: string; scope_note: string; final: string;
+    };
     /** 修订 26：三处取数口径不一致的披露（地板口径 / Q1 批次 / 对照臂比较）。
      *  **只披露，不替换任何已发布数字。** */
     caliber26?: {
@@ -611,6 +633,90 @@ export default function BPathPanel() {
                   {d.orthogonality.hi_sites28.control_arm.of} 个超地板位点上随机方向动得更多</>
               )}
             </p>
+          </div>
+        )}
+        {/* 修订 33：极对齐端 E 批次判决。⚠ 必须在 hi_sites28 之后、
+            因为读者刚看完「撤回对齐度反向」，容易顺势把这里也读成同一件事。 */}
+        {d.orthogonality.extreme33 && (
+          <div className="mt-2 text-[9px] leading-relaxed"
+               data-extreme-verdict="rev33"
+               data-extreme-e1={String(d.orthogonality.extreme33.E1.pass)}
+               data-extreme-e2={d.orthogonality.extreme33.E2.verdict}
+               data-extreme-e2-teeth={String(d.orthogonality.extreme33.E2.teeth_ok)}
+               data-extreme-e3={String(d.orthogonality.extreme33.E3.pass)}
+               data-extreme-n-judge={String(d.orthogonality.extreme33.E2.n_judge)}>
+            <p className="text-amber-100/90">
+              极对齐端 E 批次（{d.orthogonality.extreme33.prereg}）：
+              {d.orthogonality.extreme33.n_tracks} 条轨迹 /{" "}
+              {d.orthogonality.extreme33.n_sites} 个位点 / 超地板{" "}
+              {d.orthogonality.extreme33.n_above} 个
+              <Em s={d.orthogonality.extreme33.scope_note} />
+            </p>
+            <ul className="list-disc pl-4 mt-1 text-gray-300">
+              <li data-extreme-crit="E1">
+                <strong>E1 方向</strong>：同号率{" "}
+                <strong>{d.orthogonality.extreme33.E1.frac}</strong>
+                （{d.orthogonality.extreme33.E1.agree}/
+                {d.orthogonality.extreme33.E1.n}，须 &lt; 0.25），
+                双尾 Fisher p ={" "}
+                {d.orthogonality.extreme33.E1.fisher_two_sided_p.toFixed(4)} ⇒{" "}
+                <strong>{d.orthogonality.extreme33.E1.pass ? "通过" : "不过"}</strong>
+              </li>
+              <li data-extreme-crit="E2">
+                <strong>⚠ E2 逐轨迹</strong>：可判{" "}
+                <strong>{d.orthogonality.extreme33.E2.n_judge}</strong> 条 / 不判{" "}
+                {d.orthogonality.extreme33.E2.n_skip} 条 ⇒{" "}
+                <strong>{d.orthogonality.extreme33.E2.verdict}</strong>
+                {!d.orthogonality.extreme33.E2.teeth_ok && (
+                  <span className="text-red-300">
+                    　（判据无牙齿，<strong>不是</strong>「通过」）
+                  </span>
+                )}
+                <Em s={d.orthogonality.extreme33.teeth_note} />
+              </li>
+              <li data-extreme-crit="E3">
+                <strong>E3′ 对照</strong>：ctrl_ge{" "}
+                {d.orthogonality.extreme33.E3.ctrl_ge}/{d.orthogonality.extreme33.E3.n} ={" "}
+                {d.orthogonality.extreme33.E3.frac}（须 ≤ 0.05）；
+                极对齐带 |Δrand| p95 ={" "}
+                {d.orthogonality.extreme33.E3.p95_rand_here.toFixed(4)} / 全体{" "}
+                {d.orthogonality.extreme33.E3.p95_rand_baseline?.toFixed(4)} ⇒{" "}
+                <strong>{d.orthogonality.extreme33.E3.pass ? "过" : "不过"}</strong>
+                　⚠ 这是<strong>对照健全性</strong>，不构成方向性支持
+              </li>
+            </ul>
+            <p className="mt-1 text-amber-200/90">
+              <Em s={d.orthogonality.extreme33.verdict} />
+            </p>
+            {/* 判决之外的形状：二元判据会把非单调压掉，梯度必须同屏。 */}
+            <div className="mt-1" data-extreme-shape="quartile">
+              <p className="text-gray-400">
+                ⚠ 事后四分位（<strong>不用于</strong>推翻上面的判定）：
+              </p>
+              <table className="mt-0.5 text-gray-300">
+                <thead>
+                  <tr>
+                    <th className="text-left pr-2">分位</th>
+                    <th className="text-right pr-2">n</th>
+                    <th className="text-right pr-2">同号率</th>
+                    <th className="text-right">Δ 中位</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.orthogonality.extreme33.shape.map((q) => (
+                    <tr key={q.q}
+                        data-extreme-quartile={q.q.startsWith("Q4") ? "highest" : undefined}>
+                      <td className="pr-2">{q.q}</td>
+                      <td className="text-right pr-2">{q.n}</td>
+                      <td className="text-right pr-2">{q.agree_frac.toFixed(3)}</td>
+                      <td className="text-right">
+                        {q.d_median >= 0 ? "+" : ""}{q.d_median.toFixed(3)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
         {/* 修订 26：三处口径不一致的披露。放在紧挨 Q1 那句的下面，
