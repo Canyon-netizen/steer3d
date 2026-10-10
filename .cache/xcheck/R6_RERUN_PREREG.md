@@ -4623,3 +4623,87 @@ A2 阶梯产物仍逐字节可复算、五个相关守卫全过。
 .cache/bpath/test_framework_doc_ladder.py` —— 它逐个校验 §8.1 表格里的数
 必须能追到该级上游产物；本次 `evidence_ladder.json` 的 `here` 未变，
 所以只改断言列应当仍然全过。
+---
+
+## 修订 50：把第 14 条施加到「真实 vs 随机 ⇒ 与语义无关」这条对照上（§50）
+
+### 50.0 触发
+
+修订 49 把第 14 条立成可判定检查：
+
+> 任何「与 X 无关」的断言，必须先报出那个决定 `X` 的标量，
+> 并说明它为什么被固定住；**否则「与 X 无关」与「没测出差别」不可区分**。
+
+并用它改了 L1 的 `claim`（「与方向无关」 → 「仅领头阶与方向无关」）。
+
+⚠ **同一条检查必须立刻施加到 L1 那一行 `note` 里的第二个支撑数上。**
+该 note 现在印着「跨方向极差 0.104pp、**真实-vs-随机 0.037pp**」，
+后者是 `conclusions.safe_regime.random_indistinguishable = true` 的来源，
+也是框架文档 §2095「强度是代价…**与语义无关**」的唯一支撑。
+
+### 50.1 已看 / 未看（诚实声明）
+
+- **已看**：`linearity_law.json` 的 `design` 与 `conclusions` 字段全表；
+  `rows[i].real[d]` 的键名集合；`backend/core/steering.py` 的 `PRESET_DIRECTIONS`；
+  `steering_vectors.json` 的 `method` / `positive_group` / `negative_group`；
+  `readable_subspace.json` 的 `question` / `named_axes` / `n_candidates` /
+  `absorbed` / `caution_absorbed` / `cos_to_named_axes`。
+- **未看**：`linearity_law.json` 里任何「可读性 / 专属性 / 语义地位」字段的
+  **取值**（下面 Q2 只判**在不在**，不判它的值）；本修订的任何 p 值或效应量。
+
+### 50.2 判据（**取数前**写死，只判一次）
+
+#### Q1（分辨率判据）：那条 null 能分辨多小的差别
+
+- 分辨率 `r_res` := `max_real_vs_random_gap_pp / pred 基线`（相对）。
+  `pred 基线` 取安全区上界那一档的 `pred_pct`（**从产物读**，不写死）。
+- 已知存在的方向依赖 `c_amp` := 二阶因子 `f(c)=(1−ac)/(1+ac)` 在**同样那四个真实方向**
+  上的跨方向相对幅度（同一算式，`a`/`cos_mean` 取自同一份产物）。
+- **判决规则（阈值是定义，不是调参）**：
+  - 若 `c_amp / r_res > 1` ⇒ 这条 null **不构成**「无关」的证据。
+    必须改述为「**在 X% 的分辨率以内**未测出差别」。
+  - 否则 ⇒ 该 null 的分辨率足以排除一个已知的方向依赖，可作为正证据。
+- ⚠ 报 `c_amp / r_res` 的具体倍数，并**同时报** Q2 —— 判决是两者合取。
+
+#### Q2（语义地位判据）：那四条方向的「语义」由谁担保
+
+- 判据：**`linearity_law.json` 里是否存在任何字段，记载它那四个真实方向的
+  可读性分数或专属性 margin？**
+- `grep` 键名集合找 `readab|specific|exclusive|dedicat|semantic|margin|lo[o_]`。
+- **判决**：
+  - 找不到 ⇒ 判据第 14 条**不通过**：决定「语义」的那个标量**在这次对照里从未出现**。
+    ⇒ 「与语义无关」不是被证伪，而是**从未被检验**。
+  - 找得到 ⇒ 报该字段并继续核它的取值是否支撑「语义」。
+
+#### Q3（两臂的定义判据）：「真实」那一臂到底是什么
+
+- 报：那四个方向的**构造来源**（`steering_vectors.json` 的 `method` /
+  `positive_group` / `negative_group`），以及它们与
+  `readable_subspace.json` 的 `n_candidates` / `absorbed` / `caution_absorbed`
+  的关系。
+- ⚠ 只报事实，不下因果结论。若 `caution` 被本项目自己的判据记为「被吸收」，
+  就把这件事印出来 —— **不改** `linearity_law.json`（它是冻结快照）。
+
+### 50.3 判决分支（事先写死）
+
+| Q1 | Q2 | 判决 | 对交付物的动作 |
+|---|---|---|---|
+| `c_amp/r_res > 1` | 找不到语义字段 | **「与语义无关」从未被检验** | L1 `note` 给「真实-vs-随机」这个数**补上分辨率与前提限定**；`claim` 不动（它只说方向） |
+| `c_amp/r_res > 1` | 找得到 | 语义地位有出处，但分辨率不足 | 同上，另引该字段 |
+| `c_amp/r_res ≤ 1` | 任一 | 该 null 有分辨率 | 不动 |
+
+### 50.4 与修订 49 的关系
+
+- 修订 49 更正的是 **`claim`**（公式漏了二阶因子）。
+- 本修订更正的是 **`note` 里第二个支撑数**（那条对照测的是什么、分辨率多少）。
+- ⚠ 两者是**不同**的缺陷：前者是「公式不对」，后者是「证据不足」。
+  修订 49 的更正**不能**让后者自动成立 —— 一条 claim 变精确了，
+  它脚下那条 null 的分辨率并没有变。
+
+### 50.5 产物落地范围
+
+- `evidence_ladder.json` 的 L1 `note`（生成器里改，**我方文件**）。
+- 生成器新增自检 8：钉住 note 里必须出现分辨率限定与「命名轴」这个词。
+  ⚠ 与自检 7 同理 —— 去掉限定**产物不会红**，因为那个数本身没变。
+- `docs/STEERING_INTERPRETABILITY_FRAMEWORK.md` §2095 的「与语义无关」
+  在**作者域**，只列进待同步清单，**不写**。
