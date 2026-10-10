@@ -199,6 +199,10 @@ def main():
                     help="hi_sites_pick.json：{tracks:[{traj,n_hi,...}]}")
     ap.add_argument("--orth-threshold", type=float, default=0.1,
                     help="--pick 模式下只跑 w·ĥ 大于这个值的位点")
+    # 修订 30（§30.3）：极对齐带是**逐轨迹的最高十分位**，
+    # 不是一个全局阈值 ⇒ 必须能用**显式位点清单**跑。
+    ap.add_argument("--pick-extreme", default=None,
+                    help="extreme_pick.json：{tracks:[{traj, sites:[{t,aw}]}]}")
     a = ap.parse_args()
 
     if a.gpu_uuid:
@@ -254,6 +258,15 @@ def main():
     traj_list = list(TRAJ)
     site_override = None                    # {traj: [位点]}，修订 22 用
     pick_nhi = None                         # {traj: n_hi}，修订 28 用
+    extreme_want = None                     # {traj: {t: aw}}，修订 30 用
+    if a.pick_extreme:
+        _pe = json.load(open(a.pick_extreme, encoding="utf-8"))
+        extreme_want = {t["traj"]: {int(s["t"]): s["aw"] for s in t["sites"]}
+                        for t in _pe["tracks"]}
+        traj_list = sorted(extreme_want)
+        print(f"\n修订30 极对齐选材：{len(traj_list)} 条轨迹，"
+              f"声明位点合计 {sum(len(v) for v in extreme_want.values())}"
+              f"（逐轨迹最高十分位）")
     if a.pick:
         _pk = json.load(open(a.pick, encoding="utf-8"))
         pick_nhi = {t["traj"]: int(t["n_hi"]) for t in _pk["tracks"]}
@@ -316,7 +329,30 @@ def main():
 
         # ---- 修订 28：按 w·ĥ 阈值筛位点（选材的第二段，纯 numpy，不前向）----
         # ⚠ 筛选**只用到 w·ĥ**（预测量），不看任何 Δ ⇒ 不可能偏向结果。
-        if pick_nhi is not None:
+        # ---- 修订 30：显式极对齐位点清单（逐轨迹最高十分位）----
+        # ⚠ 对账：清单里每个位点的 |w·ĥ| 必须与探针自己算的一致（到 1e-6）。
+        #    静态扫描与探针是两套代码算的同一个量 —— 对不上就拒跑。
+        if extreme_want is not None:
+            w_at = {t: float(W @ (h_at[t] / np.linalg.norm(h_at[t])))
+                    for t in sites}
+            want = extreme_want.get(tid)
+            if want is None:
+                raise SystemExit(f"{tid} 不在极对齐选材清单里，拒绝跑")
+            missing = [t for t in want if t not in sites]
+            if missing:
+                raise SystemExit(
+                    f"{tid}：清单要的位点 {missing[:5]} 不在 marker 位点集里")
+            bad = [(t, want[t], round(abs(w_at[t]), 6)) for t in want
+                   if abs(abs(w_at[t]) - want[t]) > 1e-6]
+            if bad:
+                raise SystemExit(
+                    f"{tid}：清单的 |w·ĥ| 与探针算的不一致（示例 {bad[:3]}）"
+                    f"⇒ 静态扫描与探针口径分家，拒绝跑")
+            sites = sorted(want)
+            print(f"    修订30 极对齐：{len(sites)} 个位点（|w·ĥ| 全部对上清单）")
+            del w_at
+            h_at = {t: h_at[t] for t in sites}
+        elif pick_nhi is not None:
             w_at = {t: float(W @ (h_at[t] / np.linalg.norm(h_at[t])))
                     for t in sites}
             keep = [t for t in sites if w_at[t] > a.orth_threshold]

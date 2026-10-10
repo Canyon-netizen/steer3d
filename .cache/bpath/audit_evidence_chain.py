@@ -63,7 +63,8 @@ LOCAL_ONLY = {"q3_verdict.json", "saturation_verdict.json",
               "layer_sweep_t1.json.bak_armA"}
 
 SUITES = ["test_ortho_frac_verdict.py", "test_pick_hi_sites.py",
-          "test_hi_sites_verdict.py", "test_docs_repro_list.py"]
+          "test_hi_sites_verdict.py", "test_ortho_extreme_scan.py",
+          "test_docs_repro_list.py"]
 
 results = []
 
