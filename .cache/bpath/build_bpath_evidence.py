@@ -436,6 +436,36 @@ def main():
                 "agree": round(_agree, 3),
                 "d_median": round(sorted(_d)[len(_d) // 2], 4)})
 
+        # ---- 极对齐端（最高 10%）：**探索性**，不是判决 ----
+        # ⚠ 这条切片是在看到四分位形状**之后**才选的 ⇒ 事后分析。
+        #    所以这里只报「够不够格谈」，不报「成不成立」。
+        _top = _ab[-(max(1, _n // 10)):]
+        _rest = _ab[:len(_ab) - len(_top)]
+        _dt = [r["points"][-1]["d_marker"] for r in _top]
+        _dr = [r["points"][-1]["d_marker"] for r in _rest]
+        _at = sum(1 for x in _dt if (x > 0) == _sgn)
+        _ar = sum(1 for x in _dr if (x > 0) == _sgn)
+        _per = {}
+        for _r in _top:
+            _per.setdefault(_r["traj"], []).append(_r["points"][-1]["d_marker"])
+        _judge = [t for t, ds in _per.items() if len(ds) >= 8]
+        _extreme = {
+            "prereg": "R6_RERUN_PREREG.md 修订 30（**探索性**，非判决）",
+            "n": len(_top), "n_rest": len(_rest),
+            "aw_min": round(min(abs(r["w_dot_hhat"]) for r in _top), 4),
+            "d_median": round(sorted(_dt)[len(_dt) // 2], 4),
+            "agree_top": f"{_at}/{len(_top)}",
+            "agree_rest": f"{_ar}/{len(_rest)}",
+            "n_traj": len(_per), "n_traj_judgeable": len(_judge),
+            "d_median_by_quartile": [s["d_median"] for s in _shape],
+            "note": ("⚠ **探索性观察，不是结论**。切法是在看到四分位形状之后才选的。"
+                     f"最高 10% 的 {len(_top)} 个位点散在 {len(_per)} 条轨迹上，"
+                     f"**没有一条达到 8 个** ⇒ **逐轨迹完全不可判**（G2 那类检查在这里"
+                     "根本跑不起来）。"
+                     "方向上它确实比其余位点更负，但幅度检验只是边缘。"
+                     "⇒ **不升级为结论**；要正经检验须按修订 30 §30.3 的设计另取一批。"),
+        }
+
         _G = {k: _hv[k] for k in ("G1", "G2", "G3", "G4") if k in _hv}
         # §28.4 的判决规则：**分支文案按判定结果选**，不预先写死哪一档会过
         _g1, _g2, _g3, _g4 = (_hv["G1"], _hv["G2"], _hv["G3"], _hv["G4"])
@@ -469,6 +499,7 @@ def main():
             "G3": _hv["G3"], "G4": _hv["G4"],
             "verdict": _verdict,
             "shape": _shape,
+            "extreme_band": _extreme,
             "shape_note": ("⚠ **G1 的「高 1/3 vs 低 1/3」只比首尾两档，会把"
                            "**非单调**读成单调。** 四分位显示同号率"
                            "先升后降，**最高一档又落回负的中位** ——"

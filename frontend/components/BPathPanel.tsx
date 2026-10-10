@@ -137,6 +137,13 @@ type BPath = {
       verdict: string;
       shape: { quartile: string; n: number; aw_median: number;
                agree: number; d_median: number }[];
+      /** 极对齐端（最高 10%）：**探索性观察，不是判决**。修订 30 §30.2 列了
+       *  三条「不够格」的理由（不显著 / 逐轨迹完全不可判 / 事后切片）。 */
+      extreme_band?: { prereg: string; n: number; n_rest: number;
+        aw_min: number; d_median: number;
+        agree_top: string; agree_rest: string;
+        n_traj: number; n_traj_judgeable: number;
+        d_median_by_quartile: number[]; note: string };
       shape_note: string;
       final: string;
     };
@@ -576,6 +583,24 @@ export default function BPathPanel() {
                 <p className="text-gray-400 mt-1">
                   <Em s={d.orthogonality.hi_sites28.shape_note} />
                 </p>
+                {/* 极对齐端：**探索性**，明确标出「不可判」而非让人当成新发现 */}
+                {d.orthogonality.hi_sites28.extreme_band && (
+                  <p className="text-amber-200/80 mt-1"
+                     data-hi-extreme="exploratory"
+                     data-hi-extreme-n={String(
+                       d.orthogonality.hi_sites28.extreme_band.n)}
+                     data-hi-extreme-judgeable={String(
+                       d.orthogonality.hi_sites28.extreme_band.n_traj_judgeable)}>
+                    极对齐端（最高 10%，|w·ĥ| ≥{" "}
+                    {d.orthogonality.hi_sites28.extreme_band.aw_min}）：
+                    Δ 中位{" "}
+                    {d.orthogonality.hi_sites28.extreme_band.d_median >= 0 ? "+" : ""}
+                    {d.orthogonality.hi_sites28.extreme_band.d_median}，
+                    同号率 {d.orthogonality.hi_sites28.extreme_band.agree_top}
+                    （其余 {d.orthogonality.hi_sites28.extreme_band.agree_rest}）。
+                    <Em s={d.orthogonality.hi_sites28.extreme_band.note} />
+                  </p>
+                )}
               </div>
             )}
             <p className="text-gray-400">
