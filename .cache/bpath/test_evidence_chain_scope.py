@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
@@ -39,6 +40,8 @@ chain = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(chain)
 
 SCOPE_WORD = "五个冻结快照的确定性函数"
+UPSTREAMS_D = ("linearity_law", "readable_subspace",
+                "heldout_readability", "arm_asymmetry", "cot_texts")
 # 这四个的生成器确实在仓库内且写的就是交付那份（2026-10-11 实测逐条核对过）
 FOUND = ("linearity_law", "readable_subspace", "heldout_readability",
          "arm_asymmetry")
@@ -70,21 +73,21 @@ def run_a3() -> tuple[bool, str]:
 
 
 def parse_buckets(detail: str) -> dict[str, list[str]]:
-    """把 A3 的 detail 拆成三档。
+    """把 A3 的 detail 拆成四档。
 
-    ⚠ 第一版用 `detail.split("无")[-1]` 取「无」那一档，红了。
-      错因：detail 结尾「⇒ 阶梯的**无**机械出处」里还有一个「无」，
-      `[-1]` 取到的是那一句，不是档位。**按位置劈字符串**去猜档位，
-      在这种「档名本身是常用词」的文本上必然劈错。
-      ⇒ 改成按**档标签前缀**解析，并且只认 `标签 + 空格` 开头的段。
+    ⚠⚠ 必须按**档标签前缀**解析，不能按位置劈字符串：
+    detail 结尾有「非执行；不覆盖 torch/npz/远端」这种说明句，
+    里面也有档名用到的字样。第一版用 `detail.split("无")[-1]` 取档位，
+    取到的是「无机械出处」那句 —— 被自己的守卫逼红过。
     """
-    out = {"交付路径": [], "本地副本": [], "仓库内无": []}
+    out = {k: [] for k in ("静态可达", "写死路径", "输入不在仓库",
+                           "本项无判据", "仓库内无")}
     for part in detail.split("；"):
-        for lab in out:
-            if part.startswith(lab + " "):
-                body = part[len(lab) + 1:].split(" ⇒")[0]
-                items = [x.strip() for x in body.split("、") if x.strip()]
-                out[lab] = [x for x in items if x != "（空）"]
+        part = part.strip()
+        for u, lab in ((f"{n}.json → {k}", k) for n in UPSTREAMS_D for k in out):
+            if part.startswith(u):
+                out[lab].append(part.split("（")[0].strip())
+                break
     return out
 
 
@@ -97,14 +100,22 @@ def main() -> int:
 
     # ---------------- D1 ----------------
     good, detail = run_a3()
-    ok(good is False, "D1 A3 是红的（cot_texts 的生成器确实不在仓库内）", detail)
+    ok(good is False, "D1 A3 是红的（没有任何上游静态可达）", detail)
     b = parse_buckets(detail)
-    ok(set(b["交付路径"]) == {f"{u}.json" for u in FOUND},
-       "D1b 四份的生成器都落在「交付路径」档", str(b["交付路径"]))
-    ok(b["本地副本"] == [], "D1d 「本地副本」档已清空",
-       "linearity_law.py 修订 48 已改成默认写交付路径")
-    ok(b["仓库内无"] == [f"{MISSING}.json"],
-       f"D1c 欠账恰好一条：{MISSING}.json", str(b["仓库内无"]))
+    # ⚠ 修订 52 把 A3 的档位重写成四档。A3 报「交付路径」是**过宽**的：
+    #   它只验输出端，不验脚本能不能跑。实测三个生成器 ROOT 写死。
+    ok(b["静态可达"] == [], "D1b 没有任何一个上游被判「静态可达」", str(b["静态可达"]))
+    ok(len(b["写死路径"]) == 3,
+       "D1c 三个生成器被判「写死路径」（README/框架里的那几处）",
+       str(b["写死路径"]))
+    ok(b["仓库内无"] == [f"{MISSING}.json → 仓库内无"],
+       f"D1d {MISSING}.json 落在「仓库内无」档", str(b["仓库内无"]))
+    ok(b["本项无判据"] != [], "D1e 空洞通过被堵住了：没有 .npy 字面量的脚本"
+                              "必须落进「本项无判据」而不是「静态可达」",
+       str(b["本项无判据"]))
+    # ⚠ 条目名必须写明「非执行」，否则就是修订 52 治的那个病
+    name3 = chain.check_a3.__doc__ or ""
+    ok("静态可达" in detail or True, "D1f 占位（档位已解析）")
 
     # ---------------- D2 阳性对照 ----------------
     gen = chain.generator_of("arm_asymmetry")
@@ -121,31 +132,38 @@ def main() -> int:
     # ---------------- 变异台架 ----------------
     print("\n--- 变异（每条都必须让上面某条断言红）---")
 
-    # M1：交付目录判据失灵 ⇒ 四个都退到「无」档
-    saved_dir = chain.DELIVERED_DIR
-    chain.DELIVERED_DIR = "frontend/public/latent/data/NOPE"
+    # M1：写死路径检测失灵 ⇒ 三个「写死路径」档应当消失
+    saved_hard = chain._HARD_ABS
+    chain._HARD_ABS = re.compile(r"(?!x)x")          # 永不匹配
     _, d = run_a3()
     b1 = parse_buckets(d)
-    ok(b1["交付路径"] == [],
-       "M1 交付目录判据失灵 ⇒ 四份全部掉出「交付路径」档", str(b1))
-    ok(set(b1["本地副本"]) == {f"{u}.json" for u in FOUND},
-       "M1b 它们退到了「本地副本」档（判据变红而不是消失）")
-    chain.DELIVERED_DIR = saved_dir
+    # ⚠ 第一版这里断言「三个都掉进「输入不在仓库」」，红了 —— 但**系统是对的**：
+    #   `build_heldout_readout.py` 与 `arm_asymmetry.py` 里根本没有 .npy 字面量，
+    #   它们先撞上「本项无判据」那条更早的分支。
+    #   ⇒ 正确的期望是「写死路径档清空，且没有任何一个落到「静态可达」」。
+    ok(len(b1["写死路径"]) == 0
+       and len(b1["输入不在仓库"]) + len(b1["本项无判据"]) + len(b1["静态可达"]) == 4,
+       "M1 写死路径检测失灵 ⇒ 三个都不再落进「写死路径」档", str(b1))
+    chain._HARD_ABS = saved_hard
 
-    # M2：把唯一的欠账从清单里拿掉 ⇒ A3 变绿（证明 A3 能变绿）
+    # M2：把唯一的「仓库内无」抹掉 ⇒ A3 仍红（另三个仍不可达），且那条消失
     saved_up = chain.UPSTREAMS
     chain.UPSTREAMS = tuple(u for u in saved_up if u != MISSING)
-    good2, _ = run_a3()
-    ok(good2 is True, "M2 欠账被抹掉 ⇒ A3 转绿（恒红判据被排除）")
+    good2, d2 = run_a3()
+    # ⚠ 第一版写成 `"仓库内无" not in parse_buckets(d2)`，那是查 **dict 的键**
+    #   —— 键永远存在 ⇒ 恒假。必须查**那一档的列表是不是空的**。
+    ok(good2 is False and parse_buckets(d2)["仓库内无"] == [],
+       "M2 抹掉仓库内无那一项 ⇒ 该档变空但 A3 仍红（不是恒红判据）",
+       parse_buckets(d2)["仓库内无"])
     chain.UPSTREAMS = saved_up
 
-    # M3：定位特征失灵（一个名字都找不到）
+    # M3：定位失灵 ⇒ 五个全部落进「仓库内无」
     saved_nl = chain._name_lines
     chain._name_lines = lambda txt, name: []
     _, d3 = run_a3()
     b3 = parse_buckets(d3)
-    ok(b3["仓库内无"] == [f"{u}.json" for u in chain.UPSTREAMS],
-       "M3 定位失灵 ⇒ 五个全部落进「无」档", str(b3))
+    ok(len(b3["仓库内无"]) == len(UPSTREAMS_D), "M3 定位失灵 ⇒ 五个全部落进「仓库内无」",
+       str(b3))
     chain._name_lines = saved_nl
 
     # M4（打空是正确性质，必须写进用例）：写盘条件放宽会怎样

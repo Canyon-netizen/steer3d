@@ -31,9 +31,12 @@ from pathlib import Path
 
 import numpy as np
 
-# 修订 48：原来这里写死 `sys.path.insert(0, "/Users/zhourui/code/steer3d")`，
-# 干净克隆上必然 ImportError ⇒ 本脚本在仓库内却只在那一台机器上能跑。
+# 修订 48：原来这一行把本机绝对路径写死，干净克隆上必然 ImportError
+# ⇒ 本脚本在仓库内却只在那一台机器上能跑。
 # 与 `build_evidence_ladder.py` 修订 46 R-1 同一处毛病，一层更深。
+# ⚠⚠ 修订 52：**注释里不许复现被审计正则匹配的字面形态**。第一版这段
+#   注释把那个调用的完整原文抄了出来，于是证据链 A3 的「写死路径」
+#   扫描把**已经修好的**这一行判成命中 —— 注释把正则毒化了。
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from backend.core.replay_runner import NpzReplayRunner  # noqa: E402

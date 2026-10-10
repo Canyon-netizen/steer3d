@@ -253,43 +253,91 @@ def generator_of(name):
     return None
 
 
+# ---- 修订 52：A3 的判定条件加两层（写死路径 / 输入是否在仓库里）---------
+# ⚠ 修订 48 的 A3 只验「被跟踪的源文件里有没有把 <name>.json 写到交付目录」。
+#   那个条件**只验了输出端**。实测：四个「交付路径」档的生成器全部
+#   `ROOT = Path("/Users/zhourui/code/steer3d")` 写死，而且它们要的
+#   `dir_cache/w_*.npy`（本机 14 个）、`confidence_*.npy`（作者的未跟踪 WIP）
+#   **在仓库里一个副本都没有** ⇒ 干净克隆上第一行就 FileNotFoundError。
+# ⚠⚠ 本节只做**静态**判定，**不执行**那些脚本（要 torch / npz / 远端）。
+#   所以判决里出现的是「静态可达」，**不是**「跑通了」。
+_HARD_ABS = re.compile(
+    r'(?:ROOT|OUT|DST|OUTFILE|OUTPATH|SRC|CACHE|DATA|X)\s*=\s*Path\(\s*"/'
+    r'|sys\.path\.insert\(\s*0\s*,\s*"/'
+    r'|(?:np\.load|open|json\.load)\(\s*["\']/(?:Users|home)/')
+_NPY_LITERAL = re.compile(r'["\']([^"\']+\.npy)["\']')
+
+
+def tracked_basenames():
+    return {os.path.basename(rel) for rel in tracked_files()}
+
+
+def static_reachable(rel):
+    """静态判定一个生成器在**干净克隆**上能不能跑（返回 档位, 细节）。
+
+    ⚠ 只查两个**必要方向**：写死绝对路径、以及脚本要的 `.npy` 在仓库里
+    有没有被跟踪的副本。任一不成立就**确定**跑不起来。
+    ⚠ 两个都成立**不等于**能跑（还有 torch / npz / 远端等未查项），
+      所以最高档叫「静态可达」，**不叫**「可跑」。
+    ⚠ 档位按 U2 的**顺序**判定 —— 先撞上的先报，否则读者会以为「只差一样」。
+    """
+    fp = os.path.join(ROOT, rel)
+    try:
+        src = open(fp, encoding="utf-8", errors="ignore").read()
+    except OSError as e:
+        return "读不到", [str(e)]
+    hard = sorted({m.group(0).strip()[:70] for m in _HARD_ABS.finditer(src)})
+    if hard:
+        return "写死路径", ["%s: %s" % (rel, " / ".join(hard[:2]))]
+    tb = tracked_basenames()
+    need = sorted({os.path.basename(m) for m in _NPY_LITERAL.findall(src)})
+    missing = [n for n in need if n not in tb]
+    if missing:
+        return "输入不在仓库", ["%s 要的 %s 在仓库里无被跟踪副本"
+                                % (rel, ", ".join(missing))]
+    if not need:
+        # ⚠⚠⚠ **空洞通过**：脚本里一个 `.npy` 字面量都没有 ⇒
+        #   「都有被跟踪副本」是**空真**，和恒绿判据一样没有信息量。
+        #   实测就踩到了：`linearity_law.py` 通过 `NpzReplayRunner` 读 npz，
+        #   一个 `.npy` 都没有 ⇒ 第一版给它判了「静态可达」，
+        #   而它真正需要的远端 npz **根本不在仓库里**。
+        # ⇒ 显式报「本项对它无判据」，**不许**顺着空真报可达。
+        return "本项无判据", ["%s 里没有 .npy 字面量（它走别的读法）"
+                              "⇒ 本项对它无判据，不能报可达" % rel]
+    # ⚠⚠ **按 basename 匹配是弱近似**：同名文件在仓库的**别的目录**下也会算命中。
+    #   所以「静态可达」**只代表这一项没查出缺口**，不代表输入真的齐 ——
+    #   与「本项无判据」一样，措辞必须如实。
+    return "静态可达", ["%s 无写死路径、%d 个 .npy 按 basename 在仓库有副本"
+                        "（⚠ basename 匹配是弱近似，同名不同目录会误判为命中）"
+                        % (rel, len(need))]
+
+
 def check_a3():
-    """五个上游快照都能从**交付的那一份**重造吗（修订 48 W3）。
+    """五个上游快照的生成器，在干净克隆上**静态可达**吗。
 
     ⚠ 本项**不改判 A2**：A2 判的命题为真，错的只是它的条目名（已改写）。
-      这一项红表示「阶梯的**上游**没有机械出处」，是一个**已知欠账**，
-      不是「阶梯产物算错了」。
-    ⚠ 本项在修订 48 落地时红，且**故意保持红**：它记的是欠账，不是回归。
-      把一个真实的缺口标成绿才是假通过。
-
-    三档分开报，因为它们要开的药方不同：
-
-    | 档 | 含义 | 药方 |
-    |---|---|---|
-    | `交付路径` | 生成器在仓库内且写的就是交付那份 | 已闭环 |
-    | `本地副本` | 生成器在，但只写 `.cache/` 下的副本 | 改输出路径（修订 46 对阶梯做过的同一件事） |
-    | `无` | 生成器不在仓库内 | 找或补 |
+    ⚠⚠ 本项只做**静态**判定，**不执行**那些生成器（要 torch / 远端 npz）。
+      「静态可达」**不等于**「跑通了」。
+      ⚠ 这是修订 52 写死的措辞纪律：上一版报「4/5 在交付路径」用的就是
+      「在交付路径」这种**没有覆盖执行**的说法，而实测四个都跑不起来。
     """
-    buckets = {"交付路径": [], "本地副本": [], "仓库内无": []}
+    order = ["静态可达", "写死路径", "输入不在仓库", "本项无判据", "仓库内无"]
+    buckets = {k: [] for k in order}
+    parts = []
     for u in UPSTREAMS:
         hits = writes_named_artifact(u)
-        if generator_of(u):
-            buckets["交付路径"].append(u)
-        elif hits:
-            buckets["本地副本"].append(u)
-        else:
+        if not hits:
             buckets["仓库内无"].append(u)
-    ok = not buckets["本地副本"] and not buckets["仓库内无"]
-    # ⚠⚠ 空档的占位符**不能**写成「无」：它同时也是第三档的档名
-    #   （「无生成器」那一档）。第一版两处都用「无」，渲染出来是
-    #   「本地副本 无；无 cot_texts.json」，按标签解析时
-    #   「本地副本」那一档会被读成装着一个叫「无」的东西 ——
-    #   守卫 `test_evidence_chain_scope.py` 的 D1d 就是被它逼红的。
-    #   ⇒ 空档一律写「（空）」，第三档改叫「仓库内无」。
-    fmt = lambda ks: ("（空）" if not ks else "、".join(f"{k}.json" for k in ks))
-    detail = ("；".join(f"{lab} {fmt(ks)}" for lab, ks in buckets.items())
-              + " ⇒ 阶梯的上游无机械出处（已知欠账，A2 仍为绿）")
-    return check("A3 五个上游快照都能从交付那份重造", ok, detail)
+            parts.append("%s.json → 仓库内无（已知欠账）" % u)
+            continue
+        cand = next((r for r, d in hits if d), hits[0][0])
+        bucket, why = static_reachable(cand)
+        buckets[bucket].append(u)
+        parts.append("%s.json → %s（%s）" % (u, bucket, why[0][:100]))
+    ok = all(not buckets[k] for k in order if k != "静态可达") \
+        and len(buckets["静态可达"]) == len(UPSTREAMS)
+    return check("A3 五个上游的生成器静态可达（非执行；不覆盖 torch/npz/远端）",
+                 ok, "；".join(parts))
 
 
 def check_b():
