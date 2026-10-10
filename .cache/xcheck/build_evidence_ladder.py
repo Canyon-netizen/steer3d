@@ -238,6 +238,65 @@ def main(argv=None):
             l1_thr[_key] = float(_m2.group(1))
     l1_arr_max = max(_walk_len(law), default=0)
 
+    # ---------- 修订 55：claim 那个二阶因子的正确形式（现算，不硬编码） ----------
+    # 由定义有理化：√(1+2ac+a²) − (1+ac) = a²(1−c²)/(√(1+2ac+a²)+1+ac)
+    # ⇒ rel = dev/pred = 2(1−c²) / [(1+ac)(√(1+2ac+a²)+1+ac)]   —— **恒等式**
+    def _rel_exact(a, c):
+        rt = (1.0 + 2.0 * a * c + a * a) ** 0.5
+        return 2.0 * (1.0 - c * c) / ((1.0 + a * c) * (rt + 1.0 + a * c))
+
+    def _rel_claim(a, c):
+        return (1.0 - a * c) / (1.0 + a * c)
+
+    import numpy as _n55
+    _e_exact = _e_claim = 0.0
+    _n_pts = _agree = 0
+    _sp_claim = _sp_exact = 0.0
+    _smax55 = float(law["conclusions"]["safe_regime"]["strength_max"])
+    for _r in law["rows"]:
+        if _r["strength"] > _smax55:
+            continue
+        _pr = _n55.asarray(_r["pred_points"], dtype=float)
+        for _dk, _ak, _ck in (("real_dev_points", "a_points", "c_points"),
+                              ("random_dev_points", "random_a_points",
+                               "random_c_points")):
+            _names = (list(_r[_dk].keys()) if _dk == "real_dev_points"
+                      else list(range(len(_r[_dk]))))
+            for _i, _k in enumerate(_names):
+                def _g(t, _dk=_dk, _k=_k, _i=_i):
+                    return t[_k] if _dk == "real_dev_points" else t[_i]
+                _d = _n55.asarray(_g(_r[_dk]), dtype=float)
+                _a = _n55.asarray(_g(_r[_ak]), dtype=float)
+                _c = _n55.asarray(_g(_r[_ck]), dtype=float)
+                _rel = _d / _pr
+                _e_exact = max(_e_exact,
+                               float(_n55.max(_n55.abs(_rel - _rel_exact(_a, _c)))))
+                _e_claim = max(_e_claim,
+                               float(_n55.max(_n55.abs(_rel - _rel_claim(_a, _c)))))
+                _agree += int(_n55.sum(_n55.sign(_rel - 1.0)
+                                       == _n55.sign(_rel_exact(_a, _c) - 1.0)))
+                _n_pts += int(_rel.size)
+        # ⚠⚠ 两个口径必须分开，**不得互相更正**：
+        #   · 行均值口径（修订 49 用的那个）：逐行 a_mean / cos_mean，只对 4 个方向取 ptp
+        #   · 逐点口径：含点间 c 的变异，是**另一个量**
+        # 第一版把逐点的 21.6% 当成「修订 49 印的数」写进 note —— 修订 49 印的是 6.5%。
+        _a_row = _r["a_mean"]
+        _c_row = _n55.asarray([_r["real"][k]["cos_mean"] for k in _r["real"]],
+                              dtype=float)
+        _sp_claim = max(_sp_claim, float(_n55.ptp(_rel_claim(_a_row, _c_row))))
+        _sp_exact = max(_sp_exact, float(_n55.ptp(_rel_exact(_a_row, _c_row))))
+    l1_e_exact, l1_e_claim = _e_exact, _e_claim
+    l1_n_pts, l1_agree = _n_pts, _agree
+    l1_sp_claim, l1_sp_exact = _sp_claim, _sp_exact
+    l1_decades = int(round(_n55.log10(max(_e_claim, 1e-300) / max(_e_exact, 1e-300))))
+    # ⚠ 不要用「在 a=0.2、c 取某个代表值处差多少」来说明错得多离奇 ——
+    #   那个数完全取决于你挑哪个 c（实测第一版取平均 |c| 只得到 0.01，
+    #   而同一批数据上**实测最大差**是 1.2e-01）。直接报实测最大差。
+    l1_claim_gap_at_a02 = _e_claim
+    l1_sp_old_pct = 100.0 * l1_sp_claim
+    l1_sp_new_pct = 100.0 * l1_sp_exact
+    l1_sp_ratio = (l1_sp_claim / l1_sp_exact) if l1_sp_exact else 0.0
+
     # ---------- 修订 54：方向依赖到底测不测得出（从每点量现算） ----------
     # ⚠⚠ 关键简化（先推导再写）：本统计量对每个方向先**沿点轴平均**，
     #   所以整件事塌成一维 —— 每个方向只剩**一个**数（`dm`）。
@@ -317,7 +376,9 @@ def main(argv=None):
         #   页面上最醒目的一行不能是一个已被本项目自己证伪的断言。
         #   措辞与框架文档 §8.1 表的 L1 行由用户同步（见预登记 §49.5）。
         {"level": "L1",
-         "claim": "破坏量 ≈ ½(s·rms/‖h‖)²·(1−a·c)/(1+a·c)，**仅领头阶**与方向无关",
+         "claim": "破坏量 = ½(s·rms/‖h‖)²·2(1−c²)/[(1+ac)(√(1+2ac+a²)+1+ac)]"
+                  "（**恒等式**）；方向依赖 = c² + a·c 两项，其中 c² 项"
+                  "**不随 a 衰减**，故任何 a>0 都不与方向无关，只能说幅度小",
          "needs": "解析式 + 玩具自检 + 逐方向实测",
          "state": "done",
          "here": "s ≤ %.1f：实测 %.3f%%–%.3f%% vs 解析 %.3f%%–%.3f%%"
@@ -326,9 +387,6 @@ def main(argv=None):
                  "⚠ s = %s 时该近似本身失效（极差涨到 %.2fpp），"
                  "那些点不是反例，是解析式超范围。"
                  "（a = s·rms/‖h‖，c = cos(h,v)）"
-                 "⚠ 修订 49：二阶因子 `(1−a·c)/(1+a·c)` 在 s ≤ %.1f 内"
-                 "已实测到跨方向相对幅度最大 **%.1f%%**（逐行 a、c 取自本产物；"
-                 "预登记 §49.4）⇒ 「与方向无关」只在领头阶成立。"
                  "　⚠ 修订 50：上面那个「真实-vs-随机」比的是 **%d 条命名轴**"
                  "（`%s`）与 **%d 个随机方向**。这些轴的语义来自各自的构造式，"
                  "**不是**本项目的可读性判据 —— `linearity_law.json` 的 %d 个键名里"
@@ -357,9 +415,20 @@ def main(argv=None):
                  "答的是「小于 1pp 吗」，**不是**「测得出来吗」。"
                  "⇒ 与修订 49 的「存在 c 依赖」**一致**（那是另一个量：行间的 c 依赖）。"
                  "⇒ 它**不构成**「与语义无关」的证据（预登记 §50 / §51 / §54）。"
-                 % (l1_spread, l1_rndgap, beyond["strengths"][0],
-                    beyond["max_direction_spread_pp"], s_max,
-                    100.0 * l1_c_spread,
+                 "⚠⚠ 修订 55：claim 里那个二阶因子 `(1−a·c)/(1+a·c)` **代数上就是错的** ——"
+                 "它在实测的 (a,c) 上与真值的最大绝对差达 **%.2e**。"
+                 "由定义有理化可得**精确恒等式**"
+                 " rel = 2(1−c²)/[(1+ac)(√(1+2ac+a²)+1+ac)]，在安全区 %d 个点上"
+                 "逐点验到的最大绝对差只有 **%.1e**（claim 因子是 %.1e，差 %d 个数量级），"
+                 "符号 `sign(rel−1)` 的预测与实测**一致率 %.0f%%**。"
+                 "⚠ 修订 49 印的「跨方向相对幅度 %.1f%%」（**行均值口径**："
+                 "逐行 a_mean / cos_mean，只对 4 个方向取极差）"
+                 "**在该口径下已精确复现**，"
+                 "换成正确因子后同口径是 **%.2f%%**（旧数偏大 %.2f 倍）——"
+                 "**算法没错，错的是公式**。预登记 §55。"
+                 % (l1_spread, l1_rndgap,
+                    beyond["strengths"][0],
+                    beyond["max_direction_spread_pp"],
                     len(l1_real), "/".join(l1_real), l1_nrnd, len(_lk),
                     ("；其中 caution 还被可读性判据记为「被 confidence 吸收」"
                      "（cos=%s）" % l1_caution_cos) if l1_caution_cos else "",
@@ -367,12 +436,17 @@ def main(argv=None):
                     100.0 * l1_thr["random_indistinguishable"] / l1_base,
                     1.0 / l1_thr["random_indistinguishable"] / l1_rndgap
                     if l1_rndgap else 0.0,
+                    # ---- 修订 54 段（按占位符顺序，共 12 个）
                     int(law["design"]["n_points"]),
                     l1_npt, 10,
                     int(law["design"]["n_points"]), len(l1_real),
                     int(law["design"]["n_points"]),
                     l1_npt, l1_nsig, l1_npt, l1_npt * 0.05, l1_npt,
-                    100.0 * l1_thr["random_indistinguishable"] / l1_base)},
+                    # ---- 修订 55 段（9 个）
+                    100.0 * l1_thr["random_indistinguishable"] / l1_base,
+                    l1_claim_gap_at_a02, l1_n_pts, l1_e_exact, l1_e_claim,
+                    l1_decades, 100.0 * l1_agree / max(l1_n_pts, 1),
+                    l1_sp_old_pct, l1_sp_new_pct, l1_sp_ratio)},
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
          "needs": "留出轨迹 + 打乱地板",
          "state": "done", "here": "%d 条" % l2,
@@ -429,13 +503,29 @@ def main(argv=None):
     #   远小于 1pp，`direction_independent` 仍然是 True。
     #   ⇒ 这句话的强度与产物里的布尔**不同源**，只能在这里单独钉住。
     _l1 = next(x for x in ladder if x["level"] == "L1")
-    need("仅领头阶" in _l1["claim"],
-         "L1 的 claim 丢掉了「仅领头阶」这个限定 ⇒ 它在断言一件被 §49.4 "
-         "测到反例的事。claim=%r" % _l1["claim"])
-    need("(1−a·c)/(1+a·c)" in _l1["claim"],
-         "L1 的 claim 必须写出二阶因子，否则读者只看到 ½a² 与「无关」")
-    need("%.1f%%" % (100.0 * l1_c_spread) in _l1["note"],
-         "L1 的 note 必须印出那个从产物算出来的二阶幅度，否则 note 无出处")
+    # ⚠⚠ 修订 55：下面三条自检**方向全部反转**了 —— 它们钉的是修订 49 那个
+    #   **错误的**因子。事实一变，断言必须跟着变，而且要变成「**不许**再写错因子」。
+    # ⚠ 不能只是改字符串：那等于把一个错断言换成一个同样随便的断言。
+    need("任何 a>0 都不与方向无关" in _l1["claim"],
+         "L1 的 claim 必须说清「c² 项不随 a 衰减 ⇒ 任何 a>0 都不与方向无关」——"
+         "这是修订 55 从精确式读出来的，claim=%r" % _l1["claim"])
+    need("2(1−c²)/[(1+ac)(√(1+2ac+a²)+1+ac)]" in _l1["claim"],
+         "L1 的 claim 必须写出**精确**因子 2(1−c²)/[(1+ac)(√(1+2ac+a²)+1+ac)]，"
+         "否则读者只看到 ½a²")
+    # ⚠⚠ **反向锚点**：claim 里**不许**再出现修订 49 那个错因子。
+    #   少了这条，上面两条只要 claim 写对了就绿 —— 而「别把错的写回去」
+    #   恰恰是这次修订最需要防的回归。
+    need("(1−a·c)/(1+a·c)" not in _l1["claim"],
+         "⚠ L1 的 claim 又写回了修订 49 那个**代数上就是错的**因子 "
+         "`(1−a·c)/(1+a·c)`（a=0.2 处与真值差 %.2f）" % l1_claim_gap_at_a02)
+    # 幅度：note 必须同时印出「旧数已精确复现」与「换正确因子后的数」，
+    #   ⚠ 两个都要 —— 只印新的就像旧数从来没存在过，只印旧的等于没更正。
+    need("%.1f%%" % l1_sp_old_pct in _l1["note"],
+         "L1 的 note 必须印出修订 49 那个旧幅度 %.1f%%（并说明它在本口径下已复现）"
+         % l1_sp_old_pct)
+    need("%.2f%%" % l1_sp_new_pct in _l1["note"],
+         "L1 的 note 必须印出换精确因子后的幅度 %.2f%%，否则「更正」没有数字"
+         % l1_sp_new_pct)
     # ⚠⚠ 自检 8（修订 50 立，修订 51 改钉）：那句「真实-vs-随机」的 null
     #   **不构成**「与语义无关」的证据，理由两条，缺一不可：
     #   (a) 它的判定阈值是**硬编码的 1.0 个百分点**（≈ 基线信号的一半），

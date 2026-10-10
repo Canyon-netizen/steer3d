@@ -176,11 +176,16 @@ def main():
         h = H[L]
         for s in STRENGTHS:
             inj = s * rms
-            real, real_pts = {}, {}
+            real, real_pts, c_pts, a_pts = {}, {}, {}, {}
             for name in REAL:
                 u = np.asarray(reg._vectors[name], dtype=np.float64)
                 u = u / np.linalg.norm(u)
                 devp, predp, c_arr, hn, a = measure_points(h, u, inj)
+                # ⚠ 修订 55：逐点的 c 与 a 必须存下来 —— 没有它们就无法**逐点**
+                #   验那个恒等式（§55.3 的 V1/V3 要用）。
+                #   a = inj/‖h‖、c = (h·u)/‖h‖，两者都由 `measure_points` 顺带算出。
+                c_pts[name] = c_arr.tolist()
+                a_pts[name] = a.tolist()
                 real[name] = {"dev_pct": devp.mean() * 100.0,
                               "pred_pct": predp.mean() * 100.0,
                               "cos_mean": float(c_arr.mean()),
@@ -195,6 +200,10 @@ def main():
             #   同理 `random_dev_std/min/max` 都必须是**方向间**的量，保持原口径。
             rdev = np.array([x[0].mean() for x in rnd]) * 100.0
             rdev_pts = np.array([x[0] for x in rnd])          # (16, 96) 分数
+            # ⚠ 修订 55：随机臂的 c / a 也要存 —— 否则恒等式只能对真实臂验，
+            #   而「随机臂也满足同一恒等式」恰恰是它**不是拟合**的关键证据。
+            rc_pts = [x[2].tolist() for x in rnd]
+            ra_pts = [x[4].tolist() for x in rnd]
             out["rows"].append({
                 "layer": L, "strength": s, "layer_rms": rms,
                 "a_mean": real[REAL[0]]["a_mean"],
@@ -213,6 +222,10 @@ def main():
                 "random_dev_points": rdev_pts.tolist(),
                 "pred_points": (0.5 * (inj / np.linalg.norm(h, axis=1)) ** 2).tolist(),
                 "points_meta": POINTS_META,
+                "c_points": c_pts,
+                "a_points": a_pts,
+                "random_c_points": rc_pts,
+                "random_a_points": ra_pts,
                 "npz_sha256": NPZ_SHA,
             })
             r = out["rows"][-1]
