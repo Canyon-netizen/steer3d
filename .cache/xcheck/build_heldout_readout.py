@@ -175,14 +175,21 @@ if n_same + n_clean + n_weak != len(rows):
                      % (n_same, n_clean + n_weak, n_same + n_clean + n_weak, len(rows)))
 
 
-def _variant_row(vname, m):
-    """一个变体格子：余量 + **谁在约束** + 这个归属分不分得开。
+def _variant_row(vname, m, thr):
+    """一个变体格子：余量 + **谁在约束** + 这个归属分不分得开 + **还差多少 sem**。
 
     `tie` 的判据用 gap/sem < 2：两个竞争者差距不到 2 个标准误，
     `max` 选中谁是任意的，此时 margin 只应读成「并列里的下界」。
+
+    ⚠ 修订 64（V3）：`thr` 是 `clean_threshold`，用来把「离过线还差多少」
+      折成 sem。没有它，「1.675× < 2.0」读者无法判断该不该继续试。
     """
     gap_sem = m.get("top2_gap_over_sem")
-    return {
+    # ⚠ 修订 64：原来是 `return {…}`，于是我后面追加的「算路径」整块
+    #   落在 return 之后 ⇒ **死代码**，产物里没有 `path_to_threshold`
+    #   而构建器 exit=0、什么也没报错。
+    #   ⇒ 改成先赋值再 return。
+    row = {
         "name": vname,
         "short": vname.replace("V1_", "").replace("V2_", "")
                      .replace("V3_", ""),
@@ -198,6 +205,64 @@ def _variant_row(vname, m):
         "tie": (gap_sem is not None and gap_sem < 2.0),
         "margin": m["margin"],
         "n_positive": m.get("n_positive_total"),
+        # ⚠⚠ 修订 64（V1/V2）：`recipe_variants.json` **早就算好**了竞争者的
+        #   标准误，但此前**没往产物里带** ⇒ 读者拿得到 `rho_own_sem`
+        #   却拿不到竞争者的 sem ⇒「最紧的竞争者还差多远」**无法用 sem 表述**。
+        #   「1.675× < 2.0」不是一个可执行的数；补上 sem 之后它才是。
+        "rho_others_sem": m.get("rho_others_sem"),
+    }
+    p = _path_to_threshold(row, thr)
+    # ⚠ 「哪条路更便宜」是**这轮唯一能给出行动建议**的量：
+    #   抬自身要 +5.1 个 sem，压竞争者只要 −2.4 个 sem —— 差一倍多。
+    a, b = p["path_A_raise_own"]["n_sem"], p["path_B_push_competitor"]["n_sem"]
+    if a is not None and b is not None:
+        p["cheaper_path"] = ("path_B_push_competitor" if b < a
+                             else "path_A_raise_own")
+        p["n_sem_ratio"] = (a / b) if b else None
+    row["path_to_threshold"] = p
+    return row
+
+
+def _path_to_threshold(v, thr):
+    """到阈值的**两条路径**，各自折成 sem 倍数（修订 64 V2）。
+
+    ⚠⚠ 只报一条会给出**错误处方**：余量 = 自身 ÷ max(竞争者)，
+      提高分子与压低分母是**两件不同难度的事**，差着好几倍 sem。
+    ⚠⚠ `tie` 为真时（两个竞争者差不到 2 个 sem），`max` 选中谁是任意的
+      ⇒ **两条竞争者都得压**，只报 `worst` 那一条会让人以为压一条就够。
+    """
+    own, sem_own = v["rho_own"], v.get("rho_own_sem")
+    worst, worst_name = v["worst_rho"], v["worst_name"]
+    ose = v.get("rho_others_sem") or {}
+    need_own = thr * worst
+    need_worst = own / thr
+    # ⚠ tie 时要压的是「两个竞争者里较大的那个」——
+    #   压过 worst 但 runner_up 更高，max 会换人，余量不会涨。
+    cands = [(worst, worst_name)]
+    if v.get("tie") and v.get("runner_up_rho") is not None:
+        cands.append((v["runner_up_rho"], v.get("runner_up_name")))
+    return {
+        "threshold": thr,
+        "path_A_raise_own": {
+            "rho_own_now": own, "rho_own_needed": need_own,
+            "delta": need_own - own,
+            "n_sem": ((need_own - own) / sem_own
+                      if sem_own else None),
+            "meaning": "把配方对自身目标的 LOO ρ 抬到「竞争者不变也能过线」",
+        },
+        "path_B_push_competitor": {
+            "binding_names": sorted(n for _, n in cands),
+            "worst_now": worst, "worst_needed": need_worst,
+            "delta": worst - need_worst,
+            "n_sem": ((worst - need_worst) / (ose.get(worst_name) or 0.0)
+                      if ose.get(worst_name) else None),
+            "must_push_all_tied": bool(v.get("tie")),
+            "meaning": ("把约束方的 LOO ρ 压到「自身不变也能过线」"
+                        + ("；⚠ 本行是**并列** ⇒ 两条都得压，"
+                           "只压其中一条，max 会换人、余量不涨"
+                           if v.get("tie") else "")),
+        },
+        "cheaper_path": None,   # 由调用方填（需要两边 n_sem 都拿到）
     }
 
 
@@ -275,14 +340,17 @@ payload = {
         #   报出来的 1.675× 只是一个并列里的下界。
         # ⇒ 每条都带 worst/runner_up 身份 + gap_over_sem + tie 标记。
         #   不印这些，页面上的「1.68×」会被读成干净的结论。
-        "variants": [_variant_row(v, m) for v, m in var["targets"]["emitted_is_upper"].items()],
+        "variants": [_variant_row(v, m, NEW_CLEAN) for v, m
+                     in var["targets"]["emitted_is_upper"].items()],
         "control_self_check": [
-            _variant_row(v, m) for v, m in var["targets"]["self_check"].items()],
+            _variant_row(v, m, NEW_CLEAN) for v, m in var["targets"]["self_check"].items()],
         "closure_v1_selfcheck_vs_caution_axis": var["closure_v1_selfcheck_vs_caution_axis"],
         "best_margin": max(m["margin"] for m in
                            var["targets"]["emitted_is_upper"].values()
                            if m["margin"]),
-        "clean_threshold": 2.0,
+        # ⚠ 修订 64：这里原来又写死一个 `2.0`，而上面已有具名的 `NEW_CLEAN` ——
+        #   两个 2.0 各自漂移的话，路径 A/B 会按旧阈值算，而 margin 按新阈值判。
+        "clean_threshold": NEW_CLEAN,
         # 涨幅归因：自身涨了多少 vs 竞争者掉了多少。1.15× → 1.68× 看着是「变干净了」，
         # 拆开看几乎全是竞争者下降 —— 这个数不给，读者会归因到配方本身。
         "margin_gain_attribution": _attribution(

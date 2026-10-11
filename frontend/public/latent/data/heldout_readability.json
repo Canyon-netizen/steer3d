@@ -187,7 +187,34 @@
     "gap_over_sem": 5.509890630016407,
     "tie": false,
     "margin": 1.1458096503301975,
-    "n_positive": 1257
+    "n_positive": 1257,
+    "rho_others_sem": {
+     "entropy": 0.013654657583534523,
+     "self_check": 0.014100027170745483
+    },
+    "path_to_threshold": {
+     "threshold": 2.0,
+     "path_A_raise_own": {
+      "rho_own_now": 0.36879925114326645,
+      "rho_own_needed": 0.6437356345130912,
+      "delta": 0.2749363833698248,
+      "n_sem": 19.800018321809834,
+      "meaning": "把配方对自身目标的 LOO ρ 抬到「竞争者不变也能过线」"
+     },
+     "path_B_push_competitor": {
+      "binding_names": [
+       "entropy"
+      ],
+      "worst_now": 0.3218678172565456,
+      "worst_needed": 0.18439962557163322,
+      "delta": 0.1374681916849124,
+      "n_sem": 10.067494614488062,
+      "must_push_all_tied": false,
+      "meaning": "把约束方的 LOO ρ 压到「自身不变也能过线」"
+     },
+     "cheaper_path": "path_B_push_competitor",
+     "n_sem_ratio": 1.9667274808685533
+    }
    },
    {
     "name": "V2_banded",
@@ -201,7 +228,35 @@
     "gap_over_sem": 0.02675959964665801,
     "tie": true,
     "margin": 1.6750717854926886,
-    "n_positive": 1257
+    "n_positive": 1257,
+    "rho_others_sem": {
+     "entropy": 0.01353296296250603,
+     "self_check": 0.015050991842000306
+    },
+    "path_to_threshold": {
+     "threshold": 2.0,
+     "path_A_raise_own": {
+      "rho_own_now": 0.3754472448152663,
+      "rho_own_needed": 0.44827600592035055,
+      "delta": 0.07282876110508424,
+      "n_sem": 5.128557184805081,
+      "meaning": "把配方对自身目标的 LOO ρ 抬到「竞争者不变也能过线」"
+     },
+     "path_B_push_competitor": {
+      "binding_names": [
+       "entropy",
+       "self_check"
+      ],
+      "worst_now": 0.22413800296017528,
+      "worst_needed": 0.18772362240763316,
+      "delta": 0.03641438055254212,
+      "n_sem": 2.4194007235407935,
+      "must_push_all_tied": true,
+      "meaning": "把约束方的 LOO ρ 压到「自身不变也能过线」；⚠ 本行是**并列** ⇒ 两条都得压，只压其中一条，max 会换人、余量不涨"
+     },
+     "cheaper_path": "path_B_push_competitor",
+     "n_sem_ratio": 2.1197634335247435
+    }
    },
    {
     "name": "V3_residualized",
@@ -215,7 +270,35 @@
     "gap_over_sem": 0.4328551927090131,
     "tie": true,
     "margin": 1.43904619298236,
-    "n_positive": 1257
+    "n_positive": 1257,
+    "rho_others_sem": {
+     "entropy": 0.014507713357490262,
+     "self_check": 0.009161100170339291
+    },
+    "path_to_threshold": {
+     "threshold": 2.0,
+     "path_A_raise_own": {
+      "rho_own_now": 0.20257791341572273,
+      "rho_own_needed": 0.28154469870892596,
+      "delta": 0.07896678529320322,
+      "n_sem": 8.302083288054572,
+      "meaning": "把配方对自身目标的 LOO ρ 抬到「竞争者不变也能过线」"
+     },
+     "path_B_push_competitor": {
+      "binding_names": [
+       "entropy",
+       "self_check"
+      ],
+      "worst_now": 0.14077234935446298,
+      "worst_needed": 0.10128895670786137,
+      "delta": 0.03948339264660161,
+      "n_sem": 4.309896400263823,
+      "must_push_all_tied": true,
+      "meaning": "把约束方的 LOO ρ 压到「自身不变也能过线」；⚠ 本行是**并列** ⇒ 两条都得压，只压其中一条，max 会换人、余量不涨"
+     },
+     "cheaper_path": "path_B_push_competitor",
+     "n_sem_ratio": 1.9262837240232442
+    }
    }
   ],
   "control_self_check": [
@@ -231,7 +314,35 @@
     "gap_over_sem": 1.7131869041136931,
     "tie": true,
     "margin": 0.6532691208304632,
-    "n_positive": 379
+    "n_positive": 379,
+    "rho_others_sem": {
+     "emitted_is_upper": 0.013631875772454847,
+     "entropy": 0.015569795629430349
+    },
+    "path_to_threshold": {
+     "threshold": 2.0,
+     "path_A_raise_own": {
+      "rho_own_now": 0.23228682752251986,
+      "rho_own_needed": 0.7111520202492567,
+      "delta": 0.4788651927267369,
+      "n_sem": 32.88561926920964,
+      "meaning": "把配方对自身目标的 LOO ρ 抬到「竞争者不变也能过线」"
+     },
+     "path_B_push_competitor": {
+      "binding_names": [
+       "emitted_is_upper",
+       "entropy"
+      ],
+      "worst_now": 0.35557601012462836,
+      "worst_needed": 0.11614341376125993,
+      "delta": 0.23943259636336844,
+      "n_sem": 15.3780179304851,
+      "must_push_all_tied": true,
+      "meaning": "把约束方的 LOO ρ 压到「自身不变也能过线」；⚠ 本行是**并列** ⇒ 两条都得压，只压其中一条，max 会换人、余量不涨"
+     },
+     "cheaper_path": "path_B_push_competitor",
+     "n_sem_ratio": 2.1384823075292294
+    }
    },
    {
     "name": "V2_banded",
@@ -245,7 +356,34 @@
     "gap_over_sem": 5.059570753093441,
     "tie": false,
     "margin": 0.7360794520993156,
-    "n_positive": 379
+    "n_positive": 379,
+    "rho_others_sem": {
+     "emitted_is_upper": 0.014895786341731937,
+     "entropy": 0.016583775885261737
+    },
+    "path_to_threshold": {
+     "threshold": 2.0,
+     "path_A_raise_own": {
+      "rho_own_now": 0.25377155499393317,
+      "rho_own_needed": 0.6895221820692612,
+      "delta": 0.435750627075328,
+      "n_sem": 27.275069731502903,
+      "meaning": "把配方对自身目标的 LOO ρ 抬到「竞争者不变也能过线」"
+     },
+     "path_B_push_competitor": {
+      "binding_names": [
+       "emitted_is_upper"
+      ],
+      "worst_now": 0.3447610910346306,
+      "worst_needed": 0.12688577749696658,
+      "delta": 0.217875313537664,
+      "n_sem": 14.626640617640035,
+      "must_push_all_tied": false,
+      "meaning": "把约束方的 LOO ρ 压到「自身不变也能过线」"
+     },
+     "cheaper_path": "path_B_push_competitor",
+     "n_sem_ratio": 1.8647528468436283
+    }
    },
    {
     "name": "V3_residualized",
@@ -259,7 +397,34 @@
     "gap_over_sem": 3.2876022254507276,
     "tie": false,
     "margin": 0.8453013552452368,
-    "n_positive": 379
+    "n_positive": 379,
+    "rho_others_sem": {
+     "emitted_is_upper": 0.009404596552255107,
+     "entropy": 0.01597307106003023
+    },
+    "path_to_threshold": {
+     "threshold": 2.0,
+     "path_A_raise_own": {
+      "rho_own_now": 0.1516471414706716,
+      "rho_own_needed": 0.3588001853532486,
+      "delta": 0.207153043882577,
+      "n_sem": 19.915011985090885,
+      "meaning": "把配方对自身目标的 LOO ρ 抬到「竞争者不变也能过线」"
+     },
+     "path_B_push_competitor": {
+      "binding_names": [
+       "emitted_is_upper"
+      ],
+      "worst_now": 0.1794000926766243,
+      "worst_needed": 0.0758235707353358,
+      "delta": 0.1035765219412885,
+      "n_sem": 11.013393436473583,
+      "must_push_all_tied": false,
+      "meaning": "把约束方的 LOO ρ 压到「自身不变也能过线」"
+     },
+     "cheaper_path": "path_B_push_competitor",
+     "n_sem_ratio": 1.8082539319023494
+    }
    }
   ],
   "closure_v1_selfcheck_vs_caution_axis": 0.990293666279135,
