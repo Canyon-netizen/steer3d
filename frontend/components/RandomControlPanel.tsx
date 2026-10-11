@@ -16,6 +16,10 @@
  *   · 判决规则「取数前写死」这件事要印给读者看，因为它是结论可信的前提。
  */
 import { useEffect, useState } from "react";
+// ⚠ 预登记修订 79 Z4：下面的告警文案含 `**`，必须经 `<Em>` 渲染，
+//   否则星号在页面上是**字面**的（`next build` 抓不到这类问题 ——
+//   它只查类型，不查「这个字符串最终怎么显示」）。
+import { Em } from "./md";
 
 type Collapse = {
   what: string;
@@ -271,12 +275,12 @@ export default function RandomControlPanel() {
         {pp && pp.n_axes_exceeding > 0 && (
           <p className="text-[9px] text-amber-500/90 leading-relaxed mt-1"
              data-rc="axes-pp-caveat">
-            ⚠ 逐题看不是全干净：{pp.n_axes_exceeding}/{pp.n_axes} 条轴在**个别题**上
+            ⚠ 逐题看不是全干净：{pp.n_axes_exceeding}/{pp.n_axes} <Em s={"条轴在**个别题**上"} />{" "}
             越过了该题的零分布上界（
             {Object.keys(pp.per_problem_null_max)
               .map((k) => `${k} 上界 ${pp.per_problem_null_max[k]}`)
               .join("，")}
-            ）。判决用的是**跨题中位**，n=3 时单题越界可能是运气 ——
+            <Em s={"）。判决用的是**跨题中位**，n=3 时单题越界可能是运气 ——"} />{" "}
             这不推翻 OUTSIDE/INSIDE，但那句话不能被读成「逐题也成立」。
           </p>
         )}
@@ -308,8 +312,7 @@ export default function RandomControlPanel() {
           <p className="text-[9px] text-amber-500/90 leading-relaxed mt-1"
              data-rc="occurrence-caveat">
             ⚠ 两个口径中位差差 {Math.round(occ.full_text.median_diff /
-              Math.max(occ.fixed_prefix.median_diff, 1e-9))} 倍
-            ⇒ 塌缩发生在文本**靠后**处，不是开头就重复。
+              Math.max(occ.fixed_prefix.median_diff, 1e-9))}<Em s={" 倍 ⇒ 塌缩发生在文本**靠后**处，不是开头就重复。"} />{" "}
             长度也不对称：+v 步数中位 {occ.length_confound.n_steps_up_median} vs 零臂{" "}
             {occ.length_confound.n_steps_zero_median}，
             另有 {occ.length_confound.problems_where_up_shorter_than_zero} 题 +v 反而更短。

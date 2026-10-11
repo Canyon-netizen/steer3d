@@ -23,6 +23,8 @@
  * **最优方向在分析侧选定**，这里只负责显示。
  */
 import { useEffect, useState } from "react";
+// ⚠ 预登记修订 79 Z4：下面的下界说明含 `**`，必须经 `<Em>` 渲染，否则星号字面显示。
+import { Em } from "./md";
 
 type Row = {
   key: string;
@@ -171,7 +173,7 @@ export default function SubspacePanel() {
           <b>「至少 {h.readable_directions_lower_bound} 条」是下界，而且只在两个前提下成立：</b>
           ① 候选集合就是这 {h.n_candidates} 个 —— 每加一批观测量，计数就可能涨
           （上一版候选只有 20 个里的 14 个时，它是 {h.readable_directions_lower_bound_old} 条）；
-          ② 分隔门槛 |cos| &lt; {h.separation_threshold} 是**选定的**。
+          ② 分隔门槛 |cos| &lt; {h.separation_threshold} <Em s={"是**选定的**。"} />
         </p>
         <div className="flex flex-col gap-0.5">
           {Object.entries(h.threshold_sensitivity).map(([sep, v]) => (
