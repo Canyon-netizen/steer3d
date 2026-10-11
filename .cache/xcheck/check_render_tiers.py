@@ -77,27 +77,20 @@ def run_instrument():
     return json.loads(p.stdout)
 
 
-def main() -> int:
-    print("=== 修订 73 W7：渲染覆盖三级判定（AST 仪器，非正则）===\n")
+def classify() -> list[dict]:
+    """跑仪器 + Y1，把**每个被 Y1 判为「已覆盖」**的叶子分级。
+
+    返回 [{artifact, panel, path, name, tier}]，tier ∈ {'A','B','C'}。
+    仪器自检不通过时直接 SystemExit —— 不发数。
+    """
     data = run_instrument()
     known = data["known_answers"]
-    nok = sum(1 for k in known if k["ok"])
-    print(f"W7d 阳性对照：{nok}/{len(known)} 已知答案成立")
-    for k in known:
-        c = k["check"]
-        tag = k["ok"] and "ok" or "✗"
-        what = c.get("must_access") or c.get("must_NOT_access") or c.get("must_loop")
-        print(f"   [{tag}] {what}   （{c['why']}）")
-    if nok != len(known):
-        print("\n✗ 仪器不可信 ⇒ 本次不发任何分级数字。")
-        return 1
+    if sum(1 for k in known if k["ok"]) != len(known):
+        raise SystemExit("仪器自检未通过 ⇒ 不发任何分级数字")
 
     y1 = load_y1()
     panels = data["panels"]
-    tot = A = B = C = 0
-    raw_parent_hit = 0
-    c_samples, b_samples = [], []
-
+    rows: list[dict] = []
     for art_rel, panel_rel in PAIRS:
         art = json.loads((ROOT / art_rel).read_text(encoding="utf-8"))
         src = (ROOT / panel_rel).read_text(encoding="utf-8")
@@ -105,7 +98,7 @@ def main() -> int:
         info = panels.get(pname, {})
         acc_all: set[tuple[str, ...]] = set()
         loop_all: set[tuple[str, ...]] = set()
-        for root, blob in info.items():
+        for _root, blob in info.items():
             for a in blob["accesses"]:
                 segs = a.split("/")
                 if segs[0] in ("d", "j", "x"):
@@ -119,34 +112,31 @@ def main() -> int:
 
         for lpath, lname, val in y1.leaves(art):
             if not y1.name_pattern(lname).search(src):
-                continue                      # Y1 已判「未渲染」，不在本分级范围
-            tot += 1
+                continue                       # Y1 已判「未渲染」，不在本分级范围
             segs = norm(lpath)
-            # W7f 的基准：不带别名的朴素父形态命中数
-            pseg = lpath.rsplit(".", 2)
-            praw = ".".join(pseg[-2:]) if len(pseg) >= 2 else lpath
-            if y1.name_pattern(praw).search(src):
-                raw_parent_hit += 1
-
             if segs in acc_all:
-                # ⚠⚠ W7a 的 B 级有**两个**条件：
-                #   「祖先容器在循环站点里」**且**「该循环的回调里访问过这个字段」。
-                #   第一版只实现前半个，于是 `per_id.7196.freq` 被判成 B ——
-                #   而 `Object.entries(rs.per_id).map(([id,v]) => …)` 的回调体里
-                #   **只用了 `v.dot` 与 `v.share`，根本没有 `v.freq`**。
-                #   ⇒ 实现没实现判据，改实现、不改判据。
-                hit_loop = next((l for l in loop_all
-                                 if len(l) < len(segs) and segs[:len(l)] == l), None)
-                if hit_loop is not None:
-                    B += 1
-                    if len(b_samples) < 6:
-                        b_samples.append((Path(art_rel).name, lpath, hit_loop))
-                else:
-                    A += 1
+                hit = next((l for l in loop_all
+                            if len(l) < len(segs) and segs[:len(l)] == l), None)
+                tier = "B" if hit is not None else "A"
             else:
-                C += 1
-                if len(c_samples) < 14:
-                    c_samples.append((Path(art_rel).name, lpath))
+                tier = "C"
+            rows.append({"artifact": Path(art_rel).name, "panel": pname,
+                         "path": lpath, "name": lname, "tier": tier})
+    return rows
+
+
+def main() -> int:
+    print("=== 修订 73 W7：渲染覆盖三级判定（AST 仪器，非正则）===\n")
+    rows = classify()
+    tot = len(rows)
+    cnt = {t: sum(1 for r in rows if r["tier"] == t) for t in "ABC"}
+    A, B, C = cnt["A"], cnt["B"], cnt["C"]
+
+    data = run_instrument()
+    for k in data["known_answers"]:
+        c = k["check"]
+        what = c.get("must_access") or c.get("must_NOT_access") or c.get("must_loop")
+        print(f"   [{'ok' if k['ok'] else '✗'}] {what}   （{c['why']}）")
 
     print(f"\nY1 判为「已覆盖」的叶子：{tot}")
     print(f"  A 强（完整路径逐字出现）      {A:5d}  {100*A/tot:5.1f}%")
@@ -158,19 +148,31 @@ def main() -> int:
     print("   把整个对象作为单个 prop 丢给子组件。")
     print("   「`{...spread}` 0 处 / 数据对象解构 0 处」是**本次实测**，不是保证。")
 
-    # W7f
+    print("\nB 样本（前 6 条）:")
+    for r in [r for r in rows if r["tier"] == "B"][:6]:
+        print(f"   · {r['artifact']}: {r['path']}")
+
+    # ⚠⚠ W7f：别名展开**只可能**让 A 变大。
+    #   若 A 小于「不做别名展开时父形态逐字命中」的数，说明这台仪器
+    #   比一次朴素字符串搜索还弱 ⇒ 判红。
+    #   ⚠ 抽 classify() 时第一版把这一段弄丢了 —— 那是**已提交的判据**，
+    #   静默删掉它就等于让判据自己变弱。补回来。
+    y1 = load_y1()
+    raw_parent_hit = 0
+    for art_rel, panel_rel in PAIRS:
+        art = json.loads((ROOT / art_rel).read_text(encoding="utf-8"))
+        src = (ROOT / panel_rel).read_text(encoding="utf-8")
+        for lpath, lname, _v in y1.leaves(art):
+            if not y1.name_pattern(lname).search(src):
+                continue
+            pseg = lpath.rsplit(".", 2)
+            praw = ".".join(pseg[-2:]) if len(pseg) >= 2 else lpath
+            if y1.name_pattern(praw).search(src):
+                raw_parent_hit += 1
     ok_f = A >= raw_parent_hit
     print(f"\nW7f 一致性方向检查：A({A}) {'≥' if ok_f else '<'} "
           f"朴素父形态命中({raw_parent_hit})"
           f"　{'✓ 别名展开只可能让 A 变大' if ok_f else '✗ 仪器比朴素字符串搜索还弱'}")
-
-    print("\nC 样本（前 14 条）:")
-    for a, p in c_samples:
-        print(f"   · {a}: {p}")
-    print("\nB 样本（前 6 条，含命中的循环容器）:")
-    for a, p, loop in b_samples:
-        print(f"   · {a}: {p}   ← 容器 {loop}")
-
     return 0 if ok_f else 1
 
 
