@@ -47,7 +47,12 @@ ARTIFACT = ROOT / "frontend/public/latent/data/bpath_marker_steering.json"
 # ⚠⚠ 不许把标识符里的数字当成「该格报出的数」：
 #   `P9` 的 9、`Q3` 的 3、`L6` 的 6 全是**名字的一部分**，不是量。
 #   代理指标（"有数字就算"）正是 §62 要拆掉的那条。
-TOK = re.compile(r"(?<![0-9A-Za-z_.])(-?\d+(?:\.\d+)?)(?![0-9A-Za-z_.])")
+# ⚠⚠⚠ 修订 63 补 `(?<![A-Za-z]-)`：**带连字符的标识符**也算名字 ——
+#   `R-6` 的 6 若被计入，`not_answerable` 里那句「R-6 的 P6」就会一直判红，
+#   而它是**正当引用**（预登记里的臂编号/条目号），不是测量量。
+#   ⚠ 这个边界放宽过判据，所以要**连着看 T4b 报告的 `n_seen`**：
+#   若哪天有人把真正的测量量写成 `X-1` 的形式，会被这个规则放过。
+TOK = re.compile(r"(?<![0-9A-Za-z_.])(?<![A-Za-z]-)(-?\d+(?:\.\d+)?)(?![0-9A-Za-z_.])")
 
 # ⚠ 阈值不是拍脑袋的：连续量与整数要分开报，
 #   否则「11/11 全过」会掩盖「只有 4 个真的承重」。
@@ -122,54 +127,148 @@ def check_t4(path):
                        % (n_tok, len(bad), weak, len(vals), n_tok - weak))}
 
 
-def check_t4b(builder=None):
-    """T4b：`here` 字段里**不许有手打的数字字面量**。
+def _str_parts(node, seen=None):
+    """取出 `node` 底下**所有**字符串字面量片段（递归）。
+
+    ⚠⚠⚠ 这一段是被第三条阳性对照逼出来的：
+      第一版只认 `JoinedStr` 与 `Constant` 两种形态，
+      而 `answerable` / `not_answerable` 的值是 **List**
+      ⇒ 两个分支都不进，`parts` 恒为空
+      ⇒ 守卫报「扫描 3 个散文块字段，手打数字 **0** 个（要求 0）」并 **PASS**。
+    ⚠⚠ 那是**恒真**：它一个字都没看，却长得像一条真判据。
+      ⇒ 「全过」又一次被证明只说明「没抓到现行」。
+      ⇒ 守卫现在必须报**扫了多少个字符串片段**（`n_parts`），
+        `n_parts == 0` 与 `n_seen == 0` 一样直接判红。
+    """
+    seen = set() if seen is None else seen
+    out = []
+    if id(node) in seen:
+        return out
+    seen.add(id(node))
+    if isinstance(node, ast.JoinedStr):
+        # ⚠⚠ **不下钻 FormattedValue**：插值里的 `'n_pass'`、`'w·ĥ>0'`
+        #   是**字段名/比较串**，不是散文。第一版递归下去，
+        #   T4b 的阳性对照就从「数到 1」变成「数到 2」。
+        #   ⇒ f-string 只取它自己的 Constant 片段。
+        return [x.value for x in node.values
+                if isinstance(x, ast.Constant) and isinstance(x.value, str)]
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [node.value]
+    for child in ast.iter_child_nodes(node):
+        out.extend(_str_parts(child, seen))
+    return out
+
+
+def check_t4b(builder=None, fields=("here",), label=None):
+    """T4b / U1：指定字段里**不许有手打的数字字面量**。
 
     ⚠⚠ 为什么 T4a 不够：T4a 只能验「产物里能不能找到这个数」。
-      而 `here` 里手打的数**恰好**能被产物里的别的数撞上
+      而字段里手打的数**恰好**能被产物里的别的数撞上
       （实测：L6 的「5/5」被放过了，因为 "5" 在产物别处也存在）
       ⇒ T4a 对整数层近乎无判据。
-    ⇒ T4b 从**源头**拦：数字只能从插值 `{...}` 来，不能是键字面量里的字符。
+    ⇒ T4b 从**源头**拦：数字只能从插值 `{...}` 或**具名常量**来，
+      不能是键字面量里的字符。
 
-    ⚠ 作用域**只有 `here`**：全文件有 113 处字符串常量带数字，
+    ⚠ 作用域由 `fields` 决定，**不是**全文件：全文件有 113 处字符串常量带数字，
       其中绝大多数是正当引用（`§37.3`、`修订 42`）——
       对它们一刀切会把「不许写死数字」变成「不许写编号」。
+      - 修订 62：`fields = ("here",)`
+      - 修订 63（U1）：扩到 `answerable` / `not_answerable` / `the_one_line`
     """
     builder = builder or BUILDER
+    label = label or ("/".join(fields))
     if not builder.exists():
-        return {"name": "T4b here 无手打数字", "ok": False, "n": None,
+        return {"name": "T4b %s 无手打数字" % label, "ok": False, "n": None,
                 "detail": "构建器不在 %s ⇒ 本项无判据" % builder}
     tree = ast.parse(builder.read_text(encoding="utf-8"))
-    bad, n_here = [], 0
+    bad, n_seen, n_parts = [], 0, 0
     for nd in ast.walk(tree):
         if not isinstance(nd, ast.Dict):
             continue
         for k, v in zip(nd.keys, nd.values):
-            if not (isinstance(k, ast.Constant) and k.value == "here"):
+            if not (isinstance(k, ast.Constant) and k.value in fields):
                 continue
-            n_here += 1
-            # ⚠ f-string 要拆开看：**字面片段**才可能被手打，
-            #   插值部分（FormattedValue）永远不看。
-            parts = []
-            if isinstance(v, ast.JoinedStr):
-                parts = [x.value for x in v.values
-                         if isinstance(x, ast.Constant) and isinstance(x.value, str)]
-            elif isinstance(v, ast.Constant) and isinstance(v.value, str):
-                parts = [v.value]
+            n_seen += 1
+            # ⚠ 必须**递归**取片段：字段值可能是 List（answerable 就是），
+            #   只认 JoinedStr/Constant 会让这条判据恒真（见 `_str_parts`）。
+            parts = _str_parts(v)
+            n_parts += len(parts)
             for p in parts:
                 for m in TOK.finditer(p):
-                    bad.append((v.lineno, m.group(1)))
-    if n_here == 0:
-        return {"name": "T4b here 无手打数字", "ok": False, "n": None,
-                "detail": "构建器里 0 个 here 字段 ⇒ 本项无判据"}
-    return {"name": "T4b here 无手打数字", "ok": not bad,
-            "n": len(bad), "lines": bad, "n_here": n_here,
-            "detail": ("扫描 %d 个 here 字段，手打数字 %d 个（要求 0）"
-                       % (n_here, len(bad)))}
+                    bad.append((getattr(v, "lineno", 0), m.group(1)))
+    if n_seen == 0:
+        return {"name": "T4b %s 无手打数字" % label, "ok": False, "n": None,
+                "detail": "构建器里 0 个 %s 字段 ⇒ 本项无判据" % label}
+    # ⚠⚠ 扫到 0 个字符串片段 ⇒ 一个字都没看 ⇒ 与「0 个字段」同样是无判据，
+    #   绝不能报 PASS（这正是本条判据自己的漏洞）。
+    if n_parts == 0:
+        return {"name": "T4b %s 无手打数字" % label, "ok": False, "n": None,
+                "detail": ("扫到 %d 个字段但 **0 个字符串片段** ⇒ "
+                           "本项无判据（不是「0 个手打数字」）" % n_seen)}
+    return {"name": "T4b %s 无手打数字" % label, "ok": not bad,
+            "n": len(bad), "lines": bad, "n_seen": n_seen, "n_parts": n_parts,
+            "detail": ("扫描 %d 个 %s 字段 / %d 个字符串片段，"
+                       "手打数字 %d 个（要求 0）"
+                       % (n_seen, label, n_parts, len(bad)))}
+
+
+def check_u2(builder=None, src=None):
+    """U2：判据常量必须与**源产物**交叉核对（「只钉一个数字不够，还要钉出处」）。
+
+    ⚠ 改的是构建器里的 `ORTH_MIN`，比的是 `extreme_pick_abs.json` 的 `orth_min`。
+    ⇒ 两边漂了 ⇒ 判红，而不是让散文里的所有 `|w·ĥ|>0.1` 继续按旧阈值说。
+    """
+    builder = builder or BUILDER
+    src = src or (ROOT / ".cache/mutbak/extreme_pick_abs.json")
+    if not builder.exists() or not src.exists():
+        return {"name": "U2 判据常量对源产物", "ok": False, "n": None,
+                "detail": "构建器或源产物缺失（%s / %s）⇒ 本项无判据"
+                          % (builder.exists(), src.exists())}
+    # ⚠ 行尾可以有注释（`ORTH_MIN = 0.1   # 判据常量…`），
+    #   所以不能锚 `$` —— 第一版用 `^...$` 结果报「找不到常量 ⇒ 本项无判据」，
+    #   而常量明明在。判据自己报「无判据」比判红更需要当回事。
+    m = re.search(r"^ORTH_MIN\s*=\s*([0-9.]+)", builder.read_text(encoding="utf-8"), re.M)
+    if not m:
+        return {"name": "U2 判据常量对源产物", "ok": False, "n": None,
+                "detail": "构建器里找不到 ORTH_MIN 常量 ⇒ 本项无判据"}
+    used = float(m.group(1))
+    j = json.loads(src.read_text(encoding="utf-8"))
+    orth, dec = j.get("orth_min"), j.get("decile")
+    ok = orth is not None and dec is not None and float(orth) == used == float(dec)
+    return {"name": "U2 判据常量对源产物", "ok": ok,
+            "n": 1, "used": used, "orth_min": orth, "decile": dec,
+            "detail": ("构建器 ORTH_MIN=%g vs 源产物 orth_min=%r / decile=%r"
+                       % (used, orth, dec))}
+
+
+def check_u3(path=None):
+    """U3：L5 `here` 必须**分域陈述**。
+
+    ⚠⚠ 这条判据是**弱代理**：它只查「注入域」与「预测域」两个标记词同时出现，
+      查不出「分域了但分错域」。报出来是为了让弱点可见，不是假装它够用。
+    ⚠ 它拦的正是修订 62 那个真实缺陷：当时那句只讲了注入域，
+      读起来却是本项目级的断言。
+    """
+    path = path or ARTIFACT
+    if not path.exists():
+        return {"name": "U3 L5 分域陈述", "ok": False, "n": None,
+                "detail": "产物不在 %s ⇒ 本项无判据" % path}
+    j = json.loads(path.read_text(encoding="utf-8"))
+    l5 = [r for r in (j.get("ladder_mapping") or []) if r.get("level") == "L5"]
+    if not l5:
+        return {"name": "U3 L5 分域陈述", "ok": False, "n": None,
+                "detail": "产物里没有 L5 ⇒ 本项无判据"}
+    here = l5[0].get("here", "")
+    hit_inj, hit_pre = "注入" in here, "预测" in here
+    ok = hit_inj and hit_pre
+    return {"name": "U3 L5 分域陈述", "ok": ok, "n": 1,
+            "detail": ("L5 here 注入域标记=%s、预测域标记=%s（要求同时为真）；"
+                       "⚠ 本判据是**弱代理**，查不出「分域但分错域」"
+                       % (hit_inj, hit_pre))}
 
 
 def report(res):
-    print("=== B 路静态守卫（修订 62 T3/T4）===")
+    print("=== B 路静态守卫（修订 62 T3/T4 ｜ 修订 63 U1/U2/U3）===")
     allok = True
     for r in res:
         ok = r["ok"]
@@ -254,7 +353,72 @@ def _self_test(tmp):
     ok4b = ok4b_inj and (not r4b["ok"]) and r4b["n"] == 1
     print("  %s T4b 阳性对照：注入 %d 个手打数字 ⇒ 数到 %s 个"
           % ("PASS" if ok4b else "FAIL", injected, r4b["n"]))
-    return ok and ok3 and ok4b
+
+    # ---- 修订 63：U1（散文块）/ U2（常量对源产物）/ U3（L5 分域）----
+    PROSE = ("answerable", "not_answerable", "the_one_line")
+
+    def _inject_field(field):
+        """往指定字段的字面片段里塞一个手打数字，返回是否注入成功。
+
+        ⚠⚠ 第二版又坏了一次：只处理 `JoinedStr` 与 `Constant`，
+          而 `answerable` 的值是 **List**（里面才是那些字符串）
+          ⇒ 什么都没注入，对照报「数到 0 个」。
+          ⚠ 对照报 0 与判据报红长得一样，必须靠 `ok_inj` 分开。
+        ⇒ 递归找该值底下**第一个**字符串字面量，不猜容器类型。
+        """
+        t2 = ast.parse(src)
+        holder = None
+        for nd in ast.walk(t2):
+            if not isinstance(nd, ast.Dict):
+                continue
+            for k, v in zip(nd.keys, nd.values):
+                if isinstance(k, ast.Constant) and k.value == field:
+                    holder = v
+                    break
+            if holder is not None:
+                break
+        if holder is None:
+            return t2, 0
+        for sub in ast.walk(holder):
+            if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
+                sub.value = sub.value + "（手打 777）"
+                return t2, 1
+        return t2, 0
+
+    b2 = bak.with_name(bak.stem + "_u1.py")
+    t2, got = _inject_field("answerable")
+    ok_inj = (got == 1)
+    b2.write_text(ast.unparse(t2), encoding="utf-8")
+    r_u1 = check_t4b(b2, fields=PROSE, label="散文块")
+    b2.unlink()
+    ok_u1 = ok_inj and (not r_u1["ok"]) and r_u1["n"] == 1
+    print("  %s U1 阳性对照：往 answerable 注入 1 个手打数字 ⇒ 数到 %s 个"
+          % ("PASS" if ok_u1 else "FAIL", r_u1["n"]))
+
+    # U2：把 ORTH_MIN 改成 0.2（源产物仍是 0.1）⇒ 必须判红
+    b3 = bak.with_name(bak.stem + "_u2.py")
+    b3.write_text(re.sub(r"^ORTH_MIN\s*=\s*[0-9.]+", "ORTH_MIN = 0.2", src,
+                         count=1, flags=re.M), encoding="utf-8")
+    r_u2 = check_u2(b3)
+    b3.unlink()
+    ok_u2 = (not r_u2["ok"])
+    print("  %s U2 阳性对照：把 ORTH_MIN 改成 0.2（源产物 0.1）⇒ 判红=%s"
+          % ("PASS" if ok_u2 else "FAIL", not r_u2["ok"]))
+
+    # U3：把 L5 的 `here` 换成单域陈述（删掉「预测」二字）⇒ 必须判红
+    b4 = tmp.with_name(tmp.stem + "_u3.json")
+    j4 = json.loads(ARTIFACT.read_text(encoding="utf-8"))
+    for rr in j4["ladder_mapping"]:
+        if rr["level"] == "L5":
+            rr["here"] = rr["here"].replace("预测域", "另一处").replace("预测", "别处")
+    b4.write_text(json.dumps(j4, ensure_ascii=False), encoding="utf-8")
+    r_u3 = check_u3(b4)
+    b4.unlink()
+    ok_u3 = (not r_u3["ok"])
+    print("  %s U3 阳性对照：把 L5 here 改成单域陈述 ⇒ 判红=%s"
+          % ("PASS" if ok_u3 else "FAIL", not r_u3["ok"]))
+
+    return ok and ok3 and ok4b and ok_u1 and ok_u2 and ok_u3
 
 
 def main():
@@ -266,7 +430,11 @@ def main():
         tmp = ROOT / ".cache/mutbak/_t4_selftest.json"
         tmp.parent.mkdir(parents=True, exist_ok=True)
         return 0 if _self_test(tmp) else 1
-    res = [check_t3(), check_t4(Path(a.artifact)), check_t4b()]
+    res = [check_t3(), check_t4(Path(a.artifact)),
+           check_t4b(),
+           check_t4b(fields=("answerable", "not_answerable", "the_one_line"),
+                     label="散文块"),
+           check_u2(), check_u3(Path(a.artifact))]
     return 0 if report(res) else 1
 
 

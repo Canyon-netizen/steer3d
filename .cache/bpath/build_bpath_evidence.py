@@ -63,6 +63,15 @@ def _gate(cond, msg):
         raise SystemExit("构建中止（修订 62 T3，显式 raise）：" + msg)
 
 
+# ⚠⚠ 判据常量（修订 63 U2）：**不是**测量量，是预登记冻结的阈值。
+#   写死是对的，但必须**具名** —— 否则散文里的 `0.1` 与别处的 `0.1`
+#   看起来一样，读者分不出哪个是判据、哪个是读数。
+#   ⚠ 且守卫会把这两个常量与**源产物**交叉核对（U2 的「同时钉出处」）：
+#   `extreme_pick_abs.json` 的 `orth_min` / `decile`。
+ORTH_MIN = 0.1      # 正交度分组的 |w·ĥ| 下界（源：orth_min / decile）
+SIGN_THRESH = 0.0   # 「指向目标 marker」的**定义**阈值，不是读数
+
+
 def _pos_txt(ps):
     """把 §37.3 的位置分层叙述**从产物拼出来**，不写死任何数字。
 
@@ -245,8 +254,38 @@ def main():
                      "alpha": r["alpha"],
                      "w_dot_hhat": r.get("w_dot_hhat"),
                      "rel_perturbation": r.get("rel_perturbation"),
+                     # ⚠⚠ 修订 63：`pred_marker_lse` 与 `calibration_ratio`
+                     #   源产物里**本来就有**，但此前**没被带进产物** ——
+                     #   于是 `calibration` 那句散文里的
+                     #   「41.8022 / 0.9868 / 0.9808」在产物里查不到出处。
+                     #   ⇒ 先把字段带进来，散文才有东西可指。
+                     "pred_marker_lse": r.get("pred_marker_lse"),
+                     "calibration_ratio": r.get("calibration_ratio"),
                      "by_layer": {k: v["d_marker_lse"]
                                   for k, v in r["layers"].items()}})
+    # ⚠ L=0…27 的 |实测/预测| 区间：散文里那个「0.0000–0.0939」手打在这，
+    #   现在从**每一行自己的 pred_marker_lse** 算出来。
+    _ratios = []
+    for r in layer["rows"]:
+        p = r.get("pred_marker_lse")
+        if not p:
+            continue
+        for k, v in r["layers"].items():
+            if k == "-1":          # 校准点本身，不属于「移出校准点」这一段
+                continue
+            _ratios.append(abs(v["d_marker_lse"] / p))
+    _gate(bool(_ratios), "层扫描里没有任何可算的 |实测/预测| ⇒ 区间无出处")
+    _ratio_lo, _ratio_hi = min(_ratios), max(_ratios)
+    _cal_by_mode = {r["mode"]: r.get("calibration_ratio") for r in layer["rows"]}
+    # ⚠ 校准点的实测读数（L=-1 那档）也取自同一批 rows，不另记一份。
+    _cal_obs = {r["mode"]: r["layers"]["-1"]["d_marker_lse"] for r in layer["rows"]}
+    _pred_lse = next((r.get("pred_marker_lse") for r in layer["rows"]
+                      if r.get("pred_marker_lse")), None)
+    _gate(_pred_lse is not None
+          and all(v is not None for v in _cal_by_mode.values())
+          and set(_cal_by_mode) >= {"think", "no_think"},
+          "层扫描缺少 pred_marker_lse / calibration_ratio / think|no_think 两档 "
+          "⇒ calibration 那句无出处")
     layer_block = {
         "what": "注入层扫描：同一向量换个层注入，读数从校准点的精确成立掉进噪声",
         "layer_ladder": layer["layer_ladder"],
@@ -256,10 +295,18 @@ def main():
                       "由此得出的「高估 43 倍」已按预登记修订 14 **撤回**。"),
         "calibration": ("L=-1 挂在 model.model.norm 的 **forward hook**（改输出），"
                         "那里下游是恒等映射，Δlogit = α·(w·lm_head[token]) **精确成立**："
-                        "预测 +41.8022，实测 think +41.2500（ratio 0.9868）、"
-                        "no_think +41.0000（ratio 0.9808）⇒ 钩子与公式都没错。"),
+                        f"预测 {_pred_lse:+.4f}，"
+                        f"实测 think {_cal_obs['think']:+.4f}"
+                        f"（ratio {_cal_by_mode['think']:.4f}）、"
+                        f"no_think {_cal_obs['no_think']:+.4f}"
+                        f"（ratio {_cal_by_mode['no_think']:.4f}）⇒ 钩子与公式都没错。"
+                        "　⚠ 修订 63：这几个数此前是**手打的**，"
+                        "而源产物里的 `pred_marker_lse` / `calibration_ratio` "
+                        "**没被带进产物** ⇒ 散文里的数在产物里查不到出处。"
+                        "现已把两个字段带进 `rows`，散文改为从它们派生。"),
         "headline": ("**注入点处一阶预测精确成立，移出注入点即掉进噪声**："
-                     "L=0…27 的 |实测/预测| 落在 0.0000–0.0939，"
+                     f"L=0…{len(layer['layer_ladder'])} 的 |实测/预测| 落在 "
+                     f"{_ratio_lo:.4f}–{_ratio_hi:.4f}，"
                      "且 think **逐层变号 4/8 次**、L=20 处与 no_think **异号**。"
                      "⇒ **不存在「一个衰减倍数」**（硬取单点会得到 17.9 / 29.9 / 228.5 "
                      "三个互不相等的数）。`w·U[marker]` 应**在校准点读**："
@@ -886,6 +933,52 @@ def main():
           % [k for k in list(_nt) + list(_tk) if "rand" in k])
     _n_p9_rand = sum(1 for r in p9_block["rows"] if r.get("rand@1.0") is not None)
     _rand_dose = dose_block["dose_ladder"][-1]
+    # ⚠⚠ 修订 63：`answerable` 里那句「20 个…20/20 全负（中位 −1.92）…100 个…+1.50」
+    #   原本五个数全是手打的。现在**指名**取自 `q3_verdict.json` 的
+    #   `by_mode.think.groups` —— 不是「在产物里找一个 1.5 塞进去」。
+    _g_hi = tk["groups"]["w·ĥ>0"]
+    _g_lo = tk["groups"]["w·ĥ≈0"]
+    # ⚠ U2：判据常量与**源产物**交叉核对。
+    #   「只钉一个数字不够，必须同时钉它的出处」——这里钉的是出处那一半。
+    _ea = jload(M / "extreme_pick_abs.json")
+    # ⚠ 种子规则在 `orthogonality.json` 里（不是 `extreme_pick_abs.json`）——
+    #   它是「随机臂**逐位点独立**」这件事的**唯一出处**，必须点名带出来。
+    _seed_rule = str(ortho.get("rand_seed_rule", "")).split("——")[0].strip()
+    _gate(bool(_seed_rule),
+          "orthogonality.json 没有 rand_seed_rule ⇒ 无法证明随机臂是逐位点独立的")
+    # ⚠⚠ 修订 63（U1 自己抓到了我）：L5 `here` 里我写了「预测域的随机臂则是 **0** 个」，
+    #   而**这个 0 没有任何东西算** —— 我只是照着别处的结论抄的。
+    #   ⇒ 现在**当场复算**：递归数一遍 `heldout_readability.json` 里
+    #   有多少个键名含 `rand`。数不到就如实说「未复核」，不许写 0。
+    # ⚠ 用**结构**数（键名），不用正文子串数（`count("rand")`）——
+    #   子串会撞上无关的英文单词，那是代理指标。
+    def _count_rand_keys(o, acc=None):
+        acc = [] if acc is None else acc
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if "rand" in str(k).lower():
+                    acc.append(str(k))
+                _count_rand_keys(v, acc)
+        elif isinstance(o, list):
+            for v in o:
+                _count_rand_keys(v, acc)
+        return acc
+    _hr_path = ROOT / "frontend/public/latent/data/heldout_readability.json"
+    if _hr_path.exists():
+        _pred_rand = _count_rand_keys(jload(_hr_path))
+        _pred_arm = (f"随机臂则是 **{len(_pred_rand)}** 个"
+                     + ("" if not _pred_rand
+                        else f"（{sorted(set(_pred_rand))[:4]}）"))
+    else:
+        # ⚠⚠ 产物不在 ⇒ **不许**照旧写 0。上一轮栽的正是这个。
+        _pred_arm = (f"随机臂**未复核**（预测域产物 `{_hr_path.name}` 不在，"
+                     f"本构建器没有它 ⇒ 不给数）")
+    _gate(float(_ea.get("orth_min", -1)) == ORTH_MIN
+          and float(_ea.get("decile", -1)) == ORTH_MIN,
+          "判据常量与源产物不一致：extreme_pick_abs.json 的 orth_min=%r "
+          "decile=%r，而构建器用的是 ORTH_MIN=%r ⇒ 阈值已经漂了，"
+          "散文里所有 |w·ĥ|>ORTH_MIN 的读数口径都要重算"
+          % (_ea.get("orth_min"), _ea.get("decile"), ORTH_MIN))
 
     ladder = [
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
@@ -904,15 +997,31 @@ def main():
                  "⇒ 这是 §4 第 1 条「可读性 ≠ 可控性」的实测触发。")},
         {"level": "L5", "claim": "这条配方专一到能注入",
          "bpath_state": "missing",
-         # ⚠ 原来是手打的「0 条（同范数随机方向对照…）」。
-         #   现在改成两个**从产物派生**的数：剂量点数、以及 P9 里带随机臂的行数。
+         # ⚠⚠⚠ 修订 63（U3）：这一格我在修订 62 里**自己写超范围了**。
+         #   当时写的是「同范数随机臂只做到 P9 的基准规模」——
+         #   读起来是**本项目级**的陈述，而它是错的：
+         #     注入读出域**已经有**同范数随机臂，而且是逐位点独立种子
+         #     （`zlib.crc32(f'{traj}|{t}')`），不是全局一个 seed；
+         #   真正为零的是**预测域**（`heldout_readability.json` 全文 `rand` 0 次），
+         #   而那才是 L5 判据所在的地方。
+         # ⚠⚠ 只删后半句换个更好听的说法 = **把错误改成另一种错误** ⇒ 必须分域陈述。
          "here": f"剂量扫描 {_n_dose} 个剂量点、**没有任何随机方向对照**"
                  f"（`dose_position_scan` 里不存在随机臂字段，已由构建器断言）；"
-                 f"同范数随机臂只做到 P9 的基准规模（rand@{_rand_dose}，"
-                 f"{_n_p9_rand}/{len(p9_block['rows'])} 条）",
+                 f"⚠ **但本项目并非没有随机臂**：正交度探针那一族在"
+                 f"**注入读出域**有逐位点独立种子的同范数随机臂"
+                 f"（种子规则 `{_seed_rule}`）；"
+                 f"**预测域**（`heldout_readability.json`）的{_pred_arm}"
+                 f" —— 而 L5 判据要的是后者",
          "note": ("（**B 路 / R-6 这一批**）既有阶梯已记 missing；"
                   "B 路没有推进这一级。⚠ 主阶梯那一块给 L5 的依据是"
-                  "「余量 1.15× < 2×」—— **同一结论**，量的却是原数据集。")},
+                  "「余量 1.15× < 2×」—— **同一结论**，量的却是原数据集。"
+                  "　⚠⚠ **这一格的 `here` 在修订 62 里被我写超范围过**"
+                  "（当时说「同范数随机臂只做到 P9 的基准规模」），"
+                  "修订 63 复核后改成分域陈述。"
+                  "　⚠ 顺带记一条实测教训：**补一个随机臂抬不高余量** ——"
+                  "随机对照只能证伪「随便什么方向都行」，"
+                  "而 L5 的余量是 `ρ_own ÷ max(竞争者 ρ)`，"
+                  "实测 1.15× < 阈值 2× ⇒ 卡点在**配方结构**，不在算力。")},
         {"level": "L6", "claim": "注入改变行为，且改变是这条方向特有的",
          "bpath_state": "partial",
          # ⚠⚠ 原来写死「两条 no_think 正控 5/5 剂量步单调」——
@@ -1032,23 +1141,40 @@ def main():
             f"（w+ 单调 {_nt['n_w+_monotone_up']}/{_nt['n_traj']}、"
             f"w− 单调 {_nt['n_w-_monotone_down']}/{_nt['n_traj']}，"
             f"共 {_n_dose} 个剂量点）",
-            "α·(w·U) 在校准点精确成立（实测/预测 0.987 / 0.981），"
-            "但注入点一移出校准点读数即掉进噪声（|ratio| 0.0000–0.0939 且逐层变号）"
-            "⇒ w·U 应在校准点读，中间层读到的量与它无可预测的定量关系",
+            # ⚠ 修订 63：原来「0.987 / 0.981 / 0.0000–0.0939」是手打的，
+            #   它们的出处（`calibration_ratio` / `pred_marker_lse`）
+            #   **此前压根没进产物** ⇒ 先把字段带进 `rows`，再派生。
+            f"α·(w·U) 在校准点精确成立（实测/预测 "
+            f"{_cal_by_mode['think']:.3f} / {_cal_by_mode['no_think']:.3f}），"
+            f"但注入点一移出校准点读数即掉进噪声"
+            f"（|ratio| {_ratio_lo:.4f}–{_ratio_hi:.4f} 且逐层变号）"
+            f"⇒ w·U 应在校准点读，中间层读到的量与它无可预测的定量关系",
             "同一 w 在两条 think 上给出相反形态 ⇒ 效应对位置/轨迹敏感",
-            "在 p01_think 一条轨迹上，w 与该处激活的对齐度反向："
-            "`w·ĥ>0` 的 20 个超地板位点 20/20 全负（中位 −1.92），"
-            "`w·ĥ≈0` 的 100 个中位 +1.50 ⇒ 正交度假设 H 在该轨迹上被证伪",
+            # ⚠⚠ 修订 63：原来「20 个…20/20…−1.92…100 个…+1.50」五个数全是手打的。
+            #   ⚠⚠ **必须指名到字段，不能按值反查**：
+            #     `w·ĥ≈0` 组 median = 1.5042 → 四舍五入 1.50；
+            #     而 `orthogonality.caliber26.floor_same_slice` 恰好也是 1.5
+            #     ⇒ 同一数字既是「组中位数」又是「噪声地板」。
+            #     按值反查会把**噪声地板当成组中位数**塞进这句话。
+            f"在 p01_think 一条轨迹上，w 与该处激活的对齐度反向："
+            f"`w·ĥ>{SIGN_THRESH:g}` 的 {_g_hi['n']} 个超地板位点 "
+            f"{round((1 - _g_hi['frac_pos']) * _g_hi['n'])}/{_g_hi['n']} "
+            f"全负（中位 {_g_hi['median']:+.2f}），"
+            f"`w·ĥ≈{SIGN_THRESH:g}` 的 {_g_lo['n']} 个中位 "
+            f"{_g_lo['median']:+.2f} ⇒ 正交度假设 H 在该轨迹上被证伪",
         ],
         "not_answerable": [
             "正交度假设 H 在 no_think 上**无法判定**（Q3）："
-            f"超地板位点仅 {nt['n']} 个、其中 |w·ĥ|>0.1 的只有 {nt['n_above_0.1_orth']} 个，"
-            "分组边界切不出样本，两组同号率打平（6/6 vs 6/6）"
+            f"超地板位点仅 {nt['n']} 个、其中 `|w·ĥ|>{ORTH_MIN}` 的只有 "
+            f"{nt['n_above_0.1_orth']} 个，"
+            f"分组边界切不出样本，两组同号率打平"
+            f"（{nt['agree_hi']}/{nt['k']} vs {nt['agree_lo']}/{nt['k']}）"
             "⇒ 既不报 PASS 也不报 FAIL",
             "R-6 的 P6（correct vs wrong 效应方向是否不同）在 think 上做不了",
             "「这条方向能稳定 steering 模型行为」在 think 分布上不成立",
         ] + _sck_na,
-        "the_one_line": ("**可读性 ≠ 可控性**：w·U[marker] > 0 是纯静态读数，"
+        "the_one_line": ("**可读性 ≠ 可控性**：w·U[marker] > "
+                         f"{SIGN_THRESH:g} 是纯静态读数，"
                          "一次前向都不用；而「注入后剂量响应稳定单调」必须真跑模型、"
                          "逐位置逐剂量地测。no_think 上二者同时成立；"
                          "think 上可读性成立而可控性不成立。"
