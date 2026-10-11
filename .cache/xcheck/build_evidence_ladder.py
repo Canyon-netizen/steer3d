@@ -95,6 +95,22 @@ def _walk_len(o, acc=None):
     return acc
 
 
+# ---------- 修订 55 的两个因子（**模块级**：修订 56 W8 的自检在更早的地方用它） ----
+# 由定义有理化：√(1+2ac+a²) − (1+ac) = a²(1−c²)/(√(1+2ac+a²)+1+ac)
+# ⇒ rel = dev/pred = 2(1−c²) / [(1+ac)(√(1+2ac+a²)+1+ac)]   —— **恒等式**
+# ⚠ 原来这两个函数定义在 `main()` 中段，而 W8 那条自检在**它之前**就要用
+#   ⇒ 会 NameError。纯函数提到模块级，两处共用一份实现
+#   （「同一份算法写两遍」是判据不一致的常见来源）。
+def _rel_exact(a, c):
+    rt = (1.0 + 2.0 * a * c + a * a) ** 0.5
+    return 2.0 * (1.0 - c * c) / ((1.0 + a * c) * (rt + 1.0 + a * c))
+
+
+def _rel_claim(a, c):
+    """修订 49 那个**代数上就是错的**因子。保留它是为了能证明它错（V1/V4）。"""
+    return (1.0 - a * c) / (1.0 + a * c)
+
+
 def main(argv=None):
     # ⚠ 修订 46（R-3）：支持 `--out`，让证据链 A2 能重跑到临时路径再逐字节比对。
     import argparse
@@ -108,6 +124,26 @@ def main(argv=None):
     hel = json.loads((DATA / "heldout_readability.json").read_text(encoding="utf-8"))
     arm = json.loads((DATA / "arm_asymmetry.json").read_text(encoding="utf-8"))
     cot = json.loads((DATA / "cot_texts.json").read_text(encoding="utf-8"))
+
+    # ⚠⚠⚠ 修订 56：字段存在性检查**必须排在任何计算之前**。
+    #   这条清单原来排在 `ladder` 建好之后（那时尚未含修订 55 加的四个字段，
+    #   是 `.cache/xcheck/ladder_check_audit.py` 跑变异时发现的）——
+    #   而下面修订 54/55 那两段计算**正在读这些字段**。
+    #   ⇒ 字段一缺就是**硬崩 KeyError**：崩只留一行栈，读者无从知道是哪条判据；
+    #     而判据红会指名道姓。**「崩」比「红」更糟。**
+    #   ⇒ 检查前移，且下面两段计算各自加门（缺字段时**降级判红**，不是崩）。
+    #   ⚠ 查**每一行**而不是 `rows[0]`：第一版只看第 0 行，
+    #     而 `rows` 按强度分组，后面三档（0.1 / 0.2 / 0.5）缺字段照样崩。
+    PT_FIELDS = ("real_dev_points", "random_dev_points", "pred_points",
+                 "points_meta", "npz_sha256",
+                 "c_points", "a_points", "random_c_points", "random_a_points")
+    _pt_missing = sorted({("%s@strength=%s" % (_k, _r["strength"]))
+                          for _r in law["rows"] for _k in PT_FIELDS
+                          if _k not in _r})
+    pt_ok = not _pt_missing
+    need(pt_ok,
+         "修订 54/55 要求的字段不在 linearity_law.json 的某些行里：%s ⇒ "
+         "note 与产物不同步（缺的那几个名字见上）" % _pt_missing[:6])
 
     # ---------- L1：直接读产物自己算好的 safe_regime 块 ----------
     # ⚠ 第一版在这里现算 min/max 全表，得到 0.12%–14.50% —— 那把
@@ -164,12 +200,15 @@ def main(argv=None):
     l1_c_spread = 0.0
     for _r in _top:
         _a = max(float(_r["real"][k]["a_mean"]) for k in _r["real"])
-        _f = [(1 - _a * float(_r["real"][k]["cos_mean"]))
-              / (1 + _a * float(_r["real"][k]["cos_mean"]))
-              for k in _r["real"]]
+        # ⚠⚠ 修订 56（W8）：这里原来算的是 `(1−ac)/(1+ac)` —— 修订 55 已证伪
+        #   那个因子，而 claim 早已换成精确因子 ⇒ 这条自检守着**没人引用的量**。
+        #   ⚠ 但它**不是恒绿**：审计实测 `cos_mean` 置 0 / 设为同值都翻红它。
+        #   ⇒ 保留它的牙齿、改锚到精确因子（口径变了名字必须跟着变，§53 的规矩）。
+        _c = [float(_r["real"][k]["cos_mean"]) for k in _r["real"]]
+        _f = [_rel_exact(_a, _x) for _x in _c]
         l1_c_spread = max(l1_c_spread, max(_f) - min(_f))
     need(l1_c_spread > 0.01,
-         "L1 二阶因子的跨方向幅度算出来只有 %.4f —— 若产物变了（cos 不再随方向变），"
+         "L1 精确因子的跨方向幅度算出来只有 %.4f —— 若产物变了（cos 不再随方向变），"
          "阶梯 L1 的措辞要重新判" % l1_c_spread)
 
     # ---------- L1 的「真实 vs 随机」那条 null：它测的是什么（修订 50）----------
@@ -238,22 +277,44 @@ def main(argv=None):
             l1_thr[_key] = float(_m2.group(1))
     l1_arr_max = max(_walk_len(law), default=0)
 
+    # ---------- 修订 56（W5）：那个布尔本身也要被钉，且 note 必须现读 ----------
+    # ⚠⚠ 上一轮审计抓到：`random_indistinguishable` 在本文件里**只以
+    #   「阈值」的形式被读过**（从生成器源码抓 `gap < ?`），
+    #   而 note 里那句 `random_indistinguishable=true` 是**硬编码字面量**。
+    #   ⇒ 把它翻成 False：产物变了（`false`），而 note 一字不变、41 条自检全绿。
+    #   这与 §55.12「事实变了断言方向也得变」是同一族：note 断言了产物没说的话。
+    # ⇒ 判决：它现在是 True 就必须是 True；翻 False 必须判红并要求改写 note。
+    need(safe.get("random_indistinguishable") is True,
+         "L1 产物自己说 safe_regime.random_indistinguishable = %r"
+         "（上一轮是 True）⇒ note 里「这条 null 允许差到信号的 %.1f%%、"
+         "答的是『小于 %gpp 吗』」这段必须重写：现在它**测到了**差别"
+         % (safe.get("random_indistinguishable"),
+            100.0 * l1_thr["random_indistinguishable"] / min(
+                [float(r["pred_pct"]) for r in law["rows"]] or [1.0]),
+            l1_thr["random_indistinguishable"]))
+    # ⚠ note 里那个布尔要印成**产物说的那个值**，不是印 True。
+    l1_rnd_flag = ("true" if safe.get("random_indistinguishable") is True
+                   else "**false（产物已翻）**")
+
     # ---------- 修订 55：claim 那个二阶因子的正确形式（现算，不硬编码） ----------
-    # 由定义有理化：√(1+2ac+a²) − (1+ac) = a²(1−c²)/(√(1+2ac+a²)+1+ac)
-    # ⇒ rel = dev/pred = 2(1−c²) / [(1+ac)(√(1+2ac+a²)+1+ac)]   —— **恒等式**
-    def _rel_exact(a, c):
-        rt = (1.0 + 2.0 * a * c + a * a) ** 0.5
-        return 2.0 * (1.0 - c * c) / ((1.0 + a * c) * (rt + 1.0 + a * c))
-
-    def _rel_claim(a, c):
-        return (1.0 - a * c) / (1.0 + a * c)
-
+    # 因子本身见模块级 `_rel_exact` / `_rel_claim`（提上去是为了 W8 也要用）。
     import numpy as _n55
+    # ⚠⚠ 修订 56：这段算出来的每个量都**先给默认 0** ——
+    #   字段缺失时整段被跳过（上面已判红），漏初始化一个名字就是 NameError，
+    #   崩得比现在还难查。
     _e_exact = _e_claim = 0.0
     _n_pts = _agree = 0
     _sp_claim = _sp_exact = 0.0
+    l1_e_exact = l1_e_claim = 0.0
+    l1_n_pts = l1_agree = 0
+    l1_sp_claim = l1_sp_exact = 0.0
+    l1_decades = 0
+    l1_claim_gap_at_a02 = 0.0
+    l1_sp_old_pct = l1_sp_new_pct = 0.0
+    l1_sp_ratio = 0.0
     _smax55 = float(law["conclusions"]["safe_regime"]["strength_max"])
-    for _r in law["rows"]:
+    # ⚠ 门：`pt_ok` 为假就整段不跑，循环体保持原缩进（不为它重排 45 行）。
+    for _r in (law["rows"] if pt_ok else []):
         if _r["strength"] > _smax55:
             continue
         _pr = _n55.asarray(_r["pred_points"], dtype=float)
@@ -296,6 +357,66 @@ def main(argv=None):
     l1_sp_old_pct = 100.0 * l1_sp_claim
     l1_sp_new_pct = 100.0 * l1_sp_exact
     l1_sp_ratio = (l1_sp_claim / l1_sp_exact) if l1_sp_exact else 0.0
+
+    # ---------- 修订 56（W1/W2）：把修订 55 那两个数**钉住** ----------
+    # ⚠⚠⚠ 上一轮审计的判决：这两个数是修订 55 的**全部卖点**，
+    #   note 印着「最大绝对差只有 4.9e-13」「一致率 100%」，
+    #   而 `l1_e_exact / l1_n_pts / l1_agree / l1_decades / l1_sp_ratio`
+    #   **只被赋值、只被格式化进 note，从未进过任何 `need()`**。
+    #   ⇒ 变异 `pred_points ×1.01` 把它们全部改掉，41 条自检**一条不红**。
+    #   「全过」在这里等于「什么都没查」。
+    # ⚠ TOL 沿用修订 55 冻结的 1e-9，**不是**新挑的；
+    #   放宽它必须单独立修订并披露旧数字（§55.6 的规矩）。
+    L1_ID_TOL = 1e-9
+    need(l1_e_exact < L1_ID_TOL,
+         "修订 55 的精确因子在安全区 %d 个点上最大绝对差 %.3e，已经 ≥ %.0e "
+         "⇒ 它不再是恒等式，note 里「逐点验到机器精度」这句必须重写"
+         % (l1_n_pts, l1_e_exact, L1_ID_TOL))
+    # ⚠⚠ 这一条防的是「两个式子碰巧都对了」：只有当**错因子仍然明显错**时，
+    #   「已更正」这句话才有内容。W1a 单独存在时它永远绿。
+    need(l1_e_claim > 100.0 * l1_e_exact,
+         "错因子 (1−ac)/(1+ac) 与精确式的最大差只有 %.3e，而精确式自身是 %.3e "
+         "⇒ 两者只差 %.1f×（要 >100×）⇒ 「更正」这件事已经没有内容了"
+         % (l1_e_claim, l1_e_exact, (l1_e_claim / l1_e_exact) if l1_e_exact else 0.0))
+    need(l1_decades >= 6,
+         "两个因子的差只剩 %d 个数量级（要 ≥6）⇒ note 里「差 %d 个数量级」必须重写"
+         % (l1_decades, l1_decades))
+    # ⚠ 符号一致率必须带**样本量下限**：3 个点全对也是「100%」。
+    l1_agree_pct = 100.0 * l1_agree / max(l1_n_pts, 1)
+    need(l1_n_pts >= 10000,
+         "符号一致率只算在 %d 个点上（要 ≥10000）⇒ 「一致率 %.0f%%」是"
+         "小样本偶然，不该印在页面上" % (l1_n_pts, l1_agree_pct))
+    need(l1_agree_pct >= 99.0,
+         "精确因子预测 sign(rel−1) 的一致率只有 %.1f%%（%.0f%% 命中 / %d 点）"
+         "⇒ 恒等式在符号层面不成立，note 里「一致率」必须重写"
+         % (l1_agree_pct, l1_agree, l1_n_pts))
+
+    # ---------- 修订 56（W3/W4）：`n_points` / `n_random` 要**双向**钉 ----------
+    # ⚠ 原来只有 `l1_arr_max >= n_points`，那是**单边**的：
+    #   `n_points = 0` 时 96 >= 0 成立 ⇒ 变异打空、零自检翻红（审计实测）。
+    # ⚠ `n_random` 也不一致过：方向重采样抽的是 `random_dev_points` 的
+    #   **实际长度**，而 note 印的 `n_random` 来自 `design` ⇒ 两者不等时 note 说谎。
+    _npt_design = int(law["design"]["n_points"])
+    need(_npt_design > 0,
+         "design.n_points = %d（要 >0）⇒ 逐点量与「分辨率」那句话都失去对象"
+         % _npt_design)
+    _bad_pred = sorted({float(r["strength"]) for r in law["rows"]
+                        if len(r["pred_points"]) != _npt_design})
+    need(not _bad_pred,
+         "design.n_points=%d，但这些强度档的 pred_points 长度不等于它：%s "
+         "⇒ `rel = dev/pred` 会静默错位（形状不同的数组照样能除）"
+         % (_npt_design, _bad_pred))
+    # ⚠ 重采样零分布要抽 4+4 ⇒ 至少 8 个随机方向；且**声明的**必须等于**实际的**。
+    _nrnd_design = int(law["design"]["n_random"])
+    need(_nrnd_design >= 8,
+         "design.n_random = %d < 8 ⇒ 方向重采样零分布抽不满 4+4，"
+         "note 里「随机臂」那一段不成立" % _nrnd_design)
+    _bad_rnd = sorted({float(r["strength"]) for r in law["rows"]
+                       if len(r["random_dev_points"]) != _nrnd_design})
+    need(not _bad_rnd,
+         "design.n_random=%d，但这些强度档的 random_dev_points 实际长度不同：%s "
+         "⇒ note 印的「%d 个随机方向」与零分布实际抽的数量**不是同一个量**"
+         % (_nrnd_design, _bad_rnd, _nrnd_design))
 
     # ---------- 修订 54：方向依赖到底测不测得出（从每点量现算） ----------
     # ⚠⚠ 关键简化（先推导再写）：本统计量对每个方向先**沿点轴平均**，
@@ -410,9 +531,9 @@ def main(argv=None):
                  "⇒ **真实方向与随机方向是可分辨的**，且不是点轴 t 造出来的假象。"
                  "⚠ 符号**随强度翻转**（s=0.05 为负、s=0.20 多为正）⇒ 这是**模式**"
                  "而不是单一效应；%d 次检验未做多重比较校正，如实标注。"
-                 "⇒ 产物里 `random_indistinguishable=true` 并不矛盾："
-                 "它的阈值硬编码为 1 个百分点、**允许差到信号的 %.1f%%**，"
-                 "答的是「小于 1pp 吗」，**不是**「测得出来吗」。"
+                 "⇒ 产物里 `random_indistinguishable=%s` 并不矛盾："
+                 "它的阈值硬编码为 %g 个百分点、**允许差到信号的 %.1f%%**，"
+                 "答的是「小于 %gpp 吗」，**不是**「测得出来吗」。"
                  "⇒ 与修订 49 的「存在 c 依赖」**一致**（那是另一个量：行间的 c 依赖）。"
                  "⇒ 它**不构成**「与语义无关」的证据（预登记 §50 / §51 / §54）。"
                  "⚠⚠ 修订 55：claim 里那个二阶因子 `(1−a·c)/(1+a·c)` **代数上就是错的** ——"
@@ -442,8 +563,18 @@ def main(argv=None):
                     int(law["design"]["n_points"]), len(l1_real),
                     int(law["design"]["n_points"]),
                     l1_npt, l1_nsig, l1_npt, l1_npt * 0.05, l1_npt,
-                    # ---- 修订 55 段（9 个）
+                    # ---- 修订 56（W5）：`random_indistinguishable` 从**产物现读**。
+                    # ⚠⚠ 原来是 note 里的**硬编码字面量** `=true` 与 `1 个百分点`：
+                    #   把产物那个布尔翻成 False，note 一字不变 ⇒ note 与产物脱钩。
+                    #   ⇒ 三个新参数插在位置 25/26/28；位置 27 那个 `%.1f`
+                    #   是**原有**的（原来在位置 25），只是整体后移。
+                    # ⚠ 位置靠 AST 逐对核过（34/34 对齐 ⇒ 37/37），不靠手数。
+                    l1_rnd_flag,
+                    l1_thr["random_indistinguishable"],
+                    # ↓ 原有参数（现落在位置 27）
                     100.0 * l1_thr["random_indistinguishable"] / l1_base,
+                    l1_thr["random_indistinguishable"],
+                    # ---- 修订 55 段
                     l1_claim_gap_at_a02, l1_n_pts, l1_e_exact, l1_e_claim,
                     l1_decades, 100.0 * l1_agree / max(l1_n_pts, 1),
                     l1_sp_old_pct, l1_sp_new_pct, l1_sp_ratio)},
@@ -493,8 +624,14 @@ def main(argv=None):
                  "⇒ 对 L7 而言，本行是「没测」、那一行是「测了但定不了」，"
                  "**两个都不是 done**。"},
     ]
-    assert not any(x["state"] == "done" for x in ladder[5:]), \
-        "L5 及以上不允许标 done"
+    # ⚠⚠ 修订 56：这里原来是一条 `assert`。改成 `need()` 有两个理由：
+    #   ① `assert` 会被 `python -O` 关掉（与本项目守卫约定相反）；
+    #   ② 它**中途抛异常**，于是排在它**后面**的十几条自检在本轮
+    #      空转审计里**根本没跑到** ⇒ 它们的「有没有牙齿」测不出来
+    #      （测不到会被误读成「翻不动」，两者在报告里长得一样）。
+    need(not any(x["state"] == "done" for x in ladder[5:]),
+         "L5 及以上不允许标 done（现在有：%s）"
+         % [x["level"] for x in ladder[5:] if x["state"] == "done"])
 
     # ⚠ 自检 7（修订 49）：L1 那句 `claim` 必须带着它的限定。
     #   为什么单独写一条：`claim` 是页面上最醒目的一行，历史上它就是那句
@@ -569,10 +706,13 @@ def main(argv=None):
          "产物里又看不到长度 ≥ n_points 的逐点数组（最长 %d < n_points=%d）⇒ "
          "修订 54 接出的每点量丢了，note 里「分辨率现在算得出来」变成假的，必须重写"
          % (l1_arr_max, int(law["design"]["n_points"])))
-    for _k in ("real_dev_points", "random_dev_points", "pred_points",
-               "points_meta", "npz_sha256"):
-        need(_k in law["rows"][0],
-             "修订 54 要求的字段 `%s` 不在产物里 ⇒ note 与产物不同步" % _k)
+    # ⚠⚠ 修订 56：这里原来有一条「修订 54/55 字段存在性」清单，现已**前移**。
+    #   它排在 `ladder` 建好之后 ⇒ 已经太晚：上面那段计算**先读**了这些字段，
+    #   缺字段时构建器**硬崩**，根本走不到这里自检。
+    #   ⇒ 现在它在读进产物之后就查（见 `PT_FIELDS` / `pt_ok`）。
+    #   ⚠ 前移后这里**不再重复查一遍**：留一条 `pt_ok or True` 的恒真占位
+    #   会把「检查存在过」变成「检查永远过」—— 空洞判据比没有判据更坏，
+    #   因为它会虚增 `CHECKS` 计数、让人以为这里有人看着。指针留在这段注释里。
     # ⚠ 判决本身也要钉：点轴口径显著的行数**必须**多于方向重采样口径，
     #   否则 note 里「换成方向重采样后只剩 %d 行」这句话可能反过来。
     need(l1_npt > 0 and l1_nsig < 10,
@@ -593,8 +733,9 @@ def main(argv=None):
     _above = [x["level"] for x in ladder
               if int(re.sub(r"[^0-9]", "", x["level"])) > 4]
     for _lv in _above:
-        assert _lv in _missing or _lv in _partial, \
-            "%s 既不在 missing 也不在 partial 里，not_answerable 会说错" % _lv
+        need(_lv in _missing or _lv in _partial,
+             "%s 既不在 missing 也不在 partial 里，not_answerable 会说错"
+             "（全表状态：%s）" % (_lv, {x["level"]: x["state"] for x in ladder}))
 
     payload = {
         "schema": "evidence_ladder/1",
