@@ -1,5 +1,5 @@
 {
- "note": "修订 69 §69.5 台账。**这些是欠账，不是通过。** 本轮逐条未判读（454 条标 unclassified），机械归类只覆盖 data-key 与 meta 两类。⚠ 新出现的未渲染字段不在此表 ⇒ 判红。⚠ 要加入必须写明理由。 ｜ z5 部分：修订 70 的 12 条筛查命中，待实页核对，不是通过。",
+ "note": "修订 69 §69.5 台账。**这些是欠账，不是通过。** 本轮逐条未判读（454 条标 unclassified），机械归类只覆盖 data-key 与 meta 两类。⚠ 新出现的未渲染字段不在此表 ⇒ 判红。⚠ 要加入必须写明理由。 ｜ z5 部分：修订 70 的 12 条筛查命中，待实页核对，不是通过。 ｜ 修订 70.5 已把 12 条 Z5 分成三类：z5-static-confirmed（10，静态已证）/ z5-design-open（2，answer_readout 的模型输出，设计问题）/ 实页核对全部未完成（index.html 上浏览器通道被堵）。",
  "count": 525,
  "debt": [
   {
@@ -3084,85 +3084,86 @@
    "artifact": "z5::answer_readout.json",
    "field": "steered",
    "first": "items[9].landing.steered",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-design-open",
+   "note": "**设计问题，待人定**：值是模型写的推理全文，`**` 是模型输出的markdown（例 'so it is **not** considered'）。不是「作者漏了 Em」。⚠ 也不同于 manifest:s 那种孤立星号 —— 这里**带内容**。静态已证：渲染点只过 esc。实页未核（§70.5.4）。"
   },
   {
    "artifact": "z5::answer_readout.json",
    "field": "zero",
    "first": "items[9].landing.zero",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-design-open",
+   "note": "**设计问题，待人定**：值是模型写的推理全文，`**` 是模型输出的markdown（例 'so it is **not** considered'）。不是「作者漏了 Em」。⚠ 也不同于 manifest:s 那种孤立星号 —— 这里**带内容**。静态已证：渲染点只过 esc。实页未核（§70.5.4）。"
   },
   {
    "artifact": "z5::cot_effect_32k.json",
    "field": "what",
    "first": "answer_shift_free_run.what",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-static-confirmed",
+   "note": "**静态已证**：值含 markdown 强调，渲染点只过 esc（不剥离 `**`）⇒ 页面上会显示字面星号。⚠ 实页未核：index.html 上 mcp_browser 连续 3 次 275 秒超时（§70.5.4）。改渲染属改交付物，须先查清卡点。"
   },
   {
    "artifact": "z5::intervention_threshold_law.json",
    "field": "claim",
    "first": "contrast_with_replay.claim",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-static-confirmed",
+   "note": "**静态已证**：值含 markdown 强调，渲染点只过 esc（不剥离 `**`）⇒ 页面上会显示字面星号。⚠ 实页未核：index.html 上 mcp_browser 连续 3 次 275 秒超时（§70.5.4）。改渲染属改交付物，须先查清卡点。"
   },
   {
    "artifact": "z5::intervention_threshold_law.json",
    "field": "verdict_reason",
    "first": "generality.verdict_reason",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-static-confirmed",
+   "note": "**静态已证**：值含 markdown 强调，渲染点只过 esc（不剥离 `**`）⇒ 页面上会显示字面星号。⚠ 实页未核：index.html 上 mcp_browser 连续 3 次 275 秒超时（§70.5.4）。改渲染属改交付物，须先查清卡点。"
   },
   {
    "artifact": "z5::ltv.json",
    "field": "caveats",
    "first": "caveats[9]",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-static-confirmed",
+   "note": "**静态已证**：值含 markdown 强调，渲染点只过 esc（不剥离 `**`）⇒ 页面上会显示字面星号。⚠ 实页未核：index.html 上 mcp_browser 连续 3 次 275 秒超时（§70.5.4）。改渲染属改交付物，须先查清卡点。"
   },
   {
    "artifact": "z5::ltv.json",
    "field": "judge_slice_note",
    "first": "judge_slice_note",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-static-confirmed",
+   "note": "**静态已证**：值含 markdown 强调，渲染点只过 esc（不剥离 `**`）⇒ 页面上会显示字面星号。⚠ 实页未核：index.html 上 mcp_browser 连续 3 次 275 秒超时（§70.5.4）。改渲染属改交付物，须先查清卡点。"
   },
   {
    "artifact": "z5::ltv.json",
    "field": "name",
    "first": "gates.S1.name",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-static-confirmed",
+   "note": "**静态已证**：值含 markdown 强调，渲染点只过 esc（不剥离 `**`）⇒ 页面上会显示字面星号。⚠ 实页未核：index.html 上 mcp_browser 连续 3 次 275 秒超时（§70.5.4）。改渲染属改交付物，须先查清卡点。"
   },
   {
    "artifact": "z5::ltv.json",
    "field": "note",
    "first": "decomp.note",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-static-confirmed",
+   "note": "**静态已证**：值含 markdown 强调，渲染点只过 esc（不剥离 `**`）⇒ 页面上会显示字面星号。⚠ 实页未核：index.html 上 mcp_browser 连续 3 次 275 秒超时（§70.5.4）。改渲染属改交付物，须先查清卡点。"
   },
   {
    "artifact": "z5::path_patching.json",
    "field": "claim",
    "first": "gates.G0b.claim",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-static-confirmed",
+   "note": "**静态已证**：值含 markdown 强调，渲染点只过 esc（不剥离 `**`）⇒ 页面上会显示字面星号。⚠ 实页未核：index.html 上 mcp_browser 连续 3 次 275 秒超时（§70.5.4）。改渲染属改交付物，须先查清卡点。"
   },
   {
    "artifact": "z5::path_patching.json",
    "field": "target",
    "first": "target",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-static-confirmed",
+   "note": "**静态已证**：值含 markdown 强调，渲染点只过 esc（不剥离 `**`）⇒ 页面上会显示字面星号。⚠ 实页未核：index.html 上 mcp_browser 连续 3 次 275 秒超时（§70.5.4）。改渲染属改交付物，须先查清卡点。"
   },
   {
    "artifact": "z5::path_patching.json",
    "field": "why_na",
    "first": "gates.G6[num/excess].why_na",
-   "category": "z5-unverified",
-   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+   "category": "z5-static-confirmed",
+   "note": "**静态已证**：值含 markdown 强调，渲染点只过 esc（不剥离 `**`）⇒ 页面上会显示字面星号。⚠ 实页未核：index.html 上 mcp_browser 连续 3 次 275 秒超时（§70.5.4）。改渲染属改交付物，须先查清卡点。"
   }
- ]
+ ],
+ "z5_note": "2026-10-11 补注：z5-static-confirmed / z5-design-open 的拆分依据见预登记 §70.5。⚠ 三类都**不是通过**，只是查到了不同程度。"
 }
