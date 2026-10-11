@@ -171,13 +171,23 @@ def main(argv=None):
     preds = [float(r["pred_pct"]) for r in law["rows"]
              if abs(r["strength"] - s_max) < 1e-9]
     need(len(means) >= 4, "L1 在 s=%s 档只读到 %d 层" % (s_max, len(means)))
-    l1_lo, l1_hi = min(means), max(means)
-    l1_p_lo, l1_p_hi = min(preds), max(preds)
+    # ⚠⚠⚠ 修订 57（X3）：`need(False, …)` **不会**中止执行 ——
+    #   真正拦的是后面的 `_abort_if_problems()`，而崩点在第一道门**之前**。
+    #   实测：把安全档那一整档的行删掉 ⇒ 这里 `min(means)` 抛
+    #   `ValueError: min() arg is an empty sequence` ⇒ **崩**，
+    #   而崩只留一行栈，审计里后面 40 多条自检全变成「测不到」。
+    #   ⇒ 空集判红并给可读消息，后面所有用到它的量走占位值。
+    l1_empty = not (means and preds)
+    need(not l1_empty,
+         "产物里**没有** s=%s 档的行（means=%d 条、preds=%d 条）⇒ "
+         "L1 整段无从算起，note 与 here 必须重写" % (s_max, len(means), len(preds)))
+    l1_lo, l1_hi = ((min(means), max(means)) if means else (0.0, 0.0))
+    l1_p_lo, l1_p_hi = ((min(preds), max(preds)) if preds else (0.0, 0.0))
     l1_spread = float(safe["max_direction_spread_pp"])
     l1_rndgap = float(safe["max_real_vs_random_gap_pp"])
     # 与文档正文 §2 的 s=0.20 那一行对齐
-    need(abs(l1_lo - 2.026) < 0.01 and abs(l1_hi - 2.245) < 0.01
-         and abs(l1_p_lo - 2.018) < 0.01 and abs(l1_p_hi - 2.268) < 0.01,
+    need(l1_empty or (abs(l1_lo - 2.026) < 0.01 and abs(l1_hi - 2.245) < 0.01
+         and abs(l1_p_lo - 2.018) < 0.01 and abs(l1_p_hi - 2.268) < 0.01),
          "L1 s=%s 实测 %.3f%%–%.3f%% / 解析 %.3f%%–%.3f%%，"
          "与文档 §2 的 2.026%%–2.245%% / 2.018%%–2.268%% 不一致"
          % (s_max, l1_lo, l1_hi, l1_p_lo, l1_p_hi))
@@ -224,8 +234,22 @@ def main(argv=None):
     #       决定 X 的那个标量。⚠ 这里**只判在不在**，不判取值：
     #       连键名都没有 = 那个标量**从未进入这次测量**，
     #       与「记了但值不好看」是两回事，必须分开说。
-    l1_base = min(preds)
-    l1_res = float(safe["max_real_vs_random_gap_pp"]) / l1_base
+    # ⚠⚠⚠ 修订 57（X3）**第二处**：我第一次只护住了 `min(means)` / `min(preds)`，
+    #   审计再跑时崩点**往后挪了一行** —— 变成这里的 `l1_base = min(preds)`。
+    #   ⇒ 「崩比红更糟」这条规则最阴的地方：护住一处不等于护住这条数据通路，
+    #     崩点会**沿着代码往后走**，一次修一处像是打完地鼠。
+    #   ⇒ 这里用已算好的 `l1_p_lo`（上面 `preds` 非空时它就是 min(preds)），
+    #     空集时用 0.0 占位，不再重新取一次 min。
+    l1_base = l1_p_lo if preds else 0.0
+    # ⚠⚠⚠ 修订 57（X3）**第三处**：上面把 `l1_base` 兜成 0.0 之后，
+    #   崩点又往后挪了一格 —— 变成 `100.0 * l1_thr[…] / l1_base` 的
+    #   **ZeroDivisionError**。连修三次才走完全条数据通路。
+    #   ⇒ 教训固化：**顺着「这个量流向哪里」把每一处消费点都看一遍**，
+    #     而不是「跑一次、崩一处、修一处」。后者在审计里表现为
+    #     「测不到 48 → 47 → …」，很容易被误当成「快好了」。
+    l1_base_d = l1_base if l1_base else 1.0     # 分母专用；0 只在已判红时出现
+
+    l1_res = float(safe["max_real_vs_random_gap_pp"]) / l1_base_d
     _lk = set()
 
     def _collect(o):
@@ -266,15 +290,21 @@ def main(argv=None):
     #   从产物算不出来（见 T2/T4，修订 51 §51.2）。
     GEN = ROOT / ".cache/strengthscan/linearity_law.py"
     need(GEN.exists(), "找不到线性定律生成器 %s —— 阈值无出处" % GEN)
-    _gsrc = GEN.read_text(encoding="utf-8")
+    # ⚠⚠⚠ 修订 57（X3）：原来这里是 `GEN.read_text()` **紧接着**那句 `need`。
+    #   `need(False, …)` 不会中止执行 ⇒ 生成器不在时直接
+    #   `FileNotFoundError`，崩点还在第一道门**之前**
+    #   ⇒ 审计里后面 41 条自检全变成「测不到」。
+    _gsrc = GEN.read_text(encoding="utf-8") if GEN.exists() else ""
     l1_thr = {}
     for _key, _var in (("direction_independent", "sp"),
                        ("random_indistinguishable", "gap")):
         _m2 = re.search(rf'"{_key}"\s*:\s*{_var}\s*<\s*([0-9.]+)', _gsrc)
         need(_m2 is not None,
              "在 %s 里读不到 %s 的判定阈值（表达式变了？）" % (GEN.name, _key))
-        if _m2:
-            l1_thr[_key] = float(_m2.group(1))
+        # ⚠⚠ 同样的一类坑：正则失败时这个键**从未被写入** ⇒ 后面所有
+        #   `l1_thr["random_indistinguishable"]` 都是 KeyError。
+        #   ⇒ 写 0.0 占位（判红已经记下了，占位只为不崩）。
+        l1_thr[_key] = float(_m2.group(1)) if _m2 else 0.0
     l1_arr_max = max(_walk_len(law), default=0)
 
     # ---------- 修订 56（W5）：那个布尔本身也要被钉，且 note 必须现读 ----------
@@ -477,12 +507,35 @@ def main(argv=None):
     need(l5_margin < 2.0, "L5 余量读到 %.2f×，已经 ≥2 ⇒ 阶梯该改了" % l5_margin)
 
     # ---------- L6：干预 run 数 + 缺随机臂 ----------
+    # ⚠⚠⚠ 修订 57（X2）：原来这一段**一条自检都没有**，而
+    #   「%d 个真 run / %d 题配对」印在 L6 的 `here` 与 `not_answerable` 里 ——
+    #   实测 `cot.n_runs 92→1`、`arm.n_pairs 23→99`、`arm.metrics` 加一个可分辨指标，
+    #   **三个都让页面上的字变了，而一条自检都没红**。
+    #   与修订 56 W1 抓到的那五条是**同一个病**：
+    #   「读者看得到的数字」与「有人钉着的数字」不是同一批。
+    # ⚠⚠ `n_runs` 是**声明**、`len(runs)` 是**实际**；两者不等时 note 会说谎
+    #   （W4 在 linearity_law 上已经栽过一次同样的坑）。
     l6_runs = int(cot["n_runs"])
+    l6_runs_actual = len(cot["runs"])
     dirs = sorted({r["direction"] for r in cot["runs"]})
     need(len(dirs) == 2 and all("random" not in d for d in dirs),
          "L6 方向集合变了：%s —— 若已有随机臂，阶梯 L6 要升级" % dirs)
     l6_pairs = int(arm["n_pairs"])
     l6_sep = [m["metric"] for m in arm["metrics"] if m["distinguishable"]]
+    need(l6_runs_actual > 0, "cot.runs 是空的（L6 无数据可印）")
+    need(l6_runs == l6_runs_actual,
+         "cot.n_runs 声明 %d 个 run，实际数组只有 %d 个 ⇒ note 上印的是"
+         "**声明值**，读者看到的与能数出来的不一致" % (l6_runs, l6_runs_actual))
+    need(l6_pairs > 0, "arm.n_pairs = %d（要 >0）⇒ L6 的「题配对」没有对象"
+         % l6_pairs)
+    # ⚠ 可分辨指标列表也必须有出处：它是 L6 声称「改了但没做随机臂对照」的依据。
+    need(len(l6_sep) > 0,
+         "arm.metrics 里一个 distinguishable 都没有 ⇒ L6 说「真 run 改了」，"
+         "而**支撑它的那批指标一个都没被判为可分辨**")
+    need(all(isinstance(m.get("metric"), str) and m.get("metric")
+             for m in arm["metrics"]),
+         "arm.metrics 里有条目没有非空 metric 名字 ⇒ L6 引用它们时读者无从知道"
+         "指的是哪几个量")
 
     _abort_if_problems()
 
@@ -554,9 +607,11 @@ def main(argv=None):
                     ("；其中 caution 还被可读性判据记为「被 confidence 吸收」"
                      "（cos=%s）" % l1_caution_cos) if l1_caution_cos else "",
                     ("%g" % l1_thr["random_indistinguishable"]), l1_base,
-                    100.0 * l1_thr["random_indistinguishable"] / l1_base,
-                    1.0 / l1_thr["random_indistinguishable"] / l1_rndgap
-                    if l1_rndgap else 0.0,
+                    100.0 * l1_thr["random_indistinguishable"] / l1_base_d,
+                    # ⚠ 阈值占位成 0.0 时（正则失配，X3）这里会 ZeroDivisionError
+                    #   ⇒ 同样先判红、再给可读的占位，而不是崩。
+                    (1.0 / l1_thr["random_indistinguishable"] / l1_rndgap
+                     if (l1_rndgap and l1_thr["random_indistinguishable"]) else 0.0),
                     # ---- 修订 54 段（按占位符顺序，共 12 个）
                     int(law["design"]["n_points"]),
                     l1_npt, 10,
@@ -572,7 +627,7 @@ def main(argv=None):
                     l1_rnd_flag,
                     l1_thr["random_indistinguishable"],
                     # ↓ 原有参数（现落在位置 27）
-                    100.0 * l1_thr["random_indistinguishable"] / l1_base,
+                    100.0 * l1_thr["random_indistinguishable"] / l1_base_d,
                     l1_thr["random_indistinguishable"],
                     # ---- 修订 55 段
                     l1_claim_gap_at_a02, l1_n_pts, l1_e_exact, l1_e_claim,
@@ -657,12 +712,20 @@ def main(argv=None):
          "`(1−a·c)/(1+a·c)`（a=0.2 处与真值差 %.2f）" % l1_claim_gap_at_a02)
     # 幅度：note 必须同时印出「旧数已精确复现」与「换正确因子后的数」，
     #   ⚠ 两个都要 —— 只印新的就像旧数从来没存在过，只印旧的等于没更正。
-    need("%.1f%%" % l1_sp_old_pct in _l1["note"],
-         "L1 的 note 必须印出修订 49 那个旧幅度 %.1f%%（并说明它在本口径下已复现）"
+    # ⚠⚠⚠ 修订 57（X1）：下面两条原来是 `"%.1f%%" % l1_sp_old_pct in note`。
+    #   那是**恒真重言式**：note 里那个数**也是用 l1_sp_old_pct 格式化出来的**
+    #   ⇒ 两边同时变、同时对 ⇒ 从一开始就不可能红，却每轮贡献一次「全过」。
+    #   ⇒ 改成**冻结字面量**。连带后果：产物一变这里就红，
+    #   **必须显式改判据并留痕** —— 这正是要的效果（§55.12）。
+    #   ⚠ 字面量不是抄来的：`docs` 与预登记 §55.9 都印着这两个数，
+    #   改动它们等于改一个**对外声明过的**结论。
+    need("6.5%" in _l1["note"],
+         "L1 的 note 必须印出修订 49 那个旧幅度 6.5%%（并说明它在本口径下已复现）；"
+         "现算值是 %.2f%% ⇒ 若产物变了，**先改判据并留痕**，不要直接改 note"
          % l1_sp_old_pct)
-    need("%.2f%%" % l1_sp_new_pct in _l1["note"],
-         "L1 的 note 必须印出换精确因子后的幅度 %.2f%%，否则「更正」没有数字"
-         % l1_sp_new_pct)
+    need("3.75%" in _l1["note"],
+         "L1 的 note 必须印出换精确因子后的幅度 3.75%%，否则「更正」没有数字；"
+         "现算值是 %.2f%% ⇒ 若产物变了，**先改判据并留痕**" % l1_sp_new_pct)
     # ⚠⚠ 自检 8（修订 50 立，修订 51 改钉）：那句「真实-vs-随机」的 null
     #   **不构成**「与语义无关」的证据，理由两条，缺一不可：
     #   (a) 它的判定阈值是**硬编码的 1.0 个百分点**（≈ 基线信号的一半），
@@ -676,10 +739,12 @@ def main(argv=None):
     for _frag, _why in (
         ("命名轴", "没说明「真实」那一臂是什么"),
         ("不构成", "没声明这条 null 不是「与语义无关」的证据"),
-        ("%g 个百分点" % l1_thr["random_indistinguishable"],
-         "没印出那条 null 的真实判定阈值"),
-        ("%.1f%%" % (100.0 * l1_thr["random_indistinguishable"] / l1_base),
-         "没把阈值换算成「占信号的百分之几」"),
+        # ⚠⚠⚠ 修订 57（X1）：下面三条原来是 `%`-格式化出来的**恒真重言式** ——
+        #   期望串与 note 用**同一个变量**，两边同时变 ⇒ 永远绿。
+        #   决定性实验：把生成器阈值 1.0 → 7.0，note 里 `49.5%` 消失（变 346.8%）、
+        #   `1 个百分点` 变 `7 个百分点`，而这三条**全绿**。⇒ 改成冻结字面量。
+        ("1 个百分点", "没印出那条 null 的真实判定阈值"),
+        ("49.5%", "没把阈值换算成「占信号的百分之几」"),
         ("修订 54", "没交代分辨率现在算得出来了"),
         ("方向重采样", "没交代判决用的是**方向重采样**零分布而不是点轴 t"),
         ("分母用错", "没披露点轴 t 口径在零假设下失标定（90% vs 5%）"),
@@ -691,8 +756,11 @@ def main(argv=None):
         #   自检照样全过（exit=0）⇒ 数字还在、出处没了，而**读者无从知道
         #   那个数是从哪读的**。所以出处也要钉。
         ("linearity_law.py", "没交代阈值的出处（读者无从知道那个数从哪读）"),
-        ("%.1f%%" % (100.0 * l1_thr["random_indistinguishable"] / l1_base),
-         "没把阈值换算成占信号的百分比"),
+        # ⚠⚠ 修订 57（X1）：**删掉了一条重复判据**。
+        #   原来这里还有第二条 `"%.1f%%" % (100.0*l1_thr[…]/l1_base)`，
+        #   与上面那条**期望串逐字相同、理由措辞不同** ——
+        #   重复不产生第二份保护，只多占一个名额、虚增「全过」的条数。
+        #   ⇒ 合并进上面那条 `49.5%`；删除理由记在预登记 §57.4。
     ):
         need(_frag in _l1["note"],
              "L1 的 note 缺了「%s」—— %s" % (_frag, _why))

@@ -165,7 +165,45 @@ COT = "cot_texts.json"
 ARTEFACTS = [LAW, SUB, HEL, ARM, COT]
 
 
-# ---- 变异：每个都改产物里**一个**具体的东西 ------------------------------------
+# ---- X4：阳性对照 —— 每条变异**必须**翻的自检（修订 57 §57.4）------------
+# ⚠⚠⚠ 没有这一栏，台架只能发现「漏」，发现不了「过」。
+#   写完 41 条变异之后我无法回答「它们真的在查吗」——
+#   一条变异可以是**完全惰性**的（比如它只改了一个没人读的字面量），
+#   而台架会照样报「0 条翻红，一切正常」。
+# ⚠ 这正是 M1b 那次教训的固化：阳性对照自己写错等于没有对照。
+#   ⇒ 值写的是**自检消息里的一段字面量**，不是行号（行号会随编辑漂移）。
+MUST_FLIP = {
+    # —— 修订 56 的 W1–W5 ——
+    "pred_points 整体 ×1.01": "精确因子在安全区",          # W1a
+    "n_points 改成 0": "design.n_points =",                # W3
+    "n_random 改成 2": "design.n_random =",                # W4
+    "random_indistinguishable 翻 False": "random_indistinguishable = False",  # W5
+    "删掉 c_points（真实臂）": "要求的字段不在",            # W-字段检查
+    "safe_regime.direction_independent 翻 False": "direction_independent = False",
+    "a_mean 安全档 ×1.5": "6.5%",                          # X1 冻结字面量
+    # —— 修订 57 的 X1–X3 ——
+    "L6 可读下界 14 → 13": "可读下界读到",
+    "L4 配方 loo_rho 82× → 17×": "配方 LOO/地板",
+    "L5 余量 1.15× → 2.4×": "余量读到",
+    "cot 某个 run 的方向改成随机对照": "方向集合变了",
+    "cot n_runs 92 → 1": "声明 1 个 run",                   # X2
+    "arm n_pairs 23 → 99": "题配对」没有对象",             # X2
+    "删掉 s=0.2 那一档的全部行": "没有** s=",              # X3
+    # —— 生成器 / 源码变异 ——
+    "生成器路径指到不存在的文件": "找不到线性定律生成器",
+    "删掉 direction_independent 的阈值行": "读不到 direction_independent",
+    "判定阈值 1.0 → 7.0（**重言式实验**：note 会变，期望串也会跟着变）":
+        "没印出那条 null 的真实判定阈值",                   # X1 的决定性实验
+    "源码：claim 写回修订 49 那个错因子": "又写回了修订 49",
+    "源码：claim 去掉「任何 a>0 都不与方向无关」": "必须说清「c² 项不随 a 衰减",
+    "源码：note 去掉「命名轴」": "缺了「命名轴」",
+    "源码：note 去掉「不构成」": "缺了「不构成」",
+    "源码：note 去掉「方向重采样」": "缺了「方向重采样」",
+    "源码：note 去掉「分母用错」": "缺了「分母用错」",
+    "源码：note 去掉「随强度翻转」": "缺了「随强度翻转」",
+    "源码：把 L5 状态改成 done": "既不在 missing 也不在 partial",
+}
+
 # ⚠⚠ 修订 56（W6）：第一版 15 条变异**全部只改 linearity_law.json** ⇒
 #   L2/L3/L4/L5/L6 那些自检一条都没被碰过，那「35 条恒绿」是**覆盖不足**、
 #   不是无牙齿。⇒ 下面按产物分组，五项都要有变异。
@@ -481,9 +519,18 @@ def main():
         print("基线（门开）：%d 条自检\n" % len(base_gate))
 
         flipped, ever_lost, rows = {}, {}, []
+        pc_fail = []          # X4 阳性对照失败清单
 
         def measure(tag, mod, label):
-            """跑门关 + 门开两遍，返回 (新翻红数, 丢失数, 门开红数, 崩, 产物可见变化)。"""
+            """跑门关 + 门开两遍。
+
+            返回 (新翻红数, 丢失数, 门开红数, 崩, 产物可见变化)。
+            ⚠ X4 阳性对照：`label` 在 `MUST_FLIP` 里时，**必须**有一条新翻红的
+            自检消息含那个字面量；没有就记成阳性对照失败 ⇒ 审计判红。
+            ⚠「变异可以是完全惰性的，而台架照样报一切正常」——
+              没有这一栏就发现不了。
+            """
+            nonlocal pc_fail
             try:
                 seen_off, crash_off = run_once(mod, data_dir, mout, False)
                 seen_on, crash_on = run_once(mod, data_dir, mout, True)
@@ -498,10 +545,18 @@ def main():
                 flipped.setdefault(i, []).append(label)
             for i in lost:
                 ever_lost.setdefault(i, []).append(label)
+            want = MUST_FLIP.get(label)
+            if want is not None:
+                # ⚠ 比的是**变异后**那一轮的消息：红的时候消息会换成失败说明，
+                #   用基线消息去找字面量会永远找不到（第一版就这么写错过）。
+                msg_now = {i: m for i, _, m in seen_off}
+                if not any(want in msg_now.get(i, "") for i in newly):
+                    pc_fail.append((label, want))
             vis_changed = (vis is not None and base_vis is not None and vis != base_vis)
             rows.append((tag, len(newly), len(lost),
                          sum(1 for _, ok, _ in seen_on if not ok),
                          crash_off or crash_on, vis_changed))
+
 
         # ---- 产物变异 ----
         for why, fname, fn in ARTEFACT_MUTATIONS:
@@ -613,9 +668,21 @@ def main():
               % (len(base_ok), len(covered), len(never), len(unreachable)))
         print("产物覆盖：%s" % {f.replace(".json", ""): cover.get(f, 0)
                                 for f in ARTEFACTS})
-        bad = (len(vac) > 0) or bool(holes)
-        print("\n判决：%s" % ("❌ 审计不通过（W7/W6）" if bad else "✅ 通过："
-                             "没有「产物变了却零自检翻红」的缺口，五产物全覆盖"))
+        print("\n--- X4 阳性对照：声明了「必须翻」却没翻的变异：%d 条 ---"
+              % len(pc_fail))
+        for label, want in pc_fail:
+            print("  ✗ %s" % label[:60])
+            print("      期望出现含「%s」的自检，实际没有" % want)
+        if not pc_fail:
+            print("  （无）")
+        n_pc = sum(1 for k in MUST_FLIP if any(k == lbl for lbl, _ in pc_fail))
+        print("阳性对照覆盖 %d 条变异（占 %d 条的 %.0f%%）"
+              % (len(MUST_FLIP) - n_pc, len(MUST_FLIP),
+                 100.0 * (len(MUST_FLIP) - n_pc) / max(len(MUST_FLIP), 1)))
+
+        bad = (len(vac) > 0) or bool(holes) or bool(pc_fail)
+        print("\n判决：%s" % ("❌ 审计不通过（W7/W6/X4）" if bad else "✅ 通过："
+                             "五产物全覆盖、无「产物变了却零自检翻红」、阳性对照全过"))
         return 1 if bad else 0
 
 
