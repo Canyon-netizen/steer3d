@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -428,6 +429,20 @@ def main() -> int:
           f"（标量直接躺在 list 里，如 built_from[0]）—— 空正则只要源码不以 "
           f"ASCII 字母开头就匹配 ⇒ 它们**全部自动判为「已覆盖」**，"
           f"而它根本没有名字可供匹配。这是弱覆盖里**唯一可证**的子集。")
+    # ⚠ 修订 73：把上面的弱覆盖**拆成三级**，否则「弱覆盖 1062」会被读成
+    #   「1062 个没渲染」——它只是「名字命中但路径对不上」。
+    try:
+        tier = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve().parent
+                                 / "check_render_tiers.py")],
+            capture_output=True, text=True, timeout=300)
+        for line in tier.stdout.splitlines():
+            if ("A 强" in line or "B 循环" in line or "C 弱" in line):
+                print(f"  [修订 73 分级] {line.strip()}")
+    except Exception as exc:                      # noqa: BLE001
+        print(f"  ⚠ 三级分级没跑成（{type(exc).__name__}: {exc}）"
+              f" ⇒ 本项对「弱覆盖里有多少真没渲染」**无判据**，"
+              f"别把 {weak_tot} 读成「有 {weak_tot} 个没渲染」")
     for a in rep["artifacts"]:
         if not a.get("n_weak"):
             continue

@@ -59,6 +59,19 @@ function analyse(file, rootName) {
       return null;
     }
     if (ts.isParenthesizedExpression(node)) return chain(node.expression);
+    // ⚠⚠ `Object.entries(X).map(…)` 里 `.map` 的接收者是一个 **CallExpression**。
+    //   第一版 `chain()` 不认它 ⇒ recv 解析成 null ⇒ 整个循环站点被**静默跳过**，
+    //   于是 `Object.entries(rs.per_id).map(([id, v]) => … v.dot …)` 里的
+    //   `v.dot` 一个都没进访问集合。
+    if (ts.isCallExpression(node)) {
+      const sig = node.expression;
+      if (ts.isPropertyAccessExpression(sig) &&
+          sig.expression.getText(sf) === 'Object' &&
+          /^(entries|keys|values)$/.test(sig.name.getText(sf)) &&
+          node.arguments.length) {
+        return chain(node.arguments[0]);
+      }
+    }
     return null;
   }
 
@@ -95,6 +108,17 @@ function analyse(file, rootName) {
                 const bn = el.propertyName || el.name;
                 if (ts.isIdentifier(bn)) loopVar.set(bn.text, recv);
               }
+            } else if (ts.isArrayBindingPattern(p0.name)) {
+              // ⚠ `Object.entries(X).map(([k, v]) => …)`：**第二个**才是值。
+              //   只在迭代源来自 Object.entries/keys/values 时这么绑 ——
+              //   对 `ys.map((v, i) => …)` 第二个是**下标**，绑错了会把
+              //   `i` 当成整条记录，那比漏报更坏。
+              const fromObjectEntries = /Object\.(entries|keys|values)\s*\(/.test(
+                sig.expression.getText(sf));
+              if (fromObjectEntries) {
+                const v = p0.name.elements[1];
+                if (v && ts.isIdentifier(v.name)) loopVar.set(v.name.text, recv);
+              }
             }
           }
         }
@@ -121,6 +145,18 @@ const CHECKS = [
   { panel: 'BPathPanel.tsx', must_access: 'd/orthogonality/hi_sites28/control_arm', why: '源码第 746-748 行确实读了它' },
   { panel: 'BPathPanel.tsx', must_NOT_access: 'd/readability_static/control_arm', why: '新增块，面板里没有任何访问' },
   { panel: 'BPathPanel.tsx', must_loop: 'd/layer_profile/rows', why: '第 527 行 layer_profile.rows.map((r) => …)' },
+  // ⚠ 第四条（因 bug 补上）：接收者是 CallExpression 的循环。
+  //   `Object.entries(X).map(([id, v]) => … v.dot …)` 必须既进循环站点、
+  //   又把 `v.dot` 还原成 `X/*/dot`。第一版两样都没有，**而前三条照样全过**
+  //   —— 三条对照全绿却漏掉整整一类机制，正是「对照要覆盖每个条件」。
+  { panel: 'BPathPanel.tsx', must_loop: 'd/readability_static/per_id', why: '第 436 行 Object.entries(rs.per_id).map(([id, v]) => …)' },
+  { panel: 'BPathPanel.tsx', must_access: 'd/readability_static/per_id/*/dot', why: '同一个循环的回调体里 v.dot / v.share' },
+  // ⚠ 反向对照：三条**独立 grep 核过**的「源码里根本没有」，用来盯住 C 级
+  //   不能被仪器的高估灌水。
+  //   `suites` 只出现在第 65 行的**类型声明**里 —— 它不是表达式访问。
+  { panel: 'BPathPanel.tsx', must_NOT_access: 'd/built_from', why: 'grep built_from = 0 处' },
+  { panel: 'BPathPanel.tsx', must_NOT_access: 'd/readability_static/what', why: 'grep rs.what = 0 处' },
+  { panel: 'BPathPanel.tsx', must_NOT_access: 'd/selfcheck_detail/suites', why: '第 65 行是类型声明，不是访问' },
 ];
 
 const panels = {
@@ -161,6 +197,11 @@ for (const c of CHECKS) {
 }
 
 console.log(JSON.stringify({ known_answers: known, panels: out }, null, 1));
-const allOk = known.every(k => k.ok);
-console.error(allOk ? '✓ 3/3 已知答案成立' : '✗ 已知答案未全部成立 ⇒ 仪器不可信，不发数');
+const nOK = known.filter(k => k.ok).length;
+const allOk = nOK === known.length;
+// ⚠ 这个数字**必须实算**。第一版硬写着「3/3」而 CHECKS 已经加到 5 条
+//   —— 一个会自己过期的成功信息，等于每次都在说「这条判据一直在跑」。
+console.error(allOk
+  ? `✓ ${nOK}/${known.length} 已知答案成立`
+  : `✗ ${nOK}/${known.length} 已知答案成立 ⇒ 仪器不可信，不发数`);
 process.exit(allOk ? 0 : 1);
