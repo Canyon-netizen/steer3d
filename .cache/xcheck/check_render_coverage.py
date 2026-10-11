@@ -226,8 +226,36 @@ def check() -> dict:
         # 只报一次并记下它出现过几次，免得「未渲染清单」被一个名字淹没。
         seen_names: dict[str, dict] = {}
         n_exempt_names = 0
+        # ⚠⚠ 修订 72（W6）：本守卫判的是**字段名**，不是路径。
+        #   「字段名在源码里出现过」**不等于**「这个字段被渲染了」——
+        #   同名的字段可能挂在完全不同的路径下。
+        #   这里把「名字命中但父路径在源码里没有对应形态」的叶子**单独记下来**，
+        #   它们仍然算「已覆盖」（不改变 Y1 的判红条件），
+        #   但必须被**报出来**，否则「未渲染 0」会被读成「都渲染了」。
+        weak: list[dict] = []
+        n_name_hit = 0
+        n_empty_name = 0
         for lpath, lname, val in got:
+            # ⚠⚠ 字段名为**空串**的叶子（标量直接躺在 list 里，如 `built_from[0]`）
+            #   会被编译成 `(?<![A-Za-z0-9_])(?![A-Za-z0-9_])` ——
+            #   只要源码**不以 ASCII 字母/数字/下划线开头**就匹配。
+            #   真实的 .tsx 都不以它开头 ⇒ 这些叶子**全部自动判为「已覆盖」**，
+            #   而它根本没有名字可供匹配。
+            #   这是弱覆盖里**唯一可证**的子集，单独计数、单独报出。
+            if not lname:
+                n_empty_name += 1
             if name_pattern(lname).search(src):
+                n_name_hit += 1
+                # ⚠ `lpath` 是**点分字符串**（`a.b[0].c`），不是元组 ——
+                #   第一版写 `"/".join(lpath)`，把路径拆成了逐字符输出。
+                # 父形态 = 路径的最后两段（`b.c`），它在源码里出现，
+                # 才说明宿主是**沿着这个路径**取到值的。
+                segs = lpath.rsplit(".", 2)
+                parent = ".".join(segs[-2:]) if len(segs) >= 2 else lpath
+                if not name_pattern(parent).search(src):
+                    weak.append({"field": lname, "path": lpath,
+                                 "parent_form_absent": parent,
+                                 "sample": repr(val)[:60]})
                 continue
             reason = EXEMPT.get(lname)
             if reason is not None:
@@ -256,7 +284,20 @@ def check() -> dict:
             art["exempt_hits"].append(lname)
             report["exempt_used"].append(
                 {"artifact": rel, "field": lname, "reason": EXEMPT[lname]})
+        art["n_name_hit"] = n_name_hit
+        art["n_empty_name"] = n_empty_name
+        art["n_weak"] = len(weak)
+        art["weak_sample"] = weak[:12]
         report["artifacts"].append(art)
+
+    # ⚠ 修订 72（W6-5）：叶子总数为 0 必须判红。
+    #   否则「弱覆盖 0 个」会从一个**空扫描**里漂亮地报出来。
+    #   `n_leaves_total` 在上面已按产物累加，这里只汇总新增的两项。
+    report["n_weak_total"] = sum(a.get("n_weak", 0) for a in report["artifacts"])
+    report["n_name_hit_total"] = sum(a.get("n_name_hit", 0)
+                                     for a in report["artifacts"])
+    report["n_empty_name_total"] = sum(a.get("n_empty_name", 0)
+                                       for a in report["artifacts"])
 
     # 去重：同一 (产物, 字段) 只记一次
     seen_pairs = set()
@@ -368,9 +409,31 @@ def main() -> int:
             print(f"  ✗ {f}")
         return 1
 
-    print(f"PASS Y1 渲染覆盖：扫 {rep['n_leaves_total']} 个叶子字段 / "
+    # ⚠⚠ 修订 72（W6）：把「弱覆盖」印出来。
+    #   本守卫判的是**字段名**，不是路径 —— 「字段名在源码里出现过」
+    #   **不等于**「这个字段被渲染了」（同名字段可能挂在不同路径下）。
+    #   ⇒ 这一行不许被读成「都渲染了」。
+    weak_tot = rep["n_weak_total"]
+    hit_tot = rep["n_name_hit_total"]
+    leaf_tot = rep["n_leaves_total"]
+    pct = (100.0 * weak_tot / hit_tot) if hit_tot else 0.0
+    print(f"PASS Y1 渲染覆盖：扫 {leaf_tot} 个叶子字段 / "
           f"{rep['n_components_checked']} 个组件，未渲染 0 个"
           f"（豁免 {len(rep['exempt_used'])}/{rep['exempt_table_size']}）")
+    print(f"  ⚠⚠ 其中 {weak_tot} 个是**弱覆盖**（字段名命中、"
+          f"父路径在源码里无对应形态），占名字命中的 {pct:.1f}%"
+          f" —— **这些不能读成「已渲染」**：本守卫判的是字段名，不是路径。")
+    emp = rep["n_empty_name_total"]
+    print(f"  ⚠⚠ 其中 {emp} 个叶子的**字段名是空串**"
+          f"（标量直接躺在 list 里，如 built_from[0]）—— 空正则只要源码不以 "
+          f"ASCII 字母开头就匹配 ⇒ 它们**全部自动判为「已覆盖」**，"
+          f"而它根本没有名字可供匹配。这是弱覆盖里**唯一可证**的子集。")
+    for a in rep["artifacts"]:
+        if not a.get("n_weak"):
+            continue
+        print(f"    {a['artifact']}：{a['n_weak']} / {a['n_leaves']}")
+        for w in a["weak_sample"]:
+            print(f"       · {w['path']}  (父形态 `{w['parent_form_absent']}` 缺席)")
     return 0
 
 
