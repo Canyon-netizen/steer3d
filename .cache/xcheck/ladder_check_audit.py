@@ -211,6 +211,8 @@ MUST_FLIP = {
     "源码：note 删掉「分辨率 1.82%」后面的「已被更正」那句（Z1+Z2 锚点）":
         "缺了「「分辨率 1.82%」**是错误的**」",
     "源码：note 去掉阈值的出处 linearity_law.py": "缺了「linearity_law.py」",
+    "源码：note 删掉诱饵那处「代数上就是错的」（R4 反向对照）":
+        "缺了「**代数上就是错的**」",
     "源码：把 L6 状态改成 done": "L6 既不在 missing",
     "源码：把 L7 状态改成 done": "L7 既不在 missing",
     "arm n_pairs 23 → 99": "23 题配对",
@@ -501,6 +503,24 @@ SRC_MUTATIONS = [
      "**是错的**"),
     ("note 去掉阈值的出处 linearity_law.py",
      "（现读 `linearity_law.py` 的 `summarise()`）", ""),
+    # ↓ 修订 60（R4）：**反向对照** —— 删掉**诱饵**那处。
+    #   §59.4 说这条会让 W7 报「产物变了却零自检翻红」，而那是**新发现**：
+    #   「claim 里那个旧因子已被证伪」这句披露**从来没人钉** ⇒ 它删掉没人报警。
+    #   ⇒ 加上 R3 之后，这条变异**必须**翻 R3；它不再报真空缺口。
+    #   ⚠ 它的价值是**反向**的：证明判据不是被诱饵那句满足的。
+    # ⚠⚠⚠ 锚点必须**在源码里唯一**。第一版用 `**代数上就是错误的**`，
+    #   而它在源码里出现 **2 次**：note 模板一次、**R3 判据的片段**一次
+    #   ⇒ `.replace(old, new, 1)` 只改第一处 ⇒ 计数不变 ⇒ **变异被跳过**
+    #   ⇒ 阳性对照又报「（变异被跳过）」。
+    #   ⇒ 这正是「断言定位的特征不唯一时，会找到检查但找错那条检查」。
+    #   锚点加上后面那个 ` ——` 之后就只存在于 note 模板里。
+    # ⚠⚠⚠⚠ 而 token 我**手抄错了**：写成 `**代数上就是错误的**`（多一个「误」字），
+    #   它在源码里出现 **0 次** ⇒ 断言判「没打掉目标」⇒ 变异被跳过。
+    #   ⇒ 这是 token 断言**自动**抓到的，不是人眼发现的。
+    #   ⇒ 教训固化：**手抄含中文的锚点/token 极易差一两个字符**，
+    #     所以断言必须是机械的，且错误消息要直接说「token 在源码里就是 0 次」。
+    ("note 删掉诱饵那处「代数上就是错的」（R4 反向对照）",
+     "**代数上就是错的** ——", "", "**代数上就是错的** ——"),
     ("把 L6 状态改成 done",
      '"state": "partial", "here": "%d 个真 run / %d 题配对"',
      '"state": "done", "here": "%d 个真 run / %d 题配对"'),
@@ -667,11 +687,31 @@ def main():
                              "⚠ 锚点没找到（源码已变？特征不唯一？）", None))
                 pc_fail.append((why, "（变异被跳过：锚点没找到）"))
                 continue
+            # ⚠⚠⚠ 锚点**不唯一**时，`.replace(old, new, 1)` 只改第一处 ——
+            #   而你可能以为改的是另一处。实测踩过：R4 那条的锚点
+            #   `**代数上就是错误的**` 在源码里出现 2 次（note 模板 + R3 判据片段），
+            #   改的是模板、token 却按模板所在的那处去数，结论完全错位。
+            #   ⇒ 「找到检查」与「找对那条检查」是两回事（§60.2）。
+            if src_pristine.count(old) != 1:
+                rows.append(("源码：%s" % why, None, None, None,
+                             "⚠⚠ 锚点在源码里出现 %d 次 ⇒ 可能**改错地方**"
+                             "（只会替换第一处）" % src_pristine.count(old), None))
+                pc_fail.append((why, "（变异被跳过：锚点不唯一，未被测量）"))
+                continue
             mut_src = src_pristine.replace(old, new, 1)
             if mut_src == src_pristine:
                 rows.append(("源码：%s" % why, None, None, None,
                              "⚠ 变异未生效", None))
                 pc_fail.append((why, "（变异被跳过：未生效）"))
+                continue
+            if token is not None and src_pristine.count(token) == 0:
+                # ⚠⚠ 手抄 token 与锚点差一两个字符时，光看「没打掉目标」会误导 ——
+                #   真实情况是**这个 token 在源码里根本不存在**。
+                #   实测踩过：`**代数上就是错误的**` vs `**代数上就是错的**`（多一个「误」）。
+                rows.append(("源码：%s" % why, None, None, None,
+                             "⚠⚠ token 在源码里出现 **0 次**（拼写与锚点不同 ⇒ "
+                             "手抄差字），不是「没打掉目标」", None))
+                pc_fail.append((why, "（变异被跳过：token 拼写错误，未被测量）"))
                 continue
             if token is not None and mut_src.count(token) >= src_pristine.count(token):
                 rows.append(("源码：%s" % why, None, None, None,
