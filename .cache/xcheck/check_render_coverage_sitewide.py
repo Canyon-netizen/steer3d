@@ -190,6 +190,122 @@ def scan() -> dict:
     return rep
 
 
+# ── §69.1.2 Z5：`index.html` 不是 JSX，改判「含 ** 的值有没有被它显示」────
+IDX = FE / "public/latent/index.html"
+
+# 计「只有孤立星号、没有 markdown 强调」的字段数 ——
+# ⚠ 那些**不是**缺陷（模型真吐出来的 token），但必须报出来，
+#   否则读者会以为「它们已经被判为无问题」，而真相是「它们压根没参与判定」。
+N_ISOLATED = [0]
+
+# ⚠⚠ Z5 的**前提**（本轮实测）：index.html **全文件没有任何剥离 `**` 的路径**。
+#   唯一的消毒函数是 `esc(s)`，它只转义 `&` 与 `<`；
+#   `visTok(s)` 只处理 \n \r \t 与行首空格。
+#   文件里 200 处 `<strong>` **全是源码里写死的 HTML**，
+#   不是从产物字符串生成的。
+#   ⇒ 因此：产物里任何**含 `**` 的值**，只要它的字段名被 index.html 引用到，
+#     星号就会原样显示（= 修订 67 的 D3 同款，只是发生在独立站）。
+#
+# ⚠⚠⚠ **代理性质必须自曝**：「字段名被引用」**不等于**
+#   「那个字段的值作为可见文本被显示」——
+#   宿主完全可能只用它做计算。这是**代理指标**。
+#   本判据是**筛查**，不是证明；定论靠 Z3 那一层的实页核对。
+#   ⚠ 本轮不假装它是证明：输出的标题就写着「筛查」。
+Z5_PROXY = True
+
+# ⚠⚠ 修订 70：`**` 有两种，Z5 原先分不清。
+#   一种是 **markdown 强调**，一种��**数据里的星号** ——
+#   后者是模型真吐出来的 token（AIME 答案里写 \boxed{\textbf{042}}，
+#   分词器把 `**` 切成了独立 token），原样显示**是正确的**。
+#   实测 manifest.json 那 34 个值全是后者。
+#
+#   ⇒ 定义「markdown 强调」：**必须包裹至少一个非空白字符**。
+#   规则来自 markdown 强调的**定义**，不是看数据凑的。
+#   ⚠ 残余风险：模型若吐过 `a**b` 这种带内容的 ⇒ 假阳性。
+#   本判据的失败模式是**多报**，不是漏报。
+MD_EMPHASIS = re.compile(r"\*\*[^*\s][^*]*\*\*")
+
+
+def z5() -> dict:
+    if not IDX.exists():
+        return {"error": "index.html 不存在"}
+    src = IDX.read_text(encoding="utf-8")
+    hits, scanned, md_fields = [], 0, 0
+    for f in artifacts():
+        if f.name not in src:
+            continue
+        data = json.loads(f.read_text(encoding="utf-8"))
+        acc = []
+        list(leaves(data, acc=acc))
+        by_name: dict[str, tuple[str, int]] = {}
+        for p, v in acc:
+            if not isinstance(v, str) or not MD_EMPHASIS.search(v):
+                continue
+            pass
+            nm = field_name(p)
+            scanned += 1
+            prev = by_name.get(nm)
+            by_name[nm] = (p, prev[1] + 1 if prev else 1)
+        # 统计「值里只有孤立 `**`、没有 markdown 强调」的字段数
+        for p, v in acc:
+            if (isinstance(v, str) and "**" in v
+                    and not MD_EMPHASIS.search(v)):
+                N_ISOLATED[0] += 1
+        for nm, (first, n) in sorted(by_name.items()):
+            md_fields += 1
+            if name_pattern(nm).search(src):
+                hits.append({"artifact": f.name, "field": nm,
+                             "first": first, "n_values": n})
+    return {"n_md_values": scanned, "n_md_fields": md_fields,
+            "n_fields_referenced": md_fields - len(hits),
+            "hits": hits, "proxy": Z5_PROXY,
+            "n_isolated_stars": N_ISOLATED[0]}
+
+
+def z5_positive_control() -> dict:
+    """
+    Z5 的判红是**合取**：值含 `**` **且** 字段名被 index.html 引用。
+
+    ⚠⚠ 对照的前两版都测错了东西：
+    - v1 假设 `ltv.json[首个键]` 是 dict，实际是**字符串**（顶层首键是
+      `schema`）⇒ 注入没发生，`ok_inj=False`。
+    - v2 改成顶层标量注入，`ok_inj=True` 了，但探针名**不在 index.html 里**
+      ⇒ 第二个条件不成立 ⇒ `caught=False`。
+      守卫判它「判据恒真」——**判得对**（不能拿没通过的对照当通过），
+      但病根是对照没让判据的两个条件**同时**成立。
+
+    ⇒ v3：**两处都注入** —— 产物里放一个含 `**` 的字段，
+      同时在 index.html 里引用该字段名（改完即还原）。
+    ⚠ `ok_inj` 的含义是「**两处都成了**」，必须回读确认。
+    ⚠⚠ `index.html` 是被 15+ 个 `next start` 之外的静态站直接读的，
+    所以还原必须**逐字节**回写，不能只写回内容相似的字符串。
+    """
+    target = FE / "public/latent/data/ltv.json"
+    torig = target.read_bytes()
+    iorig = IDX.read_bytes()
+    probe = "zzz_rev69_probe"
+    ok_inj = False
+    caught = False
+    try:
+        d = json.loads(torig.decode("utf-8"))
+        d[probe] = "这是**注入星号**"   # ⚠ 必须**包裹内容**才是 markdown 强调
+        target.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+        # ⚠ 注入点选在文件**末尾**的一行注释式赋值里：
+        #   不能用 C 风格块注释 —— 那会让工具链把 `//` 之后当成路径。
+        IDX.write_bytes(iorig + f"\nconst {probe} = 1;\n".encode("utf-8"))
+
+        back = json.loads(target.read_text(encoding="utf-8"))
+        ok_inj = (back.get(probe) == "这是**注入星号**"
+                  and probe in IDX.read_text(encoding="utf-8"))
+        caught = any(h["field"] == probe for h in z5()["hits"])
+    except (KeyError, TypeError, ValueError):
+        ok_inj, caught = False, False
+    finally:
+        target.write_bytes(torig)
+        IDX.write_bytes(iorig)
+    return {"ok_inj": ok_inj, "caught": bool(caught), "field": probe}
+
+
 def positive_control() -> dict:
     """
     注入一个**任何宿主源码里不可能出现**的字段名，确认判据仍判红。
@@ -298,6 +414,31 @@ def main() -> int:
         if len(new_hits) > 20:
             print(f"      … 另有 {len(new_hits)-20} 条")
 
+    # ── Z5：index.html 侧的 `**` 筛查 ────────────────────────────────
+    r5 = z5()
+    if r5.get("error"):
+        print(f"\n[Z5] {r5['error']}")
+    else:
+        print(f"\n[Z5] ⚠ **筛查**（不是证明）· index.html 侧的 `**` 泄漏")
+        print(f"     index.html 引用的产物里，含 `**` 的值 {r5['n_md_values']} 条 / "
+              f"{r5['n_md_fields']} 个字段；其中字段名被 index.html 引用的 "
+              f"**{len(r5['hits'])}** 个")
+        print(f"     前提已实测：index.html **无任何剥离 `**` 的路径**"
+              f"（`esc()` 只转义 `&` 与 `<`）")
+        print(f"     ⚠ 另有 {r5['n_isolated_stars']} 个值含 `**` 但**不是** markdown 强调"
+              f"（模型真吐出来的 token，原样显示是正确的）⇒ **本项对它们无判据**")
+        print(f"     ⚠⚠⚠ **代理性质**：字段名被引用 ≠ 该值作为可见文本被显示；"
+              f"宿主可能只用它做计算。定论靠实页核对（Z3）。")
+        for h in r5["hits"]:
+            print(f"        ✗ {h['artifact']}:{h['field']}"
+                  f"（{h['n_values']} 个值含 `**`）  首见 {h['first']}")
+
+    print()
+    pc5 = z5_positive_control()
+    print(f"[阳性对照 Z5] ok_inj={pc5['ok_inj']}  caught={pc5['caught']}")
+    print(f"           ⚠ ok_inj=False 时守卫会判红「对照没跑」——"
+          f"不允许拿一个没跑的对照冒充通过")
+
     print()
     pc = positive_control()
     print(f"[阳性对照] ok_inj={pc['ok_inj']}  caught={pc['caught']}  "
@@ -323,6 +464,27 @@ def main() -> int:
         fails.append("阳性对照注入成功但判据没抓到 ⇒ 判据恒真")
     if pc["ok_inj"] and pc["caught"] and not pc["would_red"]:
         fails.append("阳性对照被扫到了却不会被判红 ⇒ 判定路径恒绿")
+    if not pc5["ok_inj"]:
+        fails.append("Z5 阳性对照注入失败 ⇒ 对照没跑，不是判据通过")
+    if pc5["ok_inj"] and not pc5["caught"]:
+        fails.append("Z5 阳性对照注入成功但没抓到 ⇒ 判据恒真")
+    # Z5 台账：与 Y2 的 513 条**分开记**，不混进一个总数
+    debt5 = load_debt()
+    new5, old5 = [], []
+    for h in r5.get("hits", []):
+        # ⚠⚠ 台账里 Z5 条目的 artifact 前缀是 `z5::`（写台账时加的），
+        #   这里查的键必须**逐字**一致 —— 第一版写的是 `z5|`
+        #   ⇒ 12 条全部「不在台账」⇒ 守卫判红。
+        #   ⚠ 症状又是「数字不对」，而它看起来像台账失效，其实是键不一致。
+        key = "z5::" + h["artifact"] + "|" + h["field"]
+        e = debt5["entries"].get(key)
+        (old5 if e else new5).append(h)
+    print(f"\n[Z5 台账] 在册待实页核对 {len(old5)} 条"
+          f"　⚠ **这是欠账，不是通过**（Z5 只是筛查，定论靠实页）")
+    if new5:
+        print(f"[Z5 台账] **不在台账里**的 {len(new5)} 条 ⇒ 判红（台账不许自动增长）")
+    if new5:
+        fails.append(f"{len(new5)} 个新的 Z5 筛查命中不在台账里")
     if new_hits:
         fails.append(f"{len(new_hits)} 个新出现的未渲染字段不在台账里"
                      f"（台账不许自动增长）")
@@ -338,10 +500,12 @@ def main() -> int:
         return 1
 
     print(f"PASS Y2（无新回归）：{rep['n_artifacts_checked']} 个产物 / "
-          f"{rep['n_leaves_total']} 个叶子 / 新增未渲染 0 个；"
-          f"\n     ⚠⚠ 在册欠账 {len(old_hits)} 条未清、"
-          f"{len(rep['excluded'])} 个产物**本项无判据** —— "
-          f"**这不是「整站都渲染了」**")
+          f"{rep['n_leaves_total']} 个叶子 / 新增未渲染 0 个 / 新增 Z5 命中 0 个；"
+          f"\n     ⚠⚠ 在册欠账 {len(old_hits)} 条未清；"
+          f"⚠ Z5 待实页核对 {len(old5)} 条；"
+          f"{len(rep['excluded'])} 个产物**本项无判据**；"
+          f"{r5['n_isolated_stars']} 个孤立星号值**无判据**"
+          f" —— **这不是「整站都渲染了」**")
     return 0
 
 

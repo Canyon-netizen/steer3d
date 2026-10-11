@@ -1,6 +1,6 @@
 {
- "note": "修订 69 §69.5 台账。**这些是欠账，不是通过。** 本轮逐条未判读（454 条标 unclassified），机械归类只覆盖 data-key 与 meta 两类。⚠ 新出现的未渲染字段不在此表 ⇒ 判红。⚠ 要加入必须写明理由。",
- "count": 513,
+ "note": "修订 69 §69.5 台账。**这些是欠账，不是通过。** 本轮逐条未判读（454 条标 unclassified），机械归类只覆盖 data-key 与 meta 两类。⚠ 新出现的未渲染字段不在此表 ⇒ 判红。⚠ 要加入必须写明理由。 ｜ z5 部分：修订 70 的 12 条筛查命中，待实页核对，不是通过。",
+ "count": 525,
  "debt": [
   {
    "artifact": "public/latent/data/answer_power.json",
@@ -3079,6 +3079,90 @@
    "field": "top20_vs_uniform",
    "first": "models[0].top20_vs_uniform[0]",
    "category": "unclassified"
+  },
+  {
+   "artifact": "z5::answer_readout.json",
+   "field": "steered",
+   "first": "items[9].landing.steered",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::answer_readout.json",
+   "field": "zero",
+   "first": "items[9].landing.zero",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::cot_effect_32k.json",
+   "field": "what",
+   "first": "answer_shift_free_run.what",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::intervention_threshold_law.json",
+   "field": "claim",
+   "first": "contrast_with_replay.claim",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::intervention_threshold_law.json",
+   "field": "verdict_reason",
+   "first": "generality.verdict_reason",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::ltv.json",
+   "field": "caveats",
+   "first": "caveats[9]",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::ltv.json",
+   "field": "judge_slice_note",
+   "first": "judge_slice_note",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::ltv.json",
+   "field": "name",
+   "first": "gates.S1.name",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::ltv.json",
+   "field": "note",
+   "first": "decomp.note",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::path_patching.json",
+   "field": "claim",
+   "first": "gates.G0b.claim",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::path_patching.json",
+   "field": "target",
+   "first": "target",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
+  },
+  {
+   "artifact": "z5::path_patching.json",
+   "field": "why_na",
+   "first": "gates.G6[num/excess].why_na",
+   "category": "z5-unverified",
+   "note": "修订 70 §70.1 筛查命中，**待实页核对**；Z5 是代理判据（字段名被引用 ≠ 值作为可见文本被显示）"
   }
  ]
 }
