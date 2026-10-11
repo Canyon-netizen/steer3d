@@ -182,7 +182,7 @@ MUST_FLIP = {
     "safe_regime.direction_independent 翻 False": "direction_independent = False",
     "a_mean 安全档 ×1.5": "6.5%",                          # X1 冻结字面量
     # —— 修订 57 的 X1–X3 ——
-    "L6 可读下界 14 → 13": "可读下界读到",
+    "L2 可读下界 14 → 13": "可读下界读到",
     "L4 配方 loo_rho 82× → 17×": "配方 LOO/地板",
     "L5 余量 1.15× → 2.4×": "余量读到",
     "cot 某个 run 的方向改成随机对照": "方向集合变了",
@@ -208,7 +208,8 @@ MUST_FLIP = {
     "cot.runs 清空": "cot.runs 是空的",
     "源码：note 去掉「修订 54」": "缺了「修订 54」",
     "源码：note 去掉「可分辨」": "缺了「可分辨」",
-    "源码：note 去掉「是错的」（两处全删）": "缺了「是错的」",
+    "源码：note 删掉「分辨率 1.82%」后面的「已被更正」那句（Z1+Z2 锚点）":
+        "缺了「「分辨率 1.82%」**是错误的**」",
     "源码：note 去掉阈值的出处 linearity_law.py": "缺了「linearity_law.py」",
     "源码：把 L6 状态改成 done": "L6 既不在 missing",
     "源码：把 L7 状态改成 done": "L7 既不在 missing",
@@ -416,7 +417,7 @@ ARTEFACT_MUTATIONS = [
     ("所有 real_dev_spread 置 0", LAW, mut_spread_zero),
     ("n_random 改成 2", LAW, mut_nrand),
     ("加语义类键名 readability_margin", LAW, mut_sem_key),
-    ("a_mean 第一行 ×1.5", LAW, mut_a_mean),
+    ("a_mean 安全档 ×1.5", LAW, mut_a_mean),
     ("safe_regime.direction_independent 翻 False", LAW, mut_dir_ind_false),
     ("beyond_safe_regime.direction_independent 翻 True", LAW, mut_beyond_ind_true),
     ("删掉 s=0.2 那一档的全部行", LAW, mut_drop_safe_rows),
@@ -478,16 +479,26 @@ SRC_MUTATIONS = [
      "⚠⚠ 修订 54：分辨率**现在算得出来了**", "⚠⚠ 分辨率", "修订 54"),
     ("note 去掉「可分辨」",
      "⇒ **真实方向与随机方向是可分辨的**", "⇒ 有差别", "可分辨"),
-    # ⚠⚠⚠ 第一版只删了第一处「是错的」。实测 note 里这个片段出现 **2 次**：
-    #   `「分辨率 1.82%」**是错的**` 与 `**代数上就是错的**`
-    #   ⇒ 删掉一处之后子串仍在，判据不翻。
-    #   ⇒ 两处一起删。⚠ 顺带暴露判据本身偏弱（片段不唯一），
-    #   收紧它属于**改判据**，留给修订 59。
-    # ⚠ 声明 token = `是错的`：**断言它在变异后必须减少**。
-    #   它会减少（2 → 1），但仍非 0 —— 因为另一处是 `**代数上就是错的**`。
-    #   ⇒ 那正是 §58.5.4 说的「判据片段不唯一」，留给修订 59。
-    ("note 去掉「是错的」（两处全删）",
-     "**是错的**", "", "是错的"),
+    # ⚠⚠⚠ 修订 58 那条只删了**第一处**「是错的」。实测 note 里这个片段出现
+    #   **2 次**：`「分辨率 1.82%」**是错的**` 与 `**代数上就是错的**`
+    #   ⇒ 删掉前者之后子串仍在，Z1 照样绿。
+    #   ⇒ 删掉**相关**的那一处（Z3）：必须同时翻 Z1 与 Z2。
+    # ⚠⚠⚠ 我一度把这条写成「整句删除（含代数上那句）」—— 而「整句删除」用的
+    #   锚点仍然是 `**是错的**`，**只匹配第一处**（第二处是「就是错的**」，
+    #   它前面没有 `**`）⇒ 两条变异**完全重复**，第二条什么也没多测。
+    #   **「变异之间的差异」也要看**：两条长得一样时第二条是纯冗余。
+    # ⚠ **反向对照**「删掉诱饵那处（代数上就是错误的）」按 §59.4 Z4 留给修订 60：
+    #   它会让 W7 报「产物变了却零自检翻红」，而那是一个**新发现**
+    #   （没有人管那句披露），不在本轮顺手改。
+    # ⚠⚠⚠ token 必须是**源码形态**：`%%` 是转义后的字面量。
+    #   第一版把 token 写成产物形态 `1.82%」**是错误的**` ⇒ 在源码里计数 **0**，
+    #   而 token 断言要求「次数减少」（0 → 0 不算）⇒ **变异被跳过**。
+    # ⚠⚠⚠ 更糟的是：因为被跳过，`measure()` 从没被调用 ⇒
+    #   **它的「必须翻」也从来没被检查** ⇒ 阳性对照照样报 100%。
+    #   ⇒ 「跳过」必须算成阳性对照**失败**（下面一并修）。
+    ("note 删掉「分辨率 1.82%」后面的「已被更正」那句（Z1+Z2 锚点）",
+     "印出的「分辨率 1.82%%」**是错的**", "印出的「分辨率 1.82%%」",
+     "**是错的**"),
     ("note 去掉阈值的出处 linearity_law.py",
      "（现读 `linearity_law.py` 的 `summarise()`）", ""),
     ("把 L6 状态改成 done",
@@ -632,6 +643,7 @@ def main():
             if blob == pristine[fname]:
                 rows.append(("%s [%s]" % (why, fname), None, None, None,
                              "⚠ 变异未生效", None))
+                pc_fail.append((why, "（变异被跳过：未生效，未被测量）"))
                 continue
             with open(os.path.join(data_dir, fname), "w", encoding="utf-8") as fh:
                 fh.write(blob)
@@ -653,11 +665,13 @@ def main():
             if old not in src_pristine:
                 rows.append(("源码：%s" % why, None, None, None,
                              "⚠ 锚点没找到（源码已变？特征不唯一？）", None))
+                pc_fail.append((why, "（变异被跳过：锚点没找到）"))
                 continue
             mut_src = src_pristine.replace(old, new, 1)
             if mut_src == src_pristine:
                 rows.append(("源码：%s" % why, None, None, None,
                              "⚠ 变异未生效", None))
+                pc_fail.append((why, "（变异被跳过：未生效）"))
                 continue
             if token is not None and mut_src.count(token) >= src_pristine.count(token):
                 rows.append(("源码：%s" % why, None, None, None,
@@ -665,6 +679,9 @@ def main():
                              "—— 这是**变异**的问题，不是判据的"
                              % (token, src_pristine.count(token),
                                 mut_src.count(token)), None))
+                # ⚠⚠⚠ 被跳过的变异，它的「必须翻」**从来没被检查过** ——
+                #   而它在覆盖率统计里却**仍然算作已覆盖** ⇒「100%」是虚的。
+                pc_fail.append((why, "（变异被跳过：没打掉目标 token，未被测量）"))
                 continue
             p = os.path.join(ROOT, ".cache/mutbak/_mut_builder.py")
             with open(p, "w", encoding="utf-8") as fh:
@@ -760,7 +777,27 @@ def main():
               % (len(MUST_FLIP) - n_pc, len(MUST_FLIP),
                  100.0 * (len(MUST_FLIP) - n_pc) / max(len(MUST_FLIP), 1)))
 
-        bad = (len(vac) > 0) or bool(holes) or bool(pc_fail)
+        # ⚠⚠⚠ 孤儿键：`MUST_FLIP` 里声明了「必须翻」，却**根本没有对应的变异**
+        #   ⇒ 它永远不会被检查，却**仍然算进覆盖率分子** ⇒「100%」虚高。
+        #   实测踩过：改键名时把 `note 去掉…` 写成 `note 删掉…`，
+        #   覆盖率看着满，实际那条变异早就不存在了。
+        all_labels = set()
+        for _w, _f, _fn in ARTEFACT_MUTATIONS:
+            all_labels.add(_w)
+        for _e in SRC_MUTATIONS:
+            all_labels.add(_e[0])
+            all_labels.add("源码：" + _e[0])
+        for _e in GEN_MUTATIONS:
+            all_labels.add(_e[0])
+            all_labels.add("生成器：" + _e[0])
+        orphan = sorted(k for k in MUST_FLIP if k not in all_labels)
+        print("--- MUST_FLIP 孤儿键（声明了却没有对应变异）：%d 条 ---" % len(orphan))
+        for k in orphan:
+            print("  ✗ %s" % k)
+        if not orphan:
+            print("  （无）")
+
+        bad = (len(vac) > 0) or bool(holes) or bool(pc_fail) or bool(orphan)
         print("\n判决：%s" % ("❌ 审计不通过（W7/W6/X4）" if bad else "✅ 通过："
                              "五产物全覆盖、无「产物变了却零自检翻红」、阳性对照全过"))
         return 1 if bad else 0
