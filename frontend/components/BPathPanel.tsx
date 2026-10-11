@@ -1205,6 +1205,28 @@ export default function BPathPanel() {
               ⇒ 走 `Em`；判据 Z2 从此把「含 ** 的字段不许裸插值」钉住。 */}
           一致性自检（{d.selfcheck_passed ? "本次全过" : "未过"}）：<Em s={d.selfcheck} />。
         </div>
+        {/* ⚠⚠ 修订 76 S4：同族字段的渲染必须对称。
+            下面这一段（`selfcheck_unavailable`）早就渲染了
+            `script` 与 `why`；而 `selfcheck_detail.suites[]` 里
+            **跑起来了**的三个检查的同名字段一个都没上屏 ——
+            页面上只有散文串里的「12/12」「11/11」「26/26」。
+            ⇒ 跑不起来的那个检查讲得比跑起来的三个更清楚。
+            ⚠ 只补「同名字段」，不新增任何**别的事实**；
+               `status` / `total` / `failed` 另有出处，不在这里重复印。 */}
+        {d.selfcheck_detail.suites.some((s) => s.status === "ran") && (
+          <div className="mt-0.5 text-gray-400">
+            <span className="text-gray-500">跑起来的检查各自的依据（逐项）：</span>
+            {d.selfcheck_detail.suites
+              .filter((s) => s.status === "ran")
+              .map((s) => (
+                <span key={s.name}>
+                  {" "}
+                  <code className="text-gray-300">{s.script}</code>（{s.why}）
+                </span>
+              ))}
+          </div>
+        )}
+
         {/* ⚠⚠ 修订 62 T2：「未过」有两种，**不能**只印一个词 ——
             「跑起来了但有失败」与「这一项根本跑不起来」要分开，
             后者还必须说清**缺什么**，否则读者会以为整套自检都在跑。 */}

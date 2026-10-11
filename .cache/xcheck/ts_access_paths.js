@@ -192,11 +192,19 @@ const CHECKS = [
   //   `suites` 只出现在第 65 行的**类型声明**里 —— 它不是表达式访问。
   { panel: 'BPathPanel.tsx', must_NOT_access: 'd/built_from', why: 'grep built_from = 0 处' },
   { panel: 'BPathPanel.tsx', must_NOT_access: 'd/readability_static/what', why: 'grep rs.what = 0 处' },
-  { panel: 'BPathPanel.tsx', must_NOT_access: 'd/selfcheck_detail/suites', why: '第 65 行是类型声明，不是访问' },
-  // ⚠ S1 正向对照：selfcheck_detail 在源码里**只有类型声明、没有取值**
-  //   ⇒ 仪器必须能在 type_names 里看到它。
   { panel: 'BPathPanel.tsx', must_type_name: 'suites', why: 'selfcheck_detail 的类型声明里写着 suites' },
   { panel: 'BPathPanel.tsx', must_type_name: 'all_ran', why: 'selfcheck_detail 的类型声明里写着 all_ran' },
+  // ⚠⚠⚠ 修订 76：下面这两条**方向翻了**，不是删掉。
+  // 修订 75 钉的是 `must_NOT_access: d/selfcheck_detail/suites`
+  //   （当时它只在第 65 行的类型声明里、从未被取值）。
+  // 修订 76 把那个不对称修好了 ⇒ 那条断言按设计**不再成立**，
+  //   仪器自检立刻报 9/10 —— 它是正确的：**世界变了，我记的事实过期了**。
+  // ⇒ 修法不是删掉它，也不是把它降级，而是**翻成正面断言**：
+  //   「现在**必须**被取值」。这样谁把渲染删回去，它照样变红 ——
+  //   检查从「钉住缺陷」升级成「钉住修复」，比原来更强。
+  { panel: 'BPathPanel.tsx', must_access: 'd/selfcheck_detail/suites', why: '修订 76 起：跑起来的检查要逐项上屏' },
+  { panel: 'BPathPanel.tsx', must_access: 'd/selfcheck_detail/suites/*/script', why: '同上：script 必须被取值' },
+  { panel: 'BPathPanel.tsx', must_access: 'd/selfcheck_detail/suites/*/why', why: '同上：why 必须被取值' },
 ];
 
 // ⚠ S3 阳性对照要拿**打过补丁的副本**跑，真实组件不许改。
