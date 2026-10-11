@@ -521,7 +521,11 @@ def main(argv=None):
     need(len(dirs) == 2 and all("random" not in d for d in dirs),
          "L6 方向集合变了：%s —— 若已有随机臂，阶梯 L6 要升级" % dirs)
     l6_pairs = int(arm["n_pairs"])
-    l6_sep = [m["metric"] for m in arm["metrics"] if m["distinguishable"]]
+    # ⚠⚠ 修订 58：这里原来写的是 `m["metric"]` ⇒ 指标一旦缺名字就是 **KeyError**，
+    #   而下面那条判红自检用 `m.get("metric")` ⇒ **崩点排在自己的判据前面**。
+    #   与 §57.5.3 的 X3 同一个病：判据记了问题，代码却先崩了。
+    l6_sep = [m.get("metric", "?") for m in arm["metrics"]
+              if m.get("distinguishable")]
     need(l6_runs_actual > 0, "cot.runs 是空的（L6 无数据可印）")
     need(l6_runs == l6_runs_actual,
          "cot.n_runs 声明 %d 个 run，实际数组只有 %d 个 ⇒ note 上印的是"
@@ -536,6 +540,11 @@ def main(argv=None):
              for m in arm["metrics"]),
          "arm.metrics 里有条目没有非空 metric 名字 ⇒ L6 引用它们时读者无从知道"
          "指的是哪几个量")
+
+    # ⚠⚠ 三个新自检（修订 58 Y1）在 ladder 建好之后 —— 见下面那处。
+    # 这里先把三个数算出来，供消息里印现算值用。
+    l6_here = "%d 个真 run / %d 题配对" % (l6_runs, l6_pairs)
+    l6_sep_txt = "、".join(l6_sep) or "无"
 
     _abort_if_problems()
 
@@ -787,6 +796,35 @@ def main(argv=None):
          "方向重采样后显著 %d/%d 行 —— 若变成 ≥10 行，note 里"
          "「点轴 %d 行 vs 方向重采样 %d 行」的对照必须重写"
          % (l1_nsig, l1_npt, l1_npt, l1_nsig))
+
+    # ⚠⚠⚠ 修订 58（Y1）：L6 页面上**读者看得到**的三个数，一直没人钉。
+    #   实测：`arm.n_pairs 23→99` 让「23 题配对」变成 99、
+    #   `arm.metrics` 加一个可分辨指标让「分得开的量」变长 ——
+    #   **页面上的字都变了，而一条自检都没红**。与修订 56 W1 / 修订 57 X1 同族。
+    # ⚠⚠⚠ 必须是**字面量**，不能写成 `"%d 题配对" % l6_pairs in here` ——
+    #   那是修订 57 刚清掉的恒真重言式（期望串与被检查文本同源）。
+    #   ⇒ 写完用 `check_tautology.py` 验一遍，那不是摆设。
+    # ⚠⚠ 判据的**理由**也一起更正过（预登记 §58.2）：
+    #   旧理由「产物内部应当自洽」—— 不成立，产物里没有第二个独立来源；
+    #   新理由「这是**对外声明过的**数字，数据增加时必须显式改判据并留痕，
+    #   而不是让页面悄悄变」。手段与理由必须同时改（§55.6）。
+    # ⚠ 消息里同时印现算值：**让人知道差多少**，不能只说「不一致」。
+    _l6 = next(x for x in ladder if x["level"] == "L6")
+    need("92 个真 run" in _l6["here"],
+         "L6 的 here 必须印出「92 个真 run」；现算值是 %r ⇒ 若 run 数变了，"
+         "**先改判据并留痕**，不要让页面悄悄变" % _l6["here"])
+    need("23 题配对" in _l6["here"],
+         "L6 的 here 必须印出「23 题配对」；现算值是 %r ⇒ arm.n_pairs 变了，"
+         "**先改判据并留痕**" % _l6["here"])
+    # ⚠⚠⚠ 这里**不能用 `in`**：第一版写的是 `"mean_logit_kl、token_agreement" in note`，
+    #   而变异是**往列表尾部追加**一个指标 ⇒ 新串「…、token_agreement、random_control」
+    #   **仍然包含**那个子串 ⇒ 判据照样绿。
+    #   「子串包含」对「列表变长」这种变异**天生无效** —— 与修订 57 的重言式不同族，
+    #   但同样是「看起来在查、其实查不住」。
+    #   ⇒ 改成**整串相等**，且比的是一个**字面量**（不是同源变量）⇒ 不是重言式。
+    need(l6_sep_txt == "mean_logit_kl、token_agreement",
+         "L6 的「分得开的量」应恰好是 mean_logit_kl、token_agreement；"
+         "现算是 %r ⇒ 可分辨指标变了，**先改判据并留痕**" % l6_sep_txt)
 
     # ⚠ 自称「哪一级没测」的那段话，本身必须和上面这张表**逐级一致**。
     #   我原来写死「L5 及以上：一行都没有」，而同一份产物的 L6 是 partial

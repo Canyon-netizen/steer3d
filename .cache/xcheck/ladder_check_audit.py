@@ -202,6 +202,18 @@ MUST_FLIP = {
     "源码：note 去掉「分母用错」": "缺了「分母用错」",
     "源码：note 去掉「随强度翻转」": "缺了「随强度翻转」",
     "源码：把 L5 状态改成 done": "既不在 missing 也不在 partial",
+    # ↓ 修订 58（Y2）：每条新变异都要声明「必须翻」，否则等于加了个惰性变异
+    "arm 全部指标置为不可分辨": "一个 distinguishable 都没有",
+    "arm 某条指标去掉 metric 名": "没有非空 metric 名字",
+    "cot.runs 清空": "cot.runs 是空的",
+    "源码：note 去掉「修订 54」": "缺了「修订 54」",
+    "源码：note 去掉「可分辨」": "缺了「可分辨」",
+    "源码：note 去掉「是错的」（两处全删）": "缺了「是错的」",
+    "源码：note 去掉阈值的出处 linearity_law.py": "缺了「linearity_law.py」",
+    "源码：把 L6 状态改成 done": "L6 既不在 missing",
+    "源码：把 L7 状态改成 done": "L7 既不在 missing",
+    "arm n_pairs 23 → 99": "23 题配对",
+    "arm n_pairs 23 → 0": "题配对」没有对象",
 }
 
 # ⚠⚠ 修订 56（W6）：第一版 15 条变异**全部只改 linearity_law.json** ⇒
@@ -324,12 +336,32 @@ def mut_arm_pairs(d):
     d["n_pairs"] = 99
 
 
+def mut_arm_pairs_zero(d):
+    d["n_pairs"] = 0
+
+
 def mut_cot_dir(d):
     d["runs"][0]["direction"] = "random_control"
 
 
 def mut_cot_nruns(d):
     d["n_runs"] = 1
+
+
+# ---- 修订 58（Y2）：补齐台架覆盖 -------------------------------------------
+# ⚠ 这三条是**为了覆盖那几条恒绿**而加的，不是为了改判据。
+# ⚠ 每条都要在 `MUST_FLIP` 里声明「必须翻」—— 否则等于加了个惰性变异。
+def mut_arm_all_inseparable(d):
+    for m in d["metrics"]:
+        m["distinguishable"] = False
+
+
+def mut_arm_drop_metric_name(d):
+    d["metrics"][0].pop("metric", None)
+
+
+def mut_cot_no_runs(d):
+    d["runs"] = []
 
 
 # ---- 第二批：把第一版「够不着」的自检也纳入覆盖（W6 补漏）--------------------
@@ -397,8 +429,13 @@ ARTEFACT_MUTATIONS = [
     ("L5 余量 1.15× → 2.4×", HEL, mut_hel_margin),
     ("arm 加一个可分辨的随机对照指标", ARM, mut_arm_dirs),
     ("arm n_pairs 23 → 99", ARM, mut_arm_pairs),
+    ("arm n_pairs 23 → 0", ARM, mut_arm_pairs_zero),
     ("cot 某个 run 的方向改成随机对照", COT, mut_cot_dir),
     ("cot n_runs 92 → 1", COT, mut_cot_nruns),
+    # ↓ 修订 58（Y2）：覆盖 [518] [521] [511]
+    ("arm 全部指标置为不可分辨", ARM, mut_arm_all_inseparable),
+    ("arm 某条指标去掉 metric 名", ARM, mut_arm_drop_metric_name),
+    ("cot.runs 清空", COT, mut_cot_no_runs),
 ]
 
 # ---- 源码变异：note / claim 是**构建器写出来的**，改产物永远删不掉一个片段 ----
@@ -432,6 +469,35 @@ SRC_MUTATIONS = [
     ("把 L5 状态改成 done",
      '"state": "missing", "here": "0 条（余量 %.2f× < 2×）"',
      '"state": "done", "here": "0 条（余量 %.2f× < 2×）"'),
+    # ↓ 修订 58（Y2）：覆盖 [751:5] [751:8] [751:10] [751:11] [790:2] [790:3]
+    # ⚠⚠⚠ 第一版写成 `⚠⚠ 修订 54：分辨率**现在算得出来了**` → `⚠⚠ 修订 54：分辨率`，
+    #   **「修订 54」这四个字还在** ⇒ 变异生效了、页面也变了，
+    #   而判据当然不翻。⇒ 被 T-B 判成「产物变了却零自检翻红」，
+    #   **看起来像判据坏了，其实是我把 token 留下了**。
+    ("note 去掉「修订 54」",
+     "⚠⚠ 修订 54：分辨率**现在算得出来了**", "⚠⚠ 分辨率", "修订 54"),
+    ("note 去掉「可分辨」",
+     "⇒ **真实方向与随机方向是可分辨的**", "⇒ 有差别", "可分辨"),
+    # ⚠⚠⚠ 第一版只删了第一处「是错的」。实测 note 里这个片段出现 **2 次**：
+    #   `「分辨率 1.82%」**是错的**` 与 `**代数上就是错的**`
+    #   ⇒ 删掉一处之后子串仍在，判据不翻。
+    #   ⇒ 两处一起删。⚠ 顺带暴露判据本身偏弱（片段不唯一），
+    #   收紧它属于**改判据**，留给修订 59。
+    # ⚠ 声明 token = `是错的`：**断言它在变异后必须减少**。
+    #   它会减少（2 → 1），但仍非 0 —— 因为另一处是 `**代数上就是错的**`。
+    #   ⇒ 那正是 §58.5.4 说的「判据片段不唯一」，留给修订 59。
+    ("note 去掉「是错的」（两处全删）",
+     "**是错的**", "", "是错的"),
+    ("note 去掉阈值的出处 linearity_law.py",
+     "（现读 `linearity_law.py` 的 `summarise()`）", ""),
+    ("把 L6 状态改成 done",
+     '"state": "partial", "here": "%d 个真 run / %d 题配对"',
+     '"state": "done", "here": "%d 个真 run / %d 题配对"'),
+    # ⚠ 第一版把它改成 `partial` —— 而那条判据是「必须在 missing 或 partial 里」，
+    #   `partial` **照样满足** ⇒ 变异无效。⇒ 要让它红必须改成 `done`。
+    ("把 L7 状态改成 done",
+     '"state": "missing", "here": "原数据集一次都没测"',
+     '"state": "done", "here": "原数据集一次都没测"'),
 ]
 
 # ---- 第六个「输入」：生成器源码（阈值出处）------------------------------------
@@ -576,7 +642,14 @@ def main():
         # ⚠ 必须落在 `.cache/mutbak/`：`ROOT` 由 `__file__` 往上两级推导，
         #   换个别的深度会指向错误目录；而那个目录是 `.gitignore` 的，
         #   临时副本不会污染仓库。
-        for why, old, new in SRC_MUTATIONS:
+        for entry in SRC_MUTATIONS:
+            why, old, new = entry[0], entry[1], entry[2]
+            # ⚠⚠⚠ 修订 58（§58.5.3）：第 4 个元素是**必须被这次变异打掉的 token**。
+            #   T-B 只查「文件有没有变」，**不查目标片段有没有真的消失** ——
+            #   于是「变异生效了但把 token 留下了」会被算成「产物变了却零自检翻红」，
+            #   也就是**被当成判据的错**。实测三例全是我自己写错的变异。
+            #   ⇒ 断言该 token 的出现次数**必须减少**，否则单独标注、不计入真空缺口。
+            token = entry[3] if len(entry) > 3 else None
             if old not in src_pristine:
                 rows.append(("源码：%s" % why, None, None, None,
                              "⚠ 锚点没找到（源码已变？特征不唯一？）", None))
@@ -585,6 +658,13 @@ def main():
             if mut_src == src_pristine:
                 rows.append(("源码：%s" % why, None, None, None,
                              "⚠ 变异未生效", None))
+                continue
+            if token is not None and mut_src.count(token) >= src_pristine.count(token):
+                rows.append(("源码：%s" % why, None, None, None,
+                             "⚠ 变异没打掉目标 token「%s」（%d → %d 次）"
+                             "—— 这是**变异**的问题，不是判据的"
+                             % (token, src_pristine.count(token),
+                                mut_src.count(token)), None))
                 continue
             p = os.path.join(ROOT, ".cache/mutbak/_mut_builder.py")
             with open(p, "w", encoding="utf-8") as fh:
