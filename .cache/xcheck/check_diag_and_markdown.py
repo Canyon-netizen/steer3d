@@ -82,20 +82,40 @@ def jload(p: Path):
 
 
 def dig(obj, dotted: str):
-    """按 `a.b[0].c` 取值；取不到返回哨兵（不是 None —— None 是合法值）。"""
+    """按 `a.b[0].c` 取值；取不到返回哨兵（不是 None —— None 是合法值）。
+
+    ⚠⚠⚠ list **不认识字段名** ⇒ `layer_profile.rows.claim` 解不出来，
+    而组件里写的是 `{r.claim}`（`r` 是 `rows.map` 的循环变量）。
+    第一版这里只认整数下标，于是 133 处裸插值里只有 19 处解析得出，
+    `.map` 宿主解析明明已经找到了宿主，却卡在最后一步。
+
+    ⇒ 现在 list 也按**字段名**取：把该 list 的**所有元素**取这个字段，
+    返回它们的集合（供 Z4 判断「是不是全都含 `**`」）。
+    """
     cur = obj
     for part in re.findall(r"[^.\[\]]+", dotted):
         if isinstance(cur, list):
-            try:
-                cur = cur[int(part)]
-            except (ValueError, IndexError):
+            if part.isdigit():
+                try:
+                    cur = cur[int(part)]
+                    continue
+                except IndexError:
+                    return _MISS
+            # 字段名 ⇒ 取所有元素的这个字段（都取不到才算 MISS）
+            vals = []
+            for el in cur:
+                if isinstance(el, dict) and part in el:
+                    vals.append(el[part])
+            if not vals:
                 return _MISS
-        elif isinstance(cur, dict):
+            cur = vals
+            continue
+        if isinstance(cur, dict):
             if part not in cur:
                 return _MISS
             cur = cur[part]
-        else:
-            return _MISS
+            continue
+        return _MISS
     return cur
 
 
@@ -105,6 +125,9 @@ class _Miss:
 
 
 _MISS = _Miss()
+
+# 下钻上限：命中就 raise，不静默截断（修订 66 §66.3.1 的教训）。
+MAX_DEPTH = 12
 
 
 # 裸 JSX 插值：`{expr}`，且 expr 不是以 `<` 开头（那是 JSX 元素）、
@@ -246,6 +269,170 @@ def _strip_nonrendered(src: str) -> str:
     return src
 
 
+# `HOST.map((VAR) => …` / `HOST.map(VAR => …`
+# ⚠ 第一版 `\.map\(\s*\(?\s*…` 只允许**一个**左括号，
+#   而源码写的是 `.map((r) => {` —— **两个** ⇒ 匹配 0 处，
+#   宿主解析静默失效（`n_by_path` 停在 19，与 Z2 一样）。
+#   ⚠ 这是「匹配不到」而不是「匹配错」，症状是「数字没变」——
+#   而「数字没变」很容易被读成「本来就没有更多可解析的」。
+#   ⇒ 所以下面这条每次运行都要把 `n_by_path` 印出来，让它能被看见。
+MAP_BIND = re.compile(
+    r"([A-Za-z_$][\w$]*(?:\??\.[A-Za-z_$][\w$]*)*)"
+    r"\.map\(\s*\(?\s*([A-Za-z_$][\w$]*)?\s*\)?\s*=>")
+
+
+def _host_for(src: str, pos: int, var: str):
+    """
+    往前找最近一次把 `var` 绑成循环变量的 `.map(`，取它的宿主。
+
+    ⚠⚠ 这是让 Z4 从「按名字猜」升级到「按路径算」的关键：
+    Z2 放弃的 69 处里绝大多数是 `.map(r => …)` 的循环变量，
+    而**宿主**就写在同一行上方（`d.ladder_mapping.map((r) => {`）。
+    ⇒ 找到宿主就能把 `r.claim` 解析成 `ladder_mapping.claim`，**不需要猜**。
+    """
+    best = None
+    for m in MAP_BIND.finditer(src):
+        if m.start() > pos:
+            break
+        if m.group(2) == var:
+            best = m.group(1)
+    return best
+
+
+def _resolve_host(data, host: str, payload_var: str):
+    """把宿主表达式（`d.ladder_mapping`）解析成产物路径。"""
+    head, _, rest = host.partition(".")
+    if head == payload_var:
+        return rest if rest else None
+    base = DERIVED_VARS.get(head)
+    if base is not None:
+        return f"{base}.{rest}" if rest else base
+    return None
+
+
+def z4() -> dict:
+    """
+    Z4（修订 68）：按**字段名**判，不按路径。
+
+    ⚠⚠ Z2 放弃的那 69 处几乎全是 `.map(r => …)` 的循环变量，
+    路径依赖宿主、静态解析不了。而 `{r.verdict}` 与已覆盖的
+    `{d.verdict}` **是同一类** —— 都在渲染一个含 `**` 的产物字符串。
+    一起跳过等于用「解析不了」当「没关系」。
+
+    ⇒ 观察：Z2 真正要问的是「**含 `**` 的那个字段**有没有走 `<Em>`」。
+    它**不需要**知道这个字段在产物 JSON 里的完整路径 ——
+    「产物里哪些字段的值含 `**`」+「组件怎么渲染 `{x.字段名}`」
+    两个信息就够。**路径解析是多余的一步，也正是它挡掉那 69 处的原因。**
+
+    ⚠ 同名歧义必须每次报出来：若某字段名的值**有**含 `**` 也**有**不含的，
+    按名字判会误判 ⇒ 该名字标为歧义，不许悄悄算作「已覆盖」。
+    """
+    md_names: set[str] = set()
+    ambig: set[str] = set()
+    for rel, _ in SCOPE:
+        data = jload(ROOT / rel)
+        by_name: dict[str, list[bool]] = {}
+        for _p, name, val in _walk(data):
+            if not isinstance(val, str):
+                continue
+            has = MD_MARK in val
+            by_name.setdefault(name, []).append(has)
+        for nm, flags in by_name.items():
+            if any(flags):
+                md_names.add(nm)
+                if not all(flags):
+                    ambig.add(nm)
+
+    hits = []
+    n_scanned = 0
+    n_by_path = 0
+    n_by_name = 0
+    n_unresolved = 0
+    for rel, hosts in SCOPE:
+        data = jload(ROOT / rel)
+        for h, pvar in hosts:
+            raw = (ROOT / h).read_text(encoding="utf-8")
+            # ⚠ 先标出「在 <Em> 内的插值」，再扫其余的。
+            #   不能像 Z2 那样先把 <Em/> 整段删掉 —— 那样就分不出
+            #   「走 Em 的」与「裸的」了。
+            em_spans = [(m.start(), m.end()) for m in
+                        re.finditer(r"<Em\b[^>]*?/>", raw, flags=re.S)]
+            src = _strip_nonrendered(raw)
+            for m in JSX_BARE.finditer(src):
+                expr = m.group(1)
+                n_scanned += 1
+                in_em = any(a <= m.start() < b for a, b in em_spans)
+                if in_em:
+                    continue
+                val, path, how = _resolve_full(data, expr, pvar, src, m.start())
+                if val is not _MISS and isinstance(val, (str, list)):
+                    n_by_path += 1
+                    texts = [val] if isinstance(val, str) else \
+                        [x for x in val if isinstance(x, str)]
+                    if any(MD_MARK in t for t in texts):
+                        hits.append({"component": h.split("/")[-1],
+                                     "expr": expr, "path": path,
+                                     "field": path.split(".")[-1],
+                                     "how": how, "ambiguous": False})
+                    continue
+                # ⚠ 路径解不出来 ⇒ 退回按**字段名**判。
+                #   只有名字**不在歧义集**里才能下结论；歧义名字必须
+                #   单独列出来等人判，不许悄悄算作「已覆盖」。
+                n_unresolved += 1
+                last = expr.split(".")[-1]
+                if last in ambig:
+                    hits.append({"component": h.split("/")[-1],
+                                 "expr": expr, "path": "<解析不出>",
+                                 "field": last, "how": "name(歧义)",
+                                 "ambiguous": True, "needs_human": True})
+                elif last in md_names:
+                    n_by_name += 1
+                    hits.append({"component": h.split("/")[-1],
+                                 "expr": expr, "path": "<解析不出>",
+                                 "field": last, "how": "name",
+                                 "ambiguous": False})
+    return {"md_field_names": sorted(md_names), "ambiguous": sorted(ambig),
+            "n_scanned": n_scanned, "n_by_path": n_by_path,
+            "n_by_name": n_by_name, "n_unresolved": n_unresolved,
+            "hits": hits}
+
+
+def _resolve_full(data, expr: str, payload_var: str, src: str, pos: int):
+    """三级解析：payload 变量 → 声明的派生变量 → `.map` 宿主。返回 (值, 路径, 方式)。"""
+    val, path = _resolve(data, expr, payload_var)
+    if val is not _MISS:
+        return val, path, "payload/derived"
+    host = _host_for(src, pos, expr.split(".")[0])
+    if host:
+        base = _resolve_host(data, host, payload_var)
+        if base:
+            rest = expr.partition(".")[2]
+            full = f"{base}.{rest}" if rest else base
+            return dig(data, full), full, "map-host"
+    return _MISS, expr, "未解析"
+
+
+def _walk(obj, path: str = "", depth: int = 0):
+    """产出全部叶子 (路径, 字段名, 值) —— 含 list 内元素（Z4 要按名字覆盖它们）。"""
+    if depth > MAX_DEPTH:
+        raise RuntimeError(f"下钻超过 MAX_DEPTH={MAX_DEPTH}")
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            yield from _walk(v, f"{path}.{k}" if path else str(k), depth + 1)
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            yield from _walk(v, f"{path}[{i}]", depth + 1)
+    else:
+        name = path.rsplit(".", 1)[-1] if "." in path else path
+        if "[" in name:
+            # ⚠ 第一版写的是 `rest.split("]",1)[-1]` —— 对 `note_batch[0]`
+            #   算出的是**空串**，于是产物里凭空多出一个名为 "" 的字段。
+            #   字段名是**中括号之前**那一段（`note_batch`）。
+            head = name.partition("[")[0]
+            name = head if head else name
+        yield path, name, obj
+
+
 def positive_controls() -> dict:
     """
     ⚠⚠ 必须**另报 ok_inj**（注入是否真的发生），否则对照的 FAIL
@@ -280,6 +467,43 @@ def positive_controls() -> dict:
                                    for h in z2()["hits"])}
     finally:
         h.write_text(hsrc, encoding="utf-8")
+    # PC3（Z4）：把一个走 Em 的、字段名含 ** 的插值改回裸的 ⇒ 必须判红。
+    #   ⚠ 必须覆盖**循环变量**那种（Z2 放弃的正是它们），
+    #   否则对照只证明「Z4 对 Z2 已经覆盖的那部分有效」。
+    h = ROOT / "frontend/components/HeldoutPanel.tsx"
+    src2 = h.read_text(encoding="utf-8")
+    old = "<Em s={d.not_claimed} />"
+    ok3 = old in src2
+    try:
+        if ok3:
+            h.write_text(src2.replace(old, "{d.not_claimed}"),
+                         encoding="utf-8")
+            out["Z4"] = {"ok_inj": ok3,
+                         "caught": any(x["field"] == "not_claimed"
+                                       for x in z4()["hits"])}
+    finally:
+        h.write_text(src2, encoding="utf-8")
+    # PC4（Z4 的 map 宿主路径）：
+    #   ⚠ PC3 只改了 `{d.not_claimed}`，那是 **payload 变量**路径 ——
+    #   它证明不了「`r.claim` 这种 `.map` 循环变量也能解析」。
+    #   ⇒ 直接往产物的 `ladder_mapping[0].claim` 里注入一个 `**`，
+    #     若宿主解析 + list 感知的 dig 真的工作，Z4 必须判红。
+    ap = ROOT / "frontend/public/latent/data/bpath_marker_steering.json"
+    aorig = ap.read_bytes()
+    try:
+        d3 = json.loads(aorig.decode("utf-8"))
+        rows3 = d3.get("ladder_mapping") or []
+        ok4 = bool(rows3)
+        if ok4:
+            rows3[0]["claim"] = rows3[0]["claim"] + " **注入**"
+            ap.write_text(json.dumps(d3, ensure_ascii=False), encoding="utf-8")
+            h4 = z4()["hits"]
+            out["Z4-map"] = {
+                "ok_inj": True,
+                "caught": any(x["field"] == "claim" and x["how"] == "map-host"
+                              for x in h4)}
+    finally:
+        ap.write_bytes(aorig)
     return out
 
 
@@ -317,6 +541,24 @@ def main() -> int:
         print(f"   ✗ {h['component']} 的 {{{h['expr']}}}（路径 {h['path']}）"
               f" ⇒ {h['snippet']}")
 
+    r4 = z4()
+    print(f"\n[Z4] 产物里含 `**` 的字段名 {len(r4['md_field_names'])} 个："
+          f"{r4['md_field_names']}")
+    if r4["ambiguous"]:
+        print(f"   ⚠⚠ 同名歧义（同名下有的含 `**` 有的不含，按名字判会误判）"
+              f"：{r4['ambiguous']}")
+    print(f"   扫到裸 JSX 插值 {r4['n_scanned']} 处；"
+          f"按路径判 {r4['n_by_path']} 处 / 按名字判 {r4['n_by_name']} 处；"
+          f"仍解析不出 {r4['n_unresolved']} 处；**裸渲染含 `**` {len(r4['hits'])} 处**")
+    for h in r4["hits"]:
+        if h.get("needs_human"):
+            print(f"   ? {h['component']} 的 {{{h['expr']}}} ⇒ 字段名 "
+                  f"`{h['field']}` 在不同产物里有的含 `**` 有的不含 —— "
+                  f"**按名字判不了，需人工判定**")
+        else:
+            print(f"   ✗ {h['component']} 的 {{{h['expr']}}} ⇒ 路径 "
+                  f"`{h['path']}`（{h['how']}）的值含 `**` 却是裸插值")
+
     print()
     pc = positive_controls()
     for k, v in pc.items():
@@ -331,6 +573,14 @@ def main() -> int:
         fails.append("Z2 一个字段都没解析到 ⇒ 本项无判据（不得报 PASS）")
     if r2["hits"]:
         fails.append(f"{len(r2['hits'])} 处含 `**` 的字段被裸插值渲染")
+    if r4["n_by_path"] + r4["n_by_name"] == 0:
+        fails.append("Z4 一个含 `**` 的字段都没判到 ⇒ 本项无判据")
+    needs_human = [h for h in r4["hits"] if h.get("needs_human")]
+    if needs_human:
+        fails.append(f"{len(needs_human)} 处字段名歧义、按名字判不了，"
+                     f"需人工判定（不得默认算作已覆盖）")
+    if r4["hits"]:
+        fails.append(f"{len(r4['hits'])} 处含 `**` 的字段被裸插值渲染（Z4）")
     for k, v in pc.items():
         if not v["ok_inj"]:
             fails.append(f"{k} 阳性对照注入失败 ⇒ 对照没跑，不是判据通过")
@@ -344,8 +594,14 @@ def main() -> int:
             print(f"  ✗ {f}")
         return 1
 
-    print(f"PASS Z1/Z2：{r1['n_unavail']} 项 reason 逐字一致、无切片；"
-          f"{r2['n_scanned']} 处裸插值里 0 处含 `**`；两条阳性对照均被抓")
+    print(f"\n⚠ 剩下 {r4['n_unresolved']} 处路径解析不出。**这不是静默放过** —— "
+          f"它们的字段名若落在产物里那 {len(r4['md_field_names'])} 个含 `**` 的"
+          f"字段名里，Z4 会按名字判红；既然 0 处命中，"
+          f"说明这些名字**在任何一份产物里都没有含 `**` 的值** ⇒ "
+          f"裸渲染它们不可能漏出星号。")
+    print(f"PASS Z1/Z2/Z4：{r1['n_unavail']} 项 reason 逐字一致、无切片；"
+          f"Z4 按路径判 {r4['n_by_path']} 处、0 处裸渲染含 `**`；"
+          f"{len(pc)} 条阳性对照全被抓")
     return 0
 
 
