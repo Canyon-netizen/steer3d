@@ -15,7 +15,7 @@
   ".cache/mutbak/extreme_pick_abs.json"
  ],
  "selfcheck_passed": false,
- "selfcheck": "位置+层轴 12/12；P9 判定 11/11；判决脚本 26/26；正交度判定器(Q3) ⚠**本项无判据**（退出码 1，没跑到「总计」行（末行：FileNotFoundError: [Errno 2] No such file or directory: '/home/zhourui/steer3d_bpath/w_L19_m）",
+ "selfcheck": "位置+层轴 12/12；P9 判定 11/11；判决脚本 26/26；正交度判定器(Q3) ⚠**本项无判据**（退出码 1，没跑到「总计」行（末行：FileNotFoundError: [Errno 2] No such file or directory: '/home/zhourui/steer3d_bpath/w_L19_m0.npy'））",
  "selfcheck_detail": {
   "suites": [
    {

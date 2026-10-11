@@ -288,7 +288,9 @@ export default function HeldoutPanel() {
         </div>
         <p className="text-[8.5px] text-gray-600 leading-snug mt-1">
           倍数 = |ρ| ÷ |该行自己的打乱地板|，<b>分母逐行独立估计</b>。
-          {d.convention.note}
+          {/* ⚠⚠ 修订 67 Z2：这三处原来都是裸插值，而产物串里带 `**`
+              ⇒ 星号在页面上原样显示（修订 44 同款）。改走 <Em>。 */}
+          <Em s={d.convention.note} />
         </p>
       </div>
 
@@ -622,12 +624,12 @@ export default function HeldoutPanel() {
 
       <p className="text-[9.5px] text-gray-400 leading-relaxed pt-2 border-t border-border/60"
          data-heldout-verdict-text="true">
-        {d.verdict}
+        <Em s={d.verdict} />
       </p>
 
       <p className="text-[9.5px] text-amber-400/80 leading-relaxed mt-1"
          data-heldout-not-claimed="true">
-        <b>这仍然不是因果性：</b>{d.not_claimed}
+        <b>这仍然不是因果性：</b><Em s={d.not_claimed} />
       </p>
 
       <p className="text-[9px] text-gray-600 leading-relaxed mt-1 pt-1 border-t border-border/60">

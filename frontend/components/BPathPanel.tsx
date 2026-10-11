@@ -1196,7 +1196,14 @@ export default function BPathPanel() {
         <br />
         <Em s={d.coordinates.note} />
         <div className="mt-0.5">
-          一致性自检（{d.selfcheck_passed ? "本次全过" : "未过"}）：{d.selfcheck}。
+          {/* ⚠⚠ 修订 67 D3：这里原来写的是裸插值 `{d.selfcheck}` ——
+              而该串由 `bpath_selfcheck_recompute.one_line()` 造，
+              里面**带 markdown 标记**（`⚠**本项无判据**`）⇒ 星号在页面上
+              **原样显示**。与修订 44 同款。
+              ⚠ 同一个 div 里上一行的 `d.coordinates.note` 走的是 `<Em>`，
+              两个相邻字段走了两条不同的渲染路径，只有一条是对的。
+              ⇒ 走 `Em`；判据 Z2 从此把「含 ** 的字段不许裸插值」钉住。 */}
+          一致性自检（{d.selfcheck_passed ? "本次全过" : "未过"}）：<Em s={d.selfcheck} />。
         </div>
         {/* ⚠⚠ 修订 62 T2：「未过」有两种，**不能**只印一个词 ——
             「跑起来了但有失败」与「这一项根本跑不起来」要分开，

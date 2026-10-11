@@ -58,6 +58,10 @@ SUITES = [
 
 _TOTAL = re.compile(r"总计\s*(\d+)\s*项，失败\s*(\d+)")
 
+# ⚠⚠ 修订 67 Z1：子进程末行保留**尾部**这么多字符。
+# payload（缺哪个文件）在末尾 ⇒ 截断只动前缀，且截断时显式标记。
+_TAIL_KEEP = 200
+
 
 def _run(name, script, why):
     path = os.path.join(HERE, script)
@@ -77,7 +81,20 @@ def _run(name, script, why):
     m = _TOTAL.search(out)
     if not m:
         # ⚠ 跑不动 / 崩了 —— 都要**说清楚**，不能算成通过。
-        tail = " ".join(out.strip().splitlines()[-1:])[:200]
+        #
+        # ⚠⚠ 修订 67 Z1：原来这里也截断（`[:200]`），**从尾部切** ——
+        #   而 payload（缺哪个文件）恰恰在**末尾**，等于专切要害。
+        #   当前值 117 字符 < 200，所以它**现在没在截**，但那只是运气：
+        #   路径再长一点、报错多一行，同样的坑立刻复现。
+        #   ⇒ 改成**从头部截、保留尾部**，且**显式标记截了多少**。
+        #     预登记 §67.1 写明的折衷条件：(a) 显式标记截断、
+        #     (b) 保住尾部（payload 在尾部）。两条现在都满足。
+        tail_all = " ".join(out.strip().splitlines()[-1:])
+        if len(tail_all) > _TAIL_KEEP:
+            tail = "…（前 %d 字省略）%s" % (len(tail_all) - _TAIL_KEEP,
+                                          tail_all[-_TAIL_KEEP:])
+        else:
+            tail = tail_all
         return {"name": name, "script": script, "why": why,
                 "status": "unavailable",
                 "reason": "退出码 %s，没跑到「总计」行（末行：%s）"
@@ -111,12 +128,18 @@ def one_line(r):
             bits.append("%s %d/%d" % (x["name"], x["total"] - x["failed"],
                                       x["total"]))
         else:
-            # ⚠ 截断长度不是随手定的：原来截到 60 字符时，末行只剩
-            #   「…No such file 」，**缺的哪个文件被切掉了** ——
-            #   而 T2 要求的是「**写明缺什么**」。
-            #   ⇒ 取到 110，让 `/home/…/w_L19_m0.npy` 这种路径能露出来。
-            bits.append("%s ⚠**本项无判据**（%s）" % (x["name"],
-                                                      x["reason"][:110]))
+            # ⚠⚠⚠ 修订 67 Z1：**不截断**。
+            #   这里原来写的是 `x["reason"][:110]`，紧挨着的注释断言
+            #   「取到 110，让 `/home/…/w_L19_m0.npy` 这种路径能露出来」。
+            #   实测 `reason` 全文 **117** 字符 ⇒ 110 **正好停在文件名中间**
+            #   （印出 `w_L19_m`，丢掉 `0.npy'）`），**那个断言是假的**。
+            #   ⇒ 截断长度是这类注释里最典型的「说了等于没说」：
+            #   **没有任何守卫查它是否成立。**
+            #
+            #   现在直接给全文。判据 Z1 把这条钉死：
+            #   `selfcheck` 里的 reason 必须与 `selfcheck_unavailable[i].reason`
+            #   **逐字相同** ⇒ 谁再写 `[:N]` 立刻对不上并判红。
+            bits.append("%s ⚠**本项无判据**（%s）" % (x["name"], x["reason"]))
     return "；".join(bits)
 
 
