@@ -23,6 +23,40 @@ const ts = require(path.join(__dirname, '..', '..', 'frontend', 'node_modules', 
 
 const LOOP_METHODS = new Set(['map', 'forEach', 'flatMap', 'reduce', 'filter', 'some', 'every', 'find']);
 
+function collectTypeNames(sf) {
+  // ⚠⚠ 修订 75 S1：**类型声明里的字段名不是渲染证据**。
+  //   Y1/W6/W7 全都不覆盖这一类 —— 字段名在字符串搜索里「有名字」，
+  //   而它从来没有被取值过（`selfcheck_detail` 就是这么漏过 W7 的）。
+  //   这里只收**类型位置**的名字：类型字面量的成员、接口/类型别名成员、
+  //   以及函数形参名。
+  const names = new Set();
+  function walk(node) {
+    if (ts.isTypeLiteralNode(node) || ts.isInterfaceDeclaration(node) ||
+        ts.isTypeAliasDeclaration(node) || ts.isMappedTypeNode(node)) {
+      for (const m of node.members || []) {
+        if ((ts.isPropertySignature(m) || ts.isMethodSignature(m) ||
+             ts.isPropertyDeclaration(m)) && m.name) {
+          // ⚠⚠ `"n_w+_monotone_up": string;` 这种**带引号**的键名，
+          //   `m.name.getText()` 会连引号一起收成 `"n_w+_monotone_up"`（含引号），
+          //   而产物里的字段名是**不带引号**的 ⇒ 永远匹配不上，
+          //   还会把一个永远为真的匹配算进「严格 S1」的数量里。
+          //   ⇒ 带引号的键必须取 `.text`。
+          const nm = (ts.isStringLiteral(m.name) || ts.isNumericLiteral(m.name))
+            ? String(m.name.text)
+            : m.name.getText(sf);
+          names.add(nm);
+        }
+      }
+    }
+    if (ts.isParameter(node) && node.name && ts.isIdentifier(node.name)) {
+      names.add(node.name.text);      // 形参名也算「类型里出现过」
+    }
+    ts.forEachChild(node, walk);
+  }
+  walk(sf);
+  return names;
+}
+
 function analyse(file, rootName) {
   const src = fs.readFileSync(file, 'utf8');
   const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -137,7 +171,9 @@ function analyse(file, rootName) {
   }
   walk(sf);
 
-  return { accesses: [...accesses].sort(), loops: [...new Set(loops)].sort(), alias: Object.fromEntries(alias) };
+  return { accesses: [...accesses].sort(), loops: [...new Set(loops)].sort(),
+           type_names: [...collectTypeNames(sf)].sort(),
+           alias: Object.fromEntries(alias) };
 }
 
 // ---- 已知答案（阳性对照）：这三条必须在不调参的前提下就成立 ----
@@ -157,7 +193,16 @@ const CHECKS = [
   { panel: 'BPathPanel.tsx', must_NOT_access: 'd/built_from', why: 'grep built_from = 0 处' },
   { panel: 'BPathPanel.tsx', must_NOT_access: 'd/readability_static/what', why: 'grep rs.what = 0 处' },
   { panel: 'BPathPanel.tsx', must_NOT_access: 'd/selfcheck_detail/suites', why: '第 65 行是类型声明，不是访问' },
+  // ⚠ S1 正向对照：selfcheck_detail 在源码里**只有类型声明、没有取值**
+  //   ⇒ 仪器必须能在 type_names 里看到它。
+  { panel: 'BPathPanel.tsx', must_type_name: 'suites', why: 'selfcheck_detail 的类型声明里写着 suites' },
+  { panel: 'BPathPanel.tsx', must_type_name: 'all_ran', why: 'selfcheck_detail 的类型声明里写着 all_ran' },
 ];
+
+// ⚠ S3 阳性对照要拿**打过补丁的副本**跑，真实组件不许改。
+//   ⇒ 组件目录可覆盖，命令行给：`node ts_access_paths.js <组件目录>`。
+const COMPONENT_DIR = process.argv[2] ||
+  path.join(__dirname, '..', '..', 'frontend', 'components');
 
 const panels = {
   'BPathPanel.tsx': ['d', 'j', 'x'],
@@ -167,7 +212,7 @@ const panels = {
 
 const out = {};
 for (const [p, roots] of Object.entries(panels)) {
-  const f = path.join(__dirname, '..', '..', 'frontend', 'components', p);
+  const f = path.join(COMPONENT_DIR, p);
   out[p] = {};
   for (const r of roots) {
     const a = analyse(f, r);
@@ -191,7 +236,12 @@ for (const c of CHECKS) {
   } else if (c.must_loop) {
     entry.ok = allLoops.some(p => p === c.must_loop || p.startsWith(c.must_loop + '/'));
     entry.n_matching = allLoops.filter(p => p.startsWith(c.must_loop)).length;
+  } else if (c.must_type_name) {
+    const allT = Object.values(A).flatMap(v => v.type_names || []);
+    entry.ok = allT.includes(c.must_type_name);
+    entry.n_matching = allT.filter(t => t === c.must_type_name).length;
   }
+  if (c.must_type_name) entry.type_names_total = Object.values(A).flatMap(v => v.type_names || []).length;
   entry.samples = all.filter(p => (c.must_access || c.must_NOT_access || '').split('/').slice(0, 3).every(s => p.includes(s))).slice(0, 4);
   known.push(entry);
 }
