@@ -14,8 +14,57 @@
   ".cache/mutbak/orthogonality_extreme.json",
   ".cache/mutbak/extreme_pick_abs.json"
  ],
- "selfcheck_passed": true,
- "selfcheck": "位置+层轴 12/12；P9 判定 11/11（含新旧闸门对照）；判决脚本 26/26；正交度判定器（Q3）带类型断言",
+ "selfcheck_passed": false,
+ "selfcheck": "位置+层轴 12/12；P9 判定 11/11；判决脚本 26/26；正交度判定器(Q3) ⚠**本项无判据**（退出码 1，没跑到「总计」行（末行：FileNotFoundError: [Errno 2] No such file or directory: '/home/zhourui/steer3d_bpath/w_L19_m）",
+ "selfcheck_detail": {
+  "suites": [
+   {
+    "name": "位置+层轴",
+    "script": "load_xy_pos_selftest.py",
+    "why": "把 x/y 的位置+层轴读法与产物自洽性",
+    "status": "ran",
+    "total": 12,
+    "failed": 0
+   },
+   {
+    "name": "P9 判定",
+    "script": "p9_verdict_selftest.py",
+    "why": "P9 判决脚本的 11 项（含新旧闸门对照）",
+    "status": "ran",
+    "total": 11,
+    "failed": 0
+   },
+   {
+    "name": "判决脚本",
+    "script": "r6_verdict_selftest.py",
+    "why": "R-6 判决脚本的 26 项",
+    "status": "ran",
+    "total": 26,
+    "failed": 0
+   },
+   {
+    "name": "正交度判定器(Q3)",
+    "script": "ortho_frac_selfcheck.py",
+    "why": "同口径先验检查（带类型断言）",
+    "status": "unavailable",
+    "reason": "退出码 1，没跑到「总计」行（末行：FileNotFoundError: [Errno 2] No such file or directory: '/home/zhourui/steer3d_bpath/w_L19_m0.npy'）"
+   }
+  ],
+  "n_ran": 3,
+  "n_unavailable": 1,
+  "n_failed": 0,
+  "passed": false,
+  "all_ran": false
+ },
+ "selfcheck_unavailable": [
+  {
+   "name": "正交度判定器(Q3)",
+   "script": "ortho_frac_selfcheck.py",
+   "why": "同口径先验检查（带类型断言）",
+   "status": "unavailable",
+   "reason": "退出码 1，没跑到「总计」行（末行：FileNotFoundError: [Errno 2] No such file or directory: '/home/zhourui/steer3d_bpath/w_L19_m0.npy'）"
+  }
+ ],
  "coordinates": {
   "layer_block": 20,
   "npz_layer": 19,
@@ -1237,14 +1286,14 @@
    "level": "L5",
    "claim": "这条配方专一到能注入",
    "bpath_state": "missing",
-   "here": "0 条（同范数随机方向对照在本项目里只做到了 P9 的基准规模）",
+   "here": "剂量扫描 6 个剂量点、**没有任何随机方向对照**（`dose_position_scan` 里不存在随机臂字段，已由构建器断言）；同范数随机臂只做到 P9 的基准规模（rand@1.0，3/3 条）",
    "note": "（**B 路 / R-6 这一批**）既有阶梯已记 missing；B 路没有推进这一级。⚠ 主阶梯那一块给 L5 的依据是「余量 1.15× < 2×」—— **同一结论**，量的却是原数据集。"
   },
   {
    "level": "L6",
    "claim": "注入改变行为，且改变是这条方向特有的",
    "bpath_state": "partial",
-   "here": "P9 1/3 通过；两条 no_think 正控 5/5 剂量步单调，think 上不稳定",
+   "here": "P9 1/3 通过；no_think w+ 单调 2/2、w− 单调 2/2（共 6 个剂量点），think 上 w+ 单调 0/2",
    "note": "（**B 路 / R-6 这一批**）**有随机方向臂**（needs 满足），但 think 上响应不稳定 ⇒ partial。按预登记 §11.6，think 上**如实不出判决**，不是 FAIL 也不是 PASS。　⚠ 主阶梯那一块对**原数据集**给的是同一个 `partial`，理由却是「**缺**随机臂」—— 两者量的**不是同一批**，页面上两块前后相邻，别读成矛盾。"
   },
   {
@@ -1256,7 +1305,7 @@
   }
  ],
  "answerable": [
-  "装置在 no_think 上给出干净、单调、符号正确的剂量响应（正控 5/5）",
+  "装置在 no_think 上给出干净、单调、符号正确的剂量响应（w+ 单调 2/2、w− 单调 2/2，共 6 个剂量点）",
   "α·(w·U) 在校准点精确成立（实测/预测 0.987 / 0.981），但注入点一移出校准点读数即掉进噪声（|ratio| 0.0000–0.0939 且逐层变号）⇒ w·U 应在校准点读，中间层读到的量与它无可预测的定量关系",
   "同一 w 在两条 think 上给出相反形态 ⇒ 效应对位置/轨迹敏感",
   "在 p01_think 一条轨迹上，w 与该处激活的对齐度反向：`w·ĥ>0` 的 20 个超地板位点 20/20 全负（中位 −1.92），`w·ĥ≈0` 的 100 个中位 +1.50 ⇒ 正交度假设 H 在该轨迹上被证伪"
@@ -1264,7 +1313,8 @@
  "not_answerable": [
   "正交度假设 H 在 no_think 上**无法判定**（Q3）：超地板位点仅 19 个、其中 |w·ĥ|>0.1 的只有 2 个，分组边界切不出样本，两组同号率打平（6/6 vs 6/6）⇒ 既不报 PASS 也不报 FAIL",
   "R-6 的 P6（correct vs wrong 效应方向是否不同）在 think 上做不了",
-  "「这条方向能稳定 steering 模型行为」在 think 分布上不成立"
+  "「这条方向能稳定 steering 模型行为」在 think 分布上不成立",
+  "selfcheck 的「正交度判定器(Q3)」本机**跑不起来**（退出码 1，没跑到「总计」行（末行：FileNotFoundError: [Errno 2] No such file or directory: '/home/zhourui/steer3d_bpath/w_L19_m0.npy'））⇒ 这一项**本项无判据**，既不报通过也不报失败"
  ],
  "the_one_line": "**可读性 ≠ 可控性**：w·U[marker] > 0 是纯静态读数，一次前向都不用；而「注入后剂量响应稳定单调」必须真跑模型、逐位置逐剂量地测。no_think 上二者同时成立；think 上可读性成立而可控性不成立。⇒ **不能用 unembedding 对齐度替代因果响应验证。**"
 }

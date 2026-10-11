@@ -55,6 +55,19 @@ type BPath = {
   // ⚠ 产物里这两个是**分开的两个键**（`selfcheck_passed` 布尔 + `selfcheck` 串）。
   // 类型只声明了串，那个布尔就没人读 —— 而它恰好是「这批数字自检过没有」的唯一开关。
   selfcheck_passed: boolean;
+  // ⚠⚠ 修订 62：`selfcheck_passed` 以前是**硬编码的 true**，
+  //   `selfcheck` 是一句**手打**的中文串（那几个计数不由生成器计算）。
+  //   现在两个字段都由 `bpath_selfcheck_recompute.py` **每次构建真跑**得出，
+  //   并把跑不起来的项显式落到 `selfcheck_unavailable`。
+  //   ⚠ 只读 `selfcheck_passed` 会把「跑不起来」压成一个「未过」，
+  //     而它与「跑起来了但没过」是两件完全不同的事 ⇒ 必须一起渲染。
+  selfcheck_detail: {
+    suites: { name: string; script: string; why: string; status: string;
+              total?: number; failed?: number; reason?: string }[];
+    n_ran: number; n_unavailable: number; n_failed: number;
+    passed: boolean; all_ran: boolean;
+  };
+  selfcheck_unavailable: { name: string; script: string; why: string; reason: string }[];
   the_one_line: string;
   coordinates: {
     layer_block: number; npz_layer: number; pos_offset: number;
@@ -1185,6 +1198,20 @@ export default function BPathPanel() {
         <div className="mt-0.5">
           一致性自检（{d.selfcheck_passed ? "本次全过" : "未过"}）：{d.selfcheck}。
         </div>
+        {/* ⚠⚠ 修订 62 T2：「未过」有两种，**不能**只印一个词 ——
+            「跑起来了但有失败」与「这一项根本跑不起来」要分开，
+            后者还必须说清**缺什么**，否则读者会以为整套自检都在跑。 */}
+        {d.selfcheck_unavailable.length > 0 && (
+          <div className="mt-0.5 text-amber-300/90">
+            <span className="text-amber-200/80">本项无判据（{d.selfcheck_unavailable.length} 项）：</span>
+            {d.selfcheck_unavailable.map((x) => (
+              <span key={x.name}>
+                {" "}
+                <code className="text-amber-200/90">{x.script}</code>（{x.why}）—— {x.reason}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ---- 能答 / 不能答 ---- */}

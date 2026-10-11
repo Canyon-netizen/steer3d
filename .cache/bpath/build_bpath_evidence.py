@@ -28,15 +28,39 @@ from __future__ import annotations
 import argparse
 import json
 import statistics as st
+import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent          # 仓库根（判决产物里的路径是相对它记的）
 
+# ⚠⚠⚠ 修订 62（T1/T2）：selfcheck 由**复算器**算，不许再是字面量。
+#   ⚠ 用 import 而不是把函数抄一遍 —— 抄的那份会各自漂移，
+#   而本项目栽过的正是「同一个数在两处各写一次」。
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+from bpath_selfcheck_recompute import one_line as _sc_one_line      # noqa: E402
+from bpath_selfcheck_recompute import recompute as _sc_recompute     # noqa: E402
+
 
 def jload(p):
     with open(p, encoding="utf-8") as f:
         return json.load(f)
+
+
+def _gate(cond, msg):
+    """T3（修订 62）：显式 `raise`，不用裸 `assert`。
+
+    ⚠ 理由**不是**风格：`python -O` 会把 `assert` **全部关掉**，
+    而这个生成器**正是**产出 `selfcheck_passed` 的那个 ——
+    被关掉的判据等于没有判据，可它报出来的仍是「通过」。
+    ⇒ 崩（构建中止、栈回溯）与静默通过之间，我们宁可直接崩。
+
+    ⚠⚠ 改的是**语句形态**不是**条件**：条件与消息逐字保留，
+    只有失败时的表现从「静默继续」变成「显式中止」。
+    """
+    if not cond:
+        raise SystemExit("构建中止（修订 62 T3，显式 raise）：" + msg)
 
 
 def _pos_txt(ps):
@@ -96,8 +120,8 @@ def main():
     layer = jload(M / "layer_sweep_B.json")
     _layer_arm = "B"
     _old = jload(M / "layer_sweep_t1.json.bak_armA")   # 只为记录它已被取代
-    assert abs(_old["alpha"] - layer["alpha"]) > 1e-6, \
-        "臂 A 与臂 B 的 alpha 相同，说明读到了同一份产物，臂别搞混了"
+    _gate(abs(_old["alpha"] - layer["alpha"]) > 1e-6,
+          "臂 A 与臂 B 的 alpha 相同，说明读到了同一份产物，臂别搞混了")
     dose = jload(M / "dose_sweep_B.json")
     # 预登记修订 16/17/18：正交度探针与 Q3 判定。
     # ⚠ 两份产物测的是**同一批 think 轨迹**，但 no_think 子集不同
@@ -109,20 +133,22 @@ def main():
     fresh = jload(M / "orthogonality_fresh.json")
     genv = jload(M / "generalization_verdict.json")
     # ⚠ 断言这批确实**不含**旧批次的两条轨迹，否则「独立复核」名不副实
-    assert not (set(fresh["traj"]) & set(fresh["think_already_excluded"])), \
-        "复核批次里混进了已测过的轨迹"
-    assert fresh["think_fresh_n"] == 10, "复核批次应是 10 条轨迹"
-    assert genv["traj"] == fresh["traj"], "判定用的轨迹与产物不一致"
+    _gate(not (set(fresh["traj"]) & set(fresh["think_already_excluded"])),
+          "复核批次里混进了已测过的轨迹")
+    _gate(fresh["think_fresh_n"] == 10, "复核批次应是 10 条轨迹")
+    _gate(genv["traj"] == fresh["traj"], "判定用的轨迹与产物不一致")
 
     # ⚠ 断言两份是不同批次的读数（与层扫描那个坑同一类：文件名不含作用域）
     # `no_think_top_n` 是修订 17 才加进探针的 ⇒ 旧批次（orthogonality.json）里
     # **根本没有这个键**，此时它等价于「未做补测」，用 .get 取默认值。
-    assert ortho.get("no_think_top_n") in (0, None), \
-        "orthogonality.json 应当是修订 15 的原始批次"
-    assert ortho_nt8["no_think_top_n"] == 8, "orthogonality_nt8.json 应当是修订 17 的补测"
-    assert len(ortho["rows"]) != len(ortho_nt8["rows"]), "两份产物行数相同，批次可能串了"
-    assert abs(ortho["rel_ladder"][-1] - ortho_nt8["rel_ladder"][-1]) < 1e-9, \
-        "两批的剂量阶梯不一致"
+    _gate(ortho.get("no_think_top_n") in (0, None),
+          "orthogonality.json 应当是修订 15 的原始批次")
+    _gate(ortho_nt8["no_think_top_n"] == 8,
+          "orthogonality_nt8.json 应当是修订 17 的补测")
+    _gate(len(ortho["rows"]) != len(ortho_nt8["rows"]),
+          "两份产物行数相同，批次可能串了")
+    _gate(abs(ortho["rel_ladder"][-1] - ortho_nt8["rel_ladder"][-1]) < 1e-9,
+          "两批的剂量阶梯不一致")
 
     # ---------- 1. 坐标系（守卫自己报的，不是手填的）----------
     coord = {
@@ -399,10 +425,12 @@ def main():
     _fv_path = M / "ortho_frac_verdict.json"
     if _fv_path.exists():
         _fv = jload(_fv_path)
-        assert _fv["n_tracks"] == 58, f"扫描批次数 { _fv['n_tracks'] } != 预登记的 58"
-        assert _fv["M1"]["value"] == _fv["median_std"], "M1 用的不是记录在案的中位数"
-        assert _fv["M3"]["action"] == "revise_rev23_again", \
-            f"M3 应触发再更正，实际是 {_fv['M3']['action']} —— 措辞需与判定同步"
+        _gate(_fv["n_tracks"] == 58,
+              f"扫描批次数 { _fv['n_tracks'] } != 预登记的 58")
+        _gate(_fv["M1"]["value"] == _fv["median_std"],
+              "M1 用的不是记录在案的中位数")
+        _gate(_fv["M3"]["action"] == "revise_rev23_again",
+              f"M3 应触发再更正，实际是 {_fv['M3']['action']} —— 措辞需与判定同步")
         ortho_block["sampling_defect27"] = {
             "prereg": "R6_RERUN_PREREG.md 修订 24（判据）、修订 27（判定）",
             "method_selfcheck": ("**先验过同口径**：`ortho_frac_selfcheck.py` 对 p00/p01 "
@@ -444,12 +472,12 @@ def main():
         if _pk is not None:
             # ⚠ 交叉核对：判决里的轨迹集合必须与选材清单一致，
             # 且总位点数必须等于清单声明的 453（§28.5）—— 两份产物不同源时拒绝。
-            assert sorted(_hv["traj"]) == sorted(t["traj"] for t in _pk["tracks"]), \
-                "判决的轨迹集合与选材清单不一致"
-            assert _hv["n_sites"] == _pk["n_sites"], (
-                f"判决位点数 {_hv['n_sites']} != 选材清单 {_pk['n_sites']}")
-        assert abs(_hv["floor_n"] - _hv["n_sites"]) < 1e-9, \
-            "噪声地板的分母应与被判位点数相同（同档），否则口径修正没生效"
+            _gate(sorted(_hv["traj"]) == sorted(t["traj"] for t in _pk["tracks"]),
+                  "判决的轨迹集合与选材清单不一致")
+            _gate(_hv["n_sites"] == _pk["n_sites"],
+                  f"判决位点数 {_hv['n_sites']} != 选材清单 {_pk['n_sites']}")
+        _gate(abs(_hv["floor_n"] - _hv["n_sites"]) < 1e-9,
+              "噪声地板的分母应与被判位点数相同（同档），否则口径修正没生效")
 
         # ---- 对齐度梯度：G1 的「高1/3 vs 低1/3」把形状压掉了，这里补回来 ----
         # ⚠ 这是**事后描述**，不是新判据，也不用它推翻 G1 的判定。
@@ -834,6 +862,31 @@ def main():
     _ps_chi2 = format(_ps["chi2_mh"], ".2f") if _ps else "（产物缺失）"
     _dom_frac = format(_b_e["dom_neg_frac"], ".3f")
     _rest_frac = format(_b_e["rest_neg_frac"], ".3f")
+
+    # ⚠⚠⚠ 修订 62（T4b）：L5/L6 的 `here` 原来各有一串**手打的数字**，
+    #   产物里**没有任何字段**计算它们：
+    #     L5「0 条」        —— 没有字段 = 0，只是一句断言；
+    #     L6「正控 5/5 剂量步单调」—— 产物报的是
+    #                          `n_w+_monotone_up / n_traj`（轨迹数）与
+    #                          `len(dose_ladder)`（剂量点数），
+    #                          **既不是 5/5 也不是别的 5/5**。
+    #   ⚠ 而 T4a（每个数字都要能报出出处）**放过了它们** ——
+    #     因为 "0" 和 "5" 在产物别处也存在。
+    #     ⇒ 这是「整数层近乎无判据」的**实测**证据，不是推测。
+    #   ⇒ 现在两格都改成从产物派生。
+    _n_dose = len(dose_block["dose_ladder"])
+    _nt = dose_block["by_mode"]["no_think"]
+    _tk = dose_block["by_mode"]["think"]
+    # ⚠「无随机臂」这句话本身也要有门：若哪天剂量块里长出随机方向字段，
+    #   这里必须**红**，而不是让 L5 的 `here` 继续说「没有」。
+    _dose_has_rand = any("rand" in k for k in list(_nt) + list(_tk))
+    _gate(not _dose_has_rand,
+          "dose_position_scan 里出现了随机方向字段（%s）⇒ L5 的 here「无随机"
+          "方向对照」不再成立，措辞需与产物同步"
+          % [k for k in list(_nt) + list(_tk) if "rand" in k])
+    _n_p9_rand = sum(1 for r in p9_block["rows"] if r.get("rand@1.0") is not None)
+    _rand_dose = dose_block["dose_ladder"][-1]
+
     ladder = [
         {"level": "L2", "claim": "这个方向线性编码了观测量 y",
          "bpath_state": "done",
@@ -851,14 +904,25 @@ def main():
                  "⇒ 这是 §4 第 1 条「可读性 ≠ 可控性」的实测触发。")},
         {"level": "L5", "claim": "这条配方专一到能注入",
          "bpath_state": "missing",
-         "here": "0 条（同范数随机方向对照在本项目里只做到了 P9 的基准规模）",
+         # ⚠ 原来是手打的「0 条（同范数随机方向对照…）」。
+         #   现在改成两个**从产物派生**的数：剂量点数、以及 P9 里带随机臂的行数。
+         "here": f"剂量扫描 {_n_dose} 个剂量点、**没有任何随机方向对照**"
+                 f"（`dose_position_scan` 里不存在随机臂字段，已由构建器断言）；"
+                 f"同范数随机臂只做到 P9 的基准规模（rand@{_rand_dose}，"
+                 f"{_n_p9_rand}/{len(p9_block['rows'])} 条）",
          "note": ("（**B 路 / R-6 这一批**）既有阶梯已记 missing；"
                   "B 路没有推进这一级。⚠ 主阶梯那一块给 L5 的依据是"
                   "「余量 1.15× < 2×」—— **同一结论**，量的却是原数据集。")},
         {"level": "L6", "claim": "注入改变行为，且改变是这条方向特有的",
          "bpath_state": "partial",
+         # ⚠⚠ 原来写死「两条 no_think 正控 5/5 剂量步单调」——
+         #   **产物里没有任何字段算出 5/5**：剂量点数是 `_n_dose`，
+         #   单调性报的是「轨迹数」。⇒ 改成派生的这两个量。
          "here": f"P9 {p9_block['n_pass']}/{p9_block['n']} 通过；"
-                 f"两条 no_think 正控 5/5 剂量步单调，think 上不稳定",
+                 f"no_think w+ 单调 {_nt['n_w+_monotone_up']}/{_nt['n_traj']}、"
+                 f"w− 单调 {_nt['n_w-_monotone_down']}/{_nt['n_traj']}"
+                 f"（共 {_n_dose} 个剂量点），"
+                 f"think 上 w+ 单调 {_tk['n_w+_monotone_up']}/{_tk['n_traj']}",
          "note": ("（**B 路 / R-6 这一批**）**有随机方向臂**（needs 满足），"
                   "但 think 上响应不稳定 ⇒ partial。按预登记 §11.6，"
                   "think 上**如实不出判决**，不是 FAIL 也不是 PASS。"
@@ -889,6 +953,38 @@ def main():
                   "**从「没测」推进到「测了但定不了」**，同样**不是 done**。"
                   "⇒ 理论文档 §4 第 13 条的来源。")},
     ]
+
+    # ---------- 4i-62. selfcheck 复算门（修订 62 T1/T2）----------
+    # ⚠⚠⚠ 原来这里**什么都没有**，`selfcheck_passed` 直接是 `True`，
+    #   `selfcheck` 是一句手打的中文串。
+    #   ⚠⚠ 那三个计数**不由本生成器计算**，而第四项**本机根本跑不起来**
+    #   （`ortho_frac_selfcheck.py` 把远端绝对路径写死了），
+    #   产物却照旧宣称「正交度判定器（Q3）带类型断言」成立。
+    #   ⇒ 它报的是「**上次跑过**」，不是「**现在成立**」。
+    # ⇒ 现在**每次构建都真跑**那四套。
+    #   ⚠ 变量名不叫 `_sc`：`_sc` 早被 `selection_contamination.json` 占用了
+    #   （同一份文件里两个不相干的块用同名变量 ⇒ 后者覆盖前者，且都不报错）。
+    _sck = _sc_recompute()
+    _scline = _sc_one_line(_sck)
+    # ⚠ T1 的门**只管 failed**：unavailable 不中止构建，但要显式落进产物。
+    #   （若把 unavailable 也当成中止，这个生成器在本机就永远产不出东西，
+    #   「据实上报」会退化成「什么也报不出来」—— 那更糟。）
+    _gate(_sck["n_failed"] == 0,
+          "selfcheck 复算有 %d 项失败：%s"
+          % (_sck["n_failed"],
+             "；".join("%s %d/%d" % (x["name"], x["total"] - x["failed"], x["total"])
+                       for x in _sck["suites"]
+                       if x["status"] == "ran" and x["failed"])))
+    # ⚠⚠ T2：跑不起来的项必须**出现在产物里**，且写明缺什么。
+    #   这一条是本项目 §4「空洞通过要显式报『本项无判据』」在产物层的落地 ——
+    #   不许因为「上次是通过的」就沿用旧结论。
+    _sck_unav = [x for x in _sck["suites"] if x["status"] != "ran"]
+    _sck_na = [
+        f"selfcheck 的「{x['name']}」本机**跑不起来**（{x['reason']}）"
+        f"⇒ 这一项**本项无判据**，既不报通过也不报失败"
+        for x in _sck_unav
+    ]
+
     out = {
         "schema": "bpath_marker_steering/1",
         "what": ("B 路（R-6）：把「学一个方向去抬 \\boxed 标记 token」这件事，"
@@ -900,9 +996,26 @@ def main():
                         "dose_sweep_B.json", "orthogonality.json",
                         "orthogonality_nt8.json", "q3_verdict.json",
                         "orthogonality_extreme.json", "extreme_pick_abs.json")],
-        "selfcheck_passed": True,
-        "selfcheck": "位置+层轴 12/12；P9 判定 11/11（含新旧闸门对照）；判决脚本 26/26；"
-                     "正交度判定器（Q3）带类型断言",
+        # ⚠⚠⚠ 修订 62（T1/T2）：原来是**两个字面量** ——
+        #   "selfcheck_passed": True 与一句手打的中文串
+        #   「位置+层轴 12/12；P9 判定 11/11；判决脚本 26/26；正交度判定器（Q3）带类型断言」。
+        #   ⚠ 那三个计数**不由本生成器计算**，`true` 也是写死的
+        #   ⇒ 它报的是「**上次跑过**」，不是「**现在成立**」。
+        #   ⚠⚠ 更糟：第四项**本机根本跑不起来**（`ortho_frac_selfcheck.py`
+        #   把远端绝对路径 `/home/zhourui/steer3d_bpath/w_L19_m0.npy` 写死了），
+        #   而产物照旧宣称它成立 —— 正是 §4「空洞通过要显式报『本项无判据』」
+        #   被违反的样子。
+        #   ⇒ 现在每次构建都**真跑**那四套（见上面的 4i-62 块）。
+        # ⚠ `selfcheck` 仍是**串**，因为 BPathPanel 按串渲染它
+        #   （改成对象会让 React 直接抛 "Objects are not valid as a React child"）。
+        #   ⚠ 但它是 `_sc_one_line()` **算出来的**，不是手打的。
+        "selfcheck_passed": _sck["passed"],
+        "selfcheck": _scline,
+        # ⚠ 结构化版本：每一项的名字、跑没跑起来、失败数、失败原因。
+        #   ⚠ 有了它，「通过」这两个字才有一个能被外部独立复核的出处。
+        "selfcheck_detail": _sck,
+        # ⚠⚠ T2：跑不起来的项**必须出现在产物里**，不许只藏在内部字段。
+        "selfcheck_unavailable": _sck_unav,
         "coordinates": coord,
         "readability_static": read,
         "p9_device_benchmark": p9_block,
@@ -911,7 +1024,14 @@ def main():
         "orthogonality": ortho_block,
         "ladder_mapping": ladder,
         "answerable": [
-            "装置在 no_think 上给出干净、单调、符号正确的剂量响应（正控 5/5）",
+            # ⚠⚠ 修订 62：原来这里是「（正控 5/5）」——
+            #   **同一个手打的数在 `here` 与这里各写一份**，
+            #   而产物里没有任何字段算出 5/5（剂量点数、单调轨迹数都不是 5）。
+            #   ⇒ 两处一起改成派生量，否则改了一处就是两个口径。
+            f"装置在 no_think 上给出干净、单调、符号正确的剂量响应"
+            f"（w+ 单调 {_nt['n_w+_monotone_up']}/{_nt['n_traj']}、"
+            f"w− 单调 {_nt['n_w-_monotone_down']}/{_nt['n_traj']}，"
+            f"共 {_n_dose} 个剂量点）",
             "α·(w·U) 在校准点精确成立（实测/预测 0.987 / 0.981），"
             "但注入点一移出校准点读数即掉进噪声（|ratio| 0.0000–0.0939 且逐层变号）"
             "⇒ w·U 应在校准点读，中间层读到的量与它无可预测的定量关系",
@@ -927,7 +1047,7 @@ def main():
             "⇒ 既不报 PASS 也不报 FAIL",
             "R-6 的 P6（correct vs wrong 效应方向是否不同）在 think 上做不了",
             "「这条方向能稳定 steering 模型行为」在 think 分布上不成立",
-        ],
+        ] + _sck_na,
         "the_one_line": ("**可读性 ≠ 可控性**：w·U[marker] > 0 是纯静态读数，"
                          "一次前向都不用；而「注入后剂量响应稳定单调」必须真跑模型、"
                          "逐位置逐剂量地测。no_think 上二者同时成立；"
@@ -949,6 +1069,12 @@ def main():
               f"w- 单调 {v['n_w-_monotone_down']}/{v['n_traj']}")
     print(f"  阶梯映射：" + "、".join(f"{r['level']}={r['bpath_state']}"
                                    for r in ladder))
+    # ⚠ 复算状态也要**打在 stdout 上**：构建器退出码为 0 不代表全部自检都跑起来了
+    #   （第四项跑不起来时 passed=False，但构建仍是成功的 —— 这是有意的，见 4i-62）。
+    print(f"  selfcheck 复算：{_scline}")
+    print(f"    跑起来 {_sck['n_ran']} 项，失败 {_sck['n_failed']} 项，"
+          f"跑不起来 {_sck['n_unavailable']} 项；passed={_sck['passed']}"
+          f"（⚠ 只表示「跑起来的全过」，all_ran={_sck['all_ran']}）")
 
 
 if __name__ == "__main__":
