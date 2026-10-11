@@ -179,7 +179,17 @@ function analyse(file, rootName) {
 // ---- 已知答案（阳性对照）：这三条必须在不调参的前提下就成立 ----
 const CHECKS = [
   { panel: 'BPathPanel.tsx', must_access: 'd/orthogonality/hi_sites28/control_arm', why: '源码第 746-748 行确实读了它' },
-  { panel: 'BPathPanel.tsx', must_NOT_access: 'd/readability_static/control_arm', why: '新增块，面板里没有任何访问' },
+  // ⚠⚠ 下面三条**方向在修订 77 落地时被翻转过**，这里写清旧值：
+  //   旧断言 = `must_NOT_access: 'd/readability_static/control_arm'`，
+  //   why = 「新增块，面板里没有任何访问」。
+  //   ⇒ 那是**钉住旧缺陷**（`readability_static.caveat` 末句把读者指向
+  //   `control_arm.per_id` / `control_arm.arith_mean`，而面板从未取值，S7 判红）。
+  //   修订 77 把那个缺陷修好后，它当然失效 —— **那是仪器对了，不是我错了**。
+  // ⇒ 修法**不是删掉**（删掉等于把牙齿一起拔了），而是**翻成正面断言**：
+  //   检查从「钉住缺陷」升级成「**钉住修复**」，谁把渲染删回去它照样变红。
+  { panel: 'BPathPanel.tsx', must_access: 'd/readability_static/control_arm', why: '修订 77 补了对照臂渲染块；容器本身被取值' },
+  { panel: 'BPathPanel.tsx', must_access: 'd/readability_static/control_arm/arith_mean', why: '散文指针 control_arm.arith_mean 的兑现（S7）' },
+  { panel: 'BPathPanel.tsx', must_access: 'd/readability_static/control_arm/per_id', why: '散文指针 control_arm.per_id 的兑现（S7）' },
   { panel: 'BPathPanel.tsx', must_loop: 'd/layer_profile/rows', why: '第 527 行 layer_profile.rows.map((r) => …)' },
   // ⚠ 第四条（因 bug 补上）：接收者是 CallExpression 的循环。
   //   `Object.entries(X).map(([id, v]) => … v.dot …)` 必须既进循环站点、

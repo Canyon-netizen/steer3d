@@ -78,6 +78,17 @@ type BPath = {
     n_ids_positive: number; n_ids: number; freq_total: number;
     per_id: Record<string, { dot: number; freq: number; share: number }>;
     neg_in_high_freq: string[]; caveat: string;
+    // ⚠ 预登记修订 77：`caveat` 末句把读者指向 `control_arm.per_id` 与
+    //   `control_arm.arith_mean`，而这两个路径此前**从未被取值**（S7 判红）。
+    //   这里补上渲染，让那句指针兑现。
+    // ⚠ 字段写成**必填**是故意的：产物里一定有，写错名字时
+    //   `next build` 会直接失败，而不是静默渲染出 undefined。
+    control_arm: {
+      arm: string; arith_mean: number; freq_weighted: number;
+      n_ids_positive: number; n_ids: number; freq_total: number;
+      per_id: Record<string, { dot: number; freq: number; share: number }>;
+      neg_ids: { id: string; dot: number; share: number }[];
+    };
   };
   p9_device_benchmark: {
     n_pass: number; n: number; has_random_arm: boolean;
@@ -339,6 +350,23 @@ function fx(v: number | null | undefined, digits = 4): string {
   return v.toFixed(digits);
 }
 
+/** 对照臂块的警示文字（预登记修订 77）。
+ *
+ * ⚠⚠ 写成常量并走 `<Em>` 是**被迫**的：第一版把它直接写在裸 `<p>` 里，
+ *   实点（农场 9001）读到的是字面的 `**对照臂**` / `**不是同一个 w**` /
+ *   `**不可互相比较**` —— 星号露在页面上。
+ * ⚠ 而 **13 个守卫没有一个抓到它**：Z2 只扫「**产物字段**的值含 `**`」，
+ *   而这段是**组件内硬编码文案**，既不是产物字段也不是 JSX 插值
+ *   ⇒ **落在 Z2 的作用域之外**。这是判据盲区，不是「我写错了才知道」。
+ *   盲区本身要在预登记里单独立修订，本轮只修我这块的缺陷。
+ *
+ * ⚠ 这段话是**诚实标注**，不许删：两块表的 w 不是同一个 w，
+ *   数字放在一起看会被读成「对照臂可读性也是正的」。
+ */
+const CONTROL_ARM_NOTE =
+  "⚠ 这一块是**对照臂**，不是上面那块。它的 w 与页面其余部分**不是同一个 w**" +
+  "（对照组故意用了错层的方向），所以两块的数字**不可互相比较**。";
+
 /** 极简折线：只画形状，不引入图表依赖。 */
 function Spark({ xs, ys, w = 108, h = 26 }: { xs: number[]; ys: number[]; w?: number; h?: number }) {
   if (!ys.length) return null;
@@ -392,6 +420,7 @@ export default function BPathPanel() {
   }
 
   const rs = d.readability_static;
+  const ca = rs.control_arm;
   const p9 = d.p9_device_benchmark;
   const ds = d.dose_position_scan;
   const nt = ds.by_mode["no_think"], tk = ds.by_mode["think"];
@@ -452,6 +481,49 @@ export default function BPathPanel() {
         </div>
         <p className="text-[9px] text-gray-500 mt-1 leading-relaxed">
           <Em s={rs.caveat} />
+        </p>
+      </div>
+
+      {/* ---- 对照臂逐 id：兑现 `caveat` 末句的路径指针（预登记修订 77 / S7） ----
+          ⚠ 上面 `caveat` 末句说「逐 id 明细在 `control_arm.per_id`」，
+            而那个路径此前**从未被取值** —— 读者被指向了一个页面上不存在的东西。
+          ⚠ 结构与上面主臂**同字段名**（`freq_weighted` / `n_ids_positive` /
+            `n_ids` / `freq_total` / `per_id`）⇒ S4 的对称性适用。
+          ⚠ 行属性用 `data-arm="control"`，**不**复用 `data-marker-id` ——
+            同一组件内出现重复属性会让按 `data-marker-id` 的查询命中两处。
+          ⚠ `neg_ids` 故意**不**渲染：它的 3 条内容已由上面的 `per_id` 表
+            逐行列出，单独再渲染一遍是冗余。主臂的对应字段叫
+            `neg_in_high_freq`（**名字不同**）⇒ S4 本就不适用。 */}
+      <div className="mb-2" data-bpath-block="control-arm" data-arm-block="control">
+        <div className="text-[10px] text-gray-300 mb-1">
+          可读性（静态）· 对照臂 <strong>{ca.arm}</strong>：频次加权{" "}
+          <strong>{ca.freq_weighted >= 0 ? "+" : ""}{ca.freq_weighted}</strong>
+          ，算术均值{" "}
+          <strong>{ca.arith_mean >= 0 ? "+" : ""}{ca.arith_mean}</strong>
+          ，{ca.n_ids_positive}/{ca.n_ids} 个 id 为正，
+          语料共 {ca.freq_total} 次 marker
+        </div>
+        <div className="flex flex-col gap-0.5">
+          {Object.entries(ca.per_id).map(([id, v]) => (
+            <div key={id} className="flex items-center gap-1.5 text-[9px] px-1"
+                 style={{ background: "#12161f" }}
+                 data-arm="control" data-control-id={id}
+                 data-dot={String(v.dot)} data-share={String(v.share)}>
+              <span className="text-gray-500 w-14">id {id}</span>
+              <span className="text-gray-400 w-14">
+                {(v.share * 100).toFixed(1)}%
+              </span>
+              <span className={v.dot > 0 ? "text-emerald-300" : "text-rose-400"}>
+                {v.dot >= 0 ? "+" : ""}{v.dot.toFixed(5)}
+              </span>
+              <span className="text-gray-600">
+                {v.dot > 0 ? "→ 错层方向抬它" : "→ 错层方向压它"}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[9px] text-gray-500 mt-1 leading-relaxed">
+          <Em s={CONTROL_ARM_NOTE} />
         </p>
       </div>
 
