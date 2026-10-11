@@ -8553,3 +8553,85 @@ W5b 对该状态的判定改为：**去那份产物里解析**。
 - `0.0317` → `derived`，路径 `bpath_marker_steering.json` 内的新增字段
 - `4.487` → `unreconstructable`（4 个输入 / 4 个重建值 / 4 次）
 - `1928` → `dropped_from_prose`
+
+### 71.3 落地结果（三个数各自落到哪一态）
+
+| 数 | 判定前的状态 | 落地后的状态 | 证据 |
+|---|---|---|---|
+| `0.0317` | 无出处（手打在散文里） | **`derived`** | `readability_static.control_arm.arith_mean = 0.03173`，由 `marker_freq5.json` 的 `old_w_t1(错层)` 现算 |
+| `4.487` | 无出处（猜不出规则） | **`unreconstructable`**（理由升级） | 4 个输入 / 4 个重建值 / 4 次；两次独立重建互不相等 |
+| `1928` | 无出处（引用别的链） | **`dropped_from_prose`** | `coordinates/note` 里 0 次出现；改为说明「逐层表不在本产物里，故不引用」 |
+
+构建器侧的三处改动（`.cache/bpath/build_bpath_evidence.py`）：
+
+1. **对照臂进产物**。原先它只以一个手打的 `+0.0317` 活在旁注里，
+   产物里**一条记录都没有**（`old_w_t1` / `错层` / `A_L19_m1` 各 0 次）。
+   现在 `readability_static.control_arm` 带 `arm`（**逐字 key**）、
+   `arith_mean`、`n_ids`、`n_ids_positive`、`per_id`、`neg_ids`。
+2. **臂名从上游文件现取**。`ctl_keys = [k for k in freq["rows"] if "old_w_t1" in k]`，
+   **不等于 1 就 `raise`**。散文里逐字写 `old_w_t1(错层)` ——
+   那个「错层」是**限定词**，丢了它读者会当成同层对照，而它恰恰是错层对照。
+3. **`1928` 撤下**。改写 `coordinates/note`：保留承重内容
+   （`npz 第 k 层 == HF hs[k+1]`、J1 逐位相同），并写明
+   **逐层最大绝对差表由 `hs_layer_index_check.py` 产出、不在本产物里，
+   所以这里不引用它的任何数值**。
+
+散文里原先手打的 `+0.0317` 与「两个占语料各 21%」全部改为**现算**，
+且改成**自足**：三个负向 id 全部逐字列出（含点积与占比），
+不再让读者去翻一个可能没渲染的字段。
+
+守卫：`.cache/xcheck/check_prose_traceability.py`（W1–W5，**4 条阳性对照全触发**）。
+全链 9 个守卫 exit=0：`check_bpath_static` / `check_tautology` /
+`check_fragment_uniqueness` / `check_judge_coverage` / `check_render_coverage` /
+`check_diag_and_markdown` / `check_render_coverage_sitewide` /
+`ladder_check_audit` / `check_prose_traceability`。
+
+⚠ `ladder_check_audit` 输出里有 `✗ [801:8] L1 的 note 缺了「可分辨」`
+这类行，但它的判决行是「✅ 通过」⇒ 那些 `✗` 是**明细**，不是判决。
+⚠ 这本身是个可读性问题：明细里用 `✗` 印「本次不适用」，与判决的 `✗` 同形。
+
+### 71.4 ⚠⚠ 顺带实测到：**修订 66 的 Y1 是字段名代理，不是路径判定**
+
+这不是本轮要修的，是本轮**撞上**的。证据在守卫源码里：
+
+```
+.check_render_coverage.py:229-230
+    for lpath, lname, val in got:
+        if name_pattern(lname).search(src):     ← 判定只看 **lname**
+```
+
+`lpath` 被算出来、被打印、被写进报告，**但不参与判定**。
+⇒ 一个字段只要**名字**在组件源码任意位置出现过，就算「已渲染」。
+
+**本轮的具体实例**：新增的 `readability_static.control_arm.*` **完全没有被渲染** ——
+`BPathPanel.tsx` 里唯一的 `control_arm` 在第 146 / 746–748 行，
+挂在 `d.orthogonality.hi_sites28.control_arm` 下，形状是 `{ctrl_ge, of}`，
+与新增块的 `{arm, arith_mean, n_ids, n_ids_positive, per_id, neg_ids}` **完全不同**。
+而 Y1 报「未渲染 0」。**它是靠 `arith_mean` / `n_ids` / `share` / `dot`
+这些名字在别处出现过而放行的。**
+
+⚠ 量级（**上界，不是实数**）：1346 个叶子里，
+「字段名在源码出现」1174 个、「父段+本段在源码出现」只有 17 个。
+⇒ **至多 1157 个（86%）是只因名字撞上而被判已渲染**。
+
+⚠⚠ **这个 86% 必须打折看**：通过**循环**渲染的字段（`suites.map(...)`）
+本来就不会在源码里逐字出现完整路径，所以其中一部分是**合法覆盖**。
+⇒ **86% 是缺口的上界，不是缺口本身**。
+⇒ 但上面那个 `control_arm` 实例是**逐字可核对**的，那一条**没有折**.
+
+⚠⚠ 性质：这是修订 66 我自己写的判据，判据说明里写了
+「代理判据必须自曝」，但我只自曝了「字段名被引用 ≠ 值作为可见文本被显示」，
+**没意识到「字段名被引用」本身就是个比路径弱得多的代理**。
+⇒ 与 [[数字可溯源 ≠ 读者看得见]] 同族：**两个性质独立，前者不蕴含后者**。
+
+⚠ 修法**不在本轮**：改成路径判定会让绝大多数叶子判红，需要先决定
+「循环渲染怎么算路径覆盖」「豁免表怎么迁移」，属于判据变更，
+必须单独立修订并披露旧数字（即把「未渲染 0 / 1319 叶子」这条旧结论
+标注为**名字代理下的结论**）。
+
+⚠ 本轮**不做**的补偿：旁注改成**自足**（三个负向 id 全部逐字列出），
+不再让读者去翻 `control_arm.neg_ids` 这个**没被渲染**的字段。
+⇒ 读者在页面上看到的那句话，本身就是完整的。
+⚠⚠ 但这**不等于** `control_arm` 已渲染 ——
+`control_arm` 目前只存在于 JSON，**页面上读不到**。
+这一条作为**明确的欠账**记在这里，不伪装成已完成。

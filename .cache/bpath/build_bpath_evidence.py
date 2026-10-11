@@ -165,8 +165,11 @@ def main():
         "npz_layer": wmeta["npz_layer"],
         "pos_offset": wmeta["pos_offset"],
         "note": ("npz 第 k 层 == HF 的 hs[k+1]；注入动的是 hs[LAYER] 的**输入**，"
-                 "所以训练取 npz[LAYER-1]。J1 判据：last_hidden 与 "
-                 "hidden_states[:,-1] 逐位相同（最大绝对差 0），与倒数第二层差 1928。"),
+                 "所以训练取 npz[LAYER-1]。J1 判据：last_hidden 与 hidden_states "
+                 "的最后一层逐位相同（最大绝对差 0）。"
+                 "⚠ 修订 71：逐层最大绝对差的完整表由 `hs_layer_index_check.py` "
+                 "产出，**它不在本产物里** —— 所以这里**不再引用它的任何数值**。"
+                 "一个本产物支撑不了的数，写进产物就是让读者去核对一个找不到的东西。"),
         "guards": ["层数 shape[1] != 28 抛错",
                    "token 长度 shape[0] != n_generated_tokens 抛错",
                    "开训前 verify_npz_layer_map() 逐位比对"],
@@ -177,20 +180,69 @@ def main():
     arm_freq = freq["rows"][a.arm]
     dots = arm_freq["dots"]
     fdots = arm_freq["freq"]
+    total = freq["total_markers"]
+
+    def _per_id(row):
+        d, f = row["dots"], row["freq"]
+        return {str(k): {"dot": round(v, 5), "freq": f[str(k)],
+                         "share": round(f[str(k)] / total, 4)}
+                for k, v in sorted(d.items(), key=lambda kv: -f[str(kv[0])])}
+
+    # ⚠⚠ 修订 71：对照臂**必须由上游文件的 key 现取**，不许手打名字。
+    #   原先散文里手打的「对照 w_t1」把 key `old_w_t1(错层)` 里的「错层」丢了 ——
+    #   读者会把它当成**同层**对照，而它恰恰是**错层**对照。
+    ctl_keys = [k for k in freq["rows"] if "old_w_t1" in k]
+    if len(ctl_keys) != 1:
+        raise SystemExit("对照臂定位失败：marker_freq5 的 rows 里含 'old_w_t1' "
+                         f"的 key 有 {len(ctl_keys)} 个 {ctl_keys}")
+    ctl_key = ctl_keys[0]
+    ctl_row = freq["rows"][ctl_key]
+    ctl_dots, ctl_fdots = ctl_row["dots"], ctl_row["freq"]
+    ctl_mean = sum(ctl_dots.values()) / len(ctl_dots)
+    ctl_neg = sorted(((str(k), v, ctl_fdots[str(k)] / total)
+                      for k, v in ctl_dots.items() if v < 0), key=lambda t: -t[2])
+    if not ctl_neg:
+        raise SystemExit("对照臂没有负向 id ⇒ 旁注的前提不成立，"
+                         "如实报「前提不成立」，不写这句话")
+    ctl_all = "、".join(f"id {k}（{v:+.5f}，占语料 {sh * 100:.0f}%）"
+                        for k, v, sh in ctl_neg)
+
     read = {
         "what": "w·U[marker] 的逐 id 点积 + 语料频次（纯静态，一次前向都不用）",
         "arith_mean": round(sum(dots.values()) / len(dots), 5),
         "freq_weighted": round(arm_freq["freq_weighted_dot"], 5),
         "n_ids_positive": sum(1 for v in dots.values() if v > 0),
         "n_ids": len(dots),
-        "freq_total": freq["total_markers"],
-        "per_id": {str(k): {"dot": round(v, 5), "freq": fdots[str(k)],
-                            "share": round(fdots[str(k)] / freq["total_markers"], 4)}
-                   for k, v in sorted(dots.items(), key=lambda kv: -fdots[str(kv[0])])},
+        "freq_total": total,
+        "per_id": _per_id(arm_freq),
         "neg_in_high_freq": arm_freq["neg_in_hot"],
-        "caveat": ("**算术均值会掩盖符号分裂**。对照 w_t1：算术均值 +0.0317 看着是正的，"
-                   "逐 id 却是两个占语料各 21% 的 id 为负，而 P9 读的是 logsumexp，"
-                   "起决定作用的是当前概率最高的那一个。"),
+        # ⚠ 修订 71：对照臂**从上游文件取出来发进产物**。
+        #   原先它只以一个手打的「+0.0317」活在旁注里，产物里一条记录都没有。
+        "control_arm": {
+            "arm": ctl_key,
+            "arith_mean": round(ctl_mean, 5),
+            "freq_weighted": round(ctl_row["freq_weighted_dot"], 5),
+            "n_ids": len(ctl_dots),
+            "n_ids_positive": sum(1 for v in ctl_dots.values() if v > 0),
+            "freq_total": total,
+            "per_id": _per_id(ctl_row),
+            "neg_ids": [{"id": k, "dot": round(v, 5), "share": round(sh, 4)}
+                        for k, v, sh in ctl_neg],
+            # ⚠ 这里**曾经**放过一个 `source` 字段（说明来源文件），Y1/Y2 判红：
+            #   它从未被任何面板渲染 ⇒ 读者看不到。
+            #   删它的理由**不是**「为了让判据变绿」，而是它与顶层 `built_from`
+            #   **完全重复**（built_from 里已经有 `.cache/mutbak/marker_freq5.json`）
+            #   ⇒ 删掉的是冗余，不是债。
+            #   ⚠ 若将来要改放一个**built_from 里没有**的来源，那必须**渲染**它，
+            #     不能重新塞回产物当未渲染字段。
+        },
+        "caveat": (f"**算术均值会掩盖符号分裂**。对照臂 `{ctl_key}`："
+                   f"算术均值 {ctl_mean:+.4f} 看着是正的，逐 id 却是 "
+                   f"{ctl_all} 这 {len(ctl_neg)} 个为负"
+                   f"（{len(ctl_dots)} 个 id 里 {len(ctl_dots) - len(ctl_neg)} 个为正），"
+                   f"而 P9 读的是 logsumexp，起决定作用的是当前概率最高的那一个。"
+                   f"⚠ 口径：这里的算术均值与 `control_arm.arith_mean` 同源，"
+                   f"逐 id 明细在 `control_arm.per_id`。"),
     }
 
     # ---------- 3. P9（L6：需要随机方向臂，B 路有）----------
