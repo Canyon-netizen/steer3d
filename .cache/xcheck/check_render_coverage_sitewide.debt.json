@@ -1,0 +1,3084 @@
+{
+ "note": "修订 69 §69.5 台账。**这些是欠账，不是通过。** 本轮逐条未判读（454 条标 unclassified），机械归类只覆盖 data-key 与 meta 两类。⚠ 新出现的未渲染字段不在此表 ⇒ 判红。⚠ 要加入必须写明理由。",
+ "count": 513,
+ "debt": [
+  {
+   "artifact": "public/latent/data/answer_power.json",
+   "field": "incomplete_labels",
+   "first": "incomplete_labels[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_power.json",
+   "field": "schema",
+   "first": "schema",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/answer_power.json",
+   "field": "small_magnitude_threshold",
+   "first": "changed_but_still_wrong_magnitude.small_magnitude_threshold",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_power.json",
+   "field": "steps_ratio_max",
+   "first": "steps_ratio_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_power.json",
+   "field": "steps_ratio_median",
+   "first": "steps_ratio_median",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_power.json",
+   "field": "steps_ratio_min",
+   "first": "steps_ratio_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_readout.json",
+   "field": "clipped_head",
+   "first": "items[0].split.zero.clipped_head",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_readout.json",
+   "field": "clipped_tail",
+   "first": "items[0].split.zero.clipped_tail",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_readout.json",
+   "field": "design",
+   "first": "design",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/answer_readout.json",
+   "field": "is_official_aime",
+   "first": "problem_set.is_official_aime",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_readout.json",
+   "field": "reference_answers_from",
+   "first": "problem_set.reference_answers_from",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_readout.json",
+   "field": "require_both_closed",
+   "first": "selection.require_both_closed",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_readout.json",
+   "field": "split_ratio",
+   "first": "items[0].split_ratio",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_readout.json",
+   "field": "steps_ratio",
+   "first": "items[0].steps_ratio",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/answer_readout.json",
+   "field": "strict_only",
+   "first": "selection.strict_only",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/arm_asymmetry.json",
+   "field": "bootstrap_n",
+   "first": "bootstrap_n",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/arm_asymmetry.json",
+   "field": "schema",
+   "first": "schema",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "1983_I_1",
+   "first": "per_problem_caveat.per_problem_null_max.1983_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "2000_I_1",
+   "first": "per_problem_caveat.per_problem_null_max.2000_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "2012_I_1",
+   "first": "per_problem_caveat.per_problem_null_max.2012_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "caution",
+   "first": "superseded_caliber.cross_problem_median_by_member.caution",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "confidence_down",
+   "first": "superseded_caliber.cross_problem_median_by_member.confidence_down",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "creativity",
+   "first": "superseded_caliber.cross_problem_median_by_member.creativity",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "kept_for",
+   "first": "superseded_caliber.kept_for",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "member",
+   "first": "per_problem_caveat.axes_exceeding_on_some_problem.confidence[0].member",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "null_max",
+   "first": "per_problem_caveat.axes_exceeding_on_some_problem.confidence[0].null_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "null_max_cross_problem_superseded",
+   "first": "null_max_cross_problem_superseded",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "null_paired_median_sorted",
+   "first": "null_paired_median_sorted[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "paired",
+   "first": "per_problem_caveat.axes_exceeding_on_some_problem.confidence[0].paired",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "reasoning_deep",
+   "first": "superseded_caliber.cross_problem_median_by_member.reasoning_deep",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "reasoning_shallow",
+   "first": "superseded_caliber.cross_problem_median_by_member.reasoning_shallow",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "why_matters",
+   "first": "per_problem_caveat.why_matters",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "why_superseded",
+   "first": "superseded_caliber.why_superseded",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_generalisation.json",
+   "field": "would_have_given",
+   "first": "superseded_caliber.would_have_given",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "after_dropping_redundant",
+   "first": "convention.effective_dof.after_dropping_redundant",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "best_control_any_cell",
+   "first": "axes.confidence.best_control_any_cell",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "best_cos_any_cell",
+   "first": "axes.confidence.best_cos_any_cell",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "candidate_meaning",
+   "first": "axes.confidence.at_delta20_L14.candidate_meaning",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "declared",
+   "first": "convention.effective_dof.declared",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "effective_dof_retraction",
+   "first": "convention.effective_dof_retraction",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "fold",
+   "first": "convention.fold",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "lambda_rel",
+   "first": "convention.lambda_rel",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "n_traj_used",
+   "first": "per_layer.12.cells.0.n_traj_used",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "oof_pearson",
+   "first": "axes.confidence.at_delta0.per_layer.12.oof_pearson",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "question",
+   "first": "question",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "reason",
+   "first": "convention.effective_dof.reason",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "redundant_dropped",
+   "first": "convention.redundant_dropped[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "schema",
+   "first": "schema",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/axis_readouts.json",
+   "field": "selfcheck",
+   "first": "selfcheck",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "21",
+   "first": "trajectories[0].sites[0].variants[0].projection.21[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "22",
+   "first": "trajectories[0].sites[0].variants[0].projection.22[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "23",
+   "first": "trajectories[0].sites[0].variants[0].projection.23[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "24",
+   "first": "trajectories[0].sites[0].variants[0].projection.24[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "25",
+   "first": "trajectories[0].sites[0].variants[0].projection.25[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "27",
+   "first": "trajectories[0].sites[0].variants[0].projection.27[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "baseline_rms",
+   "first": "trajectories[0].norm_transport.baseline_rms",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "basis_sha256",
+   "first": "pca.20.basis_sha256",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "class_gap",
+   "first": "vector_metadata.class_gap",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "conditional_direct_dot",
+   "first": "trajectories[0].sites[0].conditional_direct_dot",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "control_id",
+   "first": "control_id",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "control_logit",
+   "first": "trajectories[0].sites[0].baseline.control_logit",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "control_logprob",
+   "first": "trajectories[0].sites[0].baseline.control_logprob",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "coordinate",
+   "first": "coordinate",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "d4_original_implementation",
+   "first": "original_dose_audit.d4_original_implementation",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "d4_warning",
+   "first": "original_dose_audit.d4_warning",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "d_control_logit",
+   "first": "trajectories[0].sites[0].variants[0].d_control_logit",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "d_control_logprob",
+   "first": "trajectories[0].sites[0].variants[0].d_control_logprob",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "direct_dots",
+   "first": "direct_dots[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "effective_delta_norm",
+   "first": "trajectories[0].sites[0].layers[0].calibration.effective_delta_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "elapsed_seconds",
+   "first": "elapsed_seconds",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "epsilon",
+   "first": "norm_transport_metadata.epsilon",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "error_bound",
+   "first": "trajectories[0].sites[0].layers[0].calibration.error_bound[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "frac",
+   "first": "vector_metadata.label_coverage.frac",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "gamma_sha256",
+   "first": "norm_transport_metadata.gamma_sha256",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "gpu_uuid",
+   "first": "gpu_uuid",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "injected_delta_norm",
+   "first": "trajectories[0].norm_transport.variants[0].injected_delta_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "layer_ladder",
+   "first": "layer_ladder[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "marker_logit_effective",
+   "first": "trajectories[0].norm_transport.variants[0].marker_logit_effective[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "meaning",
+   "first": "pca.20.meaning",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "model",
+   "first": "model",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "n_missing",
+   "first": "vector_metadata.label_coverage.n_missing",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "n_points",
+   "first": "pca.20.n_points",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "n_train_traj",
+   "first": "vector_metadata.n_train_traj",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "n_traj",
+   "first": "vector_metadata.label_coverage.n_traj",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "norm_max_abs_error",
+   "first": "trajectories[0].norm_transport.variants[0].norm_max_abs_error",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "norm_max_error_bound",
+   "first": "trajectories[0].norm_transport.variants[0].norm_max_error_bound",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "npz_dir",
+   "first": "vector_metadata.npz_dir",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "npz_layer",
+   "first": "vector_metadata.npz_layer",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "pos_offset",
+   "first": "vector_metadata.pos_offset",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "post_norm_delta_norm",
+   "first": "trajectories[0].norm_transport.variants[0].post_norm_delta_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "pre_norm_delta_norm",
+   "first": "trajectories[0].norm_transport.variants[0].pre_norm_delta_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "random_seed",
+   "first": "random_seed",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "random_sha256",
+   "first": "random_sha256",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "rms_after",
+   "first": "trajectories[0].norm_transport.variants[0].rms_after",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "scan_script_sha256",
+   "first": "scan_script_sha256",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "script_sha256",
+   "first": "norm_transport_metadata.script_sha256",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "seed",
+   "first": "vector_metadata.seed",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "sidecar_sha256",
+   "first": "trajectories[0].sidecar_sha256",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "sign_gap",
+   "first": "vector_metadata.sign_gap",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_explorer.json",
+   "field": "w_norm",
+   "first": "vector_metadata.w_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "-1",
+   "first": "layer_profile.rows[0].by_layer.-1",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "above_p01",
+   "first": "orthogonality.sampling_defect27.M2.above_p01",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "alpha",
+   "first": "layer_profile.rows[0].alpha",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "built_from",
+   "first": "built_from[0]",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "calibration_ratio",
+   "first": "layer_profile.rows[0].calibration_ratio",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "d_rand",
+   "first": "orthogonality.caliber26.w_neg_site.d_rand",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "dom_id",
+   "first": "orthogonality.token_id37.position_strat.dom_id",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "dom_n",
+   "first": "orthogonality.token_id37.position_strat.strata[0].dom_n",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "dom_pos",
+   "first": "orthogonality.token_id37.position_strat.strata[0].dom_pos",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "label",
+   "first": "orthogonality.token_id37.position_strat.strata[0].label",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "n_missing",
+   "first": "coordinates.label_coverage.n_missing",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "n_strata_skipped",
+   "first": "orthogonality.token_id37.position_strat.n_strata_skipped",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "other_cutpoints",
+   "first": "orthogonality.token_id37.position_strat.cutpoint_sensitivity.other_cutpoints[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "other_def",
+   "first": "orthogonality.token_id37.position_strat.cutpoint_sensitivity.other_def",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "pred_marker_lse",
+   "first": "layer_profile.rows[0].pred_marker_lse",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "rank_under_true_value",
+   "first": "orthogonality.sampling_defect27.M2.rank_under_true_value",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "rel_perturbation",
+   "first": "layer_profile.rows[0].rel_perturbation",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "reportable_why",
+   "first": "orthogonality.token_id37.batches[0].per_token.13824.reportable_why",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "rest_n",
+   "first": "orthogonality.token_id37.position_strat.strata[0].rest_n",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "rest_pos",
+   "first": "orthogonality.token_id37.position_strat.strata[0].rest_pos",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "role",
+   "first": "orthogonality.token_id37.position_strat.role",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "rule",
+   "first": "orthogonality.sampling_defect27.M1.rule",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "verdict_invariant",
+   "first": "orthogonality.sampling_defect27.M2.verdict_invariant",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/bpath_marker_steering.json",
+   "field": "w_dot_hhat",
+   "first": "layer_profile.rows[0].w_dot_hhat",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "all_missing",
+   "first": "samples[0].audit.gates[1].all_missing[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "behavior_metric",
+   "first": "samples[0].audit.evidence.behavior_metric",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "denominator_reported",
+   "first": "samples[0].audit.evidence.denominator_reported",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "first_missing",
+   "first": "samples[0].audit.gates[1].first_missing",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "gate_fields",
+   "first": "gate_fields[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "heldout_prediction",
+   "first": "samples[0].audit.evidence.heldout_prediction",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "logit_shift_shown",
+   "first": "samples[0].evidence.logit_shift_shown",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "margin_over_2sem",
+   "first": "samples[0].audit.evidence.margin_over_2sem",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "missing",
+   "first": "samples[2].audit.evidence_out_of_order[0].missing[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "net_change_reported",
+   "first": "samples[0].audit.evidence.net_change_reported",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "passed",
+   "first": "samples[0].audit.gates[0].passed",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "position_axis_control",
+   "first": "samples[0].audit.evidence.position_axis_control",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "present_but_unsupported",
+   "first": "samples[2].audit.evidence_out_of_order[0].present_but_unsupported",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "recipe_heldout",
+   "first": "samples[0].audit.evidence.recipe_heldout",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "recipe_injectable",
+   "first": "samples[0].audit.evidence.recipe_injectable",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "schema",
+   "first": "schema",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "shuffle_floor",
+   "first": "samples[0].audit.evidence.shuffle_floor",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "specificity_matrix",
+   "first": "samples[0].audit.evidence.specificity_matrix",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/claim_audit.json",
+   "field": "strength_law_checked",
+   "first": "samples[0].audit.evidence.strength_law_checked",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect.json",
+   "field": "answer_known_frac",
+   "first": "coverage.answer_known_frac",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect.json",
+   "field": "control_is_identity",
+   "first": "control_is_identity",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect.json",
+   "field": "design",
+   "first": "design",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect.json",
+   "field": "logit_kl",
+   "first": "rows[0].logit_kl",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect.json",
+   "field": "model_provenance",
+   "first": "model_provenance",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect.json",
+   "field": "n_runs_scanned",
+   "first": "rows[0].n_runs_scanned",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "all_labels_in_bank",
+   "first": "problem_set.all_labels_in_bank",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "answer_known_frac",
+   "first": "coverage.answer_known_frac",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "budget_kind",
+   "first": "budget_kind",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "caveat",
+   "first": "answer_shift_free_run.caveat",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "changed_in_domain",
+   "first": "answer_shift_free_run.by_direction.confidence_up.changed_in_domain",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "closed_think_frac",
+   "first": "coverage.closed_think_frac",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "comparable_in_domain",
+   "first": "answer_shift_free_run.by_direction.confidence_up.comparable_in_domain",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "control_is_identity",
+   "first": "control_is_identity",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "design",
+   "first": "design",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "free_len_ratio_max",
+   "first": "rows[0].free_len_ratio_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "free_len_ratio_median",
+   "first": "rows[0].free_len_ratio_median",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "free_len_ratio_min",
+   "first": "rows[0].free_len_ratio_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "index_file",
+   "first": "problem_set.index_file",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "is_official_aime",
+   "first": "problem_set.is_official_aime",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "labels",
+   "first": "problem_set.labels[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "logit_kl",
+   "first": "rows[0].logit_kl",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "loop_order_dependency",
+   "first": "determinism_gate.loop_order_dependency",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "max_steps_compared",
+   "first": "determinism_gate.max_steps_compared",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "model_provenance",
+   "first": "model_provenance",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "n_runs_scanned",
+   "first": "rows[0].n_runs_scanned",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "reference_answers_from",
+   "first": "problem_set.reference_answers_from",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "runs_at_budget",
+   "first": "runs_at_budget",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "steps_max",
+   "first": "steps_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "steps_steered",
+   "first": "answer_shift_free_run.by_direction.confidence_up.examples[0].steps_steered",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "steps_zero",
+   "first": "answer_shift_free_run.by_direction.confidence_up.examples[0].steps_zero",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "why_it_matters",
+   "first": "determinism_gate.why_it_matters",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_effect_32k.json",
+   "field": "why_trustworthy",
+   "first": "answer_shift_free_run.why_trustworthy",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_texts.json",
+   "field": "closed_think_primary",
+   "first": "runs[0].closed_think_primary",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_texts.json",
+   "field": "closed_think_shadow",
+   "first": "runs[0].closed_think_shadow",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_texts.json",
+   "field": "reason_chars_primary",
+   "first": "runs[0].reason_chars_primary",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_texts.json",
+   "field": "reason_chars_shadow",
+   "first": "runs[0].reason_chars_shadow",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_texts.json",
+   "field": "shadow_is_not_an_essay",
+   "first": "design.shadow_is_not_an_essay",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/cot_texts.json",
+   "field": "why_no_word_diff",
+   "first": "design.why_no_word_diff",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/dim_names.json",
+   "field": "model_path",
+   "first": "model_path",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/dim_names.json",
+   "field": "n_without_readable_name",
+   "first": "n_without_readable_name",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/dim_names.json",
+   "field": "peak",
+   "first": "dims[0].peak",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/dim_names.json",
+   "field": "peak_tok",
+   "first": "dims[0].peak_tok",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/dim_names.json",
+   "field": "tied_word_embeddings",
+   "first": "tied_word_embeddings",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "1984_I_1",
+   "first": "lens_argmax_offsets.1984_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "1985_I_1",
+   "first": "lens_argmax_offsets.1985_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "1986_I_1",
+   "first": "lens_argmax_offsets.1986_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "1987_I_1",
+   "first": "lens_argmax_offsets.1987_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "1988_I_1",
+   "first": "lens_argmax_offsets.1988_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "alignment_gate",
+   "first": "alignment_gate",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "c4_random_hits_denom",
+   "first": "c4_random_hits_denom",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "c4_random_hits_n",
+   "first": "c4_random_hits_n",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "dn_at",
+   "first": "problems.1983_I_1.sum.dn_at",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "dn_med",
+   "first": "problems.1983_I_1.sum.dn_med",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "flip_at",
+   "first": "problems.1983_I_1.sum.flip_at",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/divergence_readout.json",
+   "field": "m_s_med",
+   "first": "problems.1983_I_1.sum.m_s_med",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/evidence_ladder.json",
+   "field": "schema",
+   "first": "schema",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/heldout_readability.json",
+   "field": "floor_from",
+   "first": "transfer[0].floor_from",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/heldout_readability.json",
+   "field": "n_used_lag1",
+   "first": "selfdup.per_traj_mean.n_used_lag1",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/heldout_readability.json",
+   "field": "non_circular",
+   "first": "sources.non_circular",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/heldout_readability.json",
+   "field": "to",
+   "first": "recipe.margin_gain_attribution.to",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/hinge_hinges.json",
+   "field": "off2",
+   "first": "probe.auroc_before_marker.off2",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/hinge_hinges.json",
+   "field": "off3",
+   "first": "probe.auroc_before_marker.off3",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/hinge_hinges.json",
+   "field": "title_en",
+   "first": "title_en",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/intervention_threshold_law.json",
+   "field": "cells_that_never_flipped",
+   "first": "generality.evidence.cells_that_never_flipped[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/intervention_threshold_law.json",
+   "field": "checked_by",
+   "first": "contrast_with_replay.checked_by",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/intervention_threshold_law.json",
+   "field": "gate_A_ratio_within_limit",
+   "first": "generality.evidence.gate_A_ratio_within_limit",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/intervention_threshold_law.json",
+   "field": "gate_B_all_bracketed",
+   "first": "generality.evidence.gate_B_all_bracketed",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/intervention_threshold_law.json",
+   "field": "median_threshold",
+   "first": "generality.cells[0].median_threshold",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/intervention_threshold_law.json",
+   "field": "n_flipped_steps",
+   "first": "generality.cells[0].n_flipped_steps",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/intervention_threshold_law.json",
+   "field": "token_at_lowest",
+   "first": "per_step[0].token_at_lowest",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/intervention_threshold_law.json",
+   "field": "unbracketed_steps",
+   "first": "generality.cells[0].unbracketed_steps[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/intervention_threshold_law.json",
+   "field": "unit",
+   "first": "setting.unit",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/lit_audit.json",
+   "field": "abstract",
+   "first": "rows[0].abstract",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/lit_audit.json",
+   "field": "schema",
+   "first": "schema",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "aime__1984__1984_I_1__think",
+   "first": "gates.G-c.evidence.per_alpha.0.35.per_problem_d.aime__1984__1984_I_1__think",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "aime__1985__1985_I_1__no_think",
+   "first": "gates.G-c.evidence.per_alpha.0.35.per_problem_d.aime__1985__1985_I_1__no_think",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "aime__1985__1985_I_1__think",
+   "first": "gates.G-c.evidence.per_alpha.0.35.per_problem_d.aime__1985__1985_I_1__think",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "alpha",
+   "first": "gates.G-b.evidence.alpha",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "alphas",
+   "first": "gates.G-c.evidence.alphas[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "cos2",
+   "first": "decomp.axes[0].cos2",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "ctl_alpha_star_min",
+   "first": "contexts[4].ctl_alpha_star_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "decomp_ran",
+   "first": "gates.S1.evidence.decomp_ran",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "gap_at_0",
+   "first": "contexts[0].gap_at_0",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "gap_fit_window",
+   "first": "gates.G-a0.evidence.nonmonotone_ctx[0].gap_fit_window[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "len_control",
+   "first": "gates.G-c.evidence.per_alpha.0.35.negative_deltas.len_control",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "lever_norm",
+   "first": "decomp.lever_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "n_ctx_all",
+   "first": "gates.G-a0.evidence.n_ctx_all",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "n_meas_censored",
+   "first": "gates.G-a.evidence.n_meas_censored",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "n_nonmonotone",
+   "first": "gates.G-a0.evidence.n_nonmonotone",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "negative_keys",
+   "first": "gates.G-c.evidence.negative_keys[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "net",
+   "first": "gates.G-b.evidence.net",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "no_p_value",
+   "first": "gates.G-c.evidence.no_p_value",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "norm_d",
+   "first": "decomp.axes[0].norm_d",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "objective",
+   "first": "decomp.objective",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "person_ctrl",
+   "first": "gates.G-c.evidence.per_alpha.0.35.negative_deltas.person_ctrl",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "register_ct",
+   "first": "gates.G-c.evidence.per_alpha.0.35.negative_deltas.register_ct",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "registry_names",
+   "first": "registry_names[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "vec",
+   "first": "lever.vec[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/ltv.json",
+   "field": "verdict_rule",
+   "first": "gates.G-c.evidence.verdict_rule",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/manifest.json",
+   "field": "ground_truth",
+   "first": "trajectories[0].ground_truth",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/manifest.json",
+   "field": "ppl",
+   "first": "trajectories[0].tokens[0].ppl",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/manifest.json",
+   "field": "ppl_max",
+   "first": "trajectories[0].layers[0].ppl_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/manifest.json",
+   "field": "ppl_mean",
+   "first": "trajectories[0].layers[0].ppl_mean",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/manifest.json",
+   "field": "system_prompt",
+   "first": "trajectories[0].system_prompt",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "d_full",
+   "first": "per_problem[0].d_full",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "decide_before_data",
+   "first": "rule.decide_before_data",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "is_lower_bound",
+   "first": "fixed_prefix.is_lower_bound",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "length_ratio_reading",
+   "first": "cap_censoring.length_ratio_reading",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "lower_bound_because",
+   "first": "fixed_prefix.lower_bound_because",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "min_words_for_rep",
+   "first": "rule.min_words_for_rep",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "n_steps_down",
+   "first": "per_problem[0].n_steps_down",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "n_steps_up_max",
+   "first": "length_confound.n_steps_up_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "n_steps_up_min",
+   "first": "length_confound.n_steps_up_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "n_steps_zero_max",
+   "first": "length_confound.n_steps_zero_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "n_steps_zero_min",
+   "first": "length_confound.n_steps_zero_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "ngram",
+   "first": "ngram",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "occurrence_rule",
+   "first": "rule.occurrence_rule",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "prefix_covers_before_collapse",
+   "first": "cap_censoring.prefix_covers_before_collapse",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "prefix_fraction_of_up",
+   "first": "per_problem[0].prefix_fraction_of_up",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "rep_full_up",
+   "first": "per_problem[0].rep_full_up",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "rep_full_zero",
+   "first": "per_problem[0].rep_full_zero",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "rep_pre_down",
+   "first": "per_problem[0].rep_pre_down",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "replication_note",
+   "first": "replication_note",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "replication_per_cell",
+   "first": "replication_per_cell",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "why",
+   "first": "fixed_prefix.why",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "why_this_matters",
+   "first": "cap_censoring.why_this_matters",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "words_up",
+   "first": "per_problem[0].words_up",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/occurrence_23.json",
+   "field": "words_zero",
+   "first": "per_problem[0].words_zero",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "arm_label",
+   "first": "gates.G2[num].arm_label",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "clean",
+   "first": "arms.clean",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "clean_logp_target",
+   "first": "problems[0].clean_logp_target",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "differs",
+   "first": "gates.G2[word].evidence.per_problem[0].differs",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "excessm_word",
+   "first": "problems[0].nodes[0].excessm_word",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "flip_null",
+   "first": "problems[0].nodes[0].flip_null",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "flip_word",
+   "first": "problems[0].nodes[0].flip_word",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "generated_by",
+   "first": "generated_by[0]",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "lens_agree",
+   "first": "problems[0].nodes[0].lens_agree",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "logp_target_null",
+   "first": "problems[0].nodes[0].logp_target_null",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "logp_target_word",
+   "first": "problems[0].nodes[0].logp_target_word",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "max_span",
+   "first": "gates.G4[word/excessm].threshold.max_span",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "min_width",
+   "first": "gates.G4[word/excessm].threshold.min_width",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "n_checked",
+   "first": "gates.G0b.evidence.n_checked",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "nm1/nm2",
+   "first": "arms.nm1/nm2",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "node",
+   "first": "gates.G3[word/excessm].evidence.pairs[0].node",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "null_pid",
+   "first": "problems[0].null_pid",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "null_top1_text",
+   "first": "problems[0].null_top1_text",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "primary_measure",
+   "first": "primary_measure",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "ran",
+   "first": "gates.G2[num].evidence.ran",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "token_explained",
+   "first": "problems[0].token_explained",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "transfer_word",
+   "first": "problems[0].nodes[0].transfer_word",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/path_patching.json",
+   "field": "word_edit",
+   "first": "problems[0].word_edit[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/random_direction_distribution.json",
+   "field": "1983_I_1",
+   "first": "per_arm_per_problem.random_00.1983_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/random_direction_distribution.json",
+   "field": "2000_I_1",
+   "first": "per_arm_per_problem.random_00.2000_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/random_direction_distribution.json",
+   "field": "2012_I_1",
+   "first": "per_arm_per_problem.random_00.2012_I_1",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/random_direction_distribution.json",
+   "field": "problems",
+   "first": "problems[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "digit_mass|digit_mass",
+   "first": "char_pairwise_abs_cos.digit_mass|digit_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "digit_mass|latex_mass",
+   "first": "char_pairwise_abs_cos.digit_mass|latex_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "digit_mass|op_mass",
+   "first": "char_pairwise_abs_cos.digit_mass|op_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "latex_mass|digit_mass",
+   "first": "char_pairwise_abs_cos.latex_mass|digit_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "latex_mass|latex_mass",
+   "first": "char_pairwise_abs_cos.latex_mass|latex_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "latex_mass|newline_mass",
+   "first": "char_pairwise_abs_cos.latex_mass|newline_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "latex_mass|op_mass",
+   "first": "char_pairwise_abs_cos.latex_mass|op_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "newline_mass|digit_mass",
+   "first": "char_pairwise_abs_cos.newline_mass|digit_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "newline_mass|latex_mass",
+   "first": "char_pairwise_abs_cos.newline_mass|latex_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "newline_mass|newline_mass",
+   "first": "char_pairwise_abs_cos.newline_mass|newline_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "newline_mass|op_mass",
+   "first": "char_pairwise_abs_cos.newline_mass|op_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "op_mass|digit_mass",
+   "first": "char_pairwise_abs_cos.op_mass|digit_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "op_mass|latex_mass",
+   "first": "char_pairwise_abs_cos.op_mass|latex_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "op_mass|newline_mass",
+   "first": "char_pairwise_abs_cos.op_mass|newline_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "op_mass|op_mass",
+   "first": "char_pairwise_abs_cos.op_mass|op_mass",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/readable_subspace.json",
+   "field": "schema",
+   "first": "schema",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1983_I_1",
+   "first": "batches[0]._pp_raw.1983_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1984_I_1",
+   "first": "batches[0]._pp_raw.1984_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1985_I_1",
+   "first": "batches[0]._pp_raw.1985_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1986_I_1",
+   "first": "batches[0]._pp_raw.1986_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1987_I_1",
+   "first": "batches[0]._pp_raw.1987_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1988_I_1",
+   "first": "batches[0]._pp_raw.1988_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1989_I_1",
+   "first": "batches[0]._pp_raw.1989_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1990_I_1",
+   "first": "batches[0]._pp_raw.1990_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1991_I_1",
+   "first": "batches[0]._pp_raw.1991_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1992_I_1",
+   "first": "batches[0]._pp_raw.1992_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "1994_I_1",
+   "first": "batches[0]._pp_raw.1994_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2000_I_1",
+   "first": "batches[0]._pp_raw.2000_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2002_I_1",
+   "first": "batches[0]._pp_raw.2002_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2004_I_1",
+   "first": "batches[0]._pp_raw.2004_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2010_I_1",
+   "first": "batches[0]._pp_raw.2010_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2012_I_1",
+   "first": "batches[0]._pp_raw.2012_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2014_I_1",
+   "first": "batches[0]._pp_raw.2014_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2016_I_1",
+   "first": "batches[0]._pp_raw.2016_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2020_I_1",
+   "first": "batches[0]._pp_raw.2020_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2021_I_1",
+   "first": "batches[0]._pp_raw.2021_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2022_I_1",
+   "first": "batches[0]._pp_raw.2022_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2023_I_1",
+   "first": "batches[0]._pp_raw.2023_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2024_I_1",
+   "first": "batches[1]._pp_raw.2024_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "2025_I_1",
+   "first": "batches[0]._pp_raw.2025_I_1[0]",
+   "category": "data-key"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "control_arm_identical_fp32_vs_bf16",
+   "first": "dtype_recheck.control_arm_identical_fp32_vs_bf16",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "file",
+   "first": "excluded_family.file",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "problems",
+   "first": "random_direction_distribution.problems[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "rep_rate",
+   "first": "metric.rep_rate",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "self_check",
+   "first": "self_check",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "source",
+   "first": "random_direction_distribution.source",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "why",
+   "first": "dtype_recheck.why",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/repetition_collapse.json",
+   "field": "zero_arm_differs_from_ours",
+   "first": "excluded_family.zero_arm_differs_from_ours",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/steer_directions.json",
+   "field": "down_labels",
+   "first": "blew_up.down_labels[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/steer_directions.json",
+   "field": "schema",
+   "first": "schema",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/steer_directions.json",
+   "field": "up_labels",
+   "first": "blew_up.up_labels[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/steer_repetition.json",
+   "field": "full_n_words",
+   "first": "per_run.zero[0].full_n_words",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/steer_repetition.json",
+   "field": "n_words_window",
+   "first": "per_run.zero[0].n_words_window",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/steer_repetition.json",
+   "field": "prompt_label",
+   "first": "per_run.zero[0].prompt_label",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/steer_repetition.json",
+   "field": "rep_frac",
+   "first": "per_run.zero[0].rep_frac",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/steer_repetition.json",
+   "field": "rep_k",
+   "first": "per_run.zero[0].rep_k",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/steer_repetition.json",
+   "field": "rep_onset",
+   "first": "per_run.zero[1].rep_onset",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/steer_repetition.json",
+   "field": "schema",
+   "first": "schema",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "absmax_denom",
+   "first": "absmax_denom",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "alpha",
+   "first": "steps[0].radii[0].radius.grid[0].alpha",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "alpha_star",
+   "first": "steps[0].radii[0].radius.alpha_star",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "cond_denom",
+   "first": "aggregate.rank.cond_denom",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "delta_argmax_ok",
+   "first": "steps[0].delta_argmax_ok",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "delta_margin",
+   "first": "steps[0].delta_margin",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "delta_norm",
+   "first": "steps[0].delta_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "delta_norm_over_h_norm",
+   "first": "steps[0].delta_norm_over_h_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "delta_ratio_max",
+   "first": "aggregate.delta_ratio_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "delta_ratio_median",
+   "first": "aggregate.delta_ratio_median",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "h_anchor_norm",
+   "first": "steps[0].h_anchor_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "h_norm",
+   "first": "steps[0].h_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "h_norm2",
+   "first": "steps[0].h_norm2",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "head_absmax",
+   "first": "head_absmax",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "head_absmax_denom",
+   "first": "head_absmax_denom",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "head_key",
+   "first": "head_key",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "hidden_relative_move_max",
+   "first": "aggregate.softest_dir_move.hidden_relative_move_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "hidden_relative_move_min",
+   "first": "aggregate.softest_dir_move.hidden_relative_move_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "hidden_size",
+   "first": "hidden_size",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "interpretation",
+   "first": "reversibility.interpretation",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "layer_post_norm",
+   "first": "layer_post_norm",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "logit_rel",
+   "first": "steps[0].radii[0].radius.grid[0].logit_rel",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "logit_relative_move_full",
+   "first": "steps[0].radii[0].radius.logit_relative_move_full",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "logit_relative_move_median",
+   "first": "aggregate.softest_dir_move.logit_relative_move_median",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "logit_relative_move_min",
+   "first": "aggregate.softest_dir_move.logit_relative_move_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "margin_before",
+   "first": "steps[0].radii[0].radius.margin_before",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "margin_min",
+   "first": "aggregate.cone_by_regime.trivial_delta0.margin_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "max_abs_diff_vs_last_hidden",
+   "first": "postnorm_measured.max_abs_diff_vs_last_hidden",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "max_hidden_relative_move",
+   "first": "steps[0].max_hidden_relative_move",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "min_logit_relative_move",
+   "first": "steps[0].min_logit_relative_move",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "min_wnorm_denom",
+   "first": "aggregate.rank.min_wnorm_denom",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "n_above_1x_denom",
+   "first": "aggregate.cone_by_regime.trivial_delta0.n_above_1x_denom",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "n_argmax_agrees",
+   "first": "aggregate.n_argmax_agrees",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "n_delta_ok",
+   "first": "aggregate.n_delta_ok",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "n_denom",
+   "first": "aggregate.softest_dir_move.n_denom",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "n_diff_exactly_zero",
+   "first": "postnorm_measured.n_diff_exactly_zero",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "n_per_step",
+   "first": "aggregate.random_dir_move.n_per_step",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "n_radii",
+   "first": "aggregate.cone_by_regime.trivial_delta0.n_radii",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "n_random",
+   "first": "aggregate.spectrum_is_not_the_explanation.n_random",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "n_soft",
+   "first": "aggregate.spectrum_is_not_the_explanation.n_soft",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "n_stored_top1_agrees",
+   "first": "aggregate.n_stored_top1_agrees",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "norm_key",
+   "first": "norm_key",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "numerical_rank_frac",
+   "first": "aggregate.rank.numerical_rank_frac",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "p10",
+   "first": "aggregate.margins.p10",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "post_norm_flag",
+   "first": "post_norm_flag",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "post_norm_note",
+   "first": "post_norm_note",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "radius_measured_from",
+   "first": "steps[0].radius_measured_from",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "random_median",
+   "first": "aggregate.spectrum_is_not_the_explanation.random_median",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "random_over_softest",
+   "first": "aggregate.spectrum_is_not_the_explanation.random_over_softest",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "real_argmax",
+   "first": "steps[0].real_argmax",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "real_argmax_agrees",
+   "first": "steps[0].real_argmax_agrees",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "recover_from_full_logits_rel_err",
+   "first": "steps[0].recover_from_full_logits_rel_err",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "recover_from_top64_rel_err",
+   "first": "steps[0].recover_from_top64_rel_err",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "renorm_argmax_flip_denom",
+   "first": "postnorm_measured.renorm_argmax_flip_denom",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "renorm_argmax_flips",
+   "first": "postnorm_measured.renorm_argmax_flips",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "renorm_delta_margin_max",
+   "first": "postnorm_measured.renorm_delta_margin_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "renorm_delta_margin_median",
+   "first": "postnorm_measured.renorm_delta_margin_median",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "renorm_delta_margin_min",
+   "first": "postnorm_measured.renorm_delta_margin_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "renorm_delta_top1_logit_max",
+   "first": "postnorm_measured.renorm_delta_top1_logit_max",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "renorm_delta_top1_logit_median",
+   "first": "postnorm_measured.renorm_delta_top1_logit_median",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "renorm_delta_top1_logit_min",
+   "first": "postnorm_measured.renorm_delta_top1_logit_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "rms_norm_eps",
+   "first": "rms_norm_eps",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "search_capped_at_alpha",
+   "first": "steps[15].radii[2].radius.search_capped_at_alpha",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "softest_median",
+   "first": "aggregate.spectrum_is_not_the_explanation.softest_median",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "stored_top1",
+   "first": "steps[0].stored_top1",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "stored_top1_agrees",
+   "first": "steps[0].stored_top1_agrees",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "top1_at_boundary",
+   "first": "steps[0].radii[0].radius.top1_at_boundary",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "top1_minus_top2",
+   "first": "steps[0].top1_minus_top2",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "trivial_delta_n",
+   "first": "steps[0].trivial_delta_n",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "trivial_fraction",
+   "first": "aggregate.trivial_fraction",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/token_backmap.json",
+   "field": "unembedding_is_injective",
+   "first": "unembedding_is_injective",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_random_control.json",
+   "field": "abs_diff",
+   "first": "sign_flip_pairs[0].rows[0].abs_diff",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_random_control.json",
+   "field": "bar_beating_all_200",
+   "first": "per_layer.12.bar_beating_all_200",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_random_control.json",
+   "field": "frac_a",
+   "first": "sign_flip_pairs[0].rows[0].frac_a",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_random_control.json",
+   "field": "frac_b",
+   "first": "sign_flip_pairs[0].rows[0].frac_b",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_random_control.json",
+   "field": "random_min",
+   "first": "per_layer.12.random_min",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_random_control.json",
+   "field": "random_p95",
+   "first": "per_layer.12.random_p95",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_random_control.json",
+   "field": "schema",
+   "first": "schema",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "auc_null_floor_naive",
+   "first": "necessity.in_sample_circular.L14.caution.auc_null_floor_naive",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "auc_pooled",
+   "first": "necessity.in_sample_circular.L14.caution.auc_pooled",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "base_rate",
+   "first": "necessity.in_sample_circular.L14.caution.base_rate",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "boot_ci_median_rho",
+   "first": "necessity.in_sample_circular.L14.confidence_up.boot_ci_median_rho[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "cohens_d_demanded_by_floor",
+   "first": "necessity.in_sample_circular.L14.caution.cohens_d_demanded_by_floor",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "cohens_d_implied_by_rho",
+   "first": "necessity.in_sample_circular.L14.caution.cohens_d_implied_by_rho",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "determined_by_run_mode",
+   "first": "observable_audit.self_check.determined_by_run_mode",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "directions_with_runs",
+   "first": "sufficiency.directions_with_runs[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "directions_without_intervention_runs",
+   "first": "unmeasured.directions_without_intervention_runs[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "directions_without_runs",
+   "first": "sufficiency.directions_without_runs[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "empirical_floor",
+   "first": "necessity.in_sample_circular.L14.confidence_up.empirical_floor",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "empirical_floor_is_stricter",
+   "first": "necessity.random_direction_control.L14.confidence_up.empirical_floor_is_stricter",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "empirical_floor_mean_plus_3sd",
+   "first": "necessity.random_direction_control.L14.confidence_up.empirical_floor_mean_plus_3sd",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "expected_sign",
+   "first": "necessity.in_sample_circular.L14.confidence_up.expected_sign",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "floor_note",
+   "first": "sufficiency.floor_note",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "frac_signs_differ",
+   "first": "specificity.mirror_test.mean_logit_kl.frac_signs_differ",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "frac_steps_positive",
+   "first": "observable_audit.entropy.frac_steps_positive",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "frac_traj_constant_inside",
+   "first": "observable_audit.entropy.frac_traj_constant_inside",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "frac_traj_positive",
+   "first": "necessity.in_sample_circular.L14.confidence_up.frac_traj_positive",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "gate_statistic",
+   "first": "necessity.in_sample_circular.L14.confidence_up.gate_statistic",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "gate_threshold",
+   "first": "necessity.in_sample_circular.L14.confidence_up.gate_threshold",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "gate_threshold_is_stricter_than_naive",
+   "first": "necessity.in_sample_circular.L14.confidence_up.gate_threshold_is_stricter_than_naive",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "generated_by",
+   "first": "generated_by",
+   "category": "meta"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "iqr_over_abs_median",
+   "first": "specificity.activation_dispersion.L14.confidence_up.iqr_over_abs_median",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "iqr_rho_per_traj",
+   "first": "necessity.in_sample_circular.L14.confidence_up.iqr_rho_per_traj[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "label_confounds",
+   "first": "necessity.label_confounds",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "mean_plus_3sd_reachable",
+   "first": "necessity.random_direction_control.L14.confidence_up.mean_plus_3sd_reachable",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "median_rho_per_traj",
+   "first": "necessity.in_sample_circular.L14.confidence_up.median_rho_per_traj",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_directions_projected",
+   "first": "denominators.n_directions_projected",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_layers_projected",
+   "first": "denominators.n_layers_projected",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_neg_tokens_in_fit",
+   "first": "necessity.heldout_non_circular.folds.confidence_up.scores.fit0_score1.n_neg_tokens_in_fit",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_negative_steps",
+   "first": "necessity.in_sample_circular.L14.caution.n_negative_steps",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_paired_problems",
+   "first": "specificity.mirror_test.mean_logit_kl.n_paired_problems",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_pos_tokens_in_fit",
+   "first": "necessity.heldout_non_circular.folds.confidence_up.scores.fit0_score1.n_pos_tokens_in_fit",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_projection_values",
+   "first": "denominators.n_projection_values",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_projection_values_non_finite",
+   "first": "denominators.n_projection_values_non_finite",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_random_directions_in_control",
+   "first": "necessity.in_sample_circular.L14.confidence_up.n_random_directions_in_control",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_steps_total",
+   "first": "denominators.n_steps_total",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_traj_constant_inside",
+   "first": "observable_audit.entropy.n_traj_constant_inside",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_traj_matching_mode_at_step0",
+   "first": "observable_audit.self_check.n_traj_matching_mode_at_step0",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_traj_negative_at_step0",
+   "first": "observable_audit.self_check.by_run_mode.no_think.n_traj_negative_at_step0",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_traj_positive",
+   "first": "necessity.in_sample_circular.L14.confidence_up.n_traj_positive",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_traj_positive_at_step0",
+   "first": "observable_audit.self_check.by_run_mode.no_think.n_traj_positive_at_step0",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_traj_scored",
+   "first": "necessity.heldout_non_circular.folds.confidence_up.scores.fit0_score1.n_traj_scored",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_traj_with_any_positive",
+   "first": "observable_audit.entropy.n_traj_with_any_positive",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "n_trajectories",
+   "first": "denominators.n_trajectories",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "naive_floor_is_the_binding_one",
+   "first": "necessity.random_direction_control.L14.confidence_up.naive_floor_is_the_binding_one",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "null_floor",
+   "first": "specificity.mirror_test.mean_logit_kl.null_floor",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "null_floor_by_step_naive",
+   "first": "denominators.null_floor_by_step_naive",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "null_floor_by_traj",
+   "first": "denominators.null_floor_by_traj",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "null_floor_formula",
+   "first": "denominators.null_floor_formula",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "point_biserial_shrink_factor",
+   "first": "necessity.in_sample_circular.L14.caution.point_biserial_shrink_factor",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "random_control_is_the_real_null",
+   "first": "necessity.random_control_is_the_real_null",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "rho_pooled",
+   "first": "necessity.in_sample_circular.L14.confidence_up.rho_pooled",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "rho_up_vs_down",
+   "first": "specificity.mirror_test.mean_logit_kl.rho_up_vs_down",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "share_of_positive_deviation_in_top_decile",
+   "first": "specificity.activation_dispersion.L14.confidence_up.share_of_positive_deviation_in_top_decile",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "shuffled_control_rho",
+   "first": "necessity.in_sample_circular.L14.confidence_up.shuffled_control_rho",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "signed_stat",
+   "first": "necessity.in_sample_circular.L14.confidence_up.signed_stat",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "three_measurements",
+   "first": "framework.three_measurements[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "uniform_expectation",
+   "first": "specificity.activation_dispersion.L14.confidence_up.uniform_expectation",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "warning",
+   "first": "observable_audit.in_think.warning",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "what_is_measured_instead",
+   "first": "specificity.literal_per_step_entropy_test.what_is_measured_instead",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "which_statistic_and_why",
+   "first": "necessity.which_statistic_and_why",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "why_by_traj",
+   "first": "denominators.why_by_traj",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "why_it_matters_here",
+   "first": "framework.why_it_matters_here",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "within_vs_between",
+   "first": "necessity.within_vs_between",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/data/vector_roles.json",
+   "field": "z_of_real_direction",
+   "first": "necessity.random_direction_control.L14.confidence_up.z_of_real_direction",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "c4_random_counts",
+   "first": "models[0].c4_random_counts[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "c4_random_pct",
+   "first": "models[0].c4_random_pct",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "c4_random_text",
+   "first": "models[0].c4_random_text",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "common_prefix",
+   "first": "models[0].common_prefix[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "direction_beats_random",
+   "first": "models[0].direction_beats_random",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "direction_percentiles",
+   "first": "models[0].direction_percentiles[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "n_eff",
+   "first": "models[0].n_eff[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "n_eff_pct",
+   "first": "models[0].n_eff_pct[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "near_miss",
+   "first": "models[0].near_miss",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "retention_pct",
+   "first": "models[0].retention_pct[0]",
+   "category": "unclassified"
+  },
+  {
+   "artifact": "public/latent/models.json",
+   "field": "top20_vs_uniform",
+   "first": "models[0].top20_vs_uniform[0]",
+   "category": "unclassified"
+  }
+ ]
+}
