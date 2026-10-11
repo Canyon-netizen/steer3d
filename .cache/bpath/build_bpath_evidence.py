@@ -276,6 +276,36 @@ def main():
             _ratios.append(abs(v["d_marker_lse"] / p))
     _gate(bool(_ratios), "层扫描里没有任何可算的 |实测/预测| ⇒ 区间无出处")
     _ratio_lo, _ratio_hi = min(_ratios), max(_ratios)
+    # ⚠⚠⚠ 修订 65（X1）：原来那句「硬取单点会得到 17.9 / 29.9 / 228.5
+    #   三个互不相等的衰减倍数」——**那三个数不是衰减倍数**：
+    #     17.9 = 0.017942 × 1000（think L=20 的 |实测/预测|）
+    #     29.9 = 0.029903 × 1000（no_think L=20 的 |比|）
+    #   ⇒ 是把**比值乘了 1000** 当成倍数印了出去；
+    #     而 228.5 在全 19 个档位里**根本复现不出来**。
+    #   ⚠⚠ 结论仍成立（单点确实给出互不相等的一批数），但支撑它的数字是错的。
+    #   ⇒ 现在按**定义**算：倍数 = 1/|实测/预测|，并印出每个数由哪一档算的。
+    _mult = []
+    for r in layer["rows"]:
+        p = r.get("pred_marker_lse")
+        if not p:
+            continue
+        for k, v in r["layers"].items():
+            # ⚠⚠ **必须排除校准点 L=-1**：那里的比值 ≈ 1 是**构造上**成立的
+            #   （预测在那儿精确成立），把它算进「硬取单点」会得到 1.01，
+            #   而那句要说的是**中间层**之间互相矛盾。
+            # ⚠ 第一版就是漏了这一档，把极差说成 165 倍 —— 而那个 1.01
+            #   根本不是「取错单点」的后果，是校准点本身。
+            if k == "-1":
+                continue
+            rat = abs(v["d_marker_lse"]) / abs(p)
+            if rat:
+                _mult.append((1.0 / rat, r["mode"], k))
+    _gate(bool(_mult), "层扫描里算不出任何衰减倍数 ⇒ 该句无出处")
+    _mult.sort()
+    _m_lo, _m_hi = _mult[0], _mult[-1]
+    _mult_txt = " / ".join(
+        "%.2f（%s L=%s）" % (m, md, l) for m, md, l in (_m_lo, _mult[len(_mult) // 2], _m_hi))
+    _mult_spread = _m_hi[0] / _m_lo[0]
     _cal_by_mode = {r["mode"]: r.get("calibration_ratio") for r in layer["rows"]}
     # ⚠ 校准点的实测读数（L=-1 那档）也取自同一批 rows，不另记一份。
     _cal_obs = {r["mode"]: r["layers"]["-1"]["d_marker_lse"] for r in layer["rows"]}
@@ -308,8 +338,12 @@ def main():
                      f"L=0…{len(layer['layer_ladder'])} 的 |实测/预测| 落在 "
                      f"{_ratio_lo:.4f}–{_ratio_hi:.4f}，"
                      "且 think **逐层变号 4/8 次**、L=20 处与 no_think **异号**。"
-                     "⇒ **不存在「一个衰减倍数」**（硬取单点会得到 17.9 / 29.9 / 228.5 "
-                     "三个互不相等的数）。`w·U[marker]` 应**在校准点读**："
+                     "⇒ **不存在「一个衰减倍数」**"
+                     f"（硬取单点得 {_mult_txt}，极差 {_mult_spread:.1f} 倍）。"
+                     "　⚠ 修订 65：这里原来写的是「17.9 / 29.9 / 228.5」，"
+                     "**前两个是 |实测/预测| 的比值乘了 1000**，"
+                     "而 228.5 复现不出来 ⇒ 已按定义重算并点出各自来自哪一档。"
+                     "`w·U[marker]` 应**在校准点读**："
                      "它给出方向在 unembedding 空间里指向什么；"
                      "在中间层注入后读到的量**与它没有可预测的定量关系**。"),
         "retracted": ("「一阶预测被下游 8 层高估约 43 倍」——已撤回。"
@@ -319,6 +353,29 @@ def main():
     }
 
     # ---------- 4b. 正交度探针（修订 16–18）：H 被证伪 ----------
+    # ⚠⚠ 修订 65（X2）：`56/133` 原来两个都是手打的。
+    #   现在从 `orthogonality.json` **现场数**：p01_think 的位点数、
+    #   以及随剂量单调降的位点数（实测 133 / 56，与原文一致）。
+    _p01 = [r for r in ortho["rows"] if r["traj"].endswith("p01__think")]
+    _n_p01 = len(_p01)
+    _n_mono = 0
+    for _r in _p01:
+        _d = [p["d_marker"] for p in _r["points"]]
+        if all(_d[i] >= _d[i + 1] for i in range(len(_d) - 1)):
+            _n_mono += 1
+    _gate(_n_p01 > 0, "orthogonality.json 里没有 p01__think 位点 ⇒ q4_caveat 无出处")
+    # ⚠ X3：`1.15` 是**另一份产物**的数（主阶梯的余量），
+    #   只钉它不够 ⇒ 与 heldout_readability.json 交叉核对，不同就判红。
+    _hr = ROOT / "frontend/public/latent/data/heldout_readability.json"
+    if _hr.exists():
+        _mg = float(jload(_hr)["recipe"]["specificity_margin"])
+        _gate(abs(round(_mg, 2) - 1.15) < 1e-9,
+              "L5 note 里的 1.15× 与 heldout_readability.json 的 "
+              "specificity_margin=%r 对不上 ⇒ 措辞需与主产物同步" % _mg)
+        _mg_txt = "%.2f" % round(_mg, 2)
+    else:
+        _mg_txt = "未复核"
+        _gate(False, "heldout_readability.json 不在 ⇒ L5 note 里的余量无法交叉核对")
     # ⚠ 三个数分属**三份产物**，各自标注，不合并成一个「结论」。
     tk = q3v["by_mode"]["think"]
     nt = q3v["by_mode"]["no_think"]
@@ -362,7 +419,7 @@ def main():
                      "Q1 的分组边界在这批数据上切不出样本；两组同号率打平（6/6 vs 6/6）。"
                      "**不报 PASS 也不报 FAIL。**"),
         },
-        "q4_caveat": ("不利证据：**p01__think 有 56/133 个位点随剂量单调降**，"
+        "q4_caveat": (f"不利证据：**p01__think 有 {_n_mono}/{_n_p01} 个位点随剂量单调降**，"
 "H 与「反转」结论都覆盖不到它（反转只占 24 个位点）。"
                       "该现象在新批次**复现**（"
                       f"{genv['G4']['mono_down']}/{genv['G4']['n']}"
@@ -1014,14 +1071,14 @@ def main():
                  f" —— 而 L5 判据要的是后者",
          "note": ("（**B 路 / R-6 这一批**）既有阶梯已记 missing；"
                   "B 路没有推进这一级。⚠ 主阶梯那一块给 L5 的依据是"
-                  "「余量 1.15× < 2×」—— **同一结论**，量的却是原数据集。"
+                  f"「余量 {_mg_txt}× < 2×」—— **同一结论**，量的却是原数据集。"
                   "　⚠⚠ **这一格的 `here` 在修订 62 里被我写超范围过**"
                   "（当时说「同范数随机臂只做到 P9 的基准规模」），"
                   "修订 63 复核后改成分域陈述。"
                   "　⚠ 顺带记一条实测教训：**补一个随机臂抬不高余量** ——"
                   "随机对照只能证伪「随便什么方向都行」，"
-                  "而 L5 的余量是 `ρ_own ÷ max(竞争者 ρ)`，"
-                  "实测 1.15× < 阈值 2× ⇒ 卡点在**配方结构**，不在算力。")},
+                  f"而 L5 的余量是 `ρ_own ÷ max(竞争者 ρ)`，"
+                  f"实测 {_mg_txt}× < 阈值 2× ⇒ 卡点在**配方结构**，不在算力。")},
         {"level": "L6", "claim": "注入改变行为，且改变是这条方向特有的",
          "bpath_state": "partial",
          # ⚠⚠ 原来写死「两条 no_think 正控 5/5 剂量步单调」——

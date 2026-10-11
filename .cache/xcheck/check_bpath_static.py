@@ -267,8 +267,121 @@ def check_u3(path=None):
                        % (hit_inj, hit_pre))}
 
 
-def report(res):
+# ⚠ X5（修订 65）：**正当引用**走一张**列明的**豁免表。
+# ⚠⚠ 这张表是**人列的** —— 它属于「本项无判据」的一角，
+#   所以守卫**每次运行都必须把表的大小与条目打出来**，
+#   不能让它悄悄变长。
+EXEMPT_CITATION = [
+    (re.compile(r"§\s*\d"), "预登记条款号（§36.4 / §11.6）"),
+    (re.compile(r"修订\s*\d"), "预登记修订编号（修订 43 / 修订 63）"),
+    (re.compile(r"\d{4}-\d{2}-\d{2}"), "日期（2026-10-10）"),
+]
+
+# ⚠ X4（修订 65）：这三个是**测量量**但本轮**查不到出处**，
+#   如实登记，**不许猜规则去派生**：
+#     1928  —— coord 块「与倒数第二层差 1928」，生成它的 J1 比对没进产物
+#     0.0317 —— 臂 A(w_t1) 的逐 id 算术均值，历史对照值
+#     4.487  —— orthogonality 的 OR；⚠ 按我能重建的口径只得到 3.973，
+#               原文用的是 35/68 vs 13/68（分母 68 不是 p01 的 44）
+#               ⇒ 我**不知道**它的分组规则，猜出来就是把错误固化。
+KNOWN_NO_SOURCE = {
+    # —— 真正无出处的测量量（X4，如实登记，不许猜规则派生）——
+    "1928": "J1 比对未进产物（coord）",
+    "0.0317": "臂 A 历史对照值，未进产物（read）",
+    "4.487": "OR 的分组规则未能重建（原文用 35/68 vs 13/68）",
+    # —— 更正披露里**引用旧值**（X5）：报出「原来是多少」必然查不到出处，
+    #    它按设计就该查不到（同「历史快照只追加不重写」）——
+    "17.9": "更正披露：引用的旧错值（|比|×1000）",
+    "29.9": "更正披露：引用的旧错值（|比|×1000）",
+    "228.5": "更正披露：引用的旧错值（且复现不出来）",
+    "1000": "更正披露：说明旧错值是比值乘了 1000",
+    # —— 已被撤回的历史读法（叙述过去，不该有当前出处）——
+    "43": "预登记修订 14 已撤回的「高估 43 倍」历史读数",
+}
+
+
+def _cited(s, start, end):
+    """这个数字是否构成一条**正当引用**。
+
+    ⚠⚠ 第一版只拿**左侧**去匹配 `§\s*\d`，而数字本身在匹配里
+      ⇒ `§11.6` 的 `11.6` 左侧只有 `§`，正则要求 `§` 后跟数字 ⇒ **永远匹配不上**
+      ⇒ `§36.4` / `§11.6` 会被当成表外数字误报。
+      ⇒ 修正：把**数字的头几个字符也纳入上下文**。
+    """
+    # ⚠⚠ 上下文**右侧也要留**：日期 `2026-10-10` 里 TOK 只匹配到 `2026`
+    #   （`-` 不是数字），窗口若只到 `end` 就只剩 `**2026`
+    #   ⇒ `\d{4}-\d{2}-\d{2}` 永远匹配不上，年份会被当成测量量误报。
+    ctx = s[max(0, start - 12):end + 12]
+    for rx, _ in EXEMPT_CITATION:
+        if rx.search(ctx):
+            return True
+    return False
+
+
+def check_x5(builder=None, artifact=None):
+    """X5：散文块里每个数字要么可溯源，要么**明确豁免**，且两类都要报出来。
+
+    ⚠⚠ 判红条件只看「既不可溯源、又不在豁免表里」的**新**数字 ——
+      已在 `KNOWN_NO_SOURCE` 里登记的照实报数，不放它们悄悄扩大。
+    """
+    builder = builder or BUILDER
+    artifact = artifact or ARTIFACT
+    if not builder.exists() or not artifact.exists():
+        return {"name": "X5 全块可溯源/豁免", "ok": False, "n": None,
+                "detail": "构建器或产物缺失 ⇒ 本项无判据"}
+    j = json.loads(artifact.read_text(encoding="utf-8"))
+    vals = _nums(j, set())
+    tree = ast.parse(builder.read_text(encoding="utf-8"))
+    BLOCKS = ("coord", "read", "p9_block", "dose_block", "layer_block",
+              "ortho_block", "ladder", "answerable", "not_answerable",
+              "the_one_line", "what", "schema")
+    nodes = {}
+    for nd in ast.walk(tree):
+        if isinstance(nd, ast.Assign) and isinstance(nd.value, (ast.Dict, ast.List)) \
+                and isinstance(nd.targets[0], ast.Name) and nd.targets[0].id in BLOCKS:
+            nodes[nd.targets[0].id] = nd.value
+        if isinstance(nd, ast.Dict):
+            for k, v in zip(nd.keys, nd.values):
+                if isinstance(k, ast.Constant) and k.value in BLOCKS:
+                    nodes.setdefault(k.value, v)
+    n_tot = n_ex = n_known = 0
+    leak = []
+    for name, node in nodes.items():
+        for s in _str_parts(node):
+            for m in TOK.finditer(s):
+                t = m.group(1)
+                n_tot += 1
+                if _cited(s, m.start(1), m.end(1)):
+                    n_ex += 1
+                    continue
+                f = float(t)
+                dec = len(t.split(".")[1]) if "." in t else 0
+                if any(abs(round(v, dec) - f) < 1e-12 for v in vals):
+                    continue
+                if t in KNOWN_NO_SOURCE:
+                    n_known += 1
+                else:
+                    leak.append((name, t, s[max(0, m.start() - 26):m.end() + 16]))
+    ok = not leak
+    return {"name": "X5 全块可溯源/豁免", "ok": ok,
+            "n": len(leak), "leak": leak,
+            "detail": ("数字 %d 个 = 可溯源 %d + 引用豁免 %d + 已登记无出处 %d"
+                       " + ⚠表外 %d；豁免表 %d 条（%s）"
+                       % (n_tot, n_tot - n_ex - n_known - len(leak), n_ex, n_known,
+                          len(leak), len(EXEMPT_CITATION),
+                          "、".join(d for _, d in EXEMPT_CITATION)))}
     print("=== B 路静态守卫（修订 62 T3/T4 ｜ 修订 63 U1/U2/U3）===")
+    allok = True
+    for r in res:
+        ok = r["ok"]
+        allok = allok and ok
+        print("  %s %s：%s" % ("PASS" if ok else "FAIL", r["name"], r["detail"]))
+    print("  判决：%s" % ("✅" if allok else "❌"))
+    return allok
+
+
+def report(res):
+    print("=== B 路静态守卫（修订 62 T3/T4 ｜ 修订 63 U1–U3 ｜ 修订 65 X5）===")
     allok = True
     for r in res:
         ok = r["ok"]
@@ -418,7 +531,22 @@ def _self_test(tmp):
     print("  %s U3 阳性对照：把 L5 here 改成单域陈述 ⇒ 判红=%s"
           % ("PASS" if ok_u3 else "FAIL", not r_u3["ok"]))
 
-    return ok and ok3 and ok4b and ok_u1 and ok_u2 and ok_u3
+    # X5 的阳性对照：注入一个**既不可溯源、又远离任何引用标记**的数字。
+    # ⚠⚠ 这一条特别关键：豁免窗口刚放宽到 ±12 字符 ——
+    #   窗口太宽会把**真实的测量量**也一起豁免掉，
+    #   而判据照样全绿。所以必须验「注入点附近没有修订号/条款号/日期」。
+    t5, got5 = _inject_field("answerable")
+    ok_inj5 = (got5 == 1)
+    b5 = bak.with_name(bak.stem + "_x5.py")
+    b5.write_text(ast.unparse(t5), encoding="utf-8")
+    r_x5 = check_x5(b5)
+    b5.unlink()
+    ok_x5 = ok_inj5 and (not r_x5["ok"]) and r_x5["n"] >= 1
+    print("  %s X5 阳性对照：注入 1 个无出处的数字 ⇒ 表外 %s 个"
+          % ("PASS" if ok_x5 else "FAIL", r_x5["n"]))
+    if ok_inj5 and ok_x5:
+        print("      （注入点上下文：%r）" % r_x5["leak"][0][2][:44])
+    return ok and ok3 and ok4b and ok_u1 and ok_u2 and ok_u3 and ok_x5
 
 
 def main():
@@ -434,7 +562,8 @@ def main():
            check_t4b(),
            check_t4b(fields=("answerable", "not_answerable", "the_one_line"),
                      label="散文块"),
-           check_u2(), check_u3(Path(a.artifact))]
+           check_u2(), check_u3(Path(a.artifact)),
+           check_x5(artifact=Path(a.artifact))]
     return 0 if report(res) else 1
 
 
