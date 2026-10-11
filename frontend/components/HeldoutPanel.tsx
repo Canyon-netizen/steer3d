@@ -31,6 +31,7 @@
  * **判定在分析侧完成**，这里只负责显示。
  */
 import { useEffect, useState } from "react";
+import Em from "@/components/md";
 
 type Transfer = {
   target: string;
@@ -62,6 +63,8 @@ type SelfDup = {
   n_step: number;
   pooled: { same_step: number; lag1: number; drop: number };
   per_traj_mean: { same_step: number; lag1: number; drop: number; n_used: number };
+  /** 产物把这一块在问什么写成一句话；页面此前只印中文复述，字段名不可回溯 */
+  what: string;
   note: string;
 };
 
@@ -118,6 +121,30 @@ type Payload = {
       tie: boolean;
       margin: number | null;
       n_positive: number | null;
+      /**
+       * ⚠⚠ 修订 66：这组字段 **2026-10-11 之前从来没有被页面渲染过**。
+       * `658595b`（修订 64「两条路径都报」）只把它们写进了产物 JSON，
+       * 没碰过这个组件 —— 判据 Y1 抓到，详见预登记 §66。
+       * 含义：余量离干净门槛还差多少，**两条可执行路径各要几个 sem**。
+       */
+      path_to_threshold: {
+        threshold: number;
+        path_A_raise_own: {
+          rho_own_now: number; rho_own_needed: number;
+          delta: number; n_sem: number; meaning: string;
+        };
+        path_B_push_competitor: {
+          binding_names: string[];
+          worst_now: number; worst_needed: number;
+          delta: number; n_sem: number;
+          /** 本行是并列 ⇒ 两条都得压，只压一条 max 会换人、余量不涨 */
+          must_push_all_tied: boolean;
+          meaning: string;
+        };
+        cheaper_path: "path_A_raise_own" | "path_B_push_competitor";
+        /** cheaper 的那条比另一条便宜几倍（>1 表示 B 更便宜） */
+        n_sem_ratio: number;
+      } | null;
     }[];
     control_self_check: {
       name: string;
@@ -331,6 +358,14 @@ export default function HeldoutPanel() {
           </span>{" "}
           —— <b>就是同一个观测量</b>，我却当成「新家族」提交了。
         </p>
+        {/* ⚠ 修订 66：上面那句中文是人话复述，字段名没印 ⇒ 读者无法回溯，
+            而判据 Y1 判的是 `selfdup.what` 从未被组件读过。
+            补一行可追溯文案（产物原话），**不删**上面那句中文 ——
+            可读性与可追溯是两件事，两个都给。 */}
+        <p className="text-[8.5px] text-gray-600 mt-0.5 leading-snug"
+           data-selfdup-what="true">
+          产物原话（可回溯）：<Em s={sd.what} />
+        </p>
         <p className="text-[8.5px] text-gray-500 mt-0.5 leading-snug">
           对照口径：逐轨迹算再平均 同一步{" "}
           <span className="font-mono" data-selfdup-cell="per-traj">
@@ -460,6 +495,99 @@ export default function HeldoutPanel() {
               </li>
             ))}
           </ul>
+          {/* ⚠⚠ 修订 66 新增：这一整块以前**不存在**。
+              `path_to_threshold` 这组字段由 `658595b`（修订 64）写进了产物，
+              但那笔提交没碰过这个组件 ⇒ 页面上一个字都没有，
+              而它承载的正是修订 64 的全部意义（「没达标必须配一个可执行的数」）。
+              由判据 Y1（check_render_coverage.py）抓到。
+
+              ⚠ 只印**最好那一档**：三条变体的两条路径都印会把这一块撑成三倍长，
+              而读者要的是「还能不能救、救哪条更便宜」。
+              最好那一档**按 margin 现算**，不写死 V2_banded ——
+              换配方结构后冠军可能换人，写死就会印错档。
+              data-path-cheaper / data-path-n-sem-ratio 让判据 Y2 能在实页核对。 */}
+          {(() => {
+            const best = rc.variants.reduce(
+              (a, b) => ((b.margin ?? -1) > (a.margin ?? -1) ? b : a),
+              rc.variants[0]);
+            const pt = best?.path_to_threshold;
+            if (!pt) return null;
+            const A = pt.path_A_raise_own;
+            const B = pt.path_B_push_competitor;
+            const sgn = (x: number) => (x >= 0 ? "+" : "");
+            const cheaperIsB = pt.cheaper_path === "path_B_push_competitor";
+            return (
+              <div className="mt-1 pt-1 border-t border-red-900/40"
+                   data-path-block="true"
+                   data-path-variant={best.name}
+                   data-path-cheaper={pt.cheaper_path}
+                   data-path-n-sem-ratio={pt.n_sem_ratio}
+                   data-path-a-sem={A.n_sem}
+                   data-path-b-sem={B.n_sem}
+                   data-path-must-push-all-tied={String(B.must_push_all_tied)}>
+                <p className="text-[8.5px] text-gray-300 leading-snug mb-0.5">
+                  <b>那还差多少？</b>只印最好的一档（{VLABEL[best.name]}，
+                  余量 <span className="font-mono">{best.margin?.toFixed(2)}×</span>
+                  vs 门槛 <span className="font-mono">{pt.threshold.toFixed(1)}×</span>）。
+                  ⚠ 两条路径的分子分母都能动 ⇒ <b>两条都报</b>，只报一条会给出错误处方：
+                </p>
+                <ul className="text-[8.5px] text-gray-500 leading-snug mb-0.5">
+                  <li data-path-row="A_raise_own">
+                    <b className="text-gray-300">路径 A 抬自身 ρ</b>
+                    <span className="font-mono">
+                      {A.rho_own_now.toFixed(4)} → {A.rho_own_needed.toFixed(4)}
+                    </span>
+                    <span className="font-mono">
+                      （{sgn(A.delta)}{A.delta.toFixed(4)}）
+                    </span>{" "}
+                    <b className={cheaperIsB ? "text-gray-300"
+                                              : "text-emerald-300"}>
+                      {A.n_sem.toFixed(1)} sem
+                    </b>
+                    <span className="text-gray-600"> —— <Em s={A.meaning} /></span>
+                  </li>
+                  <li data-path-row="B_push_competitor">
+                    <b className="text-gray-300">路径 B 压竞争者</b>
+                    <span className="font-mono">
+                      {B.worst_now.toFixed(4)} → {B.worst_needed.toFixed(4)}
+                    </span>
+                    <span className="font-mono">
+                      （{sgn(B.delta)}{B.delta.toFixed(4)}）
+                    </span>{" "}
+                    <b className={cheaperIsB ? "text-emerald-300"
+                                              : "text-gray-300"}>
+                      {B.n_sem.toFixed(1)} sem
+                    </b>
+                    <span className="text-gray-600">
+                      {" "}—— 压{" "}
+                      {B.binding_names.map((n, i) => (
+                        <span key={n}>
+                          {i > 0 ? " 与 " : ""}
+                          <code>{n}</code>
+                        </span>
+                      ))}
+                    </span>
+                    {B.must_push_all_tied
+                      ? <b className="text-amber-400">
+                          {" "}⚠ 本档是并列 ⇒ 两条都得压；只压其中一条，
+                          max 会换人、余量不涨
+                        </b>
+                      : <span className="text-gray-600">（非并列，压一条即可）</span>}
+                  </li>
+                </ul>
+                <p className="text-[8.5px] text-gray-500 leading-snug">
+                  ⇒ <b className={cheaperIsB ? "text-emerald-300" : "text-amber-300"}>
+                    {cheaperIsB ? "路径 B" : "路径 A"} 便宜约{" "}
+                    {pt.n_sem_ratio.toFixed(2)} 倍
+                  </b>
+                  <span className="text-gray-600">
+                    （比值 = 另一条 ÷ 这一条；这里比的是{" "}
+                    <b>所需 sem 数</b>，越少越便宜）
+                  </span>
+                </p>
+              </div>
+            );
+          })()}
           {/* ⚠ 这两段以前连 data-* 都没有 ⇒ 整段被删掉不会有人察觉。
               而第二段里「1.7 sem」「5.1 / 3.3 sem」还是**写死的字面量** ——
               那是 §8.3 ⑨ 那一类（值被写死但恰好等于真值）。

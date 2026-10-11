@@ -51,6 +51,13 @@ type Ladder = {
   answerable: string[];
   not_answerable: string[];
   max_level_reached: string;
+  /** ⚠ 修订 66：这两个字段以前**没有被页面渲染**。
+   *  产物里写着 why_two_numbers：「「最高有数据」与「最高能声称」必须分开印，
+   *  否则就会写出「L5 及以上一行都没有」这种自相矛盾的话」——
+   *  而页面当时**只印一个 L4**，正是产物自己警告的那种矛盾。 */
+  max_level_claimed: string;
+  max_level_with_data: string;
+  why_two_numbers: string;
   most_common_overreach: string;
   overreach_numbers: { readable_directions: number; usable_axes: number; note: string };
 };
@@ -111,6 +118,34 @@ export default function EvidenceLadderPanel() {
         {d.what}。数字从 {d.built_from.length} 份产物里读出，构建时做跨产物
         一致性自检（{String(d.selfcheck_passed) ? "本次全过" : "未过"}）。
       </p>
+
+      {/* ⚠⚠ 修订 66 新增。
+          产物里 `max_level_with_data` = L6、`max_level_claimed` = L4，
+          `why_two_numbers` 明写「两个数必须分开印，否则就会写出
+          「L5 及以上一行都没有」这种自相矛盾的话」——
+          而这个面板当时**只印 `max_level_reached` 一个数（L4）**。
+          读者看到 L4，无从分辨 L5/L6 是「空」还是「有数据但不能声称」。
+          由判据 Y1（check_render_coverage.py）抓到。 */}
+      <div className="mb-2 rounded bg-bg/30 border border-border/60 p-1.5"
+           data-ladder-levels="true"
+           data-level-claimed={d.max_level_claimed}
+           data-level-with-data={d.max_level_with_data}
+           data-level-reached={d.max_level_reached}>
+        <p className="text-[9.5px] text-gray-300 leading-snug">
+          <b>最高能声称 {d.max_level_claimed}</b>
+          <span className="text-gray-500">，</span>
+          <b className="text-amber-300">最高有数据 {d.max_level_with_data}</b>
+          {d.max_level_claimed !== d.max_level_with_data
+            ? <span className="text-gray-500">
+                {" "}（本次达到 {d.max_level_reached}）
+              </span>
+            : null}
+        </p>
+        <p className="text-[8.5px] text-gray-500 leading-snug mt-0.5"
+           data-why-two-numbers="true">
+          <Em s={d.why_two_numbers} />
+        </p>
+      </div>
 
       {/* ---- 阶梯本体 ---- */}
       <div className="flex flex-col gap-1 mb-2" data-rungs>
