@@ -1,0 +1,19 @@
+[
+  {
+    "artifact": "bpath_marker_steering.json",
+    "field": "per_token",
+    "paths": [
+      "orthogonality.token_id37.batches[0].per_token",
+      "orthogonality.token_id37.batches[1].per_token"
+    ],
+    "render": "并集遍历：Array.from(new Set([...Object.keys(A), ...Object.keys(B)])).map(tid => …) —— 行由**两批 key 的并集**决定，两列分别印 A[tid] / B[tid]，缺失侧印 —。**不是**两张独立并排的表。",
+    "render_marker": "Array.from(new Set([",
+    "render_marker_note": "守卫**不**据此判红（判据未写这条），只在报告里印出来提醒人复核。⚠ 若该特征从 BPathPanel.tsx 消失，说明渲染方式已变 ⇒ 本条核实立刻过期，须重新核实并更新本清单。",
+    "why_the_diffs_are_harmless": "两批 key 集合不同（batch1 多 token 80022）本身是**事实**：那个 token 只在高对齐批次里出现。若只遍历 E 批（A），80022 整行不渲染，网页就会与文档表格列出的 marker 不一致 ⇒ 所以源码故意用并集。",
+    "verdict": "安全：行由并集决定，同一行的两列对应同一个 tid ⇒ 不会错位。",
+    "checked_by": "mavis",
+    "checked_on": "2026-10-12",
+    "evidence": "BPathPanel.tsx:963-968（并集遍历）+ :990/:995（缺失侧印 —）；源码 960-962 行注释：「遍历两批 token 的键并集，不能只遍历 E 批：高对齐独有的 80022 原本不渲染，而文档表格里有它」。",
+    "recheck_when": "① render_marker 从 BPathPanel.tsx 消失；② 两个 per_token 表的渲染位置改动；③ 产物里又出现第三批 token（batches 长度变）。任一发生即须重新核实。"
+  }
+]
