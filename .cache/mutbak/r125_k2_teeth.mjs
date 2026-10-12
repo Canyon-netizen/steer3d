@@ -48,8 +48,16 @@ const mLo = Math.min(...sameRows.map(r => r.margin));
 const mHi = Math.max(...sameRows.map(r => r.margin));
 const AX_KEYS = Object.keys(AXR.axes || {});
 
-// ---- 待验判据：每条的 `verbatim` 必须逐字出现在已提交的 verify_heldout.mjs 里 ----
+// ---- 待验判据：每条的 `verbatim` 必须逐字出现在**对应的已提交判据文件**里 ----
 // textVar = 谓词里那个「页面文字」变量的名（机械替换成 T，不重新实现谓词）
+// extras  = 该谓词还需要的额外绑定（如 D6 要拿产物里的 sp.note 比对）
+// ⚠ mut 两种方向：
+//    · 替换型（删/改某个片断）—— 用于正向断言
+//    · 注入型（往元素里塞一段）—— 用于**否定性断言**（D2 要求「不许出现」，
+//      只能靠「放进去看它红不红」来验；否则它被平凡满足）
+const AXR_ = '/Users/zhourui/code/steer3d/.cache/browser_verify/verify_axis_readout.mjs';
+const AXT = JSON.parse(readFileSync(D + 'axis_readouts.json', 'utf8'));
+
 const SPECS = [
   { id: 'E1b', sel: '[data-heldout-verdict-text]', textVar: 'P.verdict',
     verbatim: "P.verdict.includes('①') && P.verdict.includes('②') && P.verdict.includes('数字内容') && P.verdict.includes('同一条方向的重新构造')",
@@ -80,6 +88,41 @@ const SPECS = [
     mut: `T.replace('对 ' + AX_KEYS.length + ' 条命名轴', '对 ' + (AX_KEYS.length + 2) + ' 条命名轴')` },
 ];
 
+// ---- 第二组：verify_axis_readout.mjs（⚠ 每个文件的元素选择器与 textVar 都不同）----
+const SPECS2 = [
+  { id: 'C1', file: AXR_, sel: '[data-axis]', textVar: 'P.text',
+    verbatim: "P.text.includes('对照') && P.text.includes('step_frac')",
+    // ⚠ C1/C2 读的是**整块面板**的 innerText（haystack 很大）⇒ 这是本组最值得测的
+    mut: `T.split('step_frac').join('那个量')` },
+  { id: 'C2', file: AXR_, sel: '[data-axis]', textVar: 'P.text',
+    verbatim: "P.text.includes('搜索') || P.text.includes('付过钱')",
+    mut: `T.split('搜索').join('筛选').split('付过钱').join('给过费')` },
+  { id: 'D2', file: AXR_, sel: '[data-axis-row="reasoning"] [data-verdict]', textVar: 'posText',
+    verbatim: "!posText.includes('token 局部')",
+    // ⚠ 否定性断言：必须**注入**才验得了；否则它被平凡满足
+    mut: `T + '（注入：token 局部）'` },
+  { id: 'D3', file: AXR_, sel: '[data-axis-row="confidence"] [data-verdict]', textVar: 'confText',
+    verbatim: "confText.includes('token 局部')",
+    mut: `T.split('token 局部').join('整段局部')` },
+  { id: 'D5', file: AXR_, sel: '[data-retraction]', textVar: 'P.retraction',
+    verbatim: "P.retraction.includes('已撤回') && P.retraction.includes('0.3341') && P.retraction.includes('0.3077')",
+    mut: `T.replace('0.3341', '0.3342')` },
+  { id: 'D6-caution', file: AXR_, sel: '[data-spec-note="caution"]', textVar: 'printed',
+    verbatim: "!!sp && !!printed && printed === String(sp.note).replace(/\\s+/g, ' ').trim()",
+    mut: `T.replace('0.5537', '0.5538')`,
+    extras: { sp: AXT.axes.caution.specificity } },
+];
+for (const x of SPECS2) x.file = x.file || VER;
+// ⚠⚠⚴ 容器级扰动（C1/C2 动的是 [data-axis] 整块面板）会**重建整棵子树**：
+//   `el.innerText = x` 会重新解析出**新节点**，而这些节点不被 React 持有；
+//   React 下一次 reconcile 会把它们清掉 ⇒ 排在后面的判据读到的是**被冲掉的结构**。
+//   ⚠ 本轮就是这样：D2/D3/D6 读到 null，害我差点误判成「D2 被平凡满足」。
+//   ⇒ 处置：① 容器级 spec 排到最后  ② 跑完一个就**重新导航**再继续。
+const LEAF2 = SPECS2.filter(x => x.sel !== '[data-axis]');
+const CONT2 = SPECS2.filter(x => x.sel === '[data-axis]');
+for (const x of CONT2) x.reloadAfter = true;
+const ALL = SPECS.concat(LEAF2, CONT2);
+
 // ---- 反漂移守卫：谓词必须逐字出自已提交判据文件 ----
 // ⚠ 比对前**折叠空白**：判据里的谓词在源文件里是**跨行**的（`&& ` 换行续写），
 //   而本台按单行写片段。折叠只抹掉换行/缩进，**表达式内容一个字符都不放松**
@@ -87,20 +130,30 @@ const SPECS = [
 // ⚠ 首版就是没折叠 ⇒ 守卫**当场拦下**（`找不到 E1b 的谓词原文 ⇒ 本台已漂移`），
 //   这正是守卫该有的行为：宁可拒绝发布，也不默默测一个对不上的东西。
 const norm = s => s.replace(/\s+/g, ' ');
-const src = readFileSync(VER, 'utf8');
-const srcN = norm(src);
+const SRC_CACHE = {};
+const srcOf = f => (SRC_CACHE[f] ??= norm(readFileSync(f, 'utf8')));
+// 基线绑定的名字表（全部来自产物，**不写死**）
+const BASE = ['gNewClean', 'gNewWeak', 'gGreedy', 'gWorst', 'sameRows', 'mLo', 'mHi', 'AX_KEYS'];
+const BASEVAL = () => [gNewClean, gNewWeak, gGreedy, gWorst, sameRows, mLo, mHi, AX_KEYS];
+
 const rows = [];
-for (const s of SPECS) {
-  if (!srcN.includes(norm(s.verbatim))) die(`verify_heldout.mjs 里找不到 ${s.id} 的谓词原文 ⇒ 本台已漂移，拒绝发布`);
-  s.expr = norm(s.verbatim).split(s.textVar).join('T');
-  s.judge = new Function('T', 'gNewClean', 'gNewWeak', 'gGreedy', 'gWorst',
-    'sameRows', 'mLo', 'mHi', 'AX_KEYS', 'return (' + s.expr + ');');
+for (const sp of ALL) {
+  sp.file = sp.file || VER;          // ⚠ 第一组不带 file（默认 verify_heldout）
+  if (!srcOf(sp.file).includes(norm(sp.verbatim)))
+    die(`${sp.file.split('/').pop()} 里找不到 ${sp.id} 的谓词原文 ⇒ 本台已漂移，拒绝发布`);
+  sp.expr = norm(sp.verbatim).split(sp.textVar).join('T');
+  const names = BASE.concat(Object.keys(sp.extras || {}));
+  const mk = body => new Function('T', ...names, body);
+  sp.judge = mk('return (' + sp.expr + ');');
   // ⚠ 变异式也要真的能改到东西（否则「转红」是因为别的理由）
-  s.mutFn = new Function('T', 'gNewClean', 'gNewWeak', 'gGreedy', 'gWorst',
-    'sameRows', 'mLo', 'mHi', 'AX_KEYS', 'return ' + s.mut + ';');
+  sp.mutFn = mk('return ' + sp.mut + ';');
+  sp.args = () => BASEVAL().concat(Object.values(sp.extras || {}));
 }
-console.log('[自证] ' + SPECS.length + ' 条谓词逐字出自 ' + VER.split('/').pop()
-  + '（折叠空白后比对）；textVar→T 是机械替换，谓词本身未重写');
+const byFile = {};
+for (const sp of ALL) (byFile[sp.file.split('/').pop()] ??= []).push(sp.id);
+for (const [f, ids] of Object.entries(byFile))
+  console.log(`[自证] ${ids.length} 条谓词逐字出自 ${f}（折叠空白后比对）：${ids.join(' ')}`);
+console.log('[自证] textVar→T 是机械替换，谓词本身未重写');
 
 const { proc, version } = await launch({
   port: PORT, userDataDir: '/Users/zhourui/code/steer3d/.cache/browser_verify/profile_r125_' + process.pid,
@@ -109,7 +162,6 @@ const { proc, version } = await launch({
 const cdp = await CDP.connect(version.webSocketDebuggerUrl);
 const page = await Page.create(cdp);
 
-const ARGS = () => [gNewClean, gNewWeak, gGreedy, gWorst, sameRows, mLo, mHi, AX_KEYS];
 
 try {
   await page.send('Page.navigate', { url: URL });
@@ -117,14 +169,18 @@ try {
   await sleep(13000);
 
   console.log('\n=== 逐条：真实绿 → 同句改错转红 → 还原重新变绿 ===\n');
-  for (const s of SPECS) {
+  for (const s of ALL) {
     const read = `(() => { const e = document.querySelector(${JSON.stringify(s.sel)});`
       + ` return e ? (e.innerText || '').replace(/\\s+/g,' ').trim() : null; })()`;
     const real = await page.eval(read);
-    if (!real || real.length < 10) die(`${s.id} 在 ${s.sel} 上读不到东西（${JSON.stringify(real)}）`);
+    if (!real || real.length < 10) {
+      console.log(`[FAIL] ${s.id}：${s.sel} 读不到东西（${JSON.stringify(real)}）`);
+      die('⚠ 若前面跑过容器级扰动，先怀疑**结构被 innerText 重建后又被 React 清掉**，'
+        + '而不是先怀疑页面 —— 本轮就为这个差点误判 D2。');
+    }
 
-    const okReal = s.judge(real, ...ARGS());
-    const mutated = s.mutFn(real, ...ARGS());
+    const okReal = s.judge(real, ...s.args());
+    const mutated = s.mutFn(real, ...s.args());
 
     // ⚠ DOM 级扰动：**把 innerText 改掉并回读**，
     //   判定用的是**回读到的 dom.now**，不是 JS 里那个 mutated 字符串。
@@ -150,8 +206,8 @@ try {
         + `     预期 ${JSON.stringify(mutated.slice(0, 60))}\n`
         + `     实得 ${JSON.stringify(dom.now.slice(0, 60))}`);
     }
-    const okMut = s.judge(dom.now, ...ARGS());      // ⚠ 判 DOM 回读值，不是 JS 串
-    const okBack = s.judge(dom.back, ...ARGS());
+    const okMut = s.judge(dom.now, ...s.args());      // ⚠ 判 DOM 回读值，不是 JS 串
+    const okBack = s.judge(dom.back, ...s.args());
 
     const pass = okReal && okMut === false && okBack && dom.ok;
     rows.push({ id: s.id, okReal, okMut, domOk: dom.ok, pass });
@@ -160,6 +216,14 @@ try {
       + `  还原回读=${dom.ok && okBack ? '✓' : '✗'}`
       + `  落地保真=${dom.now === mutated ? '✓' : '✗'}`
       + `  文字 ${real.length} 字 → 变异后 ${dom.now.length} 字`);
+  }
+
+  // ---------- 容器级扰动之后必须重新导航（否则后面读到的是被 React 清掉的结构）----------
+  if (ALL[ALL.length - 1] && ALL[ALL.length - 1].reloadAfter) {
+    console.log('\n[重载] 最后一条是容器级扰动 ⇒ 重新导航后再做污染对照');
+    await page.send('Page.navigate', { url: URL });
+    await page.waitForEvent('Page.loadEventFired', 60000).catch(() => {});
+    await sleep(13000);
   }
 
   // ---------- 污染对照：改**别的**元素，全部判据必须**仍然绿** ----------
@@ -181,6 +245,10 @@ try {
       notClaimed:(document.querySelector('[data-heldout-not-claimed]')?.innerText||'')
                 .replace(/\\s+/g,' ').trim(),
       transfer:(document.querySelector('[data-block="transfer"]')?.innerText||'')
+                .replace(/\\s+/g,' ').trim(),
+      axis:(document.querySelector('[data-axis]')?.innerText||'')
+                .replace(/\\s+/g,' ').trim(),
+      retraction:(document.querySelector('[data-retraction]')?.innerText||'')
                 .replace(/\\s+/g,' ').trim()});
   })()`));
   if (poll.skipped) {
@@ -188,13 +256,15 @@ try {
   } else {
     console.log('  动的是：「' + poll.touched.slice(0, 40) + '…」');
     let allGreen = true;
-    for (const s of SPECS) {
+    for (const s of ALL) {
       const t = s.sel === '[data-heldout-verdict-text]' ? poll.verdict
               : s.sel === '[data-heldout-not-claimed]' ? poll.notClaimed
               : s.sel === '[data-block="transfer"]' ? poll.transfer
+              : s.sel === '[data-axis]' ? poll.axis
+              : s.sel === '[data-retraction]' ? poll.retraction
               : null;
       if (t == null) continue;                 // 面板外的元素（recipe / selfdup）未污染
-      const ok = s.judge(t, ...ARGS());
+      const ok = s.judge(t, ...s.args());
       if (!ok) allGreen = false;
       console.log(`    ${s.id.padEnd(4)} ${ok ? '仍绿 ✓' : '红 ✗ 它不该红'}`);
     }
