@@ -189,7 +189,7 @@ PAY = {
             + "、".join(k + "→" + str(v["greedy"]) + " 条" for k, v in TSENS)
             + "。所以这个数不能读成「可读方向就是 " + str(SEAT["perm_min"]) + " 条」。"),
         "caution_absorbed": "axis:caution 没有被贪心选中 —— cos(confidence, caution)=" + str(PAIR_CONF_CAUT)
-                            + " 已超过 " + str(SEP) + " 门槛，在贪心里被 confidence 吃掉。"
+                            + " 已超过 " + f"{SEP:.2f}" + " 门槛，在贪心里被 confidence 吃掉。"
                             "被吸收的还有 " + str(len(ABSORBED)) + " 条，"
                             "其中 " + str(N_HELDOUT_ABSORBED) + " 条是 §4.9 换函数形式重造的同一条方向。",
     },

@@ -154,7 +154,7 @@ export default function SubspacePanel() {
 
       <p className="text-[10px] text-gray-400 leading-relaxed mb-1.5"
          data-headline-verdict="true">
-        L{d.convention.layer} 上互相近正交（|cos| &lt; {h.separation_threshold}）的可读方向
+        L{d.convention.layer} 上互相近正交（|cos| &lt; {Number(h.separation_threshold).toFixed(2)}）的可读方向
         <b className="text-amber-300"> 至少 {h.readable_directions_lower_bound} 条 </b>
         ，而命名轴只有 <b>{h.named_axes} 条</b>。
         下界来自 {h.n_candidates} 个候选（16 个观测量各自的读出方向 + {h.named_axes} 条命名轴）。
@@ -173,7 +173,7 @@ export default function SubspacePanel() {
           <b>「至少 {h.readable_directions_lower_bound} 条」是下界，而且只在两个前提下成立：</b>
           ① 候选集合就是这 {h.n_candidates} 个 —— 每加一批观测量，计数就可能涨
           （上一版候选只有 20 个里的 14 个时，它是 {h.readable_directions_lower_bound_old} 条）；
-          ② 分隔门槛 |cos| &lt; {h.separation_threshold} <Em s={"是**选定的**。"} />
+          ② 分隔门槛 |cos| &lt; {Number(h.separation_threshold).toFixed(2)} <Em s={"是**选定的**。"} />
         </p>
         <div className="flex flex-col gap-0.5">
           {Object.entries(h.threshold_sensitivity).map(([sep, v]) => (
@@ -203,7 +203,7 @@ export default function SubspacePanel() {
         <p className="text-[8.5px] text-gray-500 leading-snug mt-1">
           上面 {Object.keys(h.threshold_sensitivity).length} 档门槛 ⇒ 这个数随门槛走，
           <b>不能读成「可读方向就是这么多条」</b>；而且第 {opIdx >= 0 ? opIdx + 1 : "?"}{" "}
-          档 |cos| &lt; {h.separation_threshold} 就是上面那个{" "}
+          档 |cos| &lt; {Number(h.separation_threshold).toFixed(2)} 就是上面那个{" "}
           {h.readable_directions_lower_bound} 条的操作点。
           好消息是它对遍历顺序不敏感：随机打乱 {h.order_dependence.n_perm} 次，
           新口径恒为 {h.order_dependence.new_range[0]} 条。
