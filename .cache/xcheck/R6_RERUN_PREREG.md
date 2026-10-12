@@ -12267,3 +12267,96 @@ counts 逐字未变: True      n_files 未变: True      red 逐条未变: True
 2. ⚠ **不把分子并进 `counts`**（会改 `gapOk` 读的东西 ⇒ 改自证契约 ⇒ 改判定）
 3. ⚠ **不改** 修订 79 的任何判红条件（本次只加输出字段）
 4. ⚠ **不删** §87.4（它是历史记录，且 `counts_caliber` 里指名引用了它）
+
+---
+
+## 修订 93 · K2 复核：同一门槛在**同一屏**印成 `0.5` 与 `0.50`（可行性已验，被农场阻塞）
+
+### 93.0 起因与先验的顺序
+
+K2 原记为「同一门槛印成 `|cos| < 0.50` vs `|cos| < 0.5`」，§-轮判定为「摩擦非错误」。
+
+⚠ **本轮先验机制可行性再下结论**，顺序不能反：
+「修一个不可测量的假设前先算值不值」。
+
+### 93.1 ⚠ 它不是排版问题 —— 它是**同一屏上**的两种写法
+
+先把「印在哪」查清楚，**不靠 grep 结果就下结论**：
+
+| 位置 | 代码 | 渲染出的字面 |
+|---|---|---|
+| `SubspacePanel.tsx:176` | `② 分隔门槛 \|cos\| < {h.separation_threshold}` | **`0.5`** |
+| `SubspacePanel.tsx:182` | `\|cos\| < {sep}`（`sep` 来自 `Object.entries(h.threshold_sensitivity)`） | **`0.50`** |
+| `SubspacePanel.tsx:206` | `第 N 档 \|cos\| < {h.separation_threshold}` | **`0.5`** |
+
+数据侧实测：
+
+```
+frontend/public/latent/data/readable_subspace.json:18   "separation_threshold": 0.5   ← JSON 数字
+subspace_bound_v2.json 的 threshold_sensitivity 键：['0.35','0.40','0.45','0.50','0.55','0.60']  ← 字符串
+```
+
+⚠ JS 里 `String(0.5) === "0.5"`，而键是 `"0.50"` ⇒
+**`:176`/`:206` 的散文印 `0.5`，`:182` 的表格行印 `0.50`，三行在同一个 `data-bound-caveat` 块里。**
+
+⚠ **我一度要说过头，已收回**：我原以为 `subspace_bound_v2.py:289` 那句
+`|cos| < 0.5` 会被写进产物送上页面。实测
+`frontend/public/latent/data/subspace_bound_v2.json` **不存在**
+（该文件只在 `.cache/xcheck/`，`build_subspace_readout.py:33` 从那里读）
+⇒ 那句 caveat 是**内部文本，不上屏**，不列入问题。
+
+### 93.2 ⚠⚠ 这类不一致**已经真的咬过一次**
+
+不是理论风险，`SubspacePanel.tsx:132-138` 的注释原样记着：
+
+```
+// ⚠ 必须按**数值**比，不能 indexOf(String(...))：
+//   键是 "0.35"/"0.40"/"0.45"/"0.50"/…，而 String(0.5) === "0.5"，
+//   匹配不到 "0.50" ⇒ indexOf 返回 -1 ⇒ 页面印出「第 0 档」。
+//   我第一版就是这么写的，编译通过、探针立刻在渲染文本里看到「第 0 档」。
+const opIdx = Object.keys(h.threshold_sensitivity)
+  .findIndex(k => Number(k) === Number(h.separation_threshold));
+```
+
+⇒ **代码今天是对的**（`:137-138` 按数值比，对字符串格式免疫）。
+⚠ 但**读者不是**：页面上「操作点是第 3 档 `|cos| < 0.50`」与
+「② 分隔门槛 `|cos| < 0.5`」并排出现，读者无法判断这是两个门槛还是一个。
+
+### 93.3 可行性已验（三条，缺一不立项）
+
+**(a) 会不会撞现有判据？** 逐个查了读这块文本的仪器：
+
+- `check_ordinal_key_order.py:317` 的合成夹具用 `"separation_threshold": 0.5`
+  ⇒ 它吃的是 **JSON 字段**，不读渲染文本 ⇒ 不受影响
+- `prove_g8.mjs` 扫的是**源码**（`data-bound-caveat="true"` 到 `data-absorbed-note` 之间），
+  断言 `门槛\s*0\.\d+\s*→\s*\d+\s*条` 匹配数为 **0**（不许手写扫描数字）
+  ⇒ `:176` 的字面是 `门槛 |cos| <`，`|` 后面不是数字 ⇒ **改前改后都不匹配**
+- ⇒ **没有任何守卫钉住这个字面量**，改它不会假红
+
+**(b) 改法是什么？** 把 `:176` 与 `:206` 的 `{h.separation_threshold}`
+换成 `{Number(h.separation_threshold).toFixed(2)}` ⇒ 三处统一印 `0.50`，
+与表格键逐字一致。
+
+⚠ 反向也要考虑：不改的话，读者看到 `0.5` 会以为**表格里没有对应行**
+（表里只有 `0.50`）—— 这正是当初 `indexOf` 踩坑的同一个误解。
+
+**(c) 能不能验？** ⚠ **不能** —— 这是**可见文案**改动，
+按本项目铁律「UI 改动必须实点；『构建成功』不等于『上屏了』」，
+而隔离农场现在**重建不了**（缺 `tailwind.config.js` + 7 个僵尸 `next start`
+占着端口、`kill` 不可用）。⇒ **本轮不立项，只登记。**
+
+### 93.4 修订 93 结论
+
+1. ⚠ **K2 的旧定性（「摩擦非错误」）要改成「同屏口径不一致，代码已免疫、读者未免疫」**
+2. ⚠ **修法已写死、可行性已验、不撞任何守卫** ——
+   `:176` 与 `:206` 两处加 `Number(...).toFixed(2)`
+3. ⚠ **唯一阻塞是实点通道** ⇒ 与 §90.4 的 A 类 51 条、
+   那 12 条 Z5 实页核对**卡在同一个东西上**：
+   `index.html` / 农场的浏览器验证通道
+4. ✅ **本轮不改任何可见文案**，不改 `SubspacePanel.tsx` 一个字符
+
+⚠ 顺带记一条口径事实（避免下一个人重新推）：
+`readable_subspace.json` 的 `separation_threshold` 是 **JSON 数字**，
+`threshold_sensitivity` 的键是 **字符串** ——
+**同一个阈值在产物里就有两种类型**，这才是 `0.5` vs `0.50` 的根，
+不是文案写错了格式。
