@@ -24,6 +24,17 @@ const check = (name, ok, detail) => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}: ${detail ?? ''}`);
 };
 
+// ⚠⚴ 修订 118：**「跳过」不是「通过」**，不得进红绿分母。
+// 处置照抄 verify_scene_link.mjs 的 checkPrecond —— 单独记、不进 results。
+// ⚠ 原写法 `check('…（跳过）', true, '')` 会把「没验」记成「验过了」，
+//   于是 N/N 里混着根本没跑的项；且它与真绿在输出上一模一样。
+// ⚠ 但跳过**不许掩盖真红**：真红仍然 push 进 results、仍然 exit 1。
+const skips = [];
+const skip = (name, why) => {
+  skips.push({ name, why });
+  console.log(`[SKIP] ${name}: ${why}`);
+};
+
 /** 在页面里跑一段表达式并取回 JSON 字符串。 */
 async function ev(page, expr) {
   // ⚠ 表达式若是 async 的，返回的是 **Promise**，`JSON.stringify(Promise)`
@@ -144,7 +155,7 @@ async function run() {
       check('H5 不可判定处写明「不可信」', !!warn && warn.includes('不可信'),
         (warn || '').slice(0, 40));
     } else {
-      check('H5 该录制无不可判定步（跳过警告断言）', true, '');
+      skip('H5 该录制无不可判定步 ⇒ 不验「不可信」提示', 'expIndec=0');
     }
 
     // ---- H6 切换录制必须真的换列表 ----
@@ -160,7 +171,7 @@ async function run() {
       const exp2 = art.trajectories.find(t => t.trajectory_id === second).n;
       check('H6 切换录制后列表跟着变', n2 === exp2, `${n2} vs ${exp2}`);
     } else {
-      check('H6 切换录制（产物只有一条，跳过）', true, '');
+      skip('H6 切换录制', `产物只有 ${art.trajectories.length} 条轨迹`);
     }
 
     // ---- H7 人工裁决必须显示在页面上 ----
@@ -287,6 +298,12 @@ async function run() {
   const pass = results.filter(r => r.ok).length;
   const red = results.length - pass;
   console.log(`\nRESULT ${red === 0 ? 'PASS' : 'FAIL'} ${pass}/${results.length}`);
+  // ⚠⚴ 修订 118：N/M **只数 results**（跳过不在其中）。必须把跳过点名列出来，
+  //   否则读者会以为 N/M 已覆盖全部条目。
+  if (skips.length) {
+    console.log(`跳过 ${skips.length} 条（**不进分母**，N/M 里不含它们）：`);
+    for (const s of skips) console.log(`  [SKIP] ${s.name} —— ${s.why}`);
+  }
   if (red) console.log('判红：' + results.filter(r => !r.ok).map(r => r.name).join('; '));
   return red === 0 ? 0 : 1;
 }

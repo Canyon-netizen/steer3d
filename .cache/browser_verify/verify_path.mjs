@@ -27,6 +27,16 @@ mkdirSync(PROFILE, { recursive: true });
 const checks = [];
 const check = (name, ok, detail = '') => { checks.push({ name, ok: !!ok, detail }); };
 
+// ⚠⚴ 修订 118：**「跳过」不是「通过」**，不得进红绿分母。
+// 处置照抄 verify_scene_link.mjs 的 checkPrecond —— 单独记、不进 checks。
+// ⚠ 原写法 `check('D3 …', true, '只有一道题，跳过')` 会把「没验」记成「验过了」。
+// ⚠ 但跳过**不许掩盖真红**：真红仍然 push 进 checks、仍然 exit 1。
+const skips = [];
+const skip = (name, why) => {
+  skips.push({ name, why });
+  console.log(`[SKIP] ${name}: ${why}`);
+};
+
 const { proc, version } = await launch({
   port: PORT, userDataDir: PROFILE, windowSize: '1600,1000', url: 'about:blank' });
 const cdp = await CDP.connect(version.webSocketDebuggerUrl);
@@ -190,7 +200,7 @@ const sw = JSON.parse(await page.eval(`(async () => {
   return JSON.stringify({ before, after: blk().getAttribute('data-pathpid'),
     k: blk().getAttribute('data-pathk') });
 })()`));
-if (sw.skipped) check('D3 切题后 pid 跟着换', true, '只有一道题，跳过');
+if (sw.skipped) skip('D3 切题后 pid 跟着换', '只有一道题，无从切');
 else {
   check('D3 切题后 pid 真的换了', sw.before !== sw.after, `${sw.before} → ${sw.after}`);
   const q1 = prod.problems[sw.after];
@@ -278,6 +288,11 @@ for (const c of redMut) console.log(`RED  ${c.name}  ${c.detail}`);
 //   （「一条都没跑」），而它其实跑完了。判据跑没跑，读者只看汇总行。
 const st = redMain.length ? 'FAIL' : 'OK';
 console.log(`RESULT ${st} ${mainChecks.length - redMain.length}/${mainChecks.length}`);
+// ⚠⚴ 修订 118：N/M **只数 mainChecks**（跳过不在其中）。必须把跳过点名列出来。
+if (skips.length) {
+  console.log(`跳过 ${skips.length} 条（**不进分母**，N/M 里不含它们）：`);
+  for (const s of skips) console.log(`  [SKIP] ${s.name} —— ${s.why}`);
+}
 if (mutVerdict) {
   // 变异方向与主判据相反：这里「RED 0 / 判过」= 变异生效了。
   console.log(`变异 ${mutVerdict.name}：${mutVerdict.applied ? '已生效' : '!! 没生效'}`
