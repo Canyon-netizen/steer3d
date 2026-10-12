@@ -13317,3 +13317,125 @@ query(kind=text, selector='[data-subspace="ready"]')  ⇒  2161 字符，truncat
 | **C** | 只改面板 3 处 | ⚠ **无效**：产物散文那处仍在，屏幕上的 `0.5` 一个不少，而报告会写「已修」 |
 
 ⚠ **C 是本轮明确排除的选项** —— 它制造「已修」的假象而不改读者看到的东西。
+
+## 修订 102 · 用户拍板 **B**（完整修 §93）：执行判据**先写死**，并把「改判据」这条路证成**不需要走**
+
+### 102.0 拍板与本轮顺序
+
+用户回「b」⇒ 选 §93 的 **B**：面板 3 处 `toFixed(2)` **+** 生成器 `str(SEP)`→`f"{SEP:.2f}`
+**+** 重生成产物 **+** 重跑 Y2 母判据对账台账。
+
+⚠ **本节只写判据，不动代码。** 按本项目铁律「判据与取数严格分离」，
+本节单独一笔 commit 先推送，再执行；落地记录另起一笔。
+**预登记原文不许改，只追加。**
+
+### 102.1 ⚠ 先把「B 要不要改判据」查清楚——结论是**不用改**
+
+动手前必须先算清楚 B 会撞哪些判据，否则就是「先改代码、后发现判据红」。
+
+| 判据 | 位置 | 形式 | 改后是否仍成立 |
+|---|---|---|---|
+| G7 `caution_absorbed` 逐字 | `verify_subspace.mjs:216` | `flat(页)===flat(产物)` | ✅ **成立**。等式是**产物↔页面**，不是钉字面量 ⇒ 生成器一改两边同步变 |
+| 门槛文案存在性 | `verify_subspace.mjs:143` | `text.includes('门槛')` | ✅ 成立（词还在） |
+| 门槛文案带数 | `verify_subspace.mjs:159,:188` | `includes(\`\|cos\| < ${0.5}\`)` | ✅ **成立**，且是**前缀子串**：`\|cos\| < 0.5` ⊂ `\|cos\| < 0.50` |
+| P3 门槛等于阈值 | `verify_subspace.mjs:410` | `abs(Number(gotT)-SEP)<1e-9` | ✅ **成立**，**按数值比**，不看写法 |
+| G2 阈值行数与条数 | `verify_subspace.mjs:231` | `grow[sep].attr===v.greedy` | ✅ 成立（读属性，不读门槛写法） |
+| `opIdx` 源码字面量 | `verify_subspace.mjs:627-628` | 正则钉死 `Number(h.separation_threshold)` | ⚠ **硬约束**（见 102.2） |
+| 手写扫描数字 | `prove_g8.mjs:14` | 源码里不得有 `门槛 0.X→N 条` | ✅ 成立（改动不新增该形态） |
+| 19 个 Python 守卫 | `.cache/xcheck/check_*.py` | — | ✅ **无一**读 `caution_absorbed` / `已超过` / `个候选、`（grep 为空） |
+| `verify_heldout.mjs:369` | 正则 `\|cos\|<0.5）` | **不在 B 的范围内**（见 102.3） | — |
+
+⇒ ⚠⚠ **`verify_subspace.mjs:159/:188` 的「仍成立」本身就是一条缺陷披露**：
+它用 `includes` 匹配**没有右锚点**的前缀 ⇒ **分不清 `0.5` 与 `0.50`**。
+这正是 §93 那个不一致能长期存活、且被 §-轮判成「摩擦非错误」的原因之一。
+⇒ **本轮不修它**（修它就是新增一条能判红的判据，超出 B 的范围），
+但按「恒绿与恒假同样无用」的原则显式登记：**这条断言对写法无分辨力**。
+
+### 102.2 ⚠⚠ 硬约束：修法**不许碰** `SubspacePanel.tsx:137-138`
+
+`verify_subspace.mjs:627-628` 用正则**逐字**钉住：
+
+```js
+/findIndex\(k\s*=>\s*Number\(k\)\s*===\s*Number\(h\.separation_threshold\)\)/
+/indexOf\(String\(h\.separation_threshold\)\)/
+```
+
+⚠ ⇒ 若把阈值提炼成一个共用常量、让 `opIdx` 改用它，第一条正则**当场失配**。
+⇒ **修法限定为只改 `:157` / `:176` / `:206` 三处 JSX 插值**，
+`:137-138` 一字不动。
+
+⚠ 这条约束的来历正是 `:133-136` 记的那个坑（`String(0.5)==="0.5"` 匹配不到 `"0.50"`
+⇒ 页面印出「第 0 档」）。**判据与那段历史同源**，不是新规矩。
+
+### 102.3 ⚠ `verify_heldout.mjs` 不在 B 范围内（已查实，不是想当然）
+
+它的 `truth`（`:32`）读的是 **`heldout_readability.json`**，
+`new_clean` / `new_weak` 只存在于那份产物（各 = 1）；
+而 `SUB`（`:38`）才是 `readable_subspace.json`。
+
+⚠ **B 只改 `readable_subspace.json` 与 `SubspacePanel.tsx`，不碰 `heldout_readability.json`**
+⇒ `verify_heldout.mjs` 的任何断言**不受影响**。
+
+⚠ 顺带记一条**本轮只登记、不修**的观察：
+`readable_subspace.json` 里 `headline.new_clean` / `new_weak` **不存在（None）**。
+若哪天有人复用 `truth` 去读那份产物，正则会拼出
+`**undefined**（undefined 个候选、|cos|<0.5）` 而**永远不匹配**。
+⚠ 这是「**复用了字段名 ≠ 复用了判定语义**」的又一个实例。
+
+### 102.4 执行判据（写死，取数前定）
+
+**G-cal（校准闸门，先跑，不通过就不许改）**
+> 用**未修改**的 `build_subspace_readout.py` 重跑一次，
+> 要求重生成产物与**已提交**的 `readable_subspace.json` **逐字节相等**。
+> 不等 ⇒ 说明这份已发布产物**不是这个生成器的直接输出**（或生成器不确定）
+> ⇒ **立即停止并报告，不得改代码**。
+> 理由：若生成器不能逐字节重现现状，重生成就会引入与本轮无关的漂移。
+
+**G1（改动面）** `git diff --name-only` 必须**恰好**是这 4 个文件，不得多不得少：
+```
+frontend/components/SubspacePanel.tsx
+.cache/xcheck/build_subspace_readout.py
+frontend/public/latent/data/readable_subspace.json   （重生成的产物）
+.cache/xcheck/check_render_coverage_sitewide.debt.json （若台账随之变）
+```
+⚠ 作者未提交制品（15 条）**一条都不许出现在 diff 里**。
+
+**G2（产物差异面）** 重生成后，产物与改前相比，**只允许 `headline.caution_absorbed` 一个字段变化**，
+且变化**必须恰好**是把 `已超过 0.5 门槛` 变成 `已超过 0.50 门槛`。
+⚠ 任何其他字段变化 ⇒ 生成器不确定或输入漂移 ⇒ 停止。
+
+**G3（页面差异面）** `SubspacePanel.tsx` 的 diff 只允许 3 处插值改为 `toFixed(2)`，
+且 `:137-138` **必须逐字未变**（用 102.2 的两条正则当场复验）。
+
+**G4（守卫终态不变）** 19 个 Python 守卫的 exit code 集合改前改后必须**完全相同**
+（预期：17 个 0 + `check_fetch_tracked`/`check_leaf_list_coverage` 两个 1）。
+⚠ 多出任何一个红 ⇒ 判 G4 红并报告。
+
+**G5（Y2 台账对账）** 重跑母判据 `check_render_coverage_sitewide.py`，
+把台账条目数与改前逐项对比，**差值必须完全解释得通**
+（本次只改散文里的一个数字写法 ⇒ 预期**台账零变化**）。
+⚠ 若台账有任何条目增减，必须逐条列出并说明原因，**不许只报总数**。
+
+**G6（实点验证）** 用 `verify_subspace.mjs` 跑**实页**（headless Chrome，CDP）。
+⚠ **不依赖 FilePanel 浏览器** —— 该脚本自带 `cdp_client.mjs` 的 `launch()`，
+默认 Chrome 路径 `chromium_headless_shell-1223/chrome-headless-shell-mac-arm64/chrome-headless-shell`
+已实测存在（逐字与默认值一致）⇒ §101.7 记的「浏览器超时」**不构成阻塞**。
+⚠ 但**必须**与改前的运行结果逐项对比：**G7/A3 等逐字等式必须仍绿**，
+且**不得新增任何一条红**。
+⚠ 若实点跑不起来 ⇒ **停在 G6 之前不许宣称修好**，按 §93.3(c) 的老规矩登记。
+
+### 102.5 披露义务
+
+⚠ 本轮若发现任何判据**必须**改（而 102.1 的结论是不需要），
+则必须：① 单独立一笔修订；② **逐字抄录被改前的断言原文**；
+③ 在 `R6_RERUN_INDEX.md` 里可检索。**不许静默改判。**
+
+### 102.6 修订 102 结论（本节不含任何取数结果）
+
+1. ✅ **用户拍板 B**，执行顺序按 102.4：先 G-cal 校准，再改，再验。
+2. ✅ **B 不需要改任何判据**（102.1 逐条列表）——
+   ⚠ 其中 `verify_subspace.mjs:159/:188` 的「成立」是**无分辨力的成立**，已登记。
+3. ⚠ **硬约束**：`SubspacePanel.tsx:137-138` 不许动（102.2，有正则逐字钉住）。
+4. ⚠ **`verify_heldout.mjs` 不在范围内**（102.3），并记下一条「字段名复用 ≠ 语义复用」。
+5. ⚠ **验证通道可用**：headless Chrome 自带，不受 FilePanel 超时影响（102.4-G6）。
+6. ⚠ 本节**尚未执行任何一步**；下一笔提交才是落地记录。
