@@ -321,11 +321,32 @@ try {
     && P.verdict.includes('数字内容') && P.verdict.includes('同一条方向的重新构造'),
     P.verdict.slice(0, 80) || '（判决没有印出来）');
 
+  // ⚠⚠⚴ 修订 123：E2 原来用裸 includes('12') / includes('14')，
+  //   而这两个数在**真实页面文字里各出现 2 处**：
+  //     「12」→ ①「下界因此从 12 抬到 14」 ②「greedy 估法给 12」
+  //     「14」→ ①「从 12 抬到 14」          ②「而 14 仍然是下界」
+  //   ⇒ 把「下界因此从 12 抬到 14」**整句删掉**，E2 照样绿
+  //     （变异实测：M1 删该句 → E2 仍 True）
+  //   ⇒ 判据名写着「指出下界已从 12 抬到 14」，而删掉那句话它不红。
+  //   ⚠ 原注释（:356-358）把第二处「12」说成「0.45 退回的 12」——
+  //     页面上印的是「门槛 0.45 就退回 **11** 条」，那句话里没有 12。
+  //     真实第二处是「greedy 估法给 12」。⚠ 照原注释修会改错地方。
+  //   ⇒ 现改成**带词锚点的正则**，形态与 G1/G2/G3/G5 同款。
+  //     阈值全部从 readable_subspace 现取，不写死（E2 在 G 组变量之前，故此处单取）。
+  const _sh = SUB.headline;
+  const _eOld = _sh.readable_directions_lower_bound_old;
+  const _eNew = _sh.readable_directions_lower_bound;
   check('E2 边界必须写明「可读性 ≠ 因果性」且指出下界已从 12 抬到 14',
     P.notClaimed.includes('可读性') && P.notClaimed.includes('因果性')
-    && P.notClaimed.includes('下界') && P.notClaimed.includes('14')
-    && P.notClaimed.includes('12') && P.notClaimed.includes('门槛'),
-    `边界 ${P.notClaimed.length} 字`);
+    && P.notClaimed.includes('门槛')
+    // ⚠ 核心断言：带词锚点，删掉这句话必须转红
+    && new RegExp('下界因此从 ' + _eOld + ' 抬到 ' + _eNew).test(P.notClaimed),
+    `边界 ${P.notClaimed.length} 字`
+    + `　现算 old=${_eOld} new=${_eNew}`
+    + `　「12」出现 ${(P.notClaimed.match(/12/g) || []).length} 次、`
+    + `「14」出现 ${(P.notClaimed.match(/14/g) || []).length} 次`
+    + `　⚠ 修订 123：原判据用裸 includes，在**真实页面文字**上删掉目标整句仍绿`
+    + `（变异实测 M1 → True）`);
 
   // ---------- G 组：跨产物那七个数，以及「同向行」的账 ----------
   // 第十八笔的起点：not_claimed 里「门槛 0.45 就退回 12 条」这句话
@@ -361,21 +382,34 @@ try {
       `现算 ${gNewClean} + ${gNewWeak} = ${gNewClean + gNewWeak}；`
       + `原文片段：${(NC.match(/补进来[^，。]*/) || ['<没抓到>'])[0]}`);
 
+  // ⚠⚠⚴ 修订 123：G2/G3/G4 原来要求 innerText 里出现字面量 `**`。
+//   那是**永久不可满足**的：`md.tsx` 的 <Em> 就是 `s.split("**")` + 奇数段包
+//   <strong>，`**` 永远不进 innerText；HeldoutPanel.tsx:632 已经正确包了 <Em>。
+//   ⇒ 旧判据在真实页面文字上恒红（变异 6/6 全红 = 零判别力）。
+//   ⚠ 本仓已有**反方向**的既定判据：`verify_hinge_panel.mjs` H9 与
+//     `verify_outcome.mjs:876-878` 都断言渲染后文字里**不许出现 `**`**。
+//   ⇒ 规则：**`**` 是产物里的源记号，不是页面上的可见文字。**
+//     判据拿【产物原文】匹配 `**` 对；拿【渲染后 innerText】匹配 `**` 错。
+//     ⚠ 别把这三处改回去。
   check('G2 「下界从 A 抬到 B」必须等于 readable_subspace 的 old/lower_bound',
-      new RegExp('从 ' + gOld + ' 抬到 \\*\\*' + gNew + '\\*\\*').test(NC),
-      `现算 old=${gOld} new=${gNew}；原文：${(NC.match(/下界因此从[^（]*/) || ['<没抓到>'])[0]}`);
+      new RegExp('从 ' + gOld + ' 抬到 ' + gNew).test(NC),
+      `现算 old=${gOld} new=${gNew}；原文：${(NC.match(/下界因此从[^（]*/) || ['<没抓到>'])[0]}`
+      + `　⚠ 修订 123：原判据要求字面 **，而 <Em> 会吃掉它 ⇒ 永久判红`);
 
   check('G3 「N 个候选、|cos|<T」必须等于 readable_subspace 的 n_candidates / 选定门槛',
-      new RegExp('\\*\\*' + gNew + '\\*\\*（' + gCand + ' 个候选、\\|cos\\|<' + gThr + '）').test(NC),
+      new RegExp(gNew + '（' + gCand + ' 个候选、\\|cos\\|<' + gThr + '）').test(NC),
       `现算 n_candidates=${gCand} 选定门槛=${gThr}；`
-      + `原文：${(NC.match(/\*\*\d+\*\*（[^）]*）/) || ['<没抓到>'])[0]}`);
+      + `原文：${(NC.match(/[\d]+（[^）]*）/) || ['<没抓到>'])[0]}`
+      + `　⚠ 修订 123：去掉了字面 **（<Em> 会吃掉它 ⇒ 永久判红）`);
 
   // ---- 本笔的核心：0.45 那一句必须落在**同一个**估计量上 ----
   check('G4 「门槛 X 就退回 N 条」必须用 perm_min 口径，且必须与 perm_min 现算一致',
-      new RegExp('门槛 ' + worstKey + ' 就退回 \\*\\*' + gWorst + '\\*\\* 条').test(NC)
+      new RegExp('门槛 ' + worstKey + ' 就退回 ' + gWorst + ' 条').test(NC)
       && new RegExp('同一 perm_min 口径').test(NC),
       `现算：门槛 ${worstKey} → perm_min ${gWorst}（greedy 给 ${gGreedy}，perm ${gPermRange}）`
-      + `；原文：${(NC.match(/门槛 [\d.]+ 就退回[^）]*）/) || ['<没抓到>'])[0]}`);
+      + `；原文：${(NC.match(/门槛 [\d.]+ 就退回[^）]*）/) || ['<没抓到>'])[0]}`
+      + `　⚠ 变异 M5 把 ${gWorst} 改成 ${Number(gWorst) + 1} → 本条必须红`
+      + `　⚠ 修订 123：去掉了字面 **（<Em> 会吃掉它 ⇒ 永久判红）`);
 
   check('G5 两种估计量不许被混用：下一档 greedy 的数必须与 perm_min **不同**才值得说明',
       gGreedy !== gWorst && new RegExp('greedy 估法给 ' + gGreedy).test(NC)
