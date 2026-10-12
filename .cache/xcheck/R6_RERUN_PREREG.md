@@ -14986,3 +14986,123 @@ BV_URL=http://127.0.0.1:9006/ node .cache/browser_verify/verify_subspace.mjs
 4. ⚠⚴ **端到端变异未做**（改组件 + 重新构建）—— 本节结论不覆盖它。
 5. ⚠ 取数途中 9005 服务死过一次，已在 9006 用同一隔离构建恢复。
 6. ⚠ 本节**未改页面、未改产物**；分母不变（单文件 52 / 全站 248）。
+## 修订 115 —— 覆盖图扩到 3/8 个文件；⚗⚠⚴ 查出 `verify_scene_link.mjs` **一条判据都不读可见文案**
+
+### 115.0 起因与执行方式
+
+修订 113/114 把覆盖图做到 `verify_subspace.mjs` 单文件（52 条），分母 248。
+本节继续扩。
+
+⚠⚠ **子智能体分工这条本轮失败**：三个并行子任务（按文件切片）全部以
+`已达到 Token Plan 用量上限` 退出 —— 不是任务本身的问题。
+⇒ 改为**本机手读**，一次两个文件，增量落盘。
+
+⚠⚠ 沿用修订 113 的纪律：**分类依据是「判红/判绿取决于读到哪一层」，
+不是「代码里出现了什么名字」**；本节每一条都打开了 `check(` 的实际条件。
+
+### 115.1 `verify_relamp.mjs`（8 个 `check(` = 7 条判据 + 1 个 catch-all）
+
+| 判据 | 行 | 桶 | 实际读了什么 |
+|---|---|---|---|
+| R1 说明行存在 | `:58` | PAGE_ATTR | `[data-relamp]` 元素**存在性** |
+| R1b 有非零包围盒 | `:63` | PAGE_ATTR | `getBoundingClientRect` |
+| R2 属性里的比值 = 外部真值 | `:68` | PAGE_ATTR | `data-relamp-ratio` vs `layer_profiles.json` |
+| R3 文字里的百分数与属性一致 | `:76` | **PAGE_TEXT** | 正则取 `first.text` 里的 `%` |
+| R4 文字说明了注入写的是 block 的输入 | `:80` | **PAGE_TEXT** | `/输入/.test(first.text)` |
+| R5 换强度后相对幅度跟着变 | `:101` | PAGE_ATTR | `data-relamp` 属性前后不等 |
+| R6 换档后比值仍等于 rms(L)/rms(L-1) | `:108` | PAGE_ATTR | 两个属性相除 |
+| 装置（catch-all） | `:114` | — | 异常字符串 |
+
+**PAGE_TEXT 2 / PAGE_ATTR 5 / catch-all 1 = 8** ✓
+
+⚠⚠ **发现 1：`:61` 的 `RESULT FAIL 1/6` 是个错数。**
+实际条件数是 **7**（R1 + R1b/R2/R3/R4/R5/R6），而 **R6 还是条件性的**
+（`:105` 要求 `after.r != null && Number(after.r) > 0` 才跑）
+⇒ 实际条数在 **6 或 7** 之间浮动。
+⚠ 而早退那一支只 push 了 **1** 条，却印分母 **6** ⇒ 分子分母都对不上。
+
+⚠ **发现 2：R2/R6 的外部真值取自 `backend/examples/output/layer_profiles.json`，
+⚠ 而该文件是作者未提交制品**（`git status` 里是 `?? backend/examples/output/layer_profiles.json`）
+⇒ 这两条判据依赖一份**进不了仓库**的文件。
+
+### 115.2 `verify_scene_link.mjs`（21 个 `check(` + 5 个 `checkPrecond(`）
+
+| 判据 | 行 | 桶 |
+|---|---|---|
+| X0 页面真的加载出来 | `:144` | RUNTIME |
+| E1 onClick → setFocusedStep 已接线 | `:166` | SOURCE |
+| E2 窗口外提示已实现 | `:167` | SOURCE |
+| E3 加载进度读数已实现 | `:168` | SOURCE |
+| E4 页面确实走了 2D fallback | `:169` | RUNTIME |
+| J11 2D 降级画布自证画过 | `:220` | PAGE_ATTR |
+| J11b 必须有投在屏内的点 | `:236` | PAGE_ATTR |
+| J11c 三个属性必须写进 DOM | `:252` | PAGE_ATTR |
+| J1 推导链面板在 | `:354` | PAGE_ATTR |
+| J2 步号滑块存在 | `:358` | PAGE_ATTR |
+| J3 3D 报了加载进度 | `:362` | PAGE_ATTR |
+| **J4 步号在窗口外时「页面明说」** | `:376` | PAGE_ATTR ⚠ |
+| J5 窗口外时不出现错误标签 | `:381` | PAGE_ATTR |
+| J6 窗口内时珠子标签出现 | `:557` | PAGE_ATTR |
+| J12 标签屏幕尺寸不随距离缩放 | `:636` | PAGE_ATTR |
+| J7 标签有非零包围盒 | `:642` | PAGE_ATTR |
+| J8 3D 与链指向同一步号 | `:644` | PAGE_ATTR |
+| **J9a「标签里的 token」与 sidecar 一致** | `:648` | PAGE_ATTR ⚠ |
+| J10 第二次拖动标签跟着变 | `:670` | PAGE_ATTR |
+| J9 珠子 onClick 已接线 | `:689` | SOURCE |
+| 装置（catch-all） | `:697` | — |
+
+**PAGE_TEXT 0 / PAGE_ATTR 14 / SOURCE 4 / RUNTIME 2 / catch-all 1 = 21** ✓
+
+#### ⚠⚠⚴ 发现 3：这个脚本**一条判据都不读可见文案**
+
+页面 eval 里**确实收集了** `badge.text`（`:309`）、`scene.text`（`:328`）、
+`missText`（`:327`），⚠ 但这三个值**只出现在 detail 字符串里，一条都没进判定式**。
+
+两条尤其扎眼：
+
+- **J4 的名字就叫「页面明说」**，条件却是
+  `focusState === 'out-of-window' && focusMiss != null` —— 两个都是**属性**
+  ⇒ 「属性在、那句提示的字没印出来」它照样绿。
+- **J9a 的名字叫「标签里的 token」**，而 `badge.token` 取自
+  `getAttribute('data-scene-focus-token')`（`:308`）⇒ **标签上印的字一次都没读**。
+
+⚠ 而该文件 `:290-295` 的注释**自己写过**这个族的病根：
+「判据读的是元素，不是属性 —— 属性在 A 上，判据却去 B 上读」。
+⇒ **它知道自己这一族，但没把文字那一侧补上** —— 与修订 114 的 N1 **完全同形**。
+
+⚠⚠ **发现 4：「N/21」不是稳定分母。**
+- `checkPrecond(` 有 **5 处**（`:481` J3b、`:553` J6、`:602` J12、`:662`/`:666` J10）
+  **不进红绿分母**；
+- 且 J1–J12 只在 `wgl.hasWebgl && branch === 'webgl'` 时才跑，否则只跑
+  E1–E4 + J11/J11b/J11c 共 **7 条**就 `RESULT SKIP` 退出。
+  ⚠ 本脚本 `:89-91` 确实传了 swiftshader 的 `extraArgs`（意图取到 WebGL），
+  ⚠ **但本轮没有运行它** ⇒ 「走哪条分支」未验证，不发布。
+⇒ 报这个脚本的数时，**必须带「哪条分支 + 哪些进了分母」**，只印 `N/21` 是错的。
+
+### 115.3 进度与分母
+
+```
+已手读  3/8 个文件（68/229 个 check( 调用点 ≈ 30%）
+  verify_subspace   39 个 → 展开 52 条（修订 113/114）
+  verify_relamp      8 个 → 7 条 + catch-all
+  verify_scene_link 21 个 → 20 条 + catch-all（另 5 处 checkPrecond 不入分母）
+未手读 161 个调用点：verify_heldout 47 / verify_axis_readout 45 /
+         verify_hinge_panel 30 / verify_path 28 / probe_dedup_rendered 11
+```
+
+⚠ **「全量 248 条」这个数本轮没有对上账** —— 它出自 `verify_subspace.mjs:597` 的注释，
+而 `grep -cE "^\s*check\("` 在 8 个文件上给的是 **229 个调用点**。
+⚠ 两者**口径不同**（调用点 ≠ 循环展开后的判据条数），⚠ **本轮未对账，不合并这两个数**。
+
+### 115.4 修订 115 结论
+
+1. ✅ 覆盖图扩到 **3/8 个文件、68/229 个调用点**。
+2. ⚗⚠⚴ **发现 3**：`verify_scene_link.mjs` **20 条判据里读可见文案的是 0 条**；
+   J4「页面明说」与 J9a「标签里的 token」都是**只读属性** ⇒ 与 N1 同形。
+3. ⚗⚠ **发现 1**：`verify_relamp.mjs:61` 的 `RESULT FAIL 1/6` **分子分母都对不上**。
+4. ⚠ **发现 2**：`verify_relamp.mjs` 的 R2/R6 依赖**作者未提交**的
+   `backend/examples/output/layer_profiles.json`。
+5. ⚗⚠ **发现 4**：`verify_scene_link.mjs` 的分母**不是常数**
+   （5 处 `checkPrecond` 不入分母 + 分支决定跑几条）。
+6. ⚠⚠ 执行方式变更：**子智能体因额度上限不可用**，本节改本机手读。
+7. ⚠ 本节**未改任何判据、未改页面、未改产物**；未运行 `verify_scene_link.mjs`。
