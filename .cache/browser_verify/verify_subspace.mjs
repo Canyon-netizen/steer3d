@@ -117,6 +117,36 @@ try {
     && Number(P.namedAxes) === truth.headline.named_axes
     && Number(P.nRows) === truth.surface_directions.length,
     `下界 ${P.lowerBound} / 命名轴 ${P.namedAxes} / 行数 ${P.nRows}`);
+  // ⚠⚠ A2 实际只比**属性**（SubspacePanel.tsx:147/:148/:150）。
+  //   「印出」那一半分三个字段、各自处境不同 —— 修订 114 逐条核过：
+  //     data-lower-bound  文案由 A3(:266) + G6(:156) 核 ⇒ 两侧都有守卫
+  //     data-named-axes   ⚠ 文案**零守卫** ⇒ 由下面 N1 补
+  //     data-n-rows       行数由 B1×12 间接覆盖（缺行 ⇒ 查不到该 row ⇒ B1 红）
+  //   ⇒ A2 这个名字是**名不副实**的，历史记录引用它时请按「属性核」读。
+
+  // ⚠⚠ 修订 114 N1：**命名轴数必须在可见文字里**。
+  // 背景：A2 比的是属性，而页面上真正印的那句是
+  //   「而命名轴只有 {h.named_axes} 条」（SubspacePanel.tsx:159）。
+  // ⚠ 在此之前，51 条判据里**没有任何一条读它**：
+  //     A3 只查 headline 含**下界**（:266），G6 的 need 列表（:155-160）也不含命名轴数，
+  //     P8 读的是产物里的 `question` 与 `headline.named_axes`，**不是页面文案**。
+  //   ⇒ 把 :159 那句改成一个错的数，`data-named-axes` 属性照样对，
+  //     51 条判据**一条都不会红**。这正是 :147-153 自己写的那个洞，
+  //     只是字段换成了命名轴数。
+  // ⚠ 写法必须与 G6 同族：**数来自产物、标签固定**，
+  //   绝不把 4 写成字面量（否则又是一份手抄，正是 P10 要防的东西）。
+  // ⚠ 不只查「有没有」：把页面上**所有**「命名轴只有 N 条」都抽出来，
+  //   每一个都必须等于产物 —— 否则「同一句里印两个不同数」会漏过去。
+  {
+    const nAx = truth.headline.named_axes;
+    const hits = [...(P.headline || '')
+      .matchAll(/命名轴只有\s*(\d+)\s*条/g)].map(m => Number(m[1]));
+    check('N1 命名轴数必须印在可见文字里（属性对≠文案对）',
+      hits.length > 0 && hits.every(v => v === nAx),
+      `产物 named_axes=${nAx}；页面读到 ${JSON.stringify(hits)}`
+      + (hits.length === 0 ? '  ⇒ 文案里根本没有这一句' : '')
+      + (hits.every(v => v === nAx) ? '' : '  ⇒ 文案里的数与产物不符'));
+  }
 
   // ---------- G 组：下界的前提 ----------
   // 「至少 N 条」单独印出来会被读成「可读方向就是 N 条」。
