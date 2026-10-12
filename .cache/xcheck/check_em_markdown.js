@@ -186,7 +186,33 @@ function scanDir(dir) {
     for (const x of r.covered) allCovered.push({ file: f, ...x });
     for (const x of (r.gaps || [])) allGaps.push({ file: f, ...x });
   }
-  return { red: all, covered: allCovered, gaps: allGaps, counts: totals, n_files: files.length };
+  // ⚠⚠ 修订 92：每个计数**紧挨它的口径**一起输出。
+  //
+  //   为什么加这个字段：`counts` 里四个数**混了两种互不通约的口径** ——
+  //     n_jsx_text / n_attr / n_const 是**分母**（凡合格就计，含不含 `**` 都计）
+  //     n_objlit                      是**分子**（只计含 `**` 的）
+  //   平铺在同一个命名空间里，读者无从分辨哪个是「扫了多少」哪个是「坏了多少」。
+  //
+  //   ⚠ 刻意**不改名** `n_objlit`（它在撒谎，见预登记 §87.4）：
+  //     改名会让预登记里引用该行的段落失配，而 JSON 键位装不下说明文字
+  //     ⇒ 用**附加字段**把口径带在输出里，纯增量、零破坏、零判定影响
+  //     （已核实：counts 不参与 red / covered / gapOk / exit code）。
+  const counts_caliber = {
+    n_jsx_text: '**分母**：trim 后非空的 JSX 文字节点数（含不含 `**` 都计）；'
+                + '含 `**` 的分子在 red 里按 kind=jsx_text 数',
+    n_attr: '**分母**：JSX 上取值为字符串字面量的属性数'
+            + '（已排除 className/style/key/id/ref 与 data-*/aria-*）；'
+            + '分子在 red 里按 kind=attr:* 数',
+    n_const: '**分母**：初始值可静态折叠成字符串的变量声明数'
+             + '（含插值的模板串返回 null，不计）；含 `**` 的按是否走 <Em> '
+             + '分流到 red / covered（kind=const）',
+    n_objlit: '⚠ **这是分子，不是分母**：ObjectLiteral 的属性值里含 `**` 的'
+              + '「**值**」条数，**不是** ObjectLiteral 节点数 —— '
+              + '这个名字在撒谎，详见预登记 §87.4',
+    n_files: '扫到的组件文件数（分母）',
+  };
+  return { red: all, covered: allCovered, gaps: allGaps,
+           counts: totals, counts_caliber, n_files: files.length };
 }
 
 // ---- 阳性对照（§79.4）----

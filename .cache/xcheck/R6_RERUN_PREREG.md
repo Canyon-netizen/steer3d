@@ -12146,3 +12146,124 @@ sha256(check_render_coverage_sitewide.py) = a8aa259fbf0e23bcb2044e4925c06c6a88bb
 3. ⚠ **不立**「`z5()` 必须幂等」的新判据（今天没有可触发的失败，
    立了会恒绿 —— 与修订 84 撤回 K4 同一判别式）
 4. ⚠ **不并入** §90.5 的拍板（两条是不同文件位置、不同性质，分开问）
+
+---
+
+## 修订 92 · Z4 输出：`counts` 混了两种口径（修 §87.4 记下的「变量名撒谎」）
+
+### 92.0 起因
+
+§87.4 记下一个报告口径缺陷：`totals.n_objlit`（`:183`）累加的是
+`gaps.length`，即「ObjectLiteral 属性值里含 `**` 的**值条数**」，
+**不是** ObjectLiteral 的节点数 ⇒ 名字在撒谎。
+
+⚠ 本轮修它，但**先查清代价**，不凭「看着不整齐」就动手。
+
+### 92.1 先查三件事
+
+**(a) 谁读它的输出？** 全仓搜 `check_em_markdown`，只有 8 个文件命中，
+**全部是文档或临时脚本**（预登记、`r87_msg.txt`、`rev84_append.md` 等）——
+⚠ **没有任何 runner 或包装器调用它**，脚本只吐 JSON（`:266-274`），
+读它的是人。
+
+**(b) `counts` 参与判定吗？** 不参与。逐行核实：
+`totals.*` 只被累加并放进返回值（`:177-189`）；
+判红来自 `red`，`covered` 来自 `covered`，
+自证对照的 `gapOk` 读的是 `r.gaps`（`:255`）而**不是** `counts.n_objlit`
+⇒ **counts 是纯输出字段，改它不影响任何判定**。
+
+**(c) 改名的代价？** 预登记里至少 8 处引用 `n_objlit` 这个名字与 `:183` 那行代码，
+改名会让这些引文失配；而 JSON 的**键位装不下说明文字** ⇒
+改名既破坏引用、又带不来口径。
+
+### 92.2 ⚠⚴ 真正的缺陷比「一个名字撒谎」大：`counts` 混了两种口径
+
+读三个计数的真实位置，发现**它们的口径互不通约**：
+
+| 字段 | 递增处 | 它数的是什么 | 是分母还是分子 |
+|---|---|---|---|
+| `n_jsx_text` | `:101` | 凡 `t.trim().length` 非空就 `++`，**含不含 `**` 都计** | **分母** |
+| `n_attr` | `:112` | 凡属性值是字符串字面量就 `++`（已排除 `className/style/key/id/ref` 与 `data-*/aria-*`），**含不含 `**` 都计** | **分母** |
+| `n_const` | `:88` | 凡初始值能静态折叠成字符串就 `++`（含插值的模板串返回 `null`，不计），**含不含 `**` 都计** | **分母** |
+| `n_objlit` | `:183` | **只**数含 `**` 的那些 | ⚠ **分子** |
+
+⚠⚴ 也就是说 `counts` 是一个**平铺的命名空间里混了分母与分子**：
+
+```json
+"counts": {"n_jsx_text": 1455, "n_attr": 157, "n_const": 7, "n_objlit": 0, "n_files": 24}
+```
+
+读的人无从分辨 `1455` 是「扫了多少处」还是「坏了多少处」。
+⚠ 而真正的分子藏在**另一个键**里（`red` / `covered` / `gaps`）——
+**同一个 JSON 里，分子与分母不在同一个命名空间**。
+
+⚠ 这比 §87.4 记的「一个名字撒谎」更根本：即使把 `n_objlit` 改名，
+「前三个是分母、第四个是分子」这件事**仍然看不出来**。
+
+### 92.3 修法：加 `counts_caliber`，不改名、不改判定、不动任何数
+
+在返回值里**附加**一个字段，把每个计数的口径写在它旁边（`:189`）：
+
+```js
+const counts_caliber = {
+  n_jsx_text: '**分母**：trim 后非空的 JSX 文字节点数（含不含 `**` 都计）；'
+              + '含 `**` 的分子在 red 里按 kind=jsx_text 数',
+  n_attr: '**分母**：JSX 上取值为字符串字面量的属性数'
+          + '（已排除 className/style/key/id/ref 与 data-*/aria-*）；'
+          + '分子在 red 里按 kind=attr:* 数',
+  n_const: '**分母**：初始值可静态折叠成字符串的变量声明数'
+           + '（含插值的模板串返回 null，不计）；含 `**` 的按是否走 <Em> '
+           + '分流到 red / covered（kind=const）',
+  n_objlit: '⚠ **这是分子，不是分母**：ObjectLiteral 的属性值里含 `**` 的'
+            + '「**值**」条数，**不是** ObjectLiteral 节点数 —— '
+            + '这个名字在撒谎，详见预登记 §87.4',
+  n_files: '扫到的组件文件数（分母）',
+};
+return { red: all, covered: allCovered, gaps: allGaps,
+         counts: totals, counts_caliber, n_files: files.length };
+```
+
+⚠ **为什么是附加字段而不是改名**：
+改名会（i）让 §87.4 等处的引文失配，
+（ii）把「撒谎」换成另一个同样装不下说明的名字 ——
+**口径是散文，键位是标识符，散文塞不进标识符** ⇒ 只能并行带一份。
+
+⚠ **为什么不动 `red`/`gaps` 的结构**：那会改判据的自证契约（`gapOk` 读 `r.gaps`），
+属于改判定，超出本轮范围。
+
+### 92.4 验证（三条，缺一不发数）
+
+**(a) 改前改后逐字对比** —— 用 `git show HEAD:` 取改前版本，同一目录跑两遍：
+
+```
+改前 counts: {"n_jsx_text":1455,"n_attr":157,"n_const":7,"n_objlit":0,"n_files":24}
+改后 counts: {"n_jsx_text":1455,"n_attr":157,"n_const":7,"n_objlit":0,"n_files":24}
+counts 逐字未变: True      n_files 未变: True      red 逐条未变: True
+```
+
+⚠ `red` 是按 `sort_keys=True` 序列化后逐字比对的，不是比长度。
+
+**(b) 自证对照 6/6**（`node check_em_markdown.js --selfcheck`）：
+
+```
+1 ✔ expect_red=1 got=1 covered=0 gap=0      4 ✔ expect_red=1 got=1 covered=0 gap=0
+2 ✔ expect_red=1 got=1 covered=0 gap=0      5 ✔ expect_red=1 got=1 covered=0 gap=0
+3 ✔ expect_red=0 got=0 covered=1 gap=0      6 ✔ expect_red=0 got=0 covered=0 gap=1
+```
+
+⚠ 对照 6 是「披露项自身的对照」（`expectGap=1`）——
+它证明 `gaps` 通道没被这次改动碰坏。
+
+**(c) 真实组件目录实跑**：`n_red=0 / n_covered=1 / n_gaps=0`，
+与改动前一致；`counts_caliber` 五个键齐备。
+
+⚠ 顺带如实记下：真实组件当前 `red = 0`。这**不是**「判据恒绿」——
+§87 已定性：源码里唯二含静态 `**` 的地方在 `verifyRandomControl.tsx:187/:226-229`，
+它们的串唯一去处是 `data-rc-verify-line`，而 `isDataAttr`（`:23-25`）按设计排除 `data-*`。
+
+### 92.5 修订 92 不做
+
+1. ⚠ **不改名** `n_objlit`（会让预登记引文失配，且带不来口径）
+2. ⚠ **不把分子并进 `counts`**（会改 `gapOk` 读的东西 ⇒ 改自证契约 ⇒ 改判定）
+3. ⚠ **不改** 修订 79 的任何判红条件（本次只加输出字段）
+4. ⚠ **不删** §87.4（它是历史记录，且 `counts_caliber` 里指名引用了它）
