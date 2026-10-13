@@ -106,7 +106,7 @@ SOFT_WARN_TOKENS = ["===", "!==", "<", ">"]
 
 # 占位符：从产物动态取，避免把 pid / k / n_cand 写死
 # ⚠ 纪律：散文与脚本里的数字一律从产物动态取。
-PLACEHOLDERS = {"{pid}", "{k}", "{n_cand}", "{total}"}
+PLACEHOLDERS = {"{pid}", "{k}", "{n_cand}", "{total}", "{pid2}", "{k2}"}
 
 
 def die(msg, code=2):
@@ -144,7 +144,20 @@ def substitute(text, art, pid_explicit=None):
     else:
         die("产物里有 %d 道题，无法唯一确定 {pid} —— 规格必须显式给 pid"
             % len(problems))
+    # ⚠⚠⚴⚠⚴ {pid2}/{k2}：**按 problems 的键排序**取「第二道」。
+    # ⚠ 为什么需要：D4 判「切题后 k 跟着换成那一道题的」，扰动必须改**另一道题**的 k，
+    # ⚠ 改当前题的不影响切题后的取值。
+    # ⚠⚠⚴ 「第二道」按什么顺序？⇒ **排序后的第二个键**，且必须是**不同于 {pid}** 的那一道。
+    # ⚠ 若排序后第一道不是 pid_explicit，就要挑「第一个不等于 pid 的」，否则两占位同题。
+    others = sorted(k for k in problems if k != pid_explicit)
+    if "{pid2}" in text or "{k2}" in text:
+        if not others:
+            die("产物只有 1 道题，用不了 {pid2}/{k2}")
+        pid2 = others[0]
+        q2 = problems[pid2]
     out = (text
+           .replace("{pid2}", str(pid2 if ("{pid2}" in text or "{k2}" in text) else ""))
+           .replace("{k2}", str(q2.get("k") if ("{pid2}" in text or "{k2}" in text) else ""))
            .replace("{pid}", str(pid_explicit))
            .replace("{k}", str(q0.get("k")))
            .replace("{n_cand}", str(prod.get("n_cand")))
