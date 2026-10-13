@@ -1,0 +1,15 @@
+{
+  "src": ".cache/browser_verify/verify_path.mjs",
+  "art": "frontend/public/latent/data/path_readout.json",
+  "outdir": ".cache/mutbak/r135_arms/",
+  "pid": "1983_I_1",
+  "arms": [
+    {
+      "name": "a5",
+      "at": 96,
+      "before": 96,
+      "mutate": "`(()=>{const occ=()=>String(document.querySelector('#mainTitle').textContent).split('{pid}').length-1;const before=occ();document.querySelector('#mainTitle').textContent='逐步路径';const after=occ();window.__r135={k:'a5',before:before,after:after};return true;})()`",
+      "anchor": "const d = JSON.parse(await page.eval(`(() => {"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "src": ".cache/browser_verify/verify_path.mjs",
+  "art": "frontend/public/latent/data/path_readout.json",
+  "outdir": ".cache/mutbak/r135_arms/",
+  "pid": "1983_I_1",
+  "arms": [
+    {
+      "name": "a6",
+      "at": 96,
+      "before": 96,
+      "anchor": "const d = JSON.parse(await page.eval(`(() => {",
+      "mutate": "`(()=>{const occ=()=>String(getComputedStyle(document.querySelector('#pairRow')).display).split('flex').length-1;const before=occ();document.querySelector('#pairRow').style.display='none';const after=occ();window.__r135={k:'a6',before:before,after:after,note:'#pairRow 保留元素、只改 display —— 删元素会让 getComputedStyle(null) 抛，那正是 D5 同族'};return true;})()`"
+    },
+    {
+      "name": "c4",
+      "at": 96,
+      "before": 96,
+      "anchor": "const d = JSON.parse(await page.eval(`(() => {",
+      "mutate": "`(()=>{const last=document.querySelectorAll('[data-patht]')[document.querySelectorAll('[data-patht]').length-1];const cell=last.children[1];const occ=()=>cell.children.length===2?1:0;const before=occ();if(cell.children.length) cell.removeChild(cell.children[cell.children.length-1]);const after=occ();window.__r135={k:'c4',before:before,after:after,note:'occ 已改成 0/1：判据断言的是 ===2，不是候选个数'};return true;})()`",
+      "criterion": "C4 d.candPerArm === 2"
+    },
+    {
+      "name": "a8",
+      "at": 96,
+      "before": 96,
+      "anchor": "const d = JSON.parse(await page.eval(`(() => {",
+      "mutate": "`(()=>{const t=document.querySelector('#tabPath');const occ=()=>String(t.className).split('on').length-1;const before=occ();t.className='';const after=occ();window.__r135={k:'a8',before:before,after:after,note:'实测 class 只有一个记号 on，所以删 1 处就够 —— 不是修订 131 的 C6 同族'};return true;})()`"
+    }
+  ]
+}
