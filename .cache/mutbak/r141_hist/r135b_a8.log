@@ -1,0 +1,3 @@
+[扰动已落地] 臂 a8：{"k":"a8","before":1,"after":0,"note":"实测 class 只有一个记号 on，所以删 1 处就够 —— 不是修订 131 的 C6 同族"}
+RED  A8 第 5 个标签是高亮的  class=""
+RESULT FAIL 35/36

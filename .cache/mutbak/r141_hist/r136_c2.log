@@ -1,0 +1,4 @@
+[扰动已落地] 臂 c2：{"k":"c2","before":1,"after":0,"note":"保留 data-pathfork=1，所以 D1/D2 的选择器仍能命中"}
+RED  C2 分叉行恰好 1 行且 t=k  forks=1 @999
+RED  D1 点分叉行真的展开到存储宽度  2 → 2（应为 2 → 8）
+RESULT FAIL 34/36

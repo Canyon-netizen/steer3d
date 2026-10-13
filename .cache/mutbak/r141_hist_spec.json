@@ -1,0 +1,287 @@
+{
+  "src": ".cache/browser_verify/verify_path.mjs",
+  "arms": [
+    {
+      "name": "r135_a5",
+      "node": ".cache/mutbak/r135_arms/verify_path_a5.mjs",
+      "criterion": "",
+      "code": "A5",
+      "code_src": "arm名大写（spec 无 criterion 字段）",
+      "expect": {
+        "flips": [
+          "A5"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r135_spec_a5.json"
+    },
+    {
+      "name": "r135b_a6",
+      "node": ".cache/mutbak/r135_arms/verify_path_a6.mjs",
+      "criterion": "",
+      "code": "A6",
+      "code_src": "arm名大写（spec 无 criterion 字段）",
+      "expect": {
+        "flips": [
+          "A6"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r135_spec_ace.json"
+    },
+    {
+      "name": "r135b_c4",
+      "node": ".cache/mutbak/r135_arms/verify_path_c4.mjs",
+      "criterion": "C4 d.candPerArm === 2",
+      "code": "C4",
+      "code_src": "criterion",
+      "expect": {
+        "flips": [
+          "C4",
+          "D1"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r135_spec_ace.json"
+    },
+    {
+      "name": "r135b_a8",
+      "node": ".cache/mutbak/r135_arms/verify_path_a8.mjs",
+      "criterion": "",
+      "code": "A8",
+      "code_src": "arm名大写（spec 无 criterion 字段）",
+      "expect": {
+        "flips": [
+          "A8"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r135_spec_ace.json"
+    },
+    {
+      "name": "r136_d3",
+      "node": ".cache/mutbak/r136_arms/verify_path_d3.mjs",
+      "criterion": "D3 sw.before !== sw.after（切题后 data-pathpid 真的换了）",
+      "code": "D3",
+      "code_src": "criterion",
+      "expect": {
+        "flips": [
+          "D3"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r136_spec.json"
+    },
+    {
+      "name": "r136_d4",
+      "node": ".cache/mutbak/r136_arms/verify_path_d4.mjs",
+      "criterion": "D4 prod.problems[sw.after].k === String(sw.k) —— 页面侧 k 与产物 k 必须一致",
+      "code": "D4",
+      "code_src": "criterion",
+      "expect": {
+        "flips": []
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r136_spec.json"
+    },
+    {
+      "name": "r136_a1",
+      "node": ".cache/mutbak/r136_arms/verify_path_a1.mjs",
+      "criterion": "A1 state === 'ok'（data-pathstate 属性）",
+      "code": "A1",
+      "code_src": "criterion",
+      "expect": {
+        "flips": []
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r136_spec.json"
+    },
+    {
+      "name": "r136_a7",
+      "node": ".cache/mutbak/r136_arms/verify_path_a7.mjs",
+      "criterion": "A7 d.cv === 'none'（画布已让位）",
+      "code": "A7",
+      "code_src": "criterion",
+      "expect": {
+        "flips": [
+          "A7"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r136_spec.json"
+    },
+    {
+      "name": "r136_c1",
+      "node": ".cache/mutbak/r136_arms/verify_path_c1.mjs",
+      "criterion": "C1 String(q0.k) === String(d.k) —— data-pathk 属性",
+      "code": "C1",
+      "code_src": "criterion",
+      "expect": {
+        "flips": [
+          "C1"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r136_spec.json"
+    },
+    {
+      "name": "r136_c2",
+      "node": ".cache/mutbak/r136_arms/verify_path_c2.mjs",
+      "criterion": "C2 nForks===1 && forkT[0]===String(q0.k)",
+      "code": "C2",
+      "code_src": "criterion",
+      "expect": {
+        "flips": [
+          "C2",
+          "D1"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r136_spec.json"
+    },
+    {
+      "name": "r136_c3",
+      "node": ".cache/mutbak/r136_arms/verify_path_c3.mjs",
+      "criterion": "C3 nRows === Math.min(6, q0.k+1)",
+      "code": "C3",
+      "code_src": "criterion",
+      "expect": {
+        "flips": [
+          "C3"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r136_spec.json"
+    },
+    {
+      "name": "r136_e1",
+      "node": ".cache/mutbak/r136_arms/verify_path_e1.mjs",
+      "criterion": "E1 typeof renderPathPanel === 'function'",
+      "code": "E1",
+      "code_src": "criterion",
+      "expect": {
+        "flips": [
+          "E1"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r136_spec.json"
+    },
+    {
+      "name": "r138_d4",
+      "node": ".cache/mutbak/r138_arms/verify_path_d4.mjs",
+      "criterion": "D4 prod.problems[sw.after].k === String(sw.k) —— 页面侧 k 与产物 k 必须一致",
+      "code": "D4",
+      "code_src": "criterion",
+      "expect": {
+        "flips": [
+          "D4"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r138_spec.json"
+    },
+    {
+      "name": "r138_a1b",
+      "node": ".cache/mutbak/r138_arms/verify_path_a1b.mjs",
+      "criterion": "A1 state === 'ok'（切到第 5 屏后 [data-pathblock] 的 data-pathstate）",
+      "code": "A1",
+      "code_src": "criterion",
+      "expect": {
+        "flips": [
+          "A1"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": ".cache/mutbak/r138_spec.json"
+    },
+    {
+      "name": "r134b_fork",
+      "node": ".cache/mutbak/r134b_fork.mjs",
+      "criterion": "",
+      "code": null,
+      "expect": {
+        "flips": [
+          "D1"
+        ]
+      },
+      "env": {
+        "R134_ARM": "fork"
+      },
+      "self": "fork",
+      "from": "修订 134 §134.1：RED D1 … -1 → -1（应为 2 → 8）/ FAIL 35/36"
+    },
+    {
+      "name": "r134b_all",
+      "node": ".cache/mutbak/r134b_all.mjs",
+      "criterion": "",
+      "code": null,
+      "expect": {
+        "flips": [
+          "D2"
+        ]
+      },
+      "env": {
+        "R134_ARM": "all"
+      },
+      "self": "all",
+      "from": "修订 134 §134.2：RED D2 「看全部」6 → 6，应 28 / FAIL 35/36"
+    },
+    {
+      "name": "r134b_pair",
+      "node": ".cache/mutbak/r134b_pair.mjs",
+      "criterion": "",
+      "code": null,
+      "expect": {
+        "skip": [
+          "D3"
+        ]
+      },
+      "env": {
+        "R134_ARM": "pair"
+      },
+      "self": "pair",
+      "from": "修订 134 §134.4：[SKIP] D3 / RESULT OK 34/34（⚠⚠⚴⚠⁴ 修订 134 说 D4「一起被跳过」是**误读** —— D4 在 else 里，D3 跳过时它**压根没执行**；⚠ 修订 136 证明这次跳过本身还是假的）"
+    },
+    {
+      "name": "r134b_xy",
+      "node": ".cache/mutbak/r134b_xy.mjs",
+      "criterion": "",
+      "code": null,
+      "expect": {
+        "crash": true
+      },
+      "env": {
+        "R134_ARM": "xy"
+      },
+      "self": "xy",
+      "from": "修订 134 §134.5：删掉 #tabXY ⇒ TypeError，压根不打印 RESULT"
+    },
+    {
+      "name": "r134b_path_dgroup",
+      "node": ".cache/mutbak/r134b_path_dgroup.mjs",
+      "criterion": "",
+      "code": null,
+      "expect": null,
+      "env": {
+        "R134_ARM": "path_dgroup"
+      },
+      "self": null,
+      "from": "⚗ 预登记里**没有点名**这个臂 ⇒ 无可引用的声明"
+    }
+  ]
+}

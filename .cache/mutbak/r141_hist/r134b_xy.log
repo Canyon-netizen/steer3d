@@ -1,0 +1,12 @@
+[扰动已落地] 臂 xy：{"xy":{"before":true,"after":false}}
+file:///Users/zhourui/code/steer3d/.cache/browser_verify/cdp_client.mjs:199
+      throw new Error('PAGE EXCEPTION: ' + (d.exception?.description || d.text));
+            ^
+
+Error: PAGE EXCEPTION: TypeError: Cannot read properties of null (reading 'click')
+    at <anonymous>:2:35
+    at <anonymous>:9:3
+    at Page.eval (file:///Users/zhourui/code/steer3d/.cache/browser_verify/cdp_client.mjs:199:13)
+    at async file:///Users/zhourui/code/steer3d/.cache/mutbak/r134b_xy.mjs:253:25
+
+Node.js v22.22.3

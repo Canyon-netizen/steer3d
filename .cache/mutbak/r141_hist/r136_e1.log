@@ -1,0 +1,3 @@
+[扰动已落地] 臂 e1：{"k":"e1","before":1,"after":0,"note":"实测裸名与 window. 一致，故设 window. 就能让裸名也变 undefined"}
+RED  E1 渲染函数存在（缺数据时才有人喊缺）  {"hasHandler":false}
+RESULT FAIL 35/36
