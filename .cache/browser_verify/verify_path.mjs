@@ -211,17 +211,38 @@ else {
 // ⚠ 第一版在 Node 侧拼字符串再传进页面，模板字面量里的 '\n' 是**真换行**，
 //   页面里就成了跨行的单引号字符串 → SyntaxError，整条判据崩在装置上。
 //   在页面里直接 JSON.stringify，不要跨进程拼 JS 字面量。
-const back = JSON.parse(await page.eval(`(async () => {
-  document.querySelector('#tabXY').click();
+// ⚠⚠⚴⚠⁴ 修订 144：这一段原本只有一句裸的「点 #tabXY」。元素一被拆掉，就在页内抛异常；
+//   异常一路冒到 Node 顶层 ⇒ **整份判决作废、压根不打印 RESULT 行**。
+//   ⚗ 实测证据：专门拆掉 #tabXY 的那个臂跑出来只有 12 行、无 RESULT 行
+//   （那不是「D5 没牙齿」，是**这一条把整份判决掀了桌**）。
+//   ⇒ 改成「页内失败 = 这一条红」：其余 38 条照跑，分子分母仍是同一个量。
+//   ⚠⚠⚴⚠⁴⚠⁴ **下面这整块（含注释）处在 page.eval 的模板字面量内部，
+//     一个反引号都不能有** —— 反引号会**提前终止模板** ⇒ 语法错误。
+//     （修订 133 / 134 / 142 在同一个地方踩过三次。）
+let back;
+try {
+  back = JSON.parse(await page.eval(`(async () => {
+  const q = s => document.querySelector(s);
+  const tabXY = q('#tabXY');
+  if (!tabXY) return JSON.stringify({ err: '页内找不到 #tabXY（点击目标已被拆掉）' });
+  const cv = q('#cv'), wrap = q('#pathWrap');
+  if (!cv || !wrap) return JSON.stringify({ err: '页内找不到 #cv 或 #pathWrap' });
+  tabXY.click();
   await new Promise(r => setTimeout(r, 500));
   return JSON.stringify({
-    cv: getComputedStyle(document.querySelector('#cv')).display,
-    wrap: getComputedStyle(document.querySelector('#pathWrap')).display,
+    cv: getComputedStyle(cv).display,
+    wrap: getComputedStyle(wrap).display,
     title: (document.querySelector('#mainTitle')||{}).textContent || ''
   });
 })()`));
+} catch (e) {
+  // ⚠⚠⁴ 页内**真的抛了**异常（不是上面那两条主动返回）⇒ 也只让 D5 红，不掀桌。
+  //   后面的 E2/E3/E4 块自己有页内 try/catch（修订 142 加的），会把失败收成红。
+  back = { err: '页内抛异常：' + String((e && e.message) || e) };
+}
 check('D5 切回 2D 后画布恢复、路径容器收起',
-  back.cv === 'block' && back.wrap === 'none' && back.title.includes('隐空间'), JSON.stringify(back));
+  !back.err && back.cv === 'block' && back.wrap === 'none' && back.title.includes('隐空间'),
+  back.err || JSON.stringify(back));
 
 // ---- E 组：数据没载入时必须**明说**，不能静默消失 -----------------------
 const missing = JSON.parse(await page.eval(`(() => {
@@ -353,10 +374,29 @@ for (const c of redMut) console.log(`RED  ${c.name}  ${c.detail}`);
 //   （「一条都没跑」），而它其实跑完了。判据跑没跑，读者只看汇总行。
 const st = redMain.length ? 'FAIL' : 'OK';
 console.log(`RESULT ${st} ${mainChecks.length - redMain.length}/${mainChecks.length}`);
-// ⚠⚴ 修订 118：N/M **只数 mainChecks**（跳过不在其中）。必须把跳过点名列出来。
+// ⚠⚠⚴⚠⁴ 修订 144：自曝**判据名单**。为什么这一行不是多余的：
+//   实测里一个臂把分母从 39 压到 37，而日志只印了**一条** [SKIP] D3 ——
+//   数字差 2、行数差 1。⚗⚠⁴ 那第 2 条是 **D4 落在 if/else 的另一侧、压根没执行**，
+//   ⚠⚠⁴⚠⁴ 它**一行都不打印** ⇒「被跳过的」与「压根没跑的」在日志上完全同形，
+//   ⚠⚠⁴ 分母相等、相减，**任何只看数字和 [SKIP] 行的对账都分不开它们**。
+//   ⇒ 跑台拿这一行做「基线名单 − 臂上名单」的差集，才能把两者分开记账。
+//   ⚠⚠⚴⚠⚴⚠⁴ 它**不是新增判据**：不改任何断言、不翻面、不进分母（分母仍是 39）。
+//     ⚠⚠⁴ 它唯一的副作用是让仪器**吐出它本来就知道的东西** ——
+//     ⚠⚠⁴⚠⁴⚠⁴ 而「仪器本来就知道却没吐」正是修订 143 记账反转的根因之一。
+console.log('判据名单 ' + mainChecks.length + ' 条：' + mainChecks.map(c => c.name).join(' | '));
 if (skips.length) {
+  // ⚠⚠⁴⚠⁴ 修订 144 的**当场自曝**：改这一块时我先把 `for (const s of skips) console.log('[SKIP] …')`
+  //   整段删掉了，理由是「名单行已经覆盖了」。⚗⚠⁴ 而跑台的 `parse()` 是靠
+  //   `RE_SKIP = /^\[?SKIP\]?\s+(\S+)/` 抓跳过列表的 ⇒ **删掉它，跳过机制当场失聪**，
+  //   ⚠⚠⁴⚠⁴ 而**日志上完全看不出来**（只是 skip 列表变空，不会报错）。
+  //   ⚠⚠⁴⚠⁴⚠⁴ ⇒ 纪律：**改判据里已被跑台解析的那几行之前，先把跑台的正则读出来**
+  //     （修订 133/134/141/143 已在同一个「改判据顺手改坏仪器」的族里栽过）。
   console.log(`跳过 ${skips.length} 条（**不进分母**，N/M 里不含它们）：`);
   for (const s of skips) console.log(`  [SKIP] ${s.name} —— ${s.why}`);
+  // ⚠⚠⁴ 跳过的那几条**不在 mainChecks 里**（skip() 不进 checks），所以要**另外列**。
+  //   ⚠⚠⚴⚠⁴ 只列 mainChecks 是不够的：跳过的正是「分母变小」的第一种机制，
+  //   ⚠⚠⁴ 不列它，差集里就会把「跳过」误判成「消失」。
+  console.log('跳过名单 ' + skips.length + ' 条：' + skips.map(s => s.name).join(' | '));
 }
 if (mutVerdict) {
   // 变异方向与主判据相反：这里「RED 0 / 判过」= 变异生效了。
