@@ -52,6 +52,12 @@ def main():
         sys.exit(2)
     raw = PREREG.read_text(encoding="utf-8")
     lines = raw.split("\n")
+    # ⚠⚠⚴ `split("\n")` 会把末尾换行之后那个空串也算成一个元素
+    #   ⇒ len(lines) 比真实行数（`wc -l`）多 1。
+    #   生成修订 137 的索引时踩到：修订 137 是第一条「后面没有下一条标题」的修订，
+    #   end2 落到 len(lines) ⇒ 它的行号尾号多 1；:112 的总行数更是每一笔都多 1
+    #   （此前各笔都印 18,XXX 而 `wc -l` 少 1，无人核）。
+    nlines = len(lines) - 1 if raw.endswith("\n") else len(lines)
 
     heads = []      # (line_idx, kind, rev, sub, body)
     for i, ln in enumerate(lines):
@@ -109,7 +115,7 @@ def main():
     w("")
     w("## 规模")
     w("")
-    w(f"- 预登记 **{len(lines):,} 行**、**{raw.count(chr(0xfffd))} 个坏字**（`U+FFFD`）")
+    w(f"- 预登记 **{nlines:,} 行**、**{raw.count(chr(0xfffd))} 个坏字**（`U+FFFD`）")
     w(f"- 修订 **{len(nums)} 条**，编号 1–{max(nums)}，"
       f"**缺口 {gaps if gaps else '无'}**")
     w(f"- 其中 **{len(multi_sub)} 个修订**用 `## N.M` 小节式展开"
@@ -144,13 +150,26 @@ def main():
     w("")
     w("| 修订 | 行范围 | 行数 | 结构 | 标题 |")
     w("|---:|---|---:|---|---|")
+    emitted = []
     for n in nums:
         v = by_rev[n]
         start = v[0][0] + 1
         subs, segs = split(v)
         nxt = [i for i in nums if by_rev[i][0][0] > v[0][0]]
-        end2 = by_rev[nxt[0]][0][0] if nxt else len(lines)
-        span = end2 - start
+        # ⚠⚠⚴ 行范围口径（2026-10-13 修）：
+        #   start = 本修订标题的 1-based 行号
+        #   end2  = 本修订**最后一行非空行**的 1-based 行号（从下一条标题处向后跳过空行）
+        #   span  = end2 - start + 1（本修订占的行数，不含下一条标题前的分隔空行）
+        #   原写法 `end2 = 下一条标题的 0-based 下标` 对**最后一条**修订不成立：
+        #   那时没有下一条，落 `len(lines)`，而 `len(lines)` 把末尾换行后的空串
+        #   也算成一行 ⇒ 修订 137 的尾号被印成 18722（真实末行是 18721）。
+        lim = by_rev[nxt[0]][0][0] if nxt else nlines   # 下一条标题 0-based 下标 / 真实行数
+        j = lim - 1
+        while j > v[0][0] and not lines[j].strip():
+            j -= 1
+        end2 = j + 1
+        span = end2 - start + 1
+        emitted.append((n, start, end2, span))
         if subs and segs:
             struct = f"小节×{len(subs)} + 段×{len(segs)}"
         elif subs:
@@ -185,6 +204,38 @@ def main():
     print(f"  坏字 {txt.count(chr(0xfffd))} / 以换行结尾 {ends_nl}")
     if txt.count(chr(0xfffd)) or not ends_nl:
         print("[错误] 生成物有问题")
+        sys.exit(2)
+
+    # ⚠⚠⚴⚠⚴ 自检闸门：索引里每一行的 (start, end2, span) 必须与预登记**逐字对得上**。
+    #   起因：这一族 off-by-one 在同一个文件里犯了两次 ——
+    #     ① `len(lines)` 把末尾换行后的空串算成一行 ⇒ 最后一行的尾号/总行数多 1；
+    #     ② `span = end2 - start` 在「下一条修订标题前没有空行」的段落少算 1
+    #        （实测 9 行：修订 100、110–117）。
+    #   两次都是**仪器自己发绿**：脚本正常退出、坏字 0、以换行结尾，一句都没报错。
+    #   ⇒ 打印「行数对得上」之前必须逐行对账，不许只看汇总。
+    rev_head_lines = {i + 1 for i, kind, _r, _s, _b in rev_heads}
+    problems = []
+    for n, s, e, sp in emitted:
+        why = []
+        seg = lines[s - 1:e]                      # 1-based 闭区间切片
+        if len(seg) != sp:
+            why.append(f"切片 {len(seg)} 行 ≠ span {sp}")
+        if not lines[s - 1].startswith("## "):
+            why.append("start 不是标题行")
+        if not seg[-1].strip():
+            why.append("末行是空行")
+        if e > nlines:
+            why.append("end 越过末行")
+        elif lines[e].strip() and not (lines[e].startswith("## ")
+                                       and (e + 1) in rev_head_lines):
+            why.append("区间外紧跟的内容既非空行也非下一条标题行")
+        if why:
+            problems.append((n, why))
+    print(f"  行范围自检 {len(emitted)} 行 / 不合口径 {len(problems)}")
+    if problems:
+        for n, why in problems[:20]:
+            print(f"    修订 {n}：{'；'.join(why)}")
+        print("[错误] 行范围与预登记对不上，不算通过")
         sys.exit(2)
 
 
