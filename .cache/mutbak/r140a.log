@@ -1,0 +1,34 @@
+
+=== 对照：不拦（数据在） ===
+  拦掉的 URL : (无)
+  href       : http://127.0.0.1:9006/latent/index.html
+  hasHandler    : function
+  blockPresent  : true
+  pathState     : ok
+  saysNotLoaded : false
+  saysMissingFile: false
+  saysNoProblem : false
+  textLen       : 1267
+  textHead      : 前面这 27 步，两条流每一步各自在考虑哪几个词 / 两条流从同一句话开始跑（, let's try to solve this problem step by step. So, we have three variables x, y,
+
+=== 扰动：拦掉 path_readout.json ===
+  拦掉的 URL : *path_readout.json*
+  href       : http://127.0.0.1:9006/latent/index.html
+  hasHandler    : function
+  blockPresent  : true
+  pathState     : no-data
+  saysNotLoaded : true
+  saysMissingFile: true
+  saysNoProblem : false
+  textLen       : 94
+  textHead      : 逐步路径数据未载入，这一屏解释缺失 / 缺的是 path_readout.json。它不影响「干预 vs 对照」那一屏的任何数 （那些数来自 divergence_readout.json）。
+
+=== 可区分性（哪一个量能把两种情形分开）===
+  ⚠ 分不开  hasHandler       对照="function"  扰动="function"
+  ⚠ 分不开  blockPresent     对照=true  扰动=true
+  ✅ 可区分  pathState        对照="ok"  扰动="no-data"
+  ✅ 可区分  saysNotLoaded    对照=false  扰动=true
+  ✅ 可区分  saysMissingFile  对照=false  扰动=true
+  ⚠ 分不开  saysNoProblem    对照=false  扰动=false
+
+⚗⚠ 结论留给判据与拍板，本台只给上表：若 pathState / saysNotLoaded / saysMissingFile 三者皆可区分，则「补一条独立断言」在装置上可行。

@@ -1,0 +1,17 @@
+=== 扰动事实 ===
+  pid        : 1983_I_1
+  hadBefore  : true
+  hadAfter   : false
+
+=== 第二分支（数据在、这一题没记录）===
+  hasHandler    : function
+  pathState     : no-problem
+  saysNotLoaded : false
+  saysMissingFile: false
+  saysNoProblem : true
+  saysHowMany   : true
+  textLen       : 78
+  textHead      : 这份逐步路径数据里没有题目 1983_I_1 的记录 / 逐步路径只覆盖 5 道题， 而当前选中的是另一道。在左边「配对题目」里换成有记录的那几道之一就能看到。
+
+⚗⚗ 与 r140a 的第一分支对照：第一分支 pathState="no-data"（有可见文案）
+⚗⚗ 本台 pathState="no-problem"，可见文案长度 78 字
