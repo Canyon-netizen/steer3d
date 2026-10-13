@@ -384,6 +384,8 @@ console.log(`RESULT ${st} ${mainChecks.length - redMain.length}/${mainChecks.len
 //     ⚠⚠⁴ 它唯一的副作用是让仪器**吐出它本来就知道的东西** ——
 //     ⚠⚠⁴⚠⁴⚠⁴ 而「仪器本来就知道却没吐」正是修订 143 记账反转的根因之一。
 console.log('判据名单 ' + mainChecks.length + ' 条：' + mainChecks.map(c => c.name).join(' | '));
+console.log('名单口径 mainChecks + skips（跳过的那几条不在 mainChecks 里，skip() 不进 checks）'
+  + '；全集是 mainChecks，跳过名单只是它的一**注释**，不是并列的第二份全集');
 if (skips.length) {
   // ⚠⚠⁴⚠⁴ 修订 144 的**当场自曝**：改这一块时我先把 `for (const s of skips) console.log('[SKIP] …')`
   //   整段删掉了，理由是「名单行已经覆盖了」。⚗⚠⁴ 而跑台的 `parse()` 是靠

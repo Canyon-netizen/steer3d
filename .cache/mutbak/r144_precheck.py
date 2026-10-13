@@ -21,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 TGT = ROOT / ".cache/browser_verify/verify_path.mjs"
-BASE = ROOT / ".cache/mutbak/verify_path.pre_r144.mjs"
+BASE = ROOT / ".cache/mutbak/verify_path.pre_r144b.mjs"
 BT = chr(96)          # ⚠⚠⁴ 反引号必须用 chr(96) 取：写进 python3 -c 会被 bash 命令替换吃掉
 FS = chr(0xFFFD)      # ⚠ U+FFFD 也要用 chr()：直接写会被当成真字符
 
@@ -34,20 +34,34 @@ FS = chr(0xFFFD)      # ⚠ U+FFFD 也要用 chr()：直接写会被当成真字
 EXPECTED_HUNKS = [
     ("①D5页内块", "back = JSON.parse(await page.eval(`(async () => {"),
     ("①D5保护", "if (!tabXY) return JSON.stringify({ err: '页内找不到 #tabXY"),
-    # ⚠⚠⁴⚠⁴⚠ 这两条是门① **逼我补进来的**，不是我一开始就想到的：
-    #   门① 反向断言「每个新增块都必须被某个锚点覆盖」把它们打了出来。
-    #   ⚗ 第一版我只声明了 6 个锚点，而 diff 有 7 个块 ⇒ **我漏声明了 2 块**。
-    #   ⚠⚠⁴⚠⚴⚠ 核对全文后确认二者都是 D5 改动的**必要组成**：
-    #     · 页内新增了 `const cv = q('#cv'), wrap = q('#pathWrap')` ⇒ 这两行必须改用局部变量
-    #     · Node 侧 try/catch 的 catch 块
-    #   ⚠⚠⁴⚠⚴⚠ ⇒ **纪律：为了让门过关而放宽声明，等于把门关掉。**
-    #     ⚠⚠⁴ 必须先核全文、再照**数据**补声明，不许照**记忆**补。
     ("①D5改用局部变量", "cv: getComputedStyle(cv).display,"),
     ("①D5catch", "back = { err: '页内抛异常：'"),
     ("①D5收红", "back.err || JSON.stringify(back)"),
     ("②判据名单", "console.log('判据名单 ' + mainChecks.length"),
     ("②跳过名单", "console.log('跳过名单 ' + skips.length"),
     ("②自曝", "我先把 `for (const s of skips) console.log('[SKIP] …')`"),
+    ("②口径自证", "全集是 mainChecks，跳过名单只是它的一**注释**"),
+]
+
+# ⚠⚠⁴⚠⁴⚠⚴⚠⚠⚠⚠⚠ **门的设计缺陷，本轮当场暴露**：
+#   ⚗ `EXPECTED_HUNKS` 原本是「本次改动清单」，⚠ 但我往里混进了**上一笔已入库**的 8 个锚点。
+#   ⚠⚠⁴⚠⚠⚠⚠⚠⚠⇒ 于是门① 把「这 8 个在本次 diff 里不存在」判成「改动没落地」⇒ exit 2。
+#   ⚠⚠⁴⚠⚴ ⚠⚠⚴⚠⚠⚠⚠ **「没出现在 diff 里」有两种完全不同的原因**：
+#   ⚠⚠⁴⚠⚠⚠⚠ ⚠ ① 它本来就是本轮要落的 ⇒ 没出现 = **真漏了**（该 exit 2）
+#   ⚠⚠⁴⚠⚠⚠⚠ ⚠ ② 它上一笔就落过了 ⇒ 没出现 = **正常**（该放过）
+#   ⚠⚠⁴⚠⚴⚠ ⚠⚠⚴⚠⚠⚠⚠⚠⚠⚠⚠⚠ **判别式：判断「有没有落」不能只看 diff ——
+#   ⚠⚠⁴⚠⚠⚠⚠ 要么把清单按笔切开，要么把判据拆成**两套**清单**
+#   ⚠⚠⚴⚠ ⚠⚠⚴⚠⚠ ⚠ （「本轮要落的」/「已入库不必再落的」），⚠⚠⚴⚠ ⚠⚠⚴⚠⚠⚠⚠⚠ 不许混在一张表里。
+#   ⚠⚠⁴⚠⚠⚠ ⚠⚠⚴⚠⚠ ⚠ **混在一起时，门的每一次运行都在判一件跟它无关的事。**
+ALREADY_COMMITTED = [
+    "back = JSON.parse(await page.eval(`(async () => {",
+    "if (!tabXY) return JSON.stringify({ err: '页内找不到 #tabXY",
+    "cv: getComputedStyle(cv).display,",
+    "back = { err: '页内抛异常：'",
+    "back.err || JSON.stringify(back)",
+    "console.log('判据名单 ' + mainChecks.length",
+    "console.log('跳过名单 ' + skips.length",
+    "我先把 `for (const s of skips) console.log('[SKIP] …')`",
 ]
 
 # ⚠⚠⁴⚠⁴⚠⚴ 删除侧也必须**逐行声明**。⚗ 理由：本轮真实事故就发生在删除侧 ——
@@ -103,7 +117,27 @@ def hunks_both(new: str, old: str):
     return plus, minus
 
 
+def _assert_no_dup():
+    """⚠⚠⁴⚠⁴⚠⚴ **清单里不许有重复项。**
+    ⚗⚠⚴⚠⚴⚠⚴⚠⚴⚠⚠⚠⚠ 本轮当场撞上：重建 EXPECTED_HUNKS 时多插了一行「①D5页内块」，
+    ⚠⚠⁴⚠ 输出里它**打印了两次**，⚠⚠⚴⚠ 而我没当场看出来 ⇒ ⚠⚠⚴⚠⚴ **门自己在骗人**。
+    ⚠⚠⁴⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ **判别式：门的输出里同一项出现两次，
+    ⚠⚠⁴⚠⚠⚠⚠ ⚠⚠⚴⚠ ⚠⚠⚴⚠ ⚠⚠⚴⚠⚠ ⚠⚠⚴⚠ 不是「多打了一遍」，是「**少了一条断言**」——
+    ⚠⚠⁴⚠⚠ ⚠⚠ ⚠⚠⚴⚠⚠⚠⚠⚠⚠⚠ ⚠ 那一条本该独立核的东西，现在被另一条**顺带**核了。
+    ⚠⚠⁴⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ ⚠⚠⚴⚠ ⚠⚠⚴⚠ ⚠⚠⚴⚠⚠⚠⚠⚠⚠ ⚠⚠⚴⚠ ⚠ ⚠⚠⁴⚠⚠⚠⚠ ⚠⚠⚴⚠
+    ⚠⚠⁴ ⚠⚠⚴⚠ ⚠⚠⚴⚠ ⚠⚠⚴⚠ ⚠⚠⚴⚠ ⚠⚠⚴⚠ ⚠⚠⚴⚠ ⚠⚠⚴⚠ ⚠⚠⁴ ⚠⚠⚴⚠⚠⚠⚠ ⚠⚠⚴⚠
+    """
+    seen, dup = set(), []
+    for name, anchor in EXPECTED_HUNKS:
+        if name in seen:
+            dup.append(name)
+        seen.add(name)
+    if dup:
+        die(f"清单里有重复项 {dup} ⇒ 少了一条独立断言")
+
+
 def gate1_diff():
+    _assert_no_dup()
     old = BASE.read_text(encoding="utf-8")
     new = TGT.read_text(encoding="utf-8")
     plus, minus = hunks_both(new, old)
@@ -126,14 +160,35 @@ def gate1_diff():
     #   ⚠⚠⚴⚠⁴⚠⚴⇒ 唯一的有效判据是**块级**的：锚点必须出现在**某个新增块里**。
     #     ⚠ 那才真的说明「我声明的改动以新增的形式落地了」，且免疫子串问题。
     # 断言①：每个声明的锚点必须出现在**至少一个新增块**里 ⇒ 改动确实落地
-    miss = []
+    # 断言① ⚠⚠⁴⚠⁴⚠⁴⚠⚠⚠⚠⚠ **按 BASE 分派**，不是「一律要落在 diff 里」。
+    #   ⚗⚠⚴⚠⚠⚠⚠⚠⚠⚠⚠⚠ **本轮当场推翻的第一版模型**：「锚点必须出现在某个新增块里」。
+    #   ⚠⚠⁴⚠⚴ ⚠⚠⚴⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ **它只对「这一笔要落的」成立**；
+    #   ⚠⚠⁴⚠ ⚠⚠⚴⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ 一旦清单里混进**上一笔已入库**的锚点，
+    #   ⚠⚠⁴⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ 它就判成「真漏了」⇒ **每次跑都在判一件与它无关的事**。
+    #   ⚠⚠⁴⚠⚠⚠⚠⇒ 判据：**锚点不在 BASE 里 ⇒ 本轮必须出现在 diff 里**（真漏了就 exit 2）；
+    #   ⚠⚠⁴⚠⚠⚠ ⚠⚠⚴⚠⚠ ⚠⚠⚠⚠⚠⚠⚠⚠ ⚠ 锚点**已在 BASE 里** ⇒ 只核它还在新文件里（别被误删）。
+    miss, kept, inbase = [], 0, 0
     for name, anchor in EXPECTED_HUNKS:
-        hit = [i for i, blk in enumerate(plus, 1) if anchor in "\n".join(blk)]
-        print(f"  {'✓' if hit else '⚗✗✗'} {name:<14} 落在新增块 {hit or '无'}")
-        if not hit:
-            miss.append(name)
+        was_in_base = anchor in old
+        now_in_new = anchor in new
+        hit = [k for k, blk in enumerate(plus, 1) if anchor in "\n".join(blk)]
+        if not now_in_new:
+            miss.append(f"{name}(连新文件里都没有)")
+        elif was_in_base:
+            inbase += 1
+            kept += 1
+            print(f"  ✓ {name:<14} 已在 BASE（本轮不必再落）· 仍在新文件里 ✓")
+        else:
+            if hit:
+                print(f"  ✓ {name:<14} 本轮新增，落在新增块 {hit}")
+                kept += 1
+            else:
+                miss.append(f"{name}(不在 BASE 却也没出现在 diff 里)")
     if miss:
-        die(f"{len(miss)} 个声明锚点没落在任何新增块里 ⇒ 改动没落地：{miss}")
+        for m in miss:
+            print(f"  ⚠⚠⁴✗✗ {m}")
+        die(f"{len(miss)} 个锚点不成立")
+    print(f"  ✓ 共 {kept} 个锚点全部成立（其中 {inbase} 个属上一笔已入库、只核未被误删）")
 
     # 断言② ⚠⚠⚴⚠⁴ **反向**：每个新增块都必须被某个锚点覆盖 ⇒ 才能拦住「顺手多改」
     uncov = []
