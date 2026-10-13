@@ -1,0 +1,69 @@
+feat: 多配置一次性上传 + 镜像 completion 握手的 URL 改写旁路
+
+⚠ 本笔**不含任何上传动作**，⚗ 只改脚本、只做静态核验。
+
+一、`upload_to_hf.py`：`_stage` → `_stage_all`
+
+⚠ 原来只暂存**一个** config，现在**每个 CONFIGS 条目各建一个子目录**，
+⚠ 一次 staging、一次 push ⇒ 镜像仓库里两个配置**并列**而不是分两次传。
+
+| 本地 | HF 配置名 | 规模 |
+|---|---|---|
+| `aime_qwen3_1p7b_16k_fp16/aime` | `16k_fp16` | 96 条轨迹（~7.7 GB） |
+| `aime_qwen3_1p7b_32k_fp32/aime` | `32k_fp32` | 60 条轨迹（~12 GB） |
+
+⚠⚠⚴ **仍用 symlink farm，不复制那 ~20 GB。**
+⚠⚠⚴⚠⚴ 而 `upload_folder` 把路径的**第一段**当作 layout root ⇒
+⚠⚠ 必须自己搭这层包装，⚗⚠ **传 `--path-in-repo` 或分两次传都会丢掉并列布局**。
+
+⚠ `_stage` 已**完全删除**，⚗⚠ 全文件无悬空引用（已 grep 核过）。
+⚠ 新函数额外返回 `(total_files, total_bytes)` ⇒ **上传前能报出实际规模**。
+
+二、`upload_to_hf.py`：三处稳健性修补
+
+- ⚠ **token 路径**：新版 `huggingface-cli login`（≥0.10）写到
+  `~/.cache/huggingface/token`，⚗ 旧路径读不到 ⇒ 补上并**优先命中新路径**
+- ⚠ **建仓前先 HEAD**：部分镜像的 `POST /api/datasets` 不稳 ⇒
+  ⚠ 先 HEAD 探、只在确认不存在时才 POST ⇒ ⚗⚠ 少一次把「已存在」报成「创建失败」
+- ⚠ `_stage_all` 对缺目录**直接报错退出**，⚗⚠ 而不是静默传一半
+
+三、`upload_with_dns_patch.py`：镜像握手的 URL 改写
+
+⚠⚠⚴⚠⚴ **⚗ 2026-10-14 更正本文件 docstring 的一句归因**
+
+⚗⚠⚴⚠⚠ 原文写：「a domain that does not exist in public DNS
+(verified against 8.8.8.8: NXDOMAIN)」。
+⚗⚠⚴⚠⚠⚠⚠⚠⚠⚠⚠ **今天复现不出那个 NXDOMAIN。** 实测：
+
+```
+dig +short +time=3 +tries=1 @8.8.8.8 hf-mirror.org   → 空（没有 A 记录）
+host hf-mirror.org                                   → 只有 MX（mx.cloudflare.net）
+对照组 host zzz-nonexistent-9f3a2b.invalid           → NXDOMAIN
+```
+
+⚠⚠⚴⚠ **⇒ 结论没错，错的是归因**：该域名在 DNS 里**存在**（有 MX），
+⚠⚠⚴ **只是没有 A 记录** ⇒ 所以 HTTPS 打不到它。
+⚠⚠⚴⚠⚴⚠ **判别式：「连不上」与「不存在」是两件事** ——
+⚗⚠ 前者改主机名（本文件做的事），⚗⚠ **后者修法完全不同**。
+⚠⚠⚴ 保留 MX 那条观察，正是为了不让下一个人再把它当成「域名不存在」。
+
+⚠⚠⚴⚠⚴⚠⚠ **顺带把复核方法也写进文件了**：
+⚠⚠⚠ **DNS 查询必须带对照组。** ⚗⚠ 一个「什么都答」的本地 sinkhole
+⚠⚠⚠ 会让「解析成功」和「解析失败」两个结论**长得一模一样**
+⚠⚠⚠ ⇒ ⚗⚠ **不带对照组的 DNS 查询证明不了任何事。**
+⚠⚠⚴ （这与「恒绿不是绿」「仪器自己发绿」是同一族：**没有反例的检查等于没检查**。）
+
+⚠ `huggingface_hub` 的 `fix_hf_endpoint_in_url` 只改写
+`huggingface.co` / `hub-ci.huggingface.co`，⚗ **不碰 `hf-mirror.org`**
+⇒ ⚠⚠⚴ 所以坏 URL 原样漏过去 ⇒ 本文件 monkey-patch 让它也改写到当前
+`HF_ENDPOINT`。
+
+四、⚠ 本笔做过的核验 / 没做的
+
+✅ 两个脚本 `ast.parse` 通过（`upload_to_hf.py` 337 行、`upload_with_dns_patch.py` 99 行）
+✅ `_stage` 无悬空引用；两份 docstring 经 AST 读回，确认更正段落确实在模块 docstring 里
+✅ DNS 三行（含 `.invalid` 对照组）实跑，结论已写进文件
+⚠ **没跑过一次真实上传**（需网络 + 凭据 + ~20 GB 本地数据）⇒
+⚠⚠⚴ **因此「上传成功」这句话本笔一个字都没说。**
+⚠⚠⚴⚠⚴⚠⚴⚠⚴⚠ **判别式：脚本「语法通过 / docstring 正确」与「上传能用」
+⚗⚠⚠ 是两件事** —— ⚗⚠⚠⚠⚠⚠⚠⚠ 前者本笔验了，⚗⚠⚠⚠⚗ **后者一个字都没验。**

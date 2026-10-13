@@ -116,6 +116,10 @@ def _resolve_token(cli_token: str | None) -> str:
     cached = Path.home() / ".huggingface" / "token"
     if cached.is_file():
         return cached.read_text().strip()
+    # Newer ``huggingface-cli login`` (>=0.10) writes here instead.
+    cached_new = Path.home() / ".cache" / "huggingface" / "token"
+    if cached_new.is_file():
+        return cached_new.read_text().strip()
     raise SystemExit(
         "no HF token found. Set $HF_TOKEN or run `huggingface-cli login` first."
     )
@@ -142,37 +146,68 @@ def _scan(local_dir: Path) -> tuple[int, int]:
     return count, total
 
 
-def _stage(local_dir: Path, hf_config: str) -> Path:
-    """Copy ``local_dir`` into a temp staging folder whose top-level name is
-    the HF config name. huggingface_hub's upload_folder treats the first
-    path segment as the layout root, so we need to wrap it ourselves rather
-    than passing --path-in-repo and uploading two folders separately (which
-    would lose the side-by-side config layout)."""
+def _stage_all() -> tuple[Path, int, int]:
+    """Build a single staging dir that contains one subfolder per config,
+    symlinked from the original location to avoid duplicating 20 GB on disk.
+
+    Returns (stage_root, total_files, total_bytes)."""
 
     stage = Path(tempfile.mkdtemp(prefix="r3d-upload-"))
-    target = stage / hf_config
-    # Use a symlink farm rather than duplicating 20 GB on disk.
-    target.mkdir(parents=True, exist_ok=True)
-    for entry in local_dir.iterdir():
-        os.symlink(entry.resolve(), target / entry.name)
-    return stage
+    total_files = 0
+    total_bytes = 0
+    for local_subdir, hf_config, _ in CONFIGS:
+        local_dir = DATASETS_DIR / local_subdir
+        if not local_dir.is_dir():
+            raise SystemExit(f"missing local dir: {local_dir}")
+        target = stage / hf_config
+        target.mkdir(parents=True, exist_ok=True)
+        for entry in local_dir.iterdir():
+            os.symlink(entry.resolve(), target / entry.name)
+            if entry.is_file():
+                total_files += 1
+                total_bytes += entry.stat().st_size
+    return stage, total_files, total_bytes
 
 
 def _ensure_dataset_exists(api, repo_id: str, private: bool) -> None:
-    """Create the dataset repo if it does not already exist."""
+    """Create the dataset repo if it does not already exist.
+
+    Some HF mirrors (e.g. hf-mirror.com) have flaky ``POST /api/datasets``
+    endpoints. To stay robust, we HEAD-check first and only POST-create
+    when the repo is genuinely absent; both calls retry on connection
+    errors with exponential backoff.
+    """
     from huggingface_hub import create_repo
 
     repo_type = "dataset"
-    try:
-        create_repo(
-            repo_id,
-            repo_type=repo_type,
-            private=private,
-            exist_ok=True,
-            token=api.token,
-        )
-    except Exception as exc:  # pragma: no cover — surface verbatim
-        raise SystemExit(f"failed to create/access repo {repo_id!r}: {exc}") from exc
+    last_exc: Exception | None = None
+    for attempt in range(4):
+        try:
+            exists = api.repo_exists(repo_id, repo_type=repo_type, token=api.token)
+            if exists:
+                print(f"  repo exists (HEAD ok, attempt {attempt + 1})")
+                return
+            print(f"  repo missing, creating (attempt {attempt + 1})...")
+            create_repo(
+                repo_id,
+                repo_type=repo_type,
+                private=private,
+                exist_ok=True,
+                token=api.token,
+            )
+            return
+        except Exception as exc:  # network blip — retry
+            last_exc = exc
+            wait = 2 ** attempt
+            print(
+                f"  attempt {attempt + 1} failed: {type(exc).__name__}: "
+                f"{str(exc)[:120]}; retrying in {wait}s",
+                file=sys.stderr,
+            )
+            import time as _time
+
+            _time.sleep(wait)
+    raise SystemExit(f"failed to create/access repo {repo_id!r}: {last_exc}")
 
 
 def upload(
@@ -180,56 +215,80 @@ def upload(
     private: bool,
     token: str,
     dry_run: bool,
+    num_workers: int,
 ) -> None:
-    from huggingface_hub import HfApi, upload_folder
+    from huggingface_hub import HfApi, upload_large_folder
 
     api = HfApi(token=token)
 
     print(f"target repo : {repo_id}  (private={private})")
+    print(f"workers     : {num_workers}")
     if not dry_run:
         _ensure_dataset_exists(api, repo_id, private)
 
-    grand_files = 0
-    grand_bytes = 0
-    for local_subdir, hf_config, desc in CONFIGS:
-        local_dir = DATASETS_DIR / local_subdir
-        n, b = _scan(local_dir)
-        grand_files += n
-        grand_bytes += b
-        print()
-        print(f"=== config: {hf_config} ===")
-        print(f"  local      : {local_dir}")
-        print(f"  description: {desc}")
-        print(f"  files      : {n}")
-        print(f"  total size : {_human_size(b)}")
-        if dry_run:
+    # ---- dry run: just scan, no staging, no API calls beyond repo check ----
+    if dry_run:
+        grand_files = 0
+        grand_bytes = 0
+        for local_subdir, hf_config, desc in CONFIGS:
+            local_dir = DATASETS_DIR / local_subdir
+            n, b = _scan(local_dir)
+            grand_files += n
+            grand_bytes += b
+            print()
+            print(f"=== config: {hf_config} ===")
+            print(f"  local      : {local_dir}")
+            print(f"  description: {desc}")
+            print(f"  files      : {n}")
+            print(f"  total size : {_human_size(b)}")
             print("  --dry-run: skipping upload")
-            continue
+        print()
+        print("=== summary ===")
+        print(f"  repo       : https://huggingface.co/datasets/{repo_id}")
+        print(f"  configs    : {len(CONFIGS)}  ({', '.join(c[1] for c in CONFIGS)})")
+        print(f"  files      : {grand_files}")
+        print(f"  total size : {_human_size(grand_bytes)}")
+        return
 
-        stage = _stage(local_dir, hf_config)
-        try:
-            upload_folder(
-                path=str(stage),
-                repo_id=repo_id,
-                repo_type="dataset",
-                commit_message=f"upload {hf_config} trajectories",
-                # huggingface_hub auto-skips identical blobs already on the
-                # hub, so re-running this script is safe and cheap.
-                ignore_patterns=[
-                    "**/.DS_Store",
-                    "**/Thumbs.db",
-                ],
-                token=token,
-            )
-        finally:
-            shutil.rmtree(stage, ignore_errors=True)
+    # ---- real upload ----
+    # Stage once. upload_large_folder uploads to the repo root with the
+    # layout of the folder, so symlinking both config subfolders side by
+    # side gives us 16k_fp16/ and 32k_fp32/ as the on-disk layout. Files
+    # are not duplicated: symlinks resolve to the originals under datasets/.
+    stage, total_files, total_bytes = _stage_all()
+    print()
+    print(f"=== staging ===")
+    print(f"  root  : {stage}")
+    print(f"  files : {total_files}")
+    print(f"  size  : {_human_size(total_bytes)}")
+    print()
+    print(f"=== uploading via upload_large_folder ===")
+    print(f"  chunks are split across multiple commits automatically")
+    print(f"  progress report every 60s; Ctrl-C to pause and re-run later")
+    print()
+    try:
+        # upload_large_folder() does not accept ``token=`` — it picks up the
+        # cached login (`~/.cache/huggingface/token`) or $HF_TOKEN itself.
+        # Push the token into the env to be safe with custom mirrors.
+        if token:
+            os.environ["HF_TOKEN"] = token
+        upload_large_folder(
+            repo_id=repo_id,
+            folder_path=str(stage),
+            repo_type="dataset",
+            # multi-worker parallel upload (default = CPU count)
+            num_workers=num_workers,
+            print_report=True,
+            print_report_every=60,
+        )
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
 
     print()
-    print(f"=== summary ===")
-    print(f"  repo       : https://huggingface.co/datasets/{repo_id}")
-    print(f"  configs    : {len(CONFIGS)}  ({', '.join(c[1] for c in CONFIGS)})")
-    print(f"  files      : {grand_files}")
-    print(f"  total size : {_human_size(grand_bytes)}")
+    print("=== done ===")
+    print(f"  repo    : https://huggingface.co/datasets/{repo_id}")
+    print(f"  files   : {total_files}")
+    print(f"  size    : {_human_size(total_bytes)}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -256,6 +315,13 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="scan local data and report sizes, do not upload",
     )
+    p.add_argument(
+        "--num-workers",
+        type=int,
+        default=8,
+        help="parallel upload workers (default 8); bump for faster upload "
+             "if you have the bandwidth",
+    )
     args = p.parse_args(argv)
 
     upload(
@@ -263,6 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         private=args.private,
         token=_resolve_token(args.token),
         dry_run=args.dry_run,
+        num_workers=args.num_workers,
     )
     return 0
 
