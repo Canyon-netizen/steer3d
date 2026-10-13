@@ -1,0 +1,3 @@
+[扰动已落地] 臂 a1b：{"k":"a1b","before":1,"after":0,"note":"等 [data-pathblock] 出现后把 data-pathstate 改成 BROKEN"}
+RED  A1 切到第 5 屏后块出现  state=BROKEN
+RESULT FAIL 35/36
