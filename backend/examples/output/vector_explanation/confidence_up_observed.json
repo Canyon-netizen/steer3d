@@ -1,0 +1,423 @@
+{
+  "kind": "observational",
+  "evaluation_split": "overlap",
+  "evidence_status": "exploratory_possible_extraction_overlap",
+  "n_trajectories": 48,
+  "n_tokens": 69155,
+  "n_problems": 24,
+  "lag": 0,
+  "n_random": 64,
+  "seed": 20261009,
+  "method": "within-trajectory Spearman, average traces within problem, equal problem weights",
+  "null": "isotropic unit directions, max absolute mean rho across measured observables; (b+1)/(R+1)",
+  "associations": {
+    "generation_position": {
+      "status": "association_only",
+      "rho_cosine": 0.07937856996129593,
+      "rho_raw_projection": 0.09439945898578274,
+      "n_raw_projection_problems": 24,
+      "problem_bootstrap_ci95": [
+        0.03498528439334299,
+        0.12408601210051096
+      ],
+      "n_problems": 24,
+      "n_variable_trajectories": 48,
+      "random_abs_rho_q95": 0.1605174261097396,
+      "random_max_stat_p": 0.9384615384615385
+    },
+    "in_think_block": {
+      "status": "association_only",
+      "rho_cosine": -0.10381037331043624,
+      "rho_raw_projection": -0.09202619272489632,
+      "n_raw_projection_problems": 3,
+      "problem_bootstrap_ci95": [
+        -0.23223485438500244,
+        0.07534491424196825
+      ],
+      "n_problems": 3,
+      "n_variable_trajectories": 3,
+      "random_abs_rho_q95": 0.17142877438037407,
+      "random_max_stat_p": 0.8153846153846154
+    },
+    "next_token_entropy": {
+      "status": "association_only",
+      "rho_cosine": -0.6247462889752426,
+      "rho_raw_projection": -0.6219622761538137,
+      "n_raw_projection_problems": 24,
+      "problem_bootstrap_ci95": [
+        -0.6389765392213005,
+        -0.6093283932497031
+      ],
+      "n_problems": 24,
+      "n_variable_trajectories": 48,
+      "random_abs_rho_q95": 0.22701598984779126,
+      "random_max_stat_p": 0.015384615384615385
+    },
+    "next_token_top1_probability": {
+      "status": "association_only",
+      "rho_cosine": 0.5962586683067823,
+      "rho_raw_projection": 0.5943643816136379,
+      "n_raw_projection_problems": 24,
+      "problem_bootstrap_ci95": [
+        0.5804878611601375,
+        0.610262448272437
+      ],
+      "n_problems": 24,
+      "n_variable_trajectories": 48,
+      "random_abs_rho_q95": 0.2094697864605968,
+      "random_max_stat_p": 0.015384615384615385
+    },
+    "number_token": {
+      "status": "association_only",
+      "rho_cosine": 0.36489774239349154,
+      "rho_raw_projection": 0.3618173611401965,
+      "n_raw_projection_problems": 24,
+      "problem_bootstrap_ci95": [
+        0.30390325203830804,
+        0.4203659342769309
+      ],
+      "n_problems": 24,
+      "n_variable_trajectories": 48,
+      "random_abs_rho_q95": 0.19709049404531748,
+      "random_max_stat_p": 0.015384615384615385
+    },
+    "operator_token": {
+      "status": "association_only",
+      "rho_cosine": 0.1312605237571778,
+      "rho_raw_projection": 0.13242718245901489,
+      "n_raw_projection_problems": 24,
+      "problem_bootstrap_ci95": [
+        0.09491025800998522,
+        0.17144727113042638
+      ],
+      "n_problems": 24,
+      "n_variable_trajectories": 47,
+      "random_abs_rho_q95": 0.1294098123098076,
+      "random_max_stat_p": 0.5692307692307692
+    },
+    "revision_marker_token": {
+      "status": "association_only",
+      "rho_cosine": -0.11156821773921775,
+      "rho_raw_projection": -0.09529220271405037,
+      "n_raw_projection_problems": 24,
+      "problem_bootstrap_ci95": [
+        -0.12307941138431035,
+        -0.09987852181193514
+      ],
+      "n_problems": 24,
+      "n_variable_trajectories": 27,
+      "random_abs_rho_q95": 0.07970941424458709,
+      "random_max_stat_p": 0.7076923076923077
+    }
+  },
+  "contexts": {
+    "positive": [
+      {
+        "trajectory_id": "aime__2021__2021_I_1__no_think",
+        "step": 110,
+        "polarity": "positive",
+        "cosine": 0.3226286570739733,
+        "text": "frac{(n+2) + n}{n(n+2)} = \\frac{2n + 2}{n"
+      },
+      {
+        "trajectory_id": "aime__2021__2021_I_1__think",
+        "step": 172,
+        "polarity": "positive",
+        "cosine": 0.31244167619610763,
+        "text": " + 2) + n ] / [n(n + 2)] = k/100.\n\nSimplifying"
+      },
+      {
+        "trajectory_id": "aime__1989__1989_I_1__think",
+        "step": 546,
+        "polarity": "positive",
+        "cosine": 0.30376951870390456,
+        "text": ".\n\nFirst, note that n(n-1)(n-2)(n-3) can be written as [(n)("
+      },
+      {
+        "trajectory_id": "aime__1989__1989_I_1__no_think",
+        "step": 305,
+        "polarity": "positive",
+        "cosine": 0.293606813342643,
+        "text": "(n+1)(n)(n-1)(n-2) = (n^2 - 1)(n^"
+      },
+      {
+        "trajectory_id": "aime__1994__1994_I_1__think",
+        "step": 781,
+        "polarity": "positive",
+        "cosine": 0.29185147958537183,
+        "text": "(h + 5) + 12r(h + 5) + 36(h + 5)\n\nWhich"
+      }
+    ],
+    "negative": [
+      {
+        "trajectory_id": "aime__2022__2022_I_1__think",
+        "step": 813,
+        "polarity": "negative",
+        "cosine": -0.3550876816198857,
+        "text": " integers\". Are there any other solutions?\n\nWait, but maybe I need to check if there are other possibilities. For example,"
+      },
+      {
+        "trajectory_id": "aime__1990__1990_I_1__no_think",
+        "step": 629,
+        "polarity": "negative",
+        "cosine": -0.35387820503401674,
+        "text": " difference in speed **in meters per minute**.\n\nLet’s compute the exact value of the difference in distance:\n\n$$\n1"
+      },
+      {
+        "trajectory_id": "aime__1984__1984_I_1__no_think",
+        "step": 920,
+        "polarity": "negative",
+        "cosine": -0.3537071576820467,
+        "text": " of the sum** in a **finite** sense.\n\nBut we can instead use the identity:\n\n$$\n\\cot(\\ar"
+      },
+      {
+        "trajectory_id": "aime__1987__1987_I_1__think",
+        "step": 508,
+        "polarity": "negative",
+        "cosine": -0.3523942063371819,
+        "text": " inclusion-exclusion might get complicated here.\n\nWait, but maybe I can use the principle of inclusion-exclusion for coprimality"
+      },
+      {
+        "trajectory_id": "aime__1987__1987_I_1__no_think",
+        "step": 767,
+        "polarity": "negative",
+        "cosine": -0.3521445928552833,
+        "text": " applicable. Instead, we can use the following:\n\nLet’s define:\n\n$$\nC(N) = \\text{number of"
+      }
+    ]
+  },
+  "limits": [
+    "Associations do not establish causal effects or necessity.",
+    "Constant within-trajectory labels cannot identify a within-trajectory function.",
+    "Random-direction p measures geometric specificity, not a label-permutation null.",
+    "Evaluation independence is caller-declared; extraction provenance needs separate verification."
+  ],
+  "model": "Qwen/Qwen3-1.7B",
+  "hidden_index": 14,
+  "hidden_index_convention": "NPZ storage axis; consult collector for block input/output and final norm convention",
+  "trajectories": [
+    {
+      "id": "aime__1983__1983_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1983__1983_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1983__1983_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1983__1983_I_1__think.npz"
+    },
+    {
+      "id": "aime__1984__1984_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1984__1984_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1984__1984_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1984__1984_I_1__think.npz"
+    },
+    {
+      "id": "aime__1985__1985_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1985__1985_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1985__1985_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1985__1985_I_1__think.npz"
+    },
+    {
+      "id": "aime__1986__1986_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1986__1986_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1986__1986_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1986__1986_I_1__think.npz"
+    },
+    {
+      "id": "aime__1987__1987_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1987__1987_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1987__1987_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1987__1987_I_1__think.npz"
+    },
+    {
+      "id": "aime__1988__1988_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1988__1988_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1988__1988_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1988__1988_I_1__think.npz"
+    },
+    {
+      "id": "aime__1989__1989_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1989__1989_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1989__1989_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1989__1989_I_1__think.npz"
+    },
+    {
+      "id": "aime__1990__1990_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1990__1990_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1990__1990_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1990__1990_I_1__think.npz"
+    },
+    {
+      "id": "aime__1991__1991_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1991__1991_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1991__1991_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1991__1991_I_1__think.npz"
+    },
+    {
+      "id": "aime__1992__1992_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1992__1992_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1992__1992_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1992__1992_I_1__think.npz"
+    },
+    {
+      "id": "aime__1994__1994_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1994__1994_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__1994__1994_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1994__1994_I_1__think.npz"
+    },
+    {
+      "id": "aime__2000__2000_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2000__2000_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2000__2000_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2000__2000_I_1__think.npz"
+    },
+    {
+      "id": "aime__2002__2002_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2002__2002_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2002__2002_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2002__2002_I_1__think.npz"
+    },
+    {
+      "id": "aime__2004__2004_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2004__2004_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2004__2004_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2004__2004_I_1__think.npz"
+    },
+    {
+      "id": "aime__2010__2010_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2010__2010_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2010__2010_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2010__2010_I_1__think.npz"
+    },
+    {
+      "id": "aime__2012__2012_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2012__2012_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2012__2012_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2012__2012_I_1__think.npz"
+    },
+    {
+      "id": "aime__2014__2014_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2014__2014_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2014__2014_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2014__2014_I_1__think.npz"
+    },
+    {
+      "id": "aime__2016__2016_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2016__2016_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2016__2016_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2016__2016_I_1__think.npz"
+    },
+    {
+      "id": "aime__2020__2020_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2020__2020_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2020__2020_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2020__2020_I_1__think.npz"
+    },
+    {
+      "id": "aime__2021__2021_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2021__2021_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2021__2021_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2021__2021_I_1__think.npz"
+    },
+    {
+      "id": "aime__2022__2022_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2022__2022_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2022__2022_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2022__2022_I_1__think.npz"
+    },
+    {
+      "id": "aime__2023__2023_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2023__2023_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2023__2023_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2023__2023_I_1__think.npz"
+    },
+    {
+      "id": "aime__2024__2024_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2024__2024_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2024__2024_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2024__2024_I_1__think.npz"
+    },
+    {
+      "id": "aime__2025__2025_I_1__no_think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2025__2025_I_1__no_think.npz"
+    },
+    {
+      "id": "aime__2025__2025_I_1__think",
+      "source": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__2025__2025_I_1__think.npz"
+    }
+  ],
+  "observable_definitions": {
+    "revision_marker_token": "per-token regex: wait/actually/hmm/recheck/alternatively; multi-token phrases can be missed",
+    "number_token": "decoded token contains an ASCII digit",
+    "operator_token": "decoded token contains a listed arithmetic symbol",
+    "in_think_block": "sidecar flag; often constant throughout a trajectory",
+    "generation_position": "t/(T-1); a positional control, not reasoning depth"
+  },
+  "schema": "steer3d.vector_explanation/1",
+  "vector": {
+    "path": "/Users/zhourui/code/steer3d/backend/examples/output/steering_vectors/confidence_up.npy",
+    "sha256": "27ca450419800429af0afe3b331263e1e99fba92a706841d19552e44a4b6193d",
+    "metadata": {
+      "description": "Raise confidence / lower entropy",
+      "layer": 14,
+      "d_model": 2048,
+      "method": "diff_of_means",
+      "positive_group": "low-entropy tokens (p30)",
+      "negative_group": "high-entropy tokens (p75)",
+      "n_positive": 20930,
+      "n_negative": 15718,
+      "norm": 1.0,
+      "validation": {
+        "layer": 14,
+        "norm": 1.0,
+        "confidence_cohens_d": 1.8283096551895142,
+        "confidence_separation": 33.690555572509766
+      }
+    },
+    "model_identity_verified": false
+  },
+  "generated_by": "backend/examples/explain_vector.py"
+}

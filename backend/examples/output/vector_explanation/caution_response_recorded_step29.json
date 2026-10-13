@@ -1,0 +1,1814 @@
+{
+  "kind": "local_causal_response",
+  "layer": 20,
+  "site": "block_input",
+  "position": 127,
+  "prefix_token_ids": [
+    151644,
+    8948,
+    198,
+    2610,
+    525,
+    458,
+    6203,
+    20976,
+    1103,
+    26168,
+    304,
+    279,
+    362,
+    5660,
+    320,
+    28418,
+    18807,
+    49824,
+    49795,
+    71494,
+    568,
+    63284,
+    279,
+    2661,
+    3491,
+    3019,
+    553,
+    3019,
+    13,
+    6928,
+    678,
+    32711,
+    9355,
+    13,
+    4615,
+    1590,
+    4226,
+    1969,
+    387,
+    264,
+    2477,
+    60935,
+    7546,
+    1948,
+    220,
+    15,
+    323,
+    220,
+    24,
+    24,
+    24,
+    13,
+    26642,
+    432,
+    4766,
+    1124,
+    79075,
+    6257,
+    389,
+    1181,
+    1828,
+    1555,
+    518,
+    279,
+    1602,
+    835,
+    315,
+    697,
+    2033,
+    13,
+    151645,
+    198,
+    151644,
+    872,
+    198,
+    46254,
+    17946,
+    1188,
+    18,
+    16,
+    2376,
+    18,
+    15,
+    2376,
+    17,
+    24,
+    2376,
+    17,
+    23,
+    8,
+    488,
+    220,
+    16,
+    568,
+    151645,
+    198,
+    151644,
+    77091,
+    198,
+    151667,
+    198,
+    32313,
+    11,
+    773,
+    358,
+    1184,
+    311,
+    12564,
+    279,
+    9334,
+    3704,
+    315,
+    320,
+    18,
+    16,
+    17568,
+    18,
+    15,
+    17568,
+    17,
+    24,
+    17568,
+    17,
+    23,
+    488,
+    220,
+    16,
+    568
+  ],
+  "baseline_site_norm": 789.3389892578125,
+  "zero_control_max_logit_error": 0.0,
+  "zero_control_max_state_error": 0.0,
+  "epsilon_relative": 0.001,
+  "n_random": 16,
+  "seed": 20261009,
+  "finite_difference_relative_disagreement_at_half_epsilon": 0.0024726146859353425,
+  "target_probability_derivative": {
+    "hmm": -5.5935607531486435e-05
+  },
+  "derivative_method": "central finite difference of full-model log probabilities per unit residual norm",
+  "targets": {
+    "hmm": [
+      88190
+    ]
+  },
+  "arms": [
+    {
+      "delta_entropy": -0.013951355909332797,
+      "kl_base_to_arm": 0.00046738142234776733,
+      "next_token_base": 88190,
+      "next_token_arm": 88190,
+      "target_probability_delta": {
+        "hmm": 0.0039195860275117456
+      },
+      "layers": [
+        {
+          "site": "block_0_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_1_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_2_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_3_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_4_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_5_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_6_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_7_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_8_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_9_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_10_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_11_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_12_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_13_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_14_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_15_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_16_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_17_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_18_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_19_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_20_output",
+          "relative_shift": 0.11014441506238518,
+          "delta_cosine_with_vector": -0.744945249946872
+        },
+        {
+          "site": "block_21_output",
+          "relative_shift": 0.11333803395641195,
+          "delta_cosine_with_vector": -0.6401376693915695
+        },
+        {
+          "site": "block_22_output",
+          "relative_shift": 0.10461479591956814,
+          "delta_cosine_with_vector": -0.5554631568267936
+        },
+        {
+          "site": "block_23_output",
+          "relative_shift": 0.09985691384959972,
+          "delta_cosine_with_vector": -0.513347051813017
+        },
+        {
+          "site": "block_24_output",
+          "relative_shift": 0.0911216697020485,
+          "delta_cosine_with_vector": -0.47712440114957766
+        },
+        {
+          "site": "block_25_output",
+          "relative_shift": 0.08048915864732215,
+          "delta_cosine_with_vector": -0.4317557674068728
+        },
+        {
+          "site": "block_26_output",
+          "relative_shift": 0.07264231382725678,
+          "delta_cosine_with_vector": -0.3996856988810073
+        },
+        {
+          "site": "block_27_output",
+          "relative_shift": 0.11606399163235985,
+          "delta_cosine_with_vector": -0.3719883876006802
+        },
+        {
+          "site": "final_post_norm",
+          "relative_shift": 0.077514122586806,
+          "delta_cosine_with_vector": -0.3678014324209071
+        }
+      ],
+      "strength": -0.1,
+      "alpha": -78.93389892578125,
+      "linear_prediction_relative_error": 0.0989863761992436,
+      "promoted_tokens": [
+        {
+          "token_id": 135535,
+          "token": "...............",
+          "base_probability": 4.1092325749622266e-19,
+          "arm_probability": 1.4330805137489816e-18,
+          "delta_log_probability": 1.2491751360579855
+        },
+        {
+          "token_id": 84342,
+          "token": "ohana",
+          "base_probability": 5.696889292771832e-19,
+          "arm_probability": 1.861988014024825e-18,
+          "delta_log_probability": 1.1843095469161398
+        },
+        {
+          "token_id": 112800,
+          "token": "谁能",
+          "base_probability": 7.601540670507341e-20,
+          "arm_probability": 2.375252943658458e-19,
+          "delta_log_probability": 1.1393380808516866
+        },
+        {
+          "token_id": 40641,
+          "token": " Hamas",
+          "base_probability": 3.325351224949792e-16,
+          "arm_probability": 9.957684485669195e-16,
+          "delta_log_probability": 1.0967692631169683
+        },
+        {
+          "token_id": 1112,
+          "token": "...",
+          "base_probability": 3.302226849504828e-15,
+          "arm_probability": 9.618464277859068e-15,
+          "delta_log_probability": 1.069087569682253
+        },
+        {
+          "token_id": 2503,
+          "token": " ...",
+          "base_probability": 4.2181723208657523e-14,
+          "arm_probability": 1.1597923388922548e-13,
+          "delta_log_probability": 1.0114241289779073
+        },
+        {
+          "token_id": 104488,
+          "token": "脸上",
+          "base_probability": 1.1976027781009446e-18,
+          "arm_probability": 3.2703482426531845e-18,
+          "delta_log_probability": 1.0045746016188986
+        },
+        {
+          "token_id": 78144,
+          "token": " Happiness",
+          "base_probability": 4.0560107961912755e-15,
+          "arm_probability": 1.0933242260380842e-14,
+          "delta_log_probability": 0.991607968775881
+        },
+        {
+          "token_id": 323,
+          "token": " and",
+          "base_probability": 3.069717830421623e-15,
+          "arm_probability": 8.23869533562603e-15,
+          "delta_log_probability": 0.9872563528701193
+        },
+        {
+          "token_id": 47565,
+          "token": " Raspberry",
+          "base_probability": 5.791715725508178e-17,
+          "arm_probability": 1.5080713365445578e-16,
+          "delta_log_probability": 0.9569880935236341
+        }
+      ],
+      "suppressed_tokens": [
+        {
+          "token_id": 68387,
+          "token": " alternatively",
+          "base_probability": 3.301831114527069e-20,
+          "arm_probability": 2.714035386406738e-21,
+          "delta_log_probability": -2.4986256909683817
+        },
+        {
+          "token_id": 85556,
+          "token": "cob",
+          "base_probability": 2.327610194362832e-20,
+          "arm_probability": 1.9454766057927267e-21,
+          "delta_log_probability": -2.4819201779678934
+        },
+        {
+          "token_id": 24160,
+          "token": "mul",
+          "base_probability": 1.772069418507759e-18,
+          "arm_probability": 1.547354252321942e-19,
+          "delta_log_probability": -2.4381865811661356
+        },
+        {
+          "token_id": 92014,
+          "token": "Alternatively",
+          "base_probability": 6.8384028064412186e-18,
+          "arm_probability": 6.1722345914978e-19,
+          "delta_log_probability": -2.405078346760618
+        },
+        {
+          "token_id": 11584,
+          "token": "epar",
+          "base_probability": 5.409856441520433e-19,
+          "arm_probability": 5.045915436930666e-20,
+          "delta_log_probability": -2.3722285580948466
+        },
+        {
+          "token_id": 57706,
+          "token": ".Multi",
+          "base_probability": 1.0753470991866682e-17,
+          "arm_probability": 1.049577573461121e-18,
+          "delta_log_probability": -2.326840813191282
+        },
+        {
+          "token_id": 114858,
+          "token": "未曾",
+          "base_probability": 1.1366341471054716e-21,
+          "arm_probability": 1.152060511570608e-22,
+          "delta_log_probability": -2.289104397328245
+        },
+        {
+          "token_id": 36760,
+          "token": "maybe",
+          "base_probability": 1.902016703230213e-17,
+          "arm_probability": 1.9349844191035167e-18,
+          "delta_log_probability": -2.2854005647019022
+        },
+        {
+          "token_id": 31476,
+          "token": "Perhaps",
+          "base_probability": 2.5612284954789742e-20,
+          "arm_probability": 2.6190661364210524e-21,
+          "delta_log_probability": -2.280254299671995
+        },
+        {
+          "token_id": 8365,
+          "token": " perhaps",
+          "base_probability": 3.392562006946955e-20,
+          "arm_probability": 3.488671230589486e-21,
+          "delta_log_probability": -2.2746495557144755
+        }
+      ],
+      "largest_probability_changes": [
+        {
+          "token_id": 6771,
+          "token": " Let",
+          "base_probability": 0.025803358991742305,
+          "arm_probability": 0.021332331378729828,
+          "delta_probability": -0.0044710276130124765,
+          "delta_log_probability": -0.19028084996496375
+        },
+        {
+          "token_id": 88190,
+          "token": " Hmm",
+          "base_probability": 0.9664483392770109,
+          "arm_probability": 0.9703679253045226,
+          "delta_probability": 0.0039195860275117456,
+          "delta_log_probability": 0.004047458140505
+        },
+        {
+          "token_id": 2938,
+          "token": " That",
+          "base_probability": 0.007484396802033697,
+          "arm_probability": 0.0080319757018923,
+          "delta_probability": 0.0005475788998586025,
+          "delta_log_probability": 0.07061011072839563
+        },
+        {
+          "token_id": 97593,
+          "token": " Alright",
+          "base_probability": 0.00022802219479976603,
+          "arm_probability": 0.0002326189088645347,
+          "delta_probability": 4.5967140647686804e-06,
+          "delta_log_probability": 0.019958560435426875
+        },
+        {
+          "token_id": 80022,
+          "token": "Hmm",
+          "base_probability": 8.07183162792417e-06,
+          "arm_probability": 5.910932752655814e-06,
+          "delta_probability": -2.1608988752683555e-06,
+          "delta_log_probability": -0.3115767789200419
+        },
+        {
+          "token_id": 472,
+          "token": " H",
+          "base_probability": 8.656326782179758e-06,
+          "arm_probability": 1.0741437687147989e-05,
+          "delta_probability": 2.085110904968231e-06,
+          "delta_log_probability": 0.21581846949304406
+        },
+        {
+          "token_id": 2411,
+          "token": " At",
+          "base_probability": 3.919531492246563e-06,
+          "arm_probability": 1.9847692901860514e-06,
+          "delta_probability": -1.934762202060511e-06,
+          "delta_log_probability": -0.6804694485977762
+        },
+        {
+          "token_id": 45717,
+          "token": " Wow",
+          "base_probability": 1.4727239163772367e-05,
+          "arm_probability": 1.6143764398304265e-05,
+          "delta_probability": 1.4165252345318975e-06,
+          "delta_log_probability": 0.09183508631433313
+        },
+        {
+          "token_id": 13824,
+          "token": " Wait",
+          "base_probability": 1.4780917444865897e-07,
+          "arm_probability": 6.165776983740258e-08,
+          "delta_probability": -8.615140461125639e-08,
+          "delta_log_probability": -0.8743228268936747
+        },
+        {
+          "token_id": 87501,
+          "token": " hmm",
+          "base_probability": 8.436752585220548e-08,
+          "arm_probability": 4.7824977487461786e-08,
+          "delta_probability": -3.654254836474369e-08,
+          "delta_log_probability": -0.5676345181778544
+        }
+      ],
+      "target_random_max_stat_p": {
+        "hmm": 0.7647058823529411
+      }
+    },
+    {
+      "delta_entropy": -0.00709514950385832,
+      "kl_base_to_arm": 0.00014969537033755225,
+      "next_token_base": 88190,
+      "next_token_arm": 88190,
+      "target_probability_delta": {
+        "hmm": 0.0020759053856207466
+      },
+      "layers": [
+        {
+          "site": "block_0_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_1_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_2_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_3_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_4_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_5_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_6_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_7_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_8_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_9_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_10_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_11_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_12_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_13_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_14_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_15_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_16_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_17_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_18_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_19_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_20_output",
+          "relative_shift": 0.054879576942162236,
+          "delta_cosine_with_vector": -0.7441474130168871
+        },
+        {
+          "site": "block_21_output",
+          "relative_shift": 0.05649597016547802,
+          "delta_cosine_with_vector": -0.6381020803601904
+        },
+        {
+          "site": "block_22_output",
+          "relative_shift": 0.051968126237509724,
+          "delta_cosine_with_vector": -0.5547387040673929
+        },
+        {
+          "site": "block_23_output",
+          "relative_shift": 0.049628001508151665,
+          "delta_cosine_with_vector": -0.5138242196176825
+        },
+        {
+          "site": "block_24_output",
+          "relative_shift": 0.045286377533892155,
+          "delta_cosine_with_vector": -0.47773763354243104
+        },
+        {
+          "site": "block_25_output",
+          "relative_shift": 0.03995706179842316,
+          "delta_cosine_with_vector": -0.4326613362323296
+        },
+        {
+          "site": "block_26_output",
+          "relative_shift": 0.03611089369505105,
+          "delta_cosine_with_vector": -0.3997205244113323
+        },
+        {
+          "site": "block_27_output",
+          "relative_shift": 0.057600556874275434,
+          "delta_cosine_with_vector": -0.3722267363704653
+        },
+        {
+          "site": "final_post_norm",
+          "relative_shift": 0.03794307493558917,
+          "delta_cosine_with_vector": -0.36447936484868027
+        }
+      ],
+      "strength": -0.05,
+      "alpha": -39.466949462890625,
+      "linear_prediction_relative_error": 0.04492718008251186,
+      "promoted_tokens": [
+        {
+          "token_id": 135535,
+          "token": "...............",
+          "base_probability": 4.1092325749622266e-19,
+          "arm_probability": 7.419019963489578e-19,
+          "delta_log_probability": 0.59081067841052
+        },
+        {
+          "token_id": 84342,
+          "token": "ohana",
+          "base_probability": 5.696889292771832e-19,
+          "arm_probability": 1.0083854176938014e-18,
+          "delta_log_probability": 0.5710152606248755
+        },
+        {
+          "token_id": 112800,
+          "token": "谁能",
+          "base_probability": 7.601540670507341e-20,
+          "arm_probability": 1.2937463857873157e-19,
+          "delta_log_probability": 0.5317763308763404
+        },
+        {
+          "token_id": 40641,
+          "token": " Hamas",
+          "base_probability": 3.325351224949792e-16,
+          "arm_probability": 5.604895153739288e-16,
+          "delta_log_probability": 0.5220650504112143
+        },
+        {
+          "token_id": 104488,
+          "token": "脸上",
+          "base_probability": 1.1976027781009446e-18,
+          "arm_probability": 1.959847970899615e-18,
+          "delta_log_probability": 0.49254503052233645
+        },
+        {
+          "token_id": 1112,
+          "token": "...",
+          "base_probability": 3.302226849504828e-15,
+          "arm_probability": 5.3634124187743536e-15,
+          "delta_log_probability": 0.4850033740281958
+        },
+        {
+          "token_id": 78144,
+          "token": " Happiness",
+          "base_probability": 4.0560107961912755e-15,
+          "arm_probability": 6.508239493315286e-15,
+          "delta_log_probability": 0.4728690604448218
+        },
+        {
+          "token_id": 323,
+          "token": " and",
+          "base_probability": 3.069717830421623e-15,
+          "arm_probability": 4.915785280198151e-15,
+          "delta_log_probability": 0.47086586754321047
+        },
+        {
+          "token_id": 2503,
+          "token": " ...",
+          "base_probability": 4.2181723208657523e-14,
+          "arm_probability": 6.745416779319604e-14,
+          "delta_log_probability": 0.46946134369372317
+        },
+        {
+          "token_id": 22558,
+          "token": " (__",
+          "base_probability": 8.056789066084644e-19,
+          "arm_probability": 1.2623488288921065e-18,
+          "delta_log_probability": 0.44904413025378176
+        }
+      ],
+      "suppressed_tokens": [
+        {
+          "token_id": 85556,
+          "token": "cob",
+          "base_probability": 2.327610194362832e-20,
+          "arm_probability": 6.525058483765294e-21,
+          "delta_log_probability": -1.2717772503614526
+        },
+        {
+          "token_id": 24160,
+          "token": "mul",
+          "base_probability": 1.772069418507759e-18,
+          "arm_probability": 5.223714734201396e-19,
+          "delta_log_probability": -1.2215243359327417
+        },
+        {
+          "token_id": 68387,
+          "token": " alternatively",
+          "base_probability": 3.301831114527069e-20,
+          "arm_probability": 9.874028433171303e-21,
+          "delta_log_probability": -1.2071543713331323
+        },
+        {
+          "token_id": 92014,
+          "token": "Alternatively",
+          "base_probability": 6.8384028064412186e-18,
+          "arm_probability": 2.0888622830506073e-18,
+          "delta_log_probability": -1.185934640955935
+        },
+        {
+          "token_id": 11584,
+          "token": "epar",
+          "base_probability": 5.409856441520433e-19,
+          "arm_probability": 1.6525576115620752e-19,
+          "delta_log_probability": -1.1858984013319116
+        },
+        {
+          "token_id": 57706,
+          "token": ".Multi",
+          "base_probability": 1.0753470991866682e-17,
+          "arm_probability": 3.3076315913352624e-18,
+          "delta_log_probability": -1.1789961834669214
+        },
+        {
+          "token_id": 47190,
+          "token": " Meyer",
+          "base_probability": 8.786457191026164e-16,
+          "arm_probability": 2.7780518584573807e-16,
+          "delta_log_probability": -1.1514616688013177
+        },
+        {
+          "token_id": 114858,
+          "token": "未曾",
+          "base_probability": 1.1366341471054716e-21,
+          "arm_probability": 3.6031065739674447e-22,
+          "delta_log_probability": -1.1488600750684839
+        },
+        {
+          "token_id": 16265,
+          "token": "itals",
+          "base_probability": 6.42525138850386e-16,
+          "arm_probability": 2.0398247243847027e-16,
+          "delta_log_probability": -1.1473718718856674
+        },
+        {
+          "token_id": 36760,
+          "token": "maybe",
+          "base_probability": 1.902016703230213e-17,
+          "arm_probability": 6.066420880270704e-18,
+          "delta_log_probability": -1.14273104865552
+        }
+      ],
+      "largest_probability_changes": [
+        {
+          "token_id": 6771,
+          "token": " Let",
+          "base_probability": 0.025803358991742305,
+          "arm_probability": 0.023266303700718957,
+          "delta_probability": -0.0025370552910233476,
+          "delta_log_probability": -0.10349855620862058
+        },
+        {
+          "token_id": 88190,
+          "token": " Hmm",
+          "base_probability": 0.9664483392770109,
+          "arm_probability": 0.9685242446626317,
+          "delta_probability": 0.0020759053856207466,
+          "delta_log_probability": 0.0021456698655981654
+        },
+        {
+          "token_id": 2938,
+          "token": " That",
+          "base_probability": 0.007484396802033697,
+          "arm_probability": 0.007944291216245673,
+          "delta_probability": 0.0004598944142119761,
+          "delta_log_probability": 0.059633157658566915
+        },
+        {
+          "token_id": 97593,
+          "token": " Alright",
+          "base_probability": 0.00022802219479976603,
+          "arm_probability": 0.00022989474722473954,
+          "delta_probability": 1.8725524249735075e-06,
+          "delta_log_probability": 0.008178613591184103
+        },
+        {
+          "token_id": 80022,
+          "token": "Hmm",
+          "base_probability": 8.07183162792417e-06,
+          "arm_probability": 6.923257843528629e-06,
+          "delta_probability": -1.1485737843955408e-06,
+          "delta_log_probability": -0.15349397857190183
+        },
+        {
+          "token_id": 472,
+          "token": " H",
+          "base_probability": 8.656326782179758e-06,
+          "arm_probability": 9.72505358922204e-06,
+          "delta_probability": 1.0687268070422822e-06,
+          "delta_log_probability": 0.11641492645739504
+        },
+        {
+          "token_id": 2411,
+          "token": " At",
+          "base_probability": 3.919531492246563e-06,
+          "arm_probability": 2.9481734457794195e-06,
+          "delta_probability": -9.713580464671431e-07,
+          "delta_log_probability": -0.28478632171155027
+        },
+        {
+          "token_id": 45717,
+          "token": " Wow",
+          "base_probability": 1.4727239163772367e-05,
+          "arm_probability": 1.5256295921754158e-05,
+          "delta_probability": 5.290567579817911e-07,
+          "delta_log_probability": 0.0352934817552466
+        },
+        {
+          "token_id": 13824,
+          "token": " Wait",
+          "base_probability": 1.4780917444865897e-07,
+          "arm_probability": 9.033238771554029e-08,
+          "delta_probability": -5.7476786733118686e-08,
+          "delta_log_probability": -0.49242601592541746
+        },
+        {
+          "token_id": 87501,
+          "token": " hmm",
+          "base_probability": 8.436752585220548e-08,
+          "arm_probability": 6.373206272893184e-08,
+          "delta_probability": -2.063546312327364e-08,
+          "delta_log_probability": -0.28049478728772215
+        }
+      ]
+    },
+    {
+      "delta_entropy": 0.007510266164321157,
+      "kl_base_to_arm": 0.00020204885711827574,
+      "next_token_base": 88190,
+      "next_token_arm": 88190,
+      "target_probability_delta": {
+        "hmm": -0.002365367099097071
+      },
+      "layers": [
+        {
+          "site": "block_0_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_1_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_2_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_3_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_4_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_5_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_6_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_7_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_8_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_9_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_10_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_11_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_12_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_13_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_14_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_15_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_16_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_17_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_18_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_19_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_20_output",
+          "relative_shift": 0.0543554393183476,
+          "delta_cosine_with_vector": 0.7454349828916813
+        },
+        {
+          "site": "block_21_output",
+          "relative_shift": 0.05606175801872927,
+          "delta_cosine_with_vector": 0.6368284866980859
+        },
+        {
+          "site": "block_22_output",
+          "relative_shift": 0.05134363458169681,
+          "delta_cosine_with_vector": 0.5558060055576616
+        },
+        {
+          "site": "block_23_output",
+          "relative_shift": 0.0490775991109234,
+          "delta_cosine_with_vector": 0.5164970305272946
+        },
+        {
+          "site": "block_24_output",
+          "relative_shift": 0.04482013306358409,
+          "delta_cosine_with_vector": 0.47940926643596016
+        },
+        {
+          "site": "block_25_output",
+          "relative_shift": 0.03947714949641103,
+          "delta_cosine_with_vector": 0.43435059362616674
+        },
+        {
+          "site": "block_26_output",
+          "relative_shift": 0.035759555591258096,
+          "delta_cosine_with_vector": 0.39984254070481245
+        },
+        {
+          "site": "block_27_output",
+          "relative_shift": 0.056803820870416126,
+          "delta_cosine_with_vector": 0.3722580874383366
+        },
+        {
+          "site": "final_post_norm",
+          "relative_shift": 0.036353151407578686,
+          "delta_cosine_with_vector": 0.3573491562740862
+        }
+      ],
+      "strength": 0.05,
+      "alpha": 39.466949462890625,
+      "linear_prediction_relative_error": 0.04220704092755923,
+      "promoted_tokens": [
+        {
+          "token_id": 85556,
+          "token": "cob",
+          "base_probability": 2.327610194362832e-20,
+          "arm_probability": 8.134821795228032e-20,
+          "delta_log_probability": 1.2513117609320403
+        },
+        {
+          "token_id": 24160,
+          "token": "mul",
+          "base_probability": 1.772069418507759e-18,
+          "arm_probability": 5.791919114877029e-18,
+          "delta_log_probability": 1.184315663367343
+        },
+        {
+          "token_id": 16265,
+          "token": "itals",
+          "base_probability": 6.42525138850386e-16,
+          "arm_probability": 2.0852019003797487e-15,
+          "delta_log_probability": 1.1772150216398956
+        },
+        {
+          "token_id": 78709,
+          "token": "ymes",
+          "base_probability": 3.478672697522486e-20,
+          "arm_probability": 1.102626963124465e-19,
+          "delta_log_probability": 1.1536297617254974
+        },
+        {
+          "token_id": 57706,
+          "token": ".Multi",
+          "base_probability": 1.0753470991866682e-17,
+          "arm_probability": 3.4052387338826893e-17,
+          "delta_log_probability": 1.1526715574560882
+        },
+        {
+          "token_id": 47190,
+          "token": " Meyer",
+          "base_probability": 8.786457191026164e-16,
+          "arm_probability": 2.7699159250699627e-15,
+          "delta_log_probability": 1.1481904802618743
+        },
+        {
+          "token_id": 11584,
+          "token": "epar",
+          "base_probability": 5.409856441520433e-19,
+          "arm_probability": 1.6931553302805228e-18,
+          "delta_log_probability": 1.1409563837347747
+        },
+        {
+          "token_id": 92014,
+          "token": "Alternatively",
+          "base_probability": 6.8384028064412186e-18,
+          "arm_probability": 2.1182282927024098e-17,
+          "delta_log_probability": 1.1306109247503997
+        },
+        {
+          "token_id": 114858,
+          "token": "未曾",
+          "base_probability": 1.1366341471054716e-21,
+          "arm_probability": 3.50604971048846e-21,
+          "delta_log_probability": 1.1264185724554778
+        },
+        {
+          "token_id": 96384,
+          "token": " coorden",
+          "base_probability": 1.1827543039550974e-19,
+          "arm_probability": 3.6440570180890754e-19,
+          "delta_log_probability": 1.1252517519293548
+        }
+      ],
+      "suppressed_tokens": [
+        {
+          "token_id": 135535,
+          "token": "...............",
+          "base_probability": 4.1092325749622266e-19,
+          "arm_probability": 2.4071233508911826e-19,
+          "delta_log_probability": -0.5348038854302644
+        },
+        {
+          "token_id": 84342,
+          "token": "ohana",
+          "base_probability": 5.696889292771832e-19,
+          "arm_probability": 3.3603890876559886e-19,
+          "delta_log_probability": -0.5278635205926179
+        },
+        {
+          "token_id": 40641,
+          "token": " Hamas",
+          "base_probability": 3.325351224949792e-16,
+          "arm_probability": 2.0684597419741805e-16,
+          "delta_log_probability": -0.4747710557879685
+        },
+        {
+          "token_id": 104488,
+          "token": "脸上",
+          "base_probability": 1.1976027781009446e-18,
+          "arm_probability": 7.50082392703927e-19,
+          "delta_log_probability": -0.46789409539120186
+        },
+        {
+          "token_id": 112800,
+          "token": "谁能",
+          "base_probability": 7.601540670507341e-20,
+          "arm_probability": 4.827340134407066e-20,
+          "delta_log_probability": -0.45405532738583076
+        },
+        {
+          "token_id": 323,
+          "token": " and",
+          "base_probability": 3.069717830421623e-15,
+          "arm_probability": 1.9682663508383424e-15,
+          "delta_log_probability": -0.4444325151147126
+        },
+        {
+          "token_id": 78144,
+          "token": " Happiness",
+          "base_probability": 4.0560107961912755e-15,
+          "arm_probability": 2.621959774300342e-15,
+          "delta_log_probability": -0.43627788445370186
+        },
+        {
+          "token_id": 2503,
+          "token": " ...",
+          "base_probability": 4.2181723208657523e-14,
+          "arm_probability": 2.739309766727532e-14,
+          "delta_log_probability": -0.43169595620052803
+        },
+        {
+          "token_id": 1112,
+          "token": "...",
+          "base_probability": 3.302226849504828e-15,
+          "arm_probability": 2.1501826220309296e-15,
+          "delta_log_probability": -0.42904426476376045
+        },
+        {
+          "token_id": 22558,
+          "token": " (__",
+          "base_probability": 8.056789066084644e-19,
+          "arm_probability": 5.284736229410912e-19,
+          "delta_log_probability": -0.42169238945858467
+        }
+      ],
+      "largest_probability_changes": [
+        {
+          "token_id": 6771,
+          "token": " Let",
+          "base_probability": 0.025803358991742305,
+          "arm_probability": 0.028847023885097835,
+          "delta_probability": 0.00304366489335553,
+          "delta_log_probability": 0.11150215247256767
+        },
+        {
+          "token_id": 88190,
+          "token": " Hmm",
+          "base_probability": 0.9664483392770109,
+          "arm_probability": 0.9640829721779138,
+          "delta_probability": -0.002365367099097071,
+          "delta_log_probability": -0.0024504842461823273
+        },
+        {
+          "token_id": 2938,
+          "token": " That",
+          "base_probability": 0.007484396802033697,
+          "arm_probability": 0.006810634787020124,
+          "delta_probability": -0.0006737620150135733,
+          "delta_log_probability": -0.0943350972832917
+        },
+        {
+          "token_id": 97593,
+          "token": " Alright",
+          "base_probability": 0.00022802219479976603,
+          "arm_probability": 0.00022311562111220536,
+          "delta_probability": -4.9065736875606694e-06,
+          "delta_log_probability": -0.021752852410244827
+        },
+        {
+          "token_id": 80022,
+          "token": "Hmm",
+          "base_probability": 8.07183162792417e-06,
+          "arm_probability": 9.315325174101797e-06,
+          "delta_probability": 1.2434935461776272e-06,
+          "delta_log_probability": 0.14328048804385674
+        },
+        {
+          "token_id": 472,
+          "token": " H",
+          "base_probability": 8.656326782179758e-06,
+          "arm_probability": 7.494431105350278e-06,
+          "delta_probability": -1.1618956768294797e-06,
+          "delta_log_probability": -0.14413024804012764
+        },
+        {
+          "token_id": 2411,
+          "token": " At",
+          "base_probability": 3.919531492246563e-06,
+          "arm_probability": 4.628294699122388e-06,
+          "delta_probability": 7.087632068758258e-07,
+          "delta_log_probability": 0.16621635535342705
+        },
+        {
+          "token_id": 45717,
+          "token": " Wow",
+          "base_probability": 1.4727239163772367e-05,
+          "arm_probability": 1.413938261803469e-05,
+          "delta_probability": -5.878565457376777e-07,
+          "delta_log_probability": -0.04073478600399483
+        },
+        {
+          "token_id": 13824,
+          "token": " Wait",
+          "base_probability": 1.4780917444865897e-07,
+          "arm_probability": 2.6388875750975084e-07,
+          "delta_probability": 1.1607958306109187e-07,
+          "delta_log_probability": 0.5796055612860442
+        },
+        {
+          "token_id": 87501,
+          "token": " hmm",
+          "base_probability": 8.436752585220548e-08,
+          "arm_probability": 1.0824500188860714e-07,
+          "delta_probability": 2.3877476036401667e-08,
+          "delta_log_probability": 0.24921463111026299
+        }
+      ]
+    },
+    {
+      "delta_entropy": 0.014718161858001474,
+      "kl_base_to_arm": 0.000823982016547921,
+      "next_token_base": 88190,
+      "next_token_arm": 88190,
+      "target_probability_delta": {
+        "hmm": -0.004807542246087926
+      },
+      "layers": [
+        {
+          "site": "block_0_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_1_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_2_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_3_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_4_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_5_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_6_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_7_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_8_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_9_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_10_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_11_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_12_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_13_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_14_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_15_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_16_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_17_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_18_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_19_output",
+          "relative_shift": 0.0,
+          "delta_cosine_with_vector": null
+        },
+        {
+          "site": "block_20_output",
+          "relative_shift": 0.10822581807920154,
+          "delta_cosine_with_vector": 0.7462540105930011
+        },
+        {
+          "site": "block_21_output",
+          "relative_shift": 0.11168036208073473,
+          "delta_cosine_with_vector": 0.6370789799921396
+        },
+        {
+          "site": "block_22_output",
+          "relative_shift": 0.10215639317332349,
+          "delta_cosine_with_vector": 0.5570220384539852
+        },
+        {
+          "site": "block_23_output",
+          "relative_shift": 0.09764668523873098,
+          "delta_cosine_with_vector": 0.5183815330087288
+        },
+        {
+          "site": "block_24_output",
+          "relative_shift": 0.08923285761251767,
+          "delta_cosine_with_vector": 0.48039967448954857
+        },
+        {
+          "site": "block_25_output",
+          "relative_shift": 0.07853499371287455,
+          "delta_cosine_with_vector": 0.43522388785783206
+        },
+        {
+          "site": "block_26_output",
+          "relative_shift": 0.0711987477599359,
+          "delta_cosine_with_vector": 0.4000003006029308
+        },
+        {
+          "site": "block_27_output",
+          "relative_shift": 0.11282967151423587,
+          "delta_cosine_with_vector": 0.372431441636132
+        },
+        {
+          "site": "final_post_norm",
+          "relative_shift": 0.07119189031440001,
+          "delta_cosine_with_vector": 0.3540316684843641
+        }
+      ],
+      "strength": 0.1,
+      "alpha": 78.93389892578125,
+      "linear_prediction_relative_error": 0.08528459302363285,
+      "promoted_tokens": [
+        {
+          "token_id": 85556,
+          "token": "cob",
+          "base_probability": 2.327610194362832e-20,
+          "arm_probability": 2.6327039446887403e-19,
+          "delta_log_probability": 2.425754453320657
+        },
+        {
+          "token_id": 16265,
+          "token": "itals",
+          "base_probability": 6.42525138850386e-16,
+          "arm_probability": 6.869417978071221e-15,
+          "delta_log_probability": 2.3694287196590054
+        },
+        {
+          "token_id": 78709,
+          "token": "ymes",
+          "base_probability": 3.478672697522486e-20,
+          "arm_probability": 3.4744369305421236e-19,
+          "delta_log_probability": 2.30136671223179
+        },
+        {
+          "token_id": 24160,
+          "token": "mul",
+          "base_probability": 1.772069418507759e-18,
+          "arm_probability": 1.7646624528032873e-17,
+          "delta_log_probability": 2.2983964935733425
+        },
+        {
+          "token_id": 47190,
+          "token": " Meyer",
+          "base_probability": 8.786457191026164e-16,
+          "arm_probability": 8.332399449901335e-15,
+          "delta_log_probability": 2.249524976391946
+        },
+        {
+          "token_id": 57706,
+          "token": ".Multi",
+          "base_probability": 1.0753470991866682e-17,
+          "arm_probability": 9.990337111865914e-17,
+          "delta_log_probability": 2.2289748445941555
+        },
+        {
+          "token_id": 96384,
+          "token": " coorden",
+          "base_probability": 1.1827543039550974e-19,
+          "arm_probability": 1.0823927809560511e-18,
+          "delta_log_probability": 2.213913346905862
+        },
+        {
+          "token_id": 11584,
+          "token": "epar",
+          "base_probability": 5.409856441520433e-19,
+          "arm_probability": 4.891333159296256e-18,
+          "delta_log_probability": 2.2018274322940456
+        },
+        {
+          "token_id": 114858,
+          "token": "未曾",
+          "base_probability": 1.1366341471054716e-21,
+          "arm_probability": 1.0235698590801407e-20,
+          "delta_log_probability": 2.1978100792361843
+        },
+        {
+          "token_id": 34271,
+          "token": "ünd",
+          "base_probability": 4.276743577715236e-20,
+          "arm_probability": 3.8364915635357993e-19,
+          "delta_log_probability": 2.1939515129520046
+        }
+      ],
+      "suppressed_tokens": [
+        {
+          "token_id": 135535,
+          "token": "...............",
+          "base_probability": 4.1092325749622266e-19,
+          "arm_probability": 1.4911279538950802e-19,
+          "delta_log_probability": -1.013703440050925
+        },
+        {
+          "token_id": 84342,
+          "token": "ohana",
+          "base_probability": 5.696889292771832e-19,
+          "arm_probability": 2.0673298678562517e-19,
+          "delta_log_probability": -1.0136624320553196
+        },
+        {
+          "token_id": 104488,
+          "token": "脸上",
+          "base_probability": 1.1976027781009446e-18,
+          "arm_probability": 4.835988825814195e-19,
+          "delta_log_probability": -0.906821344714011
+        },
+        {
+          "token_id": 40641,
+          "token": " Hamas",
+          "base_probability": 3.325351224949792e-16,
+          "arm_probability": 1.3504159906996322e-16,
+          "delta_log_probability": -0.9011626138494861
+        },
+        {
+          "token_id": 323,
+          "token": " and",
+          "base_probability": 3.069717830421623e-15,
+          "arm_probability": 1.2819717482410682e-15,
+          "delta_log_probability": -0.8731863244579685
+        },
+        {
+          "token_id": 78144,
+          "token": " Happiness",
+          "base_probability": 4.0560107961912755e-15,
+          "arm_probability": 1.737655704512292e-15,
+          "delta_log_probability": -0.8476630195186985
+        },
+        {
+          "token_id": 2503,
+          "token": " ...",
+          "base_probability": 4.2181723208657523e-14,
+          "arm_probability": 1.8135315800062045e-14,
+          "delta_log_probability": -0.8441258414791477
+        },
+        {
+          "token_id": 112800,
+          "token": "谁能",
+          "base_probability": 7.601540670507341e-20,
+          "arm_probability": 3.291804308805646e-20,
+          "delta_log_probability": -0.8369151099728
+        },
+        {
+          "token_id": 1112,
+          "token": "...",
+          "base_probability": 3.302226849504828e-15,
+          "arm_probability": 1.4513695610568697e-15,
+          "delta_log_probability": -0.822089408259238
+        },
+        {
+          "token_id": 22558,
+          "token": " (__",
+          "base_probability": 8.056789066084644e-19,
+          "arm_probability": 3.580548810989012e-19,
+          "delta_log_probability": -0.8109990104244602
+        }
+      ],
+      "largest_probability_changes": [
+        {
+          "token_id": 6771,
+          "token": " Let",
+          "base_probability": 0.025803358991742305,
+          "arm_probability": 0.032055119552787836,
+          "delta_probability": 0.0062517605610455315,
+          "delta_log_probability": 0.21695223011509057
+        },
+        {
+          "token_id": 88190,
+          "token": " Hmm",
+          "base_probability": 0.9664483392770109,
+          "arm_probability": 0.961640797030923,
+          "delta_probability": -0.004807542246087926,
+          "delta_log_probability": -0.004986856798971928
+        },
+        {
+          "token_id": 2938,
+          "token": " That",
+          "base_probability": 0.007484396802033697,
+          "arm_probability": 0.006055750484446443,
+          "delta_probability": -0.0014286463175872538,
+          "delta_log_probability": -0.21181211314662818
+        },
+        {
+          "token_id": 97593,
+          "token": " Alright",
+          "base_probability": 0.00022802219479976603,
+          "arm_probability": 0.00021237733519553453,
+          "delta_probability": -1.5644859604231506e-05,
+          "delta_log_probability": -0.07107839427455787
+        },
+        {
+          "token_id": 80022,
+          "token": "Hmm",
+          "base_probability": 8.07183162792417e-06,
+          "arm_probability": 1.0645604748428364e-05,
+          "delta_probability": 2.5737731205041944e-06,
+          "delta_log_probability": 0.27676668324009057
+        },
+        {
+          "token_id": 472,
+          "token": " H",
+          "base_probability": 8.656326782179758e-06,
+          "arm_probability": 6.282818063677348e-06,
+          "delta_probability": -2.37350871850241e-06,
+          "delta_log_probability": -0.3204718574093235
+        },
+        {
+          "token_id": 45717,
+          "token": " Wow",
+          "base_probability": 1.4727239163772367e-05,
+          "arm_probability": 1.3242555280768897e-05,
+          "delta_probability": -1.48468388300347e-06,
+          "delta_log_probability": -0.10626325450405005
+        },
+        {
+          "token_id": 2411,
+          "token": " At",
+          "base_probability": 3.919531492246563e-06,
+          "arm_probability": 4.809574455282192e-06,
+          "delta_probability": 8.900429630356296e-07,
+          "delta_log_probability": 0.20463647999302026
+        },
+        {
+          "token_id": 13824,
+          "token": " Wait",
+          "base_probability": 1.4780917444865897e-07,
+          "arm_probability": 5.010291143327679e-07,
+          "delta_probability": 3.5321993988410893e-07,
+          "delta_log_probability": 1.220742131848489
+        },
+        {
+          "token_id": 87501,
+          "token": " hmm",
+          "base_probability": 8.436752585220548e-08,
+          "arm_probability": 1.3255050490131797e-07,
+          "delta_probability": 4.81829790491125e-08,
+          "delta_log_probability": 0.45178117908969995
+        }
+      ],
+      "target_random_max_stat_p": {
+        "hmm": 0.7647058823529411
+      }
+    }
+  ],
+  "random_control": {
+    "strength": 0.1,
+    "kl_base_to_arm": [
+      0.0017860108866115123,
+      0.0012000164695382136,
+      0.006907408265235243,
+      0.005912659666161723,
+      0.0027021723066561597,
+      0.0006103841878147712,
+      0.0030231183123330917,
+      0.00139005606924771,
+      0.0044651259518723105,
+      0.0014301428387186064,
+      0.00013290599631093512,
+      0.0010528591809586246,
+      0.004576086295117964,
+      0.0007550168004114613,
+      0.001374926427506105,
+      0.0006960241450327576
+    ],
+    "target_probability_delta": [
+      {
+        "hmm": -0.011467099740771314
+      },
+      {
+        "hmm": -0.003468203394261349
+      },
+      {
+        "hmm": -0.025213313509220847
+      },
+      {
+        "hmm": 0.01472888694671659
+      },
+      {
+        "hmm": -0.013223333164235407
+      },
+      {
+        "hmm": 0.002809748879070373
+      },
+      {
+        "hmm": 0.01204689035602513
+      },
+      {
+        "hmm": 0.008473209842035812
+      },
+      {
+        "hmm": -0.019776934680474922
+      },
+      {
+        "hmm": 0.005413905429490273
+      },
+      {
+        "hmm": -0.0027138485448217065
+      },
+      {
+        "hmm": -0.0030750808471400326
+      },
+      {
+        "hmm": 0.013811344057187203
+      },
+      {
+        "hmm": 0.006077846414547672
+      },
+      {
+        "hmm": 0.0060157393478800225
+      },
+      {
+        "hmm": 0.004869931929558868
+      }
+    ]
+  },
+  "limits": [
+    "Local single-position response only; no claim about full generations, accuracy or reasoning strategy.",
+    "Target token groups are operational definitions, not proof of semantic concepts.",
+    "Finite differences depend on epsilon and numerical precision; inspect linearity error.",
+    "Random controls are isotropic and matched in norm; they do not establish causal necessity."
+  ],
+  "model": "/Users/zhourui/code/steer3d/datasets/models/Qwen3-1.7B",
+  "prompt": null,
+  "rendered_prefix": "<|im_start|>system\nYou are an expert mathematician competing in the AIME (American Invitational Mathematics Examination). Solve the given problem step by step. Show all reasoning clearly. Your final answer must be a non-negative integer between 0 and 999. Present it inside \\boxed{} on its own line at the very end of your response.<|im_end|>\n<|im_start|>user\nCompute sqrt((31)(30)(29)(28) + 1).<|im_end|>\n<|im_start|>assistant\n<think>\nOkay, so I need to compute the square root of (31×30×29×28 + 1).",
+  "recorded_prefix": {
+    "trajectory": "/Users/zhourui/code/steer3d/datasets/aime_qwen3_1p7b_16k_fp16/aime/aime__1989__1989_I_1__think.npz",
+    "step": 29,
+    "stored_next_token_id": 88190,
+    "source_model": "Qwen/Qwen3-1.7B",
+    "baseline_matches_stored_token": true
+  },
+  "thinking_enabled": null,
+  "dtype": "float32",
+  "device": "cpu",
+  "schema": "steer3d.vector_explanation/1",
+  "vector": {
+    "path": "/Users/zhourui/code/steer3d/backend/examples/output/steering_vectors/caution.npy",
+    "sha256": "0aae8d62181ba83b7f366d38f766cd02594ac27aba75e7057a975b631234b4f1",
+    "metadata": {
+      "description": "Push toward the state the model is in when it verifies its work",
+      "layer": 14,
+      "d_model": 2048,
+      "method": "diff_of_means",
+      "positive_group": "self-check tokens (wait/actually/…)",
+      "negative_group": "ordinary generated tokens",
+      "n_positive": 379,
+      "n_negative": 62420,
+      "norm": 1.0,
+      "validation": {
+        "layer": 14,
+        "norm": 1.0,
+        "confidence_cohens_d": -1.151949405670166,
+        "confidence_separation": -18.653797149658203
+      }
+    },
+    "model_identity_verified": false
+  },
+  "generated_by": "backend/examples/explain_vector.py"
+}

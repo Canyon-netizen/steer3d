@@ -4,6 +4,14 @@
 >
 > 这是个**最小可运行框架**：先跑通合成数据的演示，理解了之后，再把您自己的向量注入逻辑接进来。
 
+给定一个 steering vector，可以用 `backend/examples/explain_vector.py` 分别分析
+它在已有 hidden states 中的关联与上下文，以及同一推理前缀下的真实模型响应
+（±v、剂量、概率变化、下游层传播和随机方向对照）。
+使用方法与证据边界见 [Backend：解释给定向量](backend/README.md#解释一个给定的-steering-vector)。
+
+[向量功能的因果理论](docs/VECTOR_FUNCTION_THEORY.md) 给出功能的数学定义、
+读出与控制的区别、功能分解的可识别条件，以及从行为效应到推理机制的验证条件。
+
 ## 🎯 核心目标
 
 | 想要 | 解法 |
