@@ -1,0 +1,3 @@
+[扰动已落地] 臂 fork：{"fork":{"before":true,"after":false}}
+RED  D1 点分叉行真的展开到存储宽度  -1 → -1（应为 2 → 8）
+RESULT FAIL 38/39

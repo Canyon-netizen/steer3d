@@ -1,0 +1,25 @@
+{
+  "src": ".cache/browser_verify/verify_path.mjs",
+  "art": "frontend/public/latent/data/path_readout.json",
+  "outdir": ".cache/mutbak/r143_arms/r138/",
+  "pid": "1983_I_1",
+  "arms": [
+    {
+      "name": "d4",
+      "at": 192,
+      "before": 192,
+      "anchor": "const sw = JSON.parse(await page.eval(`(async () => {",
+      "criterion": "D4 prod.problems[sw.after].k === String(sw.k) —— 页面侧 k 与产物 k 必须一致",
+      "mutate": "`(()=>{const q2=(typeof S!=='undefined'&&S.path&&S.path.problems)?S.path.problems:null;const e=q2?q2['{pid2}']:null;const occ=()=>e&&String(e.k)==='{k2}'?1:0;const before=occ();if(e) e.k=999;const after=occ();window.__r135={k:'d4',before:before,after:after,note:'改页面内部 S.path.problems 里的 k，产物 prod.problems 不动 ⇒ 页面 vs 产物裂缝'};return true;})()`",
+      "note": "⚠ 修订 136 的 d4 臂改的是 S.dv —— renderPathPanel 不读那份，所以扰动无效、判据照绿；本臂改 S.path（它真正读的那份）"
+    },
+    {
+      "name": "a1b",
+      "at": 88,
+      "before": 88,
+      "anchor": "for (let i = 0; i < 60; i++) {",
+      "criterion": "A1 state === 'ok'（切到第 5 屏后 [data-pathblock] 的 data-pathstate）",
+      "mutate": "`(()=>{const occ=()=>{const b=document.querySelector('[data-pathblock]');return (b&&(b.getAttribute('data-pathstate')||'')==='ok')?1:0;};const done=(before,after)=>{window.__r135={k:'a1b',before:before,after:after,note:'等 [data-pathblock] 出现后把 data-pathstate 改成 BROKEN'};return true;};if(occ()){const b0=document.querySelector('[data-pathblock]');b0.setAttribute('data-pathstate','BROKEN');return done(1,occ());}return (async()=>{for(let w=0;w<80;w++){await new Promise(r=>setTimeout(r,250));if(occ())break;}const before=occ();const b=document.querySelector('[data-pathblock]');if(b)b.setAttribute('data-pathstate','BROKEN');return done(before,occ());})();})()`"
+    }
+  ]
+}

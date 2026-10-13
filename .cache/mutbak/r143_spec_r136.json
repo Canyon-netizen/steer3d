@@ -1,0 +1,72 @@
+{
+  "src": ".cache/browser_verify/verify_path.mjs",
+  "art": "frontend/public/latent/data/path_readout.json",
+  "outdir": ".cache/mutbak/r143_arms/r136/",
+  "pid": "1983_I_1",
+  "arms": [
+    {
+      "name": "d3",
+      "at": 192,
+      "before": 192,
+      "anchor": "const sw = JSON.parse(await page.eval(`(async () => {",
+      "criterion": "D3 sw.before !== sw.after（切题后 data-pathpid 真的换了）",
+      "mutate": "`(()=>{const sel=document.querySelector('#selPair');const occ=()=>sel&&typeof sel.onchange==='function'?1:0;const before=occ();if(sel) sel.onchange=null;const after=occ();window.__r135={k:'d3',before:before,after:after,note:'拆掉 change 处理器 ⇒ 派发 change 事件也不会换题'};return true;})()`"
+    },
+    {
+      "name": "d4",
+      "at": 192,
+      "before": 192,
+      "anchor": "const sw = JSON.parse(await page.eval(`(async () => {",
+      "criterion": "D4 prod.problems[sw.after].k === String(sw.k) —— 页面侧 k 与产物 k 必须一致",
+      "mutate": "`(()=>{const q2=(typeof S!=='undefined'&&S.dv&&S.dv.problems)?S.dv.problems:null;const e=q2?q2['{pid2}']:null;const occ=()=>e&&String(e.k)==='{k2}'?1:0;const before=occ();if(e) e.k=999;const after=occ();window.__r135={k:'d4',before:before,after:after,note:'改页面内部 S.dv.problems 里的 k，产物 prod.problems 不动 ⇒ 页面 vs 产物裂缝'};return true;})()`"
+    },
+    {
+      "name": "a1",
+      "at": 88,
+      "before": 94,
+      "anchor": "for (let i = 0; i < 60; i++) {",
+      "criterion": "A1 state === 'ok'（data-pathstate 属性）",
+      "mutate": "`(()=>{const b=document.querySelector('[data-pathblock]');const occ=()=>String(b?b.getAttribute('data-pathstate'):'').split('ok').length-1;const before=occ();if(b) b.setAttribute('data-pathstate','broken');const after=occ();window.__r135={k:'a1',before:before,after:after};return true;})()`"
+    },
+    {
+      "name": "a7",
+      "at": 96,
+      "before": 96,
+      "anchor": "const d = JSON.parse(await page.eval(`(() => {",
+      "criterion": "A7 d.cv === 'none'（画布已让位）",
+      "mutate": "`(()=>{const occ=()=>String(getComputedStyle(document.querySelector('#cv')).display).split('none').length-1;const before=occ();document.querySelector('#cv').style.display='block';const after=occ();window.__r135={k:'a7',before:before,after:after,note:'极性与 A6 相反：它断言 none，所以扰动方向是把画布变回可见'};return true;})()`"
+    },
+    {
+      "name": "c1",
+      "at": 96,
+      "before": 96,
+      "anchor": "const d = JSON.parse(await page.eval(`(() => {",
+      "criterion": "C1 String(q0.k) === String(d.k) —— data-pathk 属性",
+      "mutate": "`(()=>{const b=document.querySelector('[data-pathblock]');const occ=()=>String(b?b.getAttribute('data-pathk'):'').split('{k}').length-1;const before=occ();if(b) b.setAttribute('data-pathk','999');const after=occ();window.__r135={k:'c1',before:before,after:after};return true;})()`"
+    },
+    {
+      "name": "c2",
+      "at": 96,
+      "before": 96,
+      "anchor": "const d = JSON.parse(await page.eval(`(() => {",
+      "criterion": "C2 nForks===1 && forkT[0]===String(q0.k)",
+      "mutate": "`(()=>{const f=document.querySelector('[data-pathfork=\"1\"]');const occ=()=>String(f?f.getAttribute('data-patht'):'').split('{k}').length-1;const before=occ();if(f) f.setAttribute('data-patht','999');const after=occ();window.__r135={k:'c2',before:before,after:after,note:'保留 data-pathfork=1，所以 D1/D2 的选择器仍能命中'};return true;})()`"
+    },
+    {
+      "name": "c3",
+      "at": 96,
+      "before": 96,
+      "anchor": "const d = JSON.parse(await page.eval(`(() => {",
+      "criterion": "C3 nRows === Math.min(6, q0.k+1)",
+      "mutate": "`(()=>{const victim=[...document.querySelectorAll('[data-patht]')].find(r=>r.getAttribute('data-pathfork')!=='1');const occ=()=>String(document.querySelectorAll('[data-patht]').length).split('6').length-1;const before=occ();if(victim) victim.remove();const after=occ();window.__r135={k:'c3',before:before,after:after,note:'occ **实时**查 DOM，不用捕获的数组 —— rows.length 在 remove() 后不变（修订134坑6）'};return true;})()`"
+    },
+    {
+      "name": "e1",
+      "at": 227,
+      "before": 227,
+      "anchor": "const missing = JSON.parse(await page.eval(`(() => {",
+      "criterion": "E1 typeof renderPathPanel === 'function'",
+      "mutate": "`(()=>{const occ=()=>String(typeof window.renderPathPanel).split('function').length-1;const before=occ();window.renderPathPanel=undefined;const after=occ();window.__r135={k:'e1',before:before,after:after,note:'实测裸名与 window. 一致，故设 window. 就能让裸名也变 undefined'};return true;})()`"
+    }
+  ]
+}

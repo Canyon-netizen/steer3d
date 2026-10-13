@@ -1,0 +1,65 @@
+
+// ⚠⚠⚴⚠⚴ E2/E3/E4（修订 141 新增）。E1 只证明「函数在」，**证不了它名字里那半句**：
+//   实测（修订 140）「typeof renderPathPanel」在「数据在」与「数据缺」两种情形下
+//   **都是「function」** ⇒ 分不开 ⇒ 这就是 E1 落「第四档」的**机制**（不是它的描述）。
+//   ⇒ 这里把页面**拨到缺数据的两种情形**各一次，核**读者看得见的文案**：
+//     ① 整份 path_readout 取不到 → 屏上须说「逐步路径数据未载入」
+//     ② 数据在、当前这道题没记录 → 屏上须说「这份…里没有题目…只覆盖 N 道题」
+//   ⚠⚠⚴ **两个情形都要测** —— 只测一个就是「只验了一半」。
+//   ⚠「data-pathstate」**只作交叉核对**（证明节点在）；**主体断言是可见文字**。
+//   ⚠⚠⚴ 拨完必须**原样还原**：不还原会污染紧随其后的变异台（M0–M2）。
+//   ⚠⚠⚴⚠⚴ **下面这段注释里一个字都不能出现反引号**：它整体在 page.eval 的
+//     模板字面量内部，反引号会**提前终止模板** ⇒ 整条判据崩在语法错误上
+//     （修订 133/134 踩过；派生台会剥注释里的反引号，但主文件不会）。
+const said = JSON.parse(await page.eval(`(async () => {
+  const wrap = document.querySelector('#pathWrap');
+  const savePath = S.path;
+  const saveText = wrap ? wrap.innerText : '';
+  const pid = (S.pm && S.pm.pairs && S.pm.pairs[S.pi]) ? S.pm.pairs[S.pi].id : null;
+  const grab = () => {
+    wrap.innerHTML = renderPathPanel();
+    const b = wrap.querySelector('[data-pathblock]');
+    return { text: (b ? (b.innerText || '') : ''),
+             state: (b ? (b.getAttribute('data-pathstate') || '') : '(无块)') };
+  };
+  const out = {};
+  try{
+    // ① 整份数据取不到
+    S.path = null;
+    out.noData = grab();
+    S.path = savePath;
+    // ② 数据在、这一题没记录
+    const saved = (pid && savePath && savePath.problems) ? savePath.problems[pid] : null;
+    if (saved) delete savePath.problems[pid];
+    out.noProblem = grab();
+    if (saved) savePath.problems[pid] = saved;
+    // 还原面板，并**自证还原成功**
+    wrap.innerHTML = renderPathPanel();
+    out.restoredOK = (wrap.innerText === saveText);
+    out.pathIntact = (S.path === savePath);
+    out.beforeLen = saveText.length;
+    out.afterLen = wrap.innerText.length;
+  }catch(e){
+    // ⚗⚠⚴⚠⚴ **页内失败必须变成一条红，不能变成掀桌。**
+    //   D5 的教训（修订 134 §134.5）：「#tabXY.click()」没有空值保护，
+    //   元素一被删就抛异常 ⇒ 脚本直接崩、**压根不打印 RESULT** ⇒ 判决变成一段堆栈。
+    //   ⇒ 这里 catch 住并把消息带出去，交给下面的 check 判红。
+    out.err = String((e && e.message) || e);
+  }
+  return JSON.stringify(out);
+})()`));
+const saidNoData = !said.err && said.noData.text.indexOf('未载入') >= 0
+  && said.noData.text.indexOf('path_readout.json') >= 0;
+const saidNoProblem = !said.err && said.noProblem.text.indexOf('没有题目') >= 0
+  && said.noProblem.text.indexOf('逐步路径只覆盖') >= 0;
+const d0 = said.err ? '页内失败：' + said.err
+  : `state=${said.noData.state} ${said.noData.text.length} 字`;
+const d1 = said.err ? '页内失败：' + said.err
+  : `state=${said.noProblem.state} ${said.noProblem.text.length} 字`;
+check('E2 整份路径数据取不到时，屏上明说缺什么（可见文案）', saidNoData, d0);
+check('E3 这一题没记录时，屏上明说并给出换题指引（可见文案）', saidNoProblem, d1);
+// ⚗⚠⚴ E4 是**台架自检**，不是产品性质：拨完必须原样还原，否则污染后面的变异台。
+check('E4 【台架自检】上面两次拨动已原样还原',
+  !said.err && said.pathIntact && said.restoredOK,
+  said.err ? '页内失败：' + said.err
+    : `pathIntact=${said.pathIntact} ${said.beforeLen} → ${said.afterLen} 字`);

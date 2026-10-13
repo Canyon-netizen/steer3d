@@ -1,0 +1,3 @@
+[扰动已落地] 臂 d3：{"k":"d3","before":1,"after":0,"note":"拆掉 change 处理器 ⇒ 派发 change 事件也不会换题"}
+RED  D3 切题后 pid 真的换了  1983_I_1 → 1983_I_1
+RESULT FAIL 38/39

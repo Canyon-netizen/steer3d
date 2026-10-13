@@ -1,0 +1,3 @@
+[扰动已落地] 臂 all：{"all":{"before":true,"after":false}}
+RED  D2 「看全部」行数变成 k+1  6 → 6，应 28
+RESULT FAIL 38/39

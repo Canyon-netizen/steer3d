@@ -1,0 +1,3 @@
+[扰动已落地] 臂 a7：{"k":"a7","before":1,"after":0,"note":"极性与 A6 相反：它断言 none，所以扰动方向是把画布变回可见"}
+RED  A7 画布已让位  #cv display=block
+RESULT FAIL 38/39

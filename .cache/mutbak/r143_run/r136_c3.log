@@ -1,0 +1,3 @@
+[扰动已落地] 臂 c3：{"k":"c3","before":1,"after":0,"note":"occ **实时**查 DOM，不用捕获的数组 —— rows.length 在 remove() 后不变（修订134坑6）"}
+RED  C3 默认只看分叉前后 ±5 步  rows=5
+RESULT FAIL 38/39

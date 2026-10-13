@@ -1,0 +1,3 @@
+[扰动已落地] 臂 a6：{"k":"a6","before":1,"after":0,"note":"#pairRow 保留元素、只改 display —— 删元素会让 getComputedStyle(null) 抛，那正是 D5 同族"}
+RED  A6 配对题目下拉可见（读者能换题）  display=none
+RESULT FAIL 38/39

@@ -1,0 +1,6 @@
+[扰动已落地] 臂 e1：{"k":"e1","before":1,"after":0,"note":"实测裸名与 window. 一致，故设 window. 就能让裸名也变 undefined"}
+RED  E1 渲染函数存在（缺数据时才有人喊缺）  {"hasHandler":false}
+RED  E2 整份路径数据取不到时，屏上明说缺什么（可见文案）  页内失败：renderPathPanel is not a function
+RED  E3 这一题没记录时，屏上明说并给出换题指引（可见文案）  页内失败：renderPathPanel is not a function
+RED  E4 【台架自检】上面两次拨动已原样还原  页内失败：renderPathPanel is not a function
+RESULT FAIL 35/39
