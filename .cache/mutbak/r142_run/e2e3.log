@@ -1,0 +1,4 @@
+[扰动已落地] 臂 e2e3：{"k":"e2e3","before":1,"after":0,"note":"包住 renderPathPanel：缺数据时静默返回空（正是 E1 名字里警告的形态）"}
+RED  E2 整份路径数据取不到时，屏上明说缺什么（可见文案）  state=(无块) 0 字
+RED  E3 这一题没记录时，屏上明说并给出换题指引（可见文案）  state=(无块) 0 字
+RESULT FAIL 37/39

@@ -25,6 +25,7 @@
 
 import importlib.util
 import json
+import argparse
 import os
 import sys
 import time
@@ -36,8 +37,10 @@ spec_ = importlib.util.spec_from_file_location(
 R139 = importlib.util.module_from_spec(spec_)
 spec_.loader.exec_module(R139)
 
-OUT = ROOT / ".cache/mutbak/r141_hist"
-SPEC = ROOT / ".cache/mutbak/r141_hist_spec.json"
+# ⚠⚠⁴ 第一版把清单路径**写死**在这里 ⇒ 我传了新清单它也不读，跑的还是旧的。
+# ⚠⚠⁴ **又是「仪器跑了别的东西」的小变种**：不是读错文件，是**根本不读你给的那个**。
+DEFAULT_SPEC = ".cache/mutbak/r141_hist_spec.json"
+DEFAULT_OUT = ".cache/mutbak/r141_hist"
 
 
 def find_before_after(obj):
@@ -159,7 +162,13 @@ def check_shape(arm, a, b, base_total):
 
 
 def main():
-    spec = json.loads(SPEC.read_text(encoding="utf-8"))
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--spec", default=DEFAULT_SPEC)
+    ap.add_argument("--outdir", default=DEFAULT_OUT)
+    args = ap.parse_args()
+    global OUT
+    OUT = ROOT / args.outdir
+    spec = json.loads((ROOT / args.spec).read_text(encoding="utf-8"))
     OUT.mkdir(parents=True, exist_ok=True)
 
     # ---- 基线（本轮实跑）--------------------------------------------------

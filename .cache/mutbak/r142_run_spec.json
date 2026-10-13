@@ -1,0 +1,19 @@
+{
+  "src": ".cache/browser_verify/verify_path.mjs",
+  "arms": [
+    {
+      "name": "e2e3",
+      "node": ".cache/mutbak/r142_arms/verify_path_e2e3.mjs",
+      "criterion": "E2 整份路径数据取不到时，屏上明说缺什么（可见文案）",
+      "expect": {
+        "flips": [
+          "E2",
+          "E3"
+        ]
+      },
+      "env": {},
+      "self": null,
+      "from": "修订 142：E2/E3 的牙齿臂"
+    }
+  ]
+}

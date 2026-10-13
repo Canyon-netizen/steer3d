@@ -1,0 +1,16 @@
+{
+  "src": ".cache/browser_verify/verify_path.mjs",
+  "art": "frontend/public/latent/data/path_readout.json",
+  "outdir": ".cache/mutbak/r142_arms/",
+  "pid": "1983_I_1",
+  "arms": [
+    {
+      "name": "e2e3",
+      "at": 227,
+      "before": 227,
+      "anchor": "const missing = JSON.parse(await page.eval(`(() => {",
+      "criterion": "E2/E3 缺数据时屏上明说缺什么（可见文案）",
+      "mutate": "`(()=>{const orig=renderPathPanel;const probe=()=>{const save=S.path;S.path=null;const b=document.createElement('div');b.innerHTML=renderPathPanel();const t=b.innerText||b.textContent||'';S.path=save;return t.indexOf('未载入')>=0?1:0;};const before=probe();window.renderPathPanel=function(){const path=S.path;const pid=(S.pm&&S.pm.pairs&&S.pm.pairs[S.pi])?S.pm.pairs[S.pi].id:null;if(!path||!((path.problems||{})[pid]))return '';return orig.apply(this,arguments);};const after=probe();window.__r135={k:'e2e3',before:before,after:after,note:'包住 renderPathPanel：缺数据时静默返回空（正是 E1 名字里警告的形态）'};return true;})()`"
+    }
+  ]
+}
