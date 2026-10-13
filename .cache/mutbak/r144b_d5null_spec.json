@@ -1,0 +1,13 @@
+{
+  "src": ".cache/browser_verify/verify_path.mjs",
+  "outdir": ".cache/mutbak/r144b_arms/",
+  "arms": [
+    {
+      "name": "d5null",
+      "at": 224,
+      "before": 224,
+      "anchor": "back = JSON.parse(await page.eval(`(async () => {",
+      "mutate": "`(()=>{const q=s=>document.querySelector(s);const e=q('#tabXY');const before=e?1:0;if(e)e.remove();const after=q('#tabXY')?1:0;window.__r135={k:'d5null',before:before,after:after};return true;})()`"
+    }
+  ]
+}

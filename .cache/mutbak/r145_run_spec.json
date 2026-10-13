@@ -1,0 +1,273 @@
+{
+  "src": ".cache/browser_verify/verify_path.mjs",
+  "arms": [
+    {
+      "name": "r135_a5",
+      "node": ".cache/mutbak/r145_arms/verify_path_r135_a5.mjs",
+      "expect": {
+        "flips": [
+          "A5"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9600"
+      },
+      "self": null,
+      "criterion": ""
+    },
+    {
+      "name": "r135b_a6",
+      "node": ".cache/mutbak/r145_arms/verify_path_r135b_a6.mjs",
+      "expect": {
+        "flips": [
+          "A6"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9601"
+      },
+      "self": null,
+      "criterion": ""
+    },
+    {
+      "name": "r135b_c4",
+      "node": ".cache/mutbak/r145_arms/verify_path_r135b_c4.mjs",
+      "expect": {
+        "flips": [
+          "C4",
+          "D1"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9602"
+      },
+      "self": null,
+      "criterion": "C4 d.candPerArm === 2"
+    },
+    {
+      "name": "r135b_a8",
+      "node": ".cache/mutbak/r145_arms/verify_path_r135b_a8.mjs",
+      "expect": {
+        "flips": [
+          "A8"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9603"
+      },
+      "self": null,
+      "criterion": ""
+    },
+    {
+      "name": "r136_d3",
+      "node": ".cache/mutbak/r145_arms/verify_path_r136_d3.mjs",
+      "expect": {
+        "flips": [
+          "D3"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9604"
+      },
+      "self": null,
+      "criterion": "D3 sw.before !== sw.after（切题后 data-pathpid 真的换了）"
+    },
+    {
+      "name": "r136_d4",
+      "node": ".cache/mutbak/r145_arms/verify_path_r136_d4.mjs",
+      "expect": {
+        "flips": []
+      },
+      "env": {
+        "CDP_PORT": "9605"
+      },
+      "self": null,
+      "criterion": "D4 prod.problems[sw.after].k === String(sw.k) —— 页面侧 k 与产物 k 必须一致"
+    },
+    {
+      "name": "r136_a1",
+      "node": ".cache/mutbak/r145_arms/verify_path_r136_a1.mjs",
+      "expect": {
+        "flips": []
+      },
+      "env": {
+        "CDP_PORT": "9606"
+      },
+      "self": null,
+      "criterion": "A1 state === 'ok'（data-pathstate 属性）"
+    },
+    {
+      "name": "r136_a7",
+      "node": ".cache/mutbak/r145_arms/verify_path_r136_a7.mjs",
+      "expect": {
+        "flips": [
+          "A7"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9607"
+      },
+      "self": null,
+      "criterion": "A7 d.cv === 'none'（画布已让位）"
+    },
+    {
+      "name": "r136_c1",
+      "node": ".cache/mutbak/r145_arms/verify_path_r136_c1.mjs",
+      "expect": {
+        "flips": [
+          "C1"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9608"
+      },
+      "self": null,
+      "criterion": "C1 String(q0.k) === String(d.k) —— data-pathk 属性"
+    },
+    {
+      "name": "r136_c2",
+      "node": ".cache/mutbak/r145_arms/verify_path_r136_c2.mjs",
+      "expect": {
+        "flips": [
+          "C2",
+          "D1"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9609"
+      },
+      "self": null,
+      "criterion": "C2 nForks===1 && forkT[0]===String(q0.k)"
+    },
+    {
+      "name": "r136_c3",
+      "node": ".cache/mutbak/r145_arms/verify_path_r136_c3.mjs",
+      "expect": {
+        "flips": [
+          "C3"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9610"
+      },
+      "self": null,
+      "criterion": "C3 nRows === Math.min(6, q0.k+1)"
+    },
+    {
+      "name": "r136_e1",
+      "node": ".cache/mutbak/r145_arms/verify_path_r136_e1.mjs",
+      "expect": {
+        "flips": [
+          "E1",
+          "E2",
+          "E3",
+          "E4"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9611"
+      },
+      "self": null,
+      "criterion": "E1 typeof renderPathPanel === 'function'"
+    },
+    {
+      "name": "r138_d4",
+      "node": ".cache/mutbak/r145_arms/verify_path_r138_d4.mjs",
+      "expect": {
+        "flips": [
+          "D4"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9612"
+      },
+      "self": null,
+      "criterion": "D4 prod.problems[sw.after].k === String(sw.k) —— 页面侧 k 与产物 k 必须一致"
+    },
+    {
+      "name": "r138_a1b",
+      "node": ".cache/mutbak/r145_arms/verify_path_r138_a1b.mjs",
+      "expect": {
+        "flips": [
+          "A1"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9613"
+      },
+      "self": null,
+      "criterion": "A1 state === 'ok'（切到第 5 屏后 [data-pathblock] 的 data-pathstate）"
+    },
+    {
+      "name": "r134b_fork",
+      "node": ".cache/mutbak/r145_arms/r134b_fork.mjs",
+      "expect": {
+        "flips": [
+          "D1"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9614",
+        "R134_ARM": "fork"
+      },
+      "self": "fork",
+      "criterion": ""
+    },
+    {
+      "name": "r134b_all",
+      "node": ".cache/mutbak/r145_arms/r134b_all.mjs",
+      "expect": {
+        "flips": [
+          "D2"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9615",
+        "R134_ARM": "all"
+      },
+      "self": "all",
+      "criterion": ""
+    },
+    {
+      "name": "r134b_pair",
+      "node": ".cache/mutbak/r145_arms/r134b_pair.mjs",
+      "expect": {
+        "skip": [
+          "D3"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9616",
+        "R134_ARM": "pair"
+      },
+      "self": "pair",
+      "criterion": ""
+    },
+    {
+      "name": "r134b_xy",
+      "node": ".cache/mutbak/r145_arms/r134b_xy.mjs",
+      "expect": {
+        "flips": [
+          "D5"
+        ]
+      },
+      "env": {
+        "CDP_PORT": "9617",
+        "R134_ARM": "xy"
+      },
+      "self": "xy",
+      "criterion": ""
+    },
+    {
+      "name": "r134b_path_dgroup",
+      "node": ".cache/mutbak/r145_arms/r134b_path_dgroup.mjs",
+      "expect": null,
+      "env": {
+        "CDP_PORT": "9618",
+        "R134_ARM": "path_dgroup"
+      },
+      "self": "path_dgroup",
+      "criterion": ""
+    }
+  ]
+}
