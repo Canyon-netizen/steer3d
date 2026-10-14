@@ -102,14 +102,35 @@ def main():
         c = Counter(v.get("strict") for k, v in pool(d, "think").items())
         return c["correct"], c["wrong"], c["unlabeled"], sum(c.values())
 
+    def tally_sub(d, keys):
+        c = Counter(d[k].get("strict") for k in keys if k in d)
+        return c["correct"], c["wrong"], c["unlabeled"], sum(c.values())
+
     oc, ow, ou, on = tally(old)
     nc, nw, nu, nn = tally(new)
+    # ⚠⚠⁴⚠⚴ 第三列：**同 N 条**的旧值。
+    # ⚗⚠⚴⚠⚴ 起因：本脚本第一版只印「旧 30 条」与「新 4 条」两列并排，
+    # ⚗⚠ **读者一眼就会读成「unlabeled 19 → 0」** ——
+    # ⚗⚠⚠⚠ **而那正是 §167.1 明令禁止的误读**（代理指标好看 ≠ P6 要的 correct）。
+    # ⚗⚠⚴⚠⚴ ⚗⚠ **两列的 n 不同就不可逐格相减；n 一旦不同，unlabeled 那格最容易骗人。⚗⚠⁴⚗⚠**
+    # ⚠ ⇒ 加一列「旧（同 N 条）」，让等 footing 的对比自己做出来。
+    sc, sw_, su, sn = tally_sub(old, common)
+
     print("\n=== 2. P6 现状（%s think 单池，⚗⚠ 不许用合并池）===" % BENCH)
-    print("  %-6s %-28s %-28s" % ("", "旧 cap 8192", "新 cap 32768"))
-    print("  %-6s %-28s %-28s" % ("correct", oc, nc))
-    print("  %-6s %-28s %-28s" % ("wrong", ow, nw))
-    print("  %-6s %-28s %-28s" % ("unlabeled", ou, nu))
-    print("  %-6s %-28s %-28s" % ("n", on, nn))
+    if nn != on:
+        print("  ⚠⚠⚴ **两列的 n 不同（%d vs %d）⇒ 不可逐格相减。**" % (on, nn))
+        print("  ⚗⚠⚴⚠ **尤其别把「unlabeled %d → %d」读成「unlabeled 消失了」——⚗⚠⚴⚠"
+              % (ou, nu))
+        print("  ⚗⚠⚴⚠ 那是【只完成了 %d 条】造成的，⚗⚠⚴⚴ ⚠ **不是提 cap 的效果。⚠⚠⚴⚗⚠⚴⚠⚠**" % nn)
+    print("  %-10s %-14s %-20s %s" % ("", "旧（全池）", "旧（同 %d 条）" % sn,
+                                      "新（同 %d 条）" % nn))
+    print("  %-10s %-14s %-20s %s" % ("correct", oc, sc, nc))
+    print("  %-10s %-14s %-20s %s" % ("wrong", ow, sw_, nw))
+    print("  %-10s %-14s %-20s %s" % ("unlabeled", ou, su, nu))
+    print("  %-10s %-14s %-20s %s" % ("n", on, sn, nn))
+    if sn != on:
+        print("  ⚠ **第三列才是能和新列比的那一列**（同 %d 条）；⚗⚠ 第一列是全池 %d 条，⚗⚠ 混看会得出错的结论。"
+              % (sn, on))
 
     # ---- 3. 那条 16% 的线 ----
     need = max(0, P6_CORRECT_FLOOR - nc)
