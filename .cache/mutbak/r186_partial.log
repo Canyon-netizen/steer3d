@@ -1,0 +1,156 @@
+本次运行标签：r182_1014_205923（落盘名 r182_1014_205923_label.json，不再覆盖旧运行）
+
+======================================================================
+[步骤 1] 数远端产物条数
+======================================================================
+远端 gen_b2_max32768/aime/*.json = 32 条（期望 60）
+完整度：32/60（成对完整题数 32）=> 未跑满，闸按 32 行验身份
+
+======================================================================
+[步骤 2] 远端标注（strict_label_r167.py，R-27 规则唯一来源）
+======================================================================
+hink                       think     32768 23395    2   27 False      wrong     boxed   150   204  
+aime__aime25__p13__no_think                    no_think  32768 32768    0    0 False  unlabeled      None  None    60  触顶 无任何答案陈述 -> unlabeled
+aime__aime25__p13__think                       think     32768 28272    3   18 False      wrong     boxed    84    60  
+aime__aime25__p14__no_think                    no_think  32768  1610    2    2 False      wrong     boxed   147   735  
+aime__aime25__p14__think                       think     32768 32768    0    0 False  unlabeled      None  None   735  触顶 无任何答案陈述 -> unlabeled
+aime__aime25__p15__no_think                    no_think  32768 32768    0    0 False  unlabeled      None  None   468  触顶 无任何答案陈述 -> unlabeled
+aime__aime25__p15__think                       think     32768  5500    3    8  True    correct     boxed   468   468  
+
+轨迹总数 32
+  严格: correct=8  wrong=19  unlabeled=5
+  旧标签: correct=8
+  触顶: 5/32
+  **旧标签幻觉 (D1 红): 0** -> []
+
+think     n= 16  触顶=  2 ( 12%)  有标签= 14 ( 88%)  correct= 6 wrong= 8 unlabeled= 2  幻觉=0
+no_think  n= 16  触顶=  3 ( 19%)  有标签= 13 ( 81%)  correct= 2 wrong=11 unlabeled= 3  幻觉=0
+
+写出 r182_1014_205923_label.json
+
+
+======================================================================
+[步骤 3] 拉回标注产物
+======================================================================
+已拉到 r182_1014_205923_label.json（10495 字节）
+行数与步骤 1 一致：32
+
+======================================================================
+[步骤 4] r180_p6_precond —— 身份/结构闸（按 32 行）
+======================================================================
+=== P6 判决前置闸：r182_1014_205923_label.json ===
+    期望 cap=32768  行数=32
+  [✅] cap 全等且 = 32768 —— cap 分布 {32768: 32}
+  [✅] 行数 = 32 —— 实际 32（缺 0）
+  [✅] traj 无重复 —— 重复 0 个：[]
+  [✅] traj 形状可解析 —— 不合规 0 个：[]
+  [✅] 题号 0..15 两臂齐全 —— 缺 0 条：[]
+
+✅ 批次完整 —— 现在跑 p6_readiness.py，它的判决才成立。
+RESULT p6_precond  OK
+
+>>> r180_p6_precond EXIT=0
+
+======================================================================
+[步骤 5] r177_batch_identity —— 批次身份闸（按 32 行）
+======================================================================
+=== 批次身份自证：/Users/zhourui/code/steer3d/.cache/mutbak/r182_1014_205923_label.json ===
+    期望 cap=32768  行数=32  数据集正则=^aime__aime25__p(\d{2})__(think|no_think)$
+  [✅] 行数 = 32  —— 实际 32
+  [✅] cap 全等且 = 32768  —— cap 分布 {32768: 32}
+  [✅] traj 无重复  —— 重复 0 个：[]
+  [✅] traj 形状匹配 ^aime__aime25__p(\d{2})__(think|no_think)$  —— 不合规 0 个：[]
+  [✅] 两臂齐全且等量  —— mode 分布 {'no_think': 16, 'think': 16}
+  [✅] 判据字段齐全  —— 缺失字段 []
+  [✅] truncated 与 cap 自洽  —— 不自洽 0 条：[]
+
+RESULT IDENTITY-OK
+
+>>> r177_batch_identity EXIT=0
+
+======================================================================
+[步骤 6] r181_label_drift —— 混淆项观测（红不阻断，但要看见）
+======================================================================
+=== 标签漂移检查 ===
+  旧批 = strict_label_b2_full60.json（cap 分布 {8192: 120}）
+  新批 = r182_1014_205923_label.json（cap 分布 {32768: 32}）
+  同题同臂可比 = 32 条
+
+--- 旧标签 -> 新标签 转移矩阵 ---
+  correct    -> correct      8
+  unlabeled  -> unlabeled    5
+  unlabeled  -> wrong        7
+  wrong      -> wrong       12
+
+--- 已确立标签（分母限定在旧批 correct/wrong）---
+  合计 n=20
+  think     n= 7  一致  7  不一致 0  {('correct', 'correct'): 6, ('wrong', 'wrong'): 1}
+  no_think  n=13  一致 13  不一致 0  {('correct', 'correct'): 2, ('wrong', 'wrong'): 11}
+
+--- 旧批 unlabeled 的 12 条（不算漂移，单列）---
+  aime__aime25__p04__think       ntok 8192   -> 20360   trunc True  -> False  -> wrong
+  aime__aime25__p06__think       ntok 8192   -> 32768   trunc True  -> True   -> unlabeled
+  aime__aime25__p08__think       ntok 8192   -> 23338   trunc True  -> False  -> wrong
+  aime__aime25__p09__think       ntok 8192   -> 16858   trunc True  -> False  -> wrong
+  aime__aime25__p10__think       ntok 8192   -> 22742   trunc True  -> False  -> wrong
+  aime__aime25__p11__no_think    ntok 8192   -> 32768   trunc True  -> True   -> unlabeled
+  aime__aime25__p11__think       ntok 8192   -> 22683   trunc True  -> False  -> wrong
+  aime__aime25__p12__think       ntok 8192   -> 23395   trunc True  -> False  -> wrong
+  aime__aime25__p13__no_think    ntok 8192   -> 32768   trunc True  -> True   -> unlabeled
+  aime__aime25__p13__think       ntok 8192   -> 28272   trunc True  -> False  -> wrong
+  aime__aime25__p14__think       ntok 8192   -> 32768   trunc True  -> True   -> unlabeled
+  aime__aime25__p15__no_think    ntok 8192   -> 32768   trunc True  -> True   -> unlabeled
+
+✅ 已确立标签 20/20 全部保持，无漂移。
+⚠ 适用范围：只覆盖当前两批**共同存在**的那些题。
+⚠ 新批尚未生成完时，本结果只是已生成那一段的，不得当作全池结论。
+RESULT label_drift  OK  n_locked=20
+
+>>> r181_label_drift EXIT=0
+
+======================================================================
+[步骤 7] r178_uncapped_fate —— P6 权威口径（修订 179）
+======================================================================
+=== 实际读入（先看这两行再信下面任何数）===
+  旧批 = strict_label_b2_full60.json
+  新批 = r182_1014_205923_label.json
+=== 旧批 unlabeled 候选池（think 臂，aime25）===
+  候选总数（旧批 unlabeled）: 19
+  已测: 9    未测: 10
+  未测题号: ['p17', 'p19', 'p20', 'p22', 'p23', 'p25', 'p26', 'p27', 'p28', 'p29']
+
+=== 已测部分的归宿（分母 = 已测数，不是候选总数）===
+  A 仍触顶                    2
+  B 跑完但 wrong              7
+
+=== P6 相关（⚠ 仅就「已测」这一段，不外推到全池）===
+  A+B 合计 = 9（把话说完了但对 correct 贡献 0）
+  C = 0；已测段转化率 = 0.0%
+  P6 底线 think correct >= 10；旧批 correct 已有 7 ⇒ 还需 3 条来自候选池
+  ⚠ 全池口径的转化率门槛 = 15.8%（3 / 19）——⚠ 只有全池测完才能对照这个数
+
+=== 逐条（不抽样）===
+  题      旧                        新n_tok   归宿        
+  p04    unlabeled                20360    B 跑完但 wrong
+  p06    unlabeled                32768    A 仍触顶     
+  p08    unlabeled                23338    B 跑完但 wrong
+  p09    unlabeled                16858    B 跑完但 wrong
+  p10    unlabeled                22742    B 跑完但 wrong
+  p11    unlabeled                22683    B 跑完但 wrong
+  p12    unlabeled                23395    B 跑完但 wrong
+  p13    unlabeled                28272    B 跑完但 wrong
+  p14    unlabeled                32768    A 仍触顶     
+
+>>> r178_uncapped_fate EXIT=0
+
+======================================================================
+[步骤 8] p6_readiness —— 判决仪器
+======================================================================
+⛔ 批次未跑满（32/60），**不跑**这一支。
+   它在部分数据上会印「再多取也到不了 10 / 这是设计问题，不是取数问题」，
+   而那两句此时都是假话（修订 180 实测）。
+>>> 跳过（不是失败，是设计）
+
+======================================================================
+汇总：完整性闸 0 · 身份闸 0 · 漂移 EXIT=0 · 口径 0
+RESULT pipeline  DONE  n=32  mode=partial

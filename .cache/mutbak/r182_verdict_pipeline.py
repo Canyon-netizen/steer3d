@@ -66,6 +66,21 @@ P6 = XC / "p6_readiness.py"
 STAMP = "r182"
 
 
+def run_tag():
+    """每次运行的唯一标签。
+
+    ⚠ 修订 186 修正：原先落盘名是写死的 `r182_label.json`，
+      于是**第二次运行会把第一次的产物整个覆盖掉**。
+      实测踩到：修订 182 入库的是 20 行那一版，
+      隔一轮再跑增量模式，工作区那份被静默覆盖成 32 行 ——
+      **「结论对但证据没进仓库」的另一种形态：证据被覆盖后，
+      账本里引用的那份文件已经不存在了。**
+    ⇒ 落盘名带运行标签（默认取本地时间戳），不再跨运行复用同一个名字。
+    """
+    import time
+    return time.strftime("%m%d_%H%M%S")
+
+
 def run(cmd, cwd=None):
     """跑一条命令，返回 (exit_code, 输出)。退出码直接从 returncode 取，不经管道。"""
     p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
@@ -92,6 +107,11 @@ def main():
     if not DRIFT.exists() or not PRECOND.exists():
         print("[错误] 判据脚本缺失，先确认 .cache/mutbak/ 下文件在不在")
         return EXIT_USAGE
+
+    global STAMP
+    STAMP = "%s_%s" % (STAMP, run_tag())
+    if not a.dry_run:
+        print("本次运行标签：%s（落盘名 %s_label.json，不再覆盖旧运行）" % (STAMP, STAMP))
 
     if a.dry_run:
         print("=== 计划（未执行）===")

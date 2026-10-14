@@ -110,6 +110,12 @@ def p_for_prob(n, k, target):
 def main():
     ap = argparse.ArgumentParser(add_help=True)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--n-done", type=int, default=6,
+                    help="已测候选条数（默认 6，即修订 184 当时）")
+    ap.add_argument("--k-done", type=int, default=0,
+                    help="已测候选里转成 correct 的条数（默认 0）")
+    ap.add_argument("--progress", default=None,
+                    help="当前跑批进度，如 '32/60'。不给就不印，避免写死变陈旧")
     a = ap.parse_args()
 
     if not OLD_LABEL.exists():
@@ -132,7 +138,10 @@ def main():
     n_cand = sum(1 for s in pool.values() if s == "unlabeled")
     locked = sum(1 for s in pool.values() if s == "correct")
     need = max(0, P6_CORRECT_FLOOR - locked)
-    n_done, k_done = 6, 0          # 截至修订 184 的实测
+    n_done, k_done = a.n_done, a.k_done
+    if n_done > n_cand:
+        print("[错误] --n-done=%d 超过候选池 %d" % (n_done, n_cand))
+        return 2
     n_rem = n_cand - n_done
 
     lo, hi = cp_bounds(k_done, n_done)
@@ -148,10 +157,10 @@ def main():
         }, ensure_ascii=False, indent=2))
         return 0
 
-    print("=== P6 达标条件（截至修订 184 实测）===")
+    print("=== P6 达标条件（按 --n-done/--k-done 给的实测）===")
     print("  旧批 aime25 think 池      n = %d" % len(pool))
     print("  候选池（旧批 unlabeled）   n = %d" % n_cand)
-    print("  锁死 correct              = %d   （修订 181 实测 17/17 无漂移）"
+    print("  锁死 correct              = %d   （漂移检查见 r181_label_drift.py）"
           % locked)
     print("  P6 底线                   = %d" % P6_CORRECT_FLOOR)
     print("  => 仍需 correct           >= %d" % need)
@@ -161,36 +170,48 @@ def main():
     print("  剩余所需转化率 = %d/%d = %.1f%%" % (need, n_rem, need_rate * 100))
     print("  全池门槛       = %d/%d = %.1f%%" % (need, n_cand, pool_rate * 100))
 
-    print("\n=== 已测 %d 条里 0 条转成 correct，能排除多少？===" % n_done)
+    print("\n=== 已测 %d 条里 %d 条转成 correct，能排除多少？===" % (n_done, k_done))
     print("  Clopper-Pearson 95%% 区间：真实转化率 ∈ [%.1f%%, %.1f%%]"
           % (lo * 100, hi * 100))
-    print("  ⚠ 6 条样本的上界高到 %.0f%% ——" % (hi * 100))
+    print("  ⚠ %d 条样本的上界高到 %.0f%% ——" % (n_done, hi * 100))
     print("  ⚠ **现有数据根本不足以把「真实转化率 > 所需」排除掉。**")
-    print("  ⚠ 也就是说：「0/%d」既不能证明会失败，也不能排除会成功。" % n_done)
+    print("  ⚠ 也就是说：「%d/%d」既不能证明会失败，也不能排除会成功。"
+          % (k_done, n_done))
 
     p_half = p_for_prob(n_rem, need, 0.5)
+    # ⚠ 修订 185 修正：grid 去重。原版把 need_rate 与硬编码的 0.30 并列，
+    #   两者相等时同一行印两遍；且「五成把握点」用 ±0.005 容差标注，
+    #   交点落在两个采样点之间时一个都不会被标上。
+    grid = sorted({0.0, 0.05, 0.10, pool_rate, 0.20, need_rate, 0.30, 0.40})
     print("\n=== 条件概率表：若剩余 %d 条的真实转化率是 p，P(补足 %d 条) ==="
           % (n_rem, need))
     print("  %-10s %-14s %s" % ("p", "P(>=%d)" % need, "备注"))
-    for p in (0.0, 0.05, 0.10, pool_rate, 0.20, need_rate, 0.30, 0.40):
+    for p in grid:
         pr = binom_ge(n_rem, need, p)
-        mark = ""
+        marks = []
         if abs(p - pool_rate) < 1e-9:
-            mark = "  <- 全池门槛 %.1f%%" % (pool_rate * 100)
+            marks.append("全池门槛 %.1f%%" % (pool_rate * 100))
         if abs(p - need_rate) < 1e-9:
-            mark = "  <- 剩余所需率 %.1f%%" % (need_rate * 100)
-        if abs(p - p_half) < 5e-3:
-            mark += "  <- 五成把握点"
-        print("  %-10.3f %-14.3f%s" % (p, pr, mark))
+            marks.append("剩余所需率 %.1f%%" % (need_rate * 100))
+        if abs(p - p_half) < 1e-9:
+            marks.append("五成把握点")
+        print("  %-10.3f %-14.3f%s"
+              % (p, pr, ("  <- " + " / ".join(marks)) if marks else ""))
 
     print("\n  => 剩余真实转化率要高到 %.1f%% 才有**五成**把握补足；"
           % (p_half * 100))
-    print("     （这是算出来的交点，不是「所需率」本身 —— 所需率 %.1f%% 对应 P=%.2f）"
+    print("     ⚠ 这个交点 %.1f%% 不一定落在表里任何一行上（表是采样，不是求解）。"
+          % (p_half * 100))
+    print("     所需率 %.1f%% 对应 P=%.2f。"
           % (need_rate * 100, binom_ge(n_rem, need, need_rate)))
-    print("     而目前实测是 0/%d。" % n_done)
+    print("     而目前实测是 %d/%d。" % (k_done, n_done))
 
-    print("\n⚠ 本表不是 P6 结论（§167：数据没跑完不给结论，当前 24/60）。")
-    print("⚠ 它只说明「还差多少」与「现有样本能排除多少」，供决策用。")
+    print("\n⚠ 本表不是 P6 结论（§167：数据没跑满不给结论）。")
+    if a.progress:
+        print("⚠ 跑批进度：%s —— 未跑满，不给 P6 结论。" % a.progress)
+    else:
+        print("⚠ 跑批进度未随脚本记录，引用本表前请自己核当前进度。")
+    print("⚠ 它只回答「还差多少」「现有样本能排除多少」，供决策用。")
     return 0
 
 
