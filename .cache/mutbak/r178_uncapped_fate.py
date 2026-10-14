@@ -24,9 +24,14 @@ import re
 from collections import Counter
 from pathlib import Path
 
+import sys
+
 ROOT = Path(__file__).resolve().parents[2]
 OLD = ROOT / ".cache/mutbak/strict_label_b2_full60.json"
-NEW = ROOT / ".cache/mutbak/label_32768_r177.json"
+# 修订 180：新批标注走位置参数。原先写死 label_32768_r177.json（16 行），
+# 生成继续推进后这个脚本会**静默读旧文件**——仪器跑的不是你以为的那份。
+DEFAULT_NEW = ROOT / ".cache/mutbak/label_32768_r177.json"
+NEW = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else DEFAULT_NEW
 POOL = "aime__aime25__"
 TT_RE = re.compile(r"^aime__aime25__p(\d{2})__think$")
 
@@ -42,6 +47,14 @@ def prob_of(traj):
 
 
 def main():
+    for _p in (OLD, NEW):
+        if not _p.exists():
+            print("[错误] 读不到标注文件：%s" % _p)
+            return 2
+    print("=== 实际读入（先看这两行再信下面任何数）===")
+    print("  旧批 = %s" % OLD.name)
+    print("  新批 = %s" % NEW.name)
+
     old = {prob_of(r["traj"]): r for r in load_rows(OLD)
            if prob_of(r["traj"]) is not None}
     new = {prob_of(r["traj"]): r for r in load_rows(NEW)

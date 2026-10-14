@@ -1,0 +1,20 @@
+=== P6 开机自检 ===
+数据来源：标签产物 label_32768_r180.json
+标签规则：strict_label.label()（R-27，唯一来源，本脚本不复刻）
+  ⚠ 实际加载：/Users/zhourui/code/steer3d/.cache/mutbak/strict_label.py
+[think] think     n=  9  correct=  5  wrong=  3  unlabeled=  1  触顶=  1  幻觉= 0  cap=[32768]
+[no_think] no_think  n=  9  correct=  2  wrong=  7  unlabeled=  0  触顶=  0  幻觉= 0  cap=[32768]
+
+--- P6 底线核对 ---
+  P6 原文：correct 组轨迹数 < 10 ⇒ 记「**样本不足，不构成结论**」
+  实得 think correct = 5
+
+⚠⚠⚴ **样本不足。** ⚗⚠ 按 P6，这一格必须记「不构成结论」——
+⚗⚠⚴⚠⚠ **既不能因为 p 值小就报显著，也不能因为 p 值大就报「无差异」。**
+⚗⚠⚠⚠⚠⚠ ⚠ 缺的是**轨迹本身**（带 hidden states 的 npz），不是口径、不是算力。
+⚗⚠⚴⚠⚴ ⚠⚠⚴ **但先别急着去取数据** —— 修订 153 实测：
+⚗⚠⚴⚠⚴⚠ ⚠ 新批次**单个 benchmark** 的 correct 只有 6–7 条，
+⚗⚠⚴⚠⚴⚠ ⚗ **按预登记的停止点（前 30 题），再多取也到不了 10。**
+⚗⚠⚴⚠⚴ ⚠⚠⚴ **⇒ 这是设计问题，不是取数问题。**
+
+RESULT p6_readiness  UNDERPOWERED  think correct=5 < 10 ⇒ 「样本不足，不构成结论」
