@@ -1,0 +1,17 @@
+=== P6 开机自检 ===
+数据来源：标签产物 strict_label_b2_full60.json
+标签规则：strict_label.label()（R-27，唯一来源，本脚本不复刻）
+  ⚠ 实际加载：/Users/zhourui/code/steer3d/.cache/mutbak/strict_label.py
+[think] think     n= 60  correct= 13  wrong=  8  unlabeled= 39  触顶= 49  幻觉= 0  cap=[8192]
+[no_think] no_think  n= 60  correct=  6  wrong= 48  unlabeled=  6  触顶=  6  幻觉= 0  cap=[8192]
+
+--- 按 benchmark 拆开（⚠⚠⚴ **判决必须按单个 benchmark 判**）---
+  aime25     n= 30  correct=  7  wrong=  4  unlabeled= 19  ⚠ 够不到 P6 底线
+  aime26     n= 30  correct=  6  wrong=  4  unlabeled= 20  ⚠ 够不到 P6 底线
+  合并         n= 60  correct= 13  ← **合并池**
+
+⚠⚠⚴⚠⚴⚠⚠⚠⚠ **合并池才够格**（13 ≥ 10），⚗⚠⚠⚠⚠ 而每个 benchmark 都够不到：
+⚗⚠⚴⚠⚠⚠⚠⚠ {'aime25': 7, 'aime26': 6}
+⚗⚠⚴⚠⚠⚠ ⚗⚠ **这正是预登记停止规则要防的那件事**（「按题号停、不按标签停」，不让跑到多少 correct 反过来决定取多少题）。
+
+RESULT p6_readiness  POOL_ONLY  仅合并池达标 13；单池 [('aime25', 7), ('aime26', 6)] ⇒ **不许用合并池判 P6**

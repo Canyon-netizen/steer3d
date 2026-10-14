@@ -1,0 +1,25 @@
+=== P6 开机自检 ===
+数据来源：标签产物 r187_synthetic_cap8192_lowpool.json
+标签规则：strict_label.label()（R-27，唯一来源，本脚本不复刻）
+  ⚠ 实际加载：/Users/zhourui/code/steer3d/.cache/mutbak/strict_label.py
+[think] think     n= 60  correct=  7  wrong= 14  unlabeled= 39  触顶= 49  幻觉= 0  cap=[8192]
+[no_think] no_think  n= 60  correct=  4  wrong= 50  unlabeled=  6  触顶=  6  幻觉= 0  cap=[8192]
+
+--- 按 benchmark 拆开（⚠⚠⚴ **判决必须按单个 benchmark 判**）---
+  aime25     n= 30  correct=  7  wrong=  4  unlabeled= 19  ⚠ 够不到 P6 底线
+  aime26     n= 30  correct=  0  wrong= 10  unlabeled= 20  ⚠ 够不到 P6 底线
+  合并         n= 60  correct=  7  ← **合并池**
+
+--- P6 底线核对 ---
+  P6 原文：correct 组轨迹数 < 10 ⇒ 记「**样本不足，不构成结论**」
+  实得 think correct = 7
+
+⚠⚠⚴ **样本不足。** ⚗⚠ 按 P6，这一格必须记「不构成结论」——
+⚗⚠⚴⚠⚠ **既不能因为 p 值小就报显著，也不能因为 p 值大就报「无差异」。**
+⚗⚠⚠⚠⚠⚠ ⚠ 缺的是**轨迹本身**（带 hidden states 的 npz），不是口径、不是算力。
+⚗⚠⚴⚠⚴ ⚠⚠⚴ **这条只对 cap 8192 成立**（修订 153 在该批次实测）：
+⚗⚠⚴⚠⚴⚠ ⚠ 单个 benchmark 的 correct 实测 {'aime25': 7, 'aime26': 6}
+⚗⚠⚴⚠⚴⚠ ⚗ **按预登记的停止点（前 30 题），再多取也到不了 10。**
+⚗⚠⚴⚠⚴ ⚠⚠⚴ **⇒ 对 cap 8192 这一批，这是设计问题，不是取数问题。**
+
+RESULT p6_readiness  UNDERPOWERED  think correct=7 < 10 ⇒ 「样本不足，不构成结论」

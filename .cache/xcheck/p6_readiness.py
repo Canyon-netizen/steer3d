@@ -67,6 +67,22 @@ P6_CORRECT_FLOOR = 10
 # ⚗⚠⚴⚠⚠ **而不是「现算现比」** —— 现算现比等于没有回归基线。
 OLD_BATCH_BASELINE = {"think_correct": 4, "think_wrong": 2, "think_n": 24}
 
+# ⚠⚠⁴⚠⁴ 完整性守卫（修订 187 新增）。
+# ⚗⚠⚠ 停止规则是「前 30 题」，所以**每个 benchmark 的 think 臂**都该有 30 条。
+# ⚗⚠⚠⚴ 守卫的判据写成 `!= 期望规模`，不是 `< 阈值`：
+# ⚗⚠⚠⚴⚴ 多于期望同样是数据不对（混批/重复），不能只挡「不足」那一种。
+EXPECTED_THINK_N_PER_BENCH = 30
+EXIT_INCOMPLETE = 6          # ⚠ 与 UNDERPOWERED(3) 区分开：那是「够了但不够格」，这是「还没跑完」
+
+# ⚠⚠⁴⚠⁴ 历史实测值（修订 187 起**必须条件化**后才能印）。
+# ⚗⚠⚠ 这两个数出自 **cap 8192** 批次（`strict_label_b2_full60.json`，
+# ⚗⚠⚠ 实测 cap 分布 {8192: 120}），账本 `R6_RERUN_PREREG.md:20949` 记
+# ⚗⚠⚠ 「实测（严格口径 R-27）：aime25 7、aime26 6」。
+# ⚗⚠⚴⚴⚴ 它**只在 cap==8192 时成立**。cap 32768 批次上印它，是把上一批的答案
+# ⚗⚠⚴⚴⚴ 写死成这一批的性质 —— 而「6–7 会不会变」正是 cap 32768 这一轮要检验的事。
+CAP8192_MEASURED_ON = 8192
+CAP8192_PER_BENCH_CORRECT = {"aime25": 7, "aime26": 6}
+
 
 BENCH_RE = re.compile(r"^aime__([A-Za-z0-9]+)__")
 
@@ -199,6 +215,39 @@ def main():
         print("RESULT p6_readiness  MISMATCH  cap=%s" % all_caps)
         return 4
 
+    # ---- ⚠⚠⁴⚠⁴ 完整性守卫（修订 187 新增）----
+    # ⚠⚠⚴⚠⚴ **这一段原先不存在。** 实测（修订 180.3）在 18/60 的部分数据上，
+    # ⚠⚠⚴⚠⚴ 本脚本照样出判决 `UNDERPOWERED / EXIT=3`，并印
+    # ⚠⚠⚴⚠⚴   「按前 30 题，再多取也到不了 10」／「这是设计问题，不是取数问题」
+    # ⚠⚠⚴⚠⚴ 而当时 30 题里有 21 题**还没开始生成** ——
+    # ⚠⚠⚴⚠⚴ 那两句都是假话，且足以让人提前收工、砍掉正在跑的这一轮。
+    #
+    # ⚠ 为什么退出码要用 6 而不是复用 3：
+    #   3 (UNDERPOWERED) = 「跑够了，但 correct 数不够格」
+    #   6 (INCOMPLETE)   = 「还没跑完，判决这件事本身还不存在」
+    # ⚠ 两者混用同一个码，事后从日志里分不出「结论成立」和「数据没到」。
+    _bchk = per_bench(rows, "think")
+    _bad = {b: len(v) for b, v in sorted(_bchk.items())
+            if len(v) != EXPECTED_THINK_N_PER_BENCH}
+    if _bad:
+        print("\n" + "!" * 68)
+        print("⛔ **批次未跑满 —— 本次不出判决。**")
+        print("!" * 68)
+        print("  停止规则要求每个 benchmark 的 think 臂各 %d 条，实得："
+              % EXPECTED_THINK_N_PER_BENCH)
+        for _b, _n in _bad.items():
+            print("    %-10s %3d / %d" % (_b, _n, EXPECTED_THINK_N_PER_BENCH))
+        print("\n⚠⚠⚴ **在未跑满的数据上，本脚本算出的任何 correct 数都不是这个批次的性质，")
+        print("⚠⚠⚴   它只是「目前跑到哪」的快照。**")
+        print("⚠⚠⚴ 特别是：**不许**据它说「再多取也到不了 N」或「这是设计问题，不是取数问题」")
+        print("⚠⚠⚴ —— 未跑满时这两句必然是假话（还没取的部分当然可能改变总数）。")
+        print("\n  权威进度/归宿口径看 r178_uncapped_fate.py（它分开印「已测 / 未测」），")
+        print("  跑批前的前置闸看 r180_p6_precond.py，批量编排看 r182_verdict_pipeline.py。")
+        print("\nRESULT p6_readiness  INCOMPLETE  think n=%s（期望每个 benchmark %d）⇒ 判决不存在"
+              % ({b: len(v) for b, v in sorted(_bchk.items())},
+                 EXPECTED_THINK_N_PER_BENCH))
+        return EXIT_INCOMPLETE
+
     # ---- ⚠⚠⚴⚠⚴ 按 benchmark 拆开：合并池会把结论翻过来 ----
     bench = per_bench(rows, "think")
     if len(bench) > 1:
@@ -231,10 +280,30 @@ def main():
         print("\n⚠⚠⚴ **样本不足。** ⚗⚠ 按 P6，这一格必须记「不构成结论」——")
         print("⚗⚠⚴⚠⚠ **既不能因为 p 值小就报显著，也不能因为 p 值大就报「无差异」。**")
         print("⚗⚠⚠⚠⚠⚠ ⚠ 缺的是**轨迹本身**（带 hidden states 的 npz），不是口径、不是算力。")
-        print("⚗⚠⚴⚠⚴ ⚠⚠⚴ **但先别急着去取数据** —— 修订 153 实测：")
-        print("⚗⚠⚴⚠⚴⚠ ⚠ 新批次**单个 benchmark** 的 correct 只有 6–7 条，")
-        print("⚗⚠⚴⚠⚴⚠ ⚗ **按预登记的停止点（前 30 题），再多取也到不了 10。**")
-        print("⚗⚠⚴⚠⚴ ⚠⚠⚴ **⇒ 这是设计问题，不是取数问题。**")
+        # ⚠⚠⁴⚠⁴ 修订 187：这段原先**无条件印**，把 cap 8192 批次的实测值
+        # ⚠⚠⁴⚠⁴ 当成了「新批次」的通性。出处：R6_RERUN_PREREG.md:20949，
+        # ⚠⚠⁴⚠⁴ 而那批产物 strict_label_b2_full60.json 实测 cap 分布 {8192: 120}。
+        # ⚠⚠⁴⚠⁴ 「6–7 会不会变」正是 cap 32768 这一轮要检验的事，
+        # ⚠⚠⁴⚠⁴ 印一个上一批的答案，正是把要检验的东西先写死了。
+        # ⚠⇒ 只有当**当前批次就是实测那一批**时才印，并且连条件一起印。
+        if all_caps and all_caps[0] == CAP8192_MEASURED_ON:
+            print("⚗⚠⚴⚠⚴ ⚠⚠⚴ **这条只对 cap %d 成立**（修订 153 在该批次实测）："
+                  % CAP8192_MEASURED_ON)
+            print("⚗⚠⚴⚠⚴⚠ ⚠ 单个 benchmark 的 correct 实测 %s"
+                  % CAP8192_PER_BENCH_CORRECT)
+            print("⚗⚠⚴⚠⚴⚠ ⚗ **按预登记的停止点（前 30 题），再多取也到不了 %d。**"
+                  % P6_CORRECT_FLOOR)
+            print("⚗⚠⚴⚠⚴ ⚠⚠⚴ **⇒ 对 cap %d 这一批，这是设计问题，不是取数问题。**"
+                  % CAP8192_MEASURED_ON)
+        else:
+            print("⚗⚠⚴⚠⚴ ⚠⚠⚴ ⚠ **本批次 cap = %s，不是实测那批（cap %d）。**"
+                  % (all_caps, CAP8192_MEASURED_ON))
+            print("⚗⚠⚴⚠◦⚠⚠ ⚗⚠⚠⚴ **因此这里不印任何历史 correct 数。**")
+            print("⚗⚠⚴⚠◦⚠◦ ⚗⚠⚠⚠⚴ 历史值 %s 出自 cap %d 批次，对本批**不成立**；"
+                  % (CAP8192_PER_BENCH_CORRECT, CAP8192_MEASURED_ON))
+            print("⚗⚠⚴⚠◦⚠◦ ⚗⚠⚠⚴⚴ 拿它外推本批，等于把「本轮要检验的量」先写死成已知。")
+            print("⚗⚠⚴⚠◦⚠◦ ⚗⚠⚠⚴ ⚠ 本批 correct 够不够 %d，以上面这一批实测数为准：%d。"
+                  % (P6_CORRECT_FLOOR, th["correct"]))
         print("\nRESULT p6_readiness  UNDERPOWERED  think correct=%d < %d ⇒ 「样本不足，不构成结论」"
               % (th["correct"], P6_CORRECT_FLOOR))
         return 3

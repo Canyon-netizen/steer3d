@@ -1,0 +1,21 @@
+=== P6 开机自检 ===
+数据来源：标签产物 r187_synthetic_complete60.json
+标签规则：strict_label.label()（R-27，唯一来源，本脚本不复刻）
+  ⚠ 实际加载：/Users/zhourui/code/steer3d/.cache/mutbak/strict_label.py
+[think] think     n= 30  correct=  6  wrong= 22  unlabeled=  2  触顶=  2  幻觉= 0  cap=[32768]
+[no_think] no_think  n= 30  correct=  2  wrong= 25  unlabeled=  3  触顶=  3  幻觉= 0  cap=[32768]
+
+--- P6 底线核对 ---
+  P6 原文：correct 组轨迹数 < 10 ⇒ 记「**样本不足，不构成结论**」
+  实得 think correct = 6
+
+⚠⚠⚴ **样本不足。** ⚗⚠ 按 P6，这一格必须记「不构成结论」——
+⚗⚠⚴⚠⚠ **既不能因为 p 值小就报显著，也不能因为 p 值大就报「无差异」。**
+⚗⚠⚠⚠⚠⚠ ⚠ 缺的是**轨迹本身**（带 hidden states 的 npz），不是口径、不是算力。
+⚗⚠⚴⚠⚴ ⚠⚠⚴ ⚠ **本批次 cap = [32768]，不是实测那批（cap 8192）。**
+⚗⚠⚴⚠◦⚠⚠ ⚗⚠⚠⚴ **因此这里不印任何历史 correct 数。**
+⚗⚠⚴⚠◦⚠◦ ⚗⚠⚠⚠⚴ 历史值 {'aime25': 7, 'aime26': 6} 出自 cap 8192 批次，对本批**不成立**；
+⚗⚠⚴⚠◦⚠◦ ⚗⚠⚠⚴⚴ 拿它外推本批，等于把「本轮要检验的量」先写死成已知。
+⚗⚠⚴⚠◦⚠◦ ⚗⚠⚠⚴ ⚠ 本批 correct 够不够 10，以上面这一批实测数为准：6。
+
+RESULT p6_readiness  UNDERPOWERED  think correct=6 < 10 ⇒ 「样本不足，不构成结论」

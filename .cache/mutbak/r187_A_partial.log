@@ -1,0 +1,22 @@
+=== P6 开机自检 ===
+数据来源：标签产物 r185_label.json
+标签规则：strict_label.label()（R-27，唯一来源，本脚本不复刻）
+  ⚠ 实际加载：/Users/zhourui/code/steer3d/.cache/mutbak/strict_label.py
+[think] think     n= 16  correct=  6  wrong=  8  unlabeled=  2  触顶=  2  幻觉= 0  cap=[32768]
+[no_think] no_think  n= 16  correct=  2  wrong= 11  unlabeled=  3  触顶=  3  幻觉= 0  cap=[32768]
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+⛔ **批次未跑满 —— 本次不出判决。**
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  停止规则要求每个 benchmark 的 think 臂各 30 条，实得：
+    aime25      16 / 30
+
+⚠⚠⚴ **在未跑满的数据上，本脚本算出的任何 correct 数都不是这个批次的性质，
+⚠⚠⚴   它只是「目前跑到哪」的快照。**
+⚠⚠⚴ 特别是：**不许**据它说「再多取也到不了 N」或「这是设计问题，不是取数问题」
+⚠⚠⚴ —— 未跑满时这两句必然是假话（还没取的部分当然可能改变总数）。
+
+  权威进度/归宿口径看 r178_uncapped_fate.py（它分开印「已测 / 未测」），
+  跑批前的前置闸看 r180_p6_precond.py，批量编排看 r182_verdict_pipeline.py。
+
+RESULT p6_readiness  INCOMPLETE  think n={'aime25': 16}（期望每个 benchmark 30）⇒ 判决不存在
