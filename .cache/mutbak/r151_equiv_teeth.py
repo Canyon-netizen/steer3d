@@ -92,11 +92,18 @@ def main():
     new_src = src
     new_sha = sha(SCRIPT)
     (BACKUP_DIR / "scan_new.py").write_text(new_src, encoding="utf-8")
-    old = subprocess.run(["git", "show", "HEAD:" + REL], capture_output=True, text=True, cwd=str(ROOT))
-    if old.returncode != 0:
-        print("[FAIL] 取不到 HEAD 的旧版本：%s" % old.stderr.strip())
+    # ⚠⚠⚴⚠⚴⚠⚴ 基线**必须从受版本控制的快照文件读**，不许从 `git show HEAD:` 取。
+    # ⚠⚠⚴⚠⚴⚠⚴⚠⚴⚠ 原因（本测试第一版就是这么写的，当场翻了）：
+    #   ⚗⚠ `git show HEAD:` 在**提交之前**是「改前那一版」，
+    #   ⚗⚠⚴⚠⚠⚠ 而**提交之后 HEAD 就是改后那一版** ⇒ 「改前」变成「改后」，
+    #   ⚗⚠⚴⚠⚠⚠⚠ G6 于是判成「改前也印出命令」⇒ **一个只在提交前成立的测试**。
+    # ⚗⚠⚴⚠ **判据的可重复性不能依赖「我还没提交」这个临时状态。**
+    base_file = Path(__file__).resolve().parent / "r151_teeth" / "scan_baseline.py"
+    if not base_file.exists():
+        print("[FAIL] 基线快照不存在：%s" % base_file)
+        print("       ⚠⚠⚴ **不许退回去读 HEAD** —— 那正是本测试第一版的陷阱。")
         return 2
-    old_src = old.stdout
+    old_src = base_file.read_text(encoding="utf-8")
     try:
         ast.parse(old_src)
     except SyntaxError as exc:
@@ -139,9 +146,17 @@ def main():
 
         # 全量输出应当「只在新指引处不同」：现在现场是新鲜的，
         # 所以新指引那几行本来就不该出现 ⇒ 两种情况都算通过，但要如实说明。
-        diff = [ln for ln in out_new.splitlines() if ln not in out_old.splitlines()]
-        extra_old = [ln for ln in out_old.splitlines() if ln not in out_new.splitlines()]
-        print("[%s] G4 全量输出无意外差异：改后多 %d 行 / 改前多 %d 行"
+        # ⚠⚠⚴⚠⚴⚠⚠ 第一版的 G4 **天生 flaky**：C0 的明细行里印着「根页 12 秒前」，
+        # ⚠⚠⚴⚠ 而两次跑之间时间在走 ⇒ 那一行**必然不同** ⇒ 每跑一次红一次。
+        # ⚗⚠⚴⚠⚠⚠⚠ **一个天生红的门比没有门更糟**：它训练你忽略 FAIL。
+        # ⚠⇒ 比之前先归一化一切随时间/随轮的量。
+        def norm(t):
+            t = re.sub(r"\d+ 秒前", "N 秒前", t)
+            return t
+        nl_new, nl_old = norm(out_new).splitlines(), norm(out_old).splitlines()
+        diff = [ln for ln in nl_new if ln not in nl_old]
+        extra_old = [ln for ln in nl_old if ln not in nl_new]
+        print("[%s] G4 归一化后全量输出无意外差异：改后多 %d 行 / 改前多 %d 行"
               % ("PASS" if not extra_old else "FAIL", len(diff), len(extra_old)))
         if extra_old:
             for ln in extra_old[:8]:
