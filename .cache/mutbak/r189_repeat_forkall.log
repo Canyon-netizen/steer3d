@@ -1,0 +1,24 @@
+=== r134b 重复采样（每臂 3 次，串行，端口每轮换）===
+base_url=http://127.0.0.1:22655
+  fork 合并   第1次  FAIL 38/39     落地=True  rc=1   4s
+  fork 合并   第2次  FAIL 38/39     落地=True  rc=1   4s
+  fork 合并   第3次  FAIL 38/39     落地=True  rc=1   4s
+  fork 独立   第1次  FAIL 35/36     落地=True  rc=1   4s
+  fork 独立   第2次  FAIL 35/36     落地=True  rc=1   4s
+  fork 独立   第3次  FAIL 35/36     落地=True  rc=1   4s
+  all  合并   第1次  OK 39/39       落地=True  rc=0   4s
+  all  合并   第2次  OK 39/39       落地=True  rc=0   4s
+  all  合并   第3次  OK 39/39       落地=True  rc=0   4s
+  all  独立   第1次  FAIL 35/36     落地=True  rc=1   4s
+  all  独立   第2次  FAIL 35/36     落地=True  rc=1   4s
+  all  独立   第3次  FAIL 35/36     落地=True  rc=1   4s
+
+=== 汇总：同一个臂，重复采样是否稳定 ===
+  fork 合并   n=3  {'FAIL 38/39': 3}   ✅ 稳定
+  fork 独立   n=3  {'FAIL 35/36': 3}   ✅ 稳定
+  all  合并   n=3  {'OK 39/39': 3}   ✅ 稳定
+  all  独立   n=3  {'FAIL 35/36': 3}   ✅ 稳定
+
+⚠ 判读：只有当「合并」与「独立」各自**稳定且不同**时，
+  「按臂分位置」才有意义。若任一侧 flaky，本轮结论不成立，
+  要先解释 flakiness（页内重渲染 / 时序），而不是改位置。

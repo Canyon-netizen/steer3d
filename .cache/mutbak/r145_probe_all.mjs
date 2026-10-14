@@ -171,47 +171,55 @@ check('C8 决胜间距占比印成百分比',
 check('C9 共享前缀与产物逐字一致', T.includes(q0.prefix_tail.slice(-18)),
   `尾 18 字「${q0.prefix_tail.slice(-18)}」`);
 
-// ---- D 组：交互是真能用，不只是"标记在 DOM 里" -------------------------
-// ===== r134b 注入：拆掉 D 组依赖的点击目标（按 R134_ARM 选臂） =====
+// ===== r134b 注入（修订 190：按臂分位置）=====
 // ⚠ 只改页面状态，不做任何判定 ⇒ 结论全部由下面未改动的原判据给出。
+//
+// ⚠⚠⚴⚠⚴ 修订 190：这一块从「**在 D 组之前一次性注入**」改成
+//   「**每个臂在它要打红的那条判据之前一刻才注入**」。
+//   ⚠⚠⚴⚠⚴ 起因是一个实测反例（修订 190 的重复采样）：
+//     合并版旧位置在 D1 之前很远（:175 vs 点击 :230），
+//     而页面的 `[data-pathbtn="all"]` **会被重新渲染回来**——
+//     页内探针实测「点击前按钮在不在 = true」，尽管注入时 `after:false`。
+//   ⚗⚠⚴ **注入得越早越无效。** 与原先「注入太晚会漏过判据」的假设方向相反。
+//   ⇒ 每个臂各自紧贴自己的判据，才既漏不过、又不会被重建冲掉。
 const __arm = (process.env.R134_ARM || 'fork').toLowerCase();
-const __r134b = JSON.parse(await page.eval(`JSON.stringify((() => {
-  const q = s => document.querySelector(s);
-  const gone = {};
-  if (${JSON.stringify(__arm)} === 'fork') { const e = q('[data-pathfork="1"]'); const before = !!e; if (e) e.remove(); gone.fork = { before, after: !!q('[data-pathfork="1"]') }; }
-  else if (${JSON.stringify(__arm)} === 'all') { const e = q('[data-pathbtn="all"]'); const before = !!e; if (e) e.remove(); gone.all = { before, after: !!q('[data-pathbtn="all"]') }; }
-  else if (${JSON.stringify(__arm)} === 'pair') {
-    const sel = q('#selPair');
-    // ⚠⚠⚴⚠ before **必须在删之前**读。第一版写在 while 之后 ⇒ 恒为 1
-    //   ⇒ 落地核验永远判「未落地」，而**原因不是页面没拆掉，是我读错了时机**。
-    // ⚠⚠⚴⚠⚠⚠ 顺带一条硬纪律：**注入块里不许出现反引号** ——
-    //   整个注入块处在 page.eval 的**模板字面量**里，反引号会**提前终止模板**，
-    //   ⇒ 语法错误。本轮为此踩了一次（本该写「before」却写成 「」before「」）。
-    const before = sel ? sel.options.length : -1;
-    if (sel) { while (sel.options.length > 1) sel.remove(1); sel.selectedIndex = 0; }
-    gone.pairOpts = { before, after: sel ? sel.options.length : -1 };
-  }
-  else if (${JSON.stringify(__arm)} === 'xy') { const e = q('#tabXY'); const before = !!e; if (e) e.remove(); gone.xy = { before, after: !!q('#tabXY') }; }
-  else return { bad: true, arm: ${JSON.stringify(__arm)} };
-  return { gone, arm: ${JSON.stringify(__arm)} };
-})())`));
-
-// ⚠⚠⚴ **落地核验**：拆掉了必须**真的没了**（或真的只剩一个 option）。
-//   拆不掉却继续跑 ⇒ 判据全绿会被读成「判据扛住了扰动」，正是修订 133 的病。
-// ⚠⚗⚗⚗⚗⚠ 第一版写成 「」gone.all = !q(...)「」 ⇒ **元素本来就不存在时也判「已落地」**
-//   （「」!null === true「」）——**空落地**。本轮实测：「」all「」 臂印「已落地」却 RESULT OK 36/36，
-//   就是因为 「」[data-pathbtn="all"]「」 在那一屏**根本不存在**，什么都没拆掉。
-//   ⇒ 落地判据必须是「**拆之前确实存在**」且「**拆之后确实不存在**」，两半都要。
-const __g = __r134b.gone || {};
-const __k = Object.keys(__g)[0];
-const __v = __g[__k] || {};
-const __ok = !__r134b.bad && (
-  (__v.before === true  && __v.after === false) ||        // 单元素臂：存在 → 消失
-  (__v.before > 1 && __v.after === 1));                    // pair 臂：多个 → 只剩 1
-if (!__ok) { console.log('[扰动未落地] ' + JSON.stringify(__r134b)); process.exit(2); }
-console.log('[扰动已落地] 臂 ' + __arm + '：' + JSON.stringify(__r134b.gone));
+const __injLog = {};
+async function __injectIf(name, where) {
+  if (__arm !== name) return;                 // 不是这个臂 ⇒ 不动页面
+  // ⚠ 下面这整段在模板字面量内部，**一个反引号都不能有**（修订 133/134/142 踩过三次）。
+  const r = JSON.parse(await page.eval(`JSON.stringify((() => {
+    const q = s => document.querySelector(s);
+    if (${JSON.stringify(name)} === 'fork') {
+      const e = q('[data-pathfork="1"]'); const before = !!e; if (e) e.remove();
+      return { before, after: !!q('[data-pathfork="1"]') };
+    }
+    if (${JSON.stringify(name)} === 'all') {
+      const e = q('[data-pathbtn="all"]'); const before = !!e; if (e) e.remove();
+      return { before, after: !!q('[data-pathbtn="all"]') };
+    }
+    if (${JSON.stringify(name)} === 'pair') {
+      const sel = q('#selPair');
+      // ⚠ before **必须在删之前**读（修订 133 的教训：写在 while 之后恒为 1）。
+      const before = sel ? sel.options.length : -1;
+      if (sel) { while (sel.options.length > 1) sel.remove(1); sel.selectedIndex = 0; }
+      return { before, after: sel ? sel.options.length : -1 };
+    }
+    if (${JSON.stringify(name)} === 'xy') {
+      const e = q('#tabXY'); const before = !!e; if (e) e.remove();
+      return { before, after: !!q('#tabXY') };
+    }
+    return { bad: true, arm: ${JSON.stringify(name)} };
+  })())`));
+  // ⚠ 落地核验：拆掉了必须**真的没了**（pair 臂是「多个 → 只剩 1」）。
+  //   拆不掉却继续跑 ⇒ 判据全绿会被读成「判据扛住了扰动」，正是修订 133 的病。
+  const ok = !r.bad && ((r.before === true && r.after === false) || (r.before > 1 && r.after === 1));
+  __injLog[name] = r;
+  if (!ok) { console.log('[扰动未落地] ' + JSON.stringify(r)); process.exit(2); }
+  console.log('[扰动已落地] 臂 ' + name + ' @' + where + '：' + JSON.stringify(r));
+}
 const nCand = (await page.eval(`(function(){ // 从页面自己的存储宽度取，不写死 8
   return null; })()`)) || prod.n_cand;
+await __injectIf('fork', 'D1 前');
 const cBefore = await page.eval(`(()=>{const r=document.querySelector('[data-pathfork="1"]');
   return r? r.children[1].children.length : -1;})()`);
 await page.eval(`(()=>{const r=document.querySelector('[data-pathfork="1"]'); if(r) r.click(); return true;})()`);
@@ -229,11 +237,13 @@ await sleep(600);
 const __pa = await page.eval(`document.querySelectorAll('[data-patht]').length`);
 console.log('[PROBE] 点击前按钮在不在=' + __pb + '  rFork=' + __pf + '  不点击睡600ms后=' + __pa);
 //<<<END PROBE>>>
+await __injectIf('all', 'D2 点击前');
 await page.eval(`(()=>{const b=document.querySelector('[data-pathbtn="all"]'); if(b) b.click(); return true;})()`);
 await sleep(600);
 const rAll = await page.eval(`document.querySelectorAll('[data-patht]').length`);
 check('D2 「看全部」行数变成 k+1', rAll === q0.k + 1 && rAll > rFork, `${rFork} → ${rAll}，应 ${q0.k + 1}`);
 
+await __injectIf('pair', 'D3 前');
 const sw = JSON.parse(await page.eval(`(async () => {
   const sel = document.querySelector('#selPair'), blk = () => document.querySelector('[data-pathblock]');
   const before = blk().getAttribute('data-pathpid');
@@ -264,6 +274,7 @@ else {
 //   ⚠⚠⚴⚠⁴⚠⁴ **下面这整块（含注释）处在 page.eval 的模板字面量内部，
 //     一个反引号都不能有** —— 反引号会**提前终止模板** ⇒ 语法错误。
 //     （修订 133 / 134 / 142 在同一个地方踩过三次。）
+await __injectIf('xy', 'D5 前');
 let back;
 try {
   back = JSON.parse(await page.eval(`(async () => {
