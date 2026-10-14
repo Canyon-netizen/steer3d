@@ -1,0 +1,163 @@
+[PASS] C0b 两页的未读清单必须用**同一个口径**（元素集与阈值都自报在产物里）
+       thresh：latent=10、root=10；census 齐全=True
+[PASS] C0 两页探针产物新鲜、字段完整、且各自自报是哪一页
+       根页 874 秒前 / latent 731 秒前；根页 542 个元素，all_data 齐全=True，ownLen/shell 齐全=True，volatile 齐全=True；page 字段 根=root latent=latent；产物比最新源码（frontend/public/latent/data/arm_asymmetry.json）新=True（取两份里更旧的比）
+[PASS] C2a 剥注释不许吃掉任何方括号选择器里的标记（少提取 = 假绿）
+       全部 32 个判据文件的选择器都保住了（含页面内 TSX 判据）
+[PASS] C2b 模板串里的「// 注释」不许含 data- 标记名（会被当成真的读取引用）
+       17 个判据里没有把 data-* 写进模板串内的注释（注释请写在真正的注释位置，且别给已删标记加方括号）
+[PASS] C4a 页面内判据（verify*.tsx）必须真的挂在 page.tsx 上（没挂载的判据若被算成「读过」，那是假绿：那些标记从此没人核）
+       共 1 个页面内判据，已挂载 1 个：verifyRandomControl.tsx→VerifyRandomControl
+[PASS] C1 框架内部属性已被识别并剔除（不是产品块）
+       剔除 ['data-precedence'] —— Next.js 控制 CSS 注入顺序
+[FAIL] C2 判据里不许有真正的死引用（按它自己那页对账；不在页面、也不是 WebGL 条件块）
+       latent 页判据 77 条 → 死引用 0 个，已登记为「有意不在默认视图」42 个；root 页判据 269 条 → 死引用 9 个：data-extent-fraction, data-extent-maxabs, data-has-entropy, data-on-screen-points, data-painted, data-relamp, data-relamp-layer, data-relamp-ratio, data-rendered-points，已登记为「有意不在默认视图」3 个
+       ⚠ 跨页的标记**不算死引用**：一条判据只打开一页，它读的标记在它那页上就该在。
+       ○ data-arjump      同上。
+       ○ data-cotjump     同上：drawDeltaSide() 自己拼的入口行，不在 renderCotEffect() 里。
+       ○ data-dr-mult     第六屏剂量-反应表的强度档，条件渲染。verify_thresh T3 逐档与产物 dose_response[] 对账（档数、‖δ‖、|Δlogit|、翻盘数）。
+       ○ data-gate        判决表每行的门名，与同行 data-verdict 配对。
+       ○ data-jump        DELTA 视图专属的跳转锚点，在 drawDeltaSide() 里 h +=，只有用户点开「干预 vs 对照」标签才存在。#extras 那份有意不带。
+       ○ data-jumphint    同上（跳转按钮的提示位）。
+       ○ data-key         判决表每行的**门键**（形如 G4[word/excessm]），与同行 data-gate / data-verdict 在同一个 <tr> 上，条件渲染。verify_patch 按**门键**而不是门名与产物 gates 对账 —— 三个量共用门名，只按门名认会互相认错。
+       ○ data-ltv-caveats 第八屏「这一屏不能回答的」诚实边界列表，条件渲染。产物自带 8 条，页面必须**逐条转述、条数相等** —— 后 3 条是判决切片的披露，少印一条就等于把那次的偏离藏起来。
+       ○ data-ltv-decomp  第八屏「这个分解没有交付」那块头条，条件渲染。verify_ltv_panel 要求它存在、可见，且里面印的解释率 / 截断能量 / 负对照条数与产物 decomp 逐项相符 —— 这一块是**否定结论**，只印成立那半就红。
+       ○ data-ltv-fails   第八屏的「N/M 道门没有通过」块，条件渲染。verify_ltv_panel 要求判否与没测的门都出现在这里，不许折叠。
+       ○ data-ltv-slice   第八屏顶部的判决切片声明块，条件渲染。它的文字必须与产物 judge_slice / judge_slice_note **逐字相同** —— G-a 的 claim 与预登记表都写着「留出」，而第一版的判决跑在全量 36 个上下文上，所以这一块是那次口径偏离的现场披露。
+       ○ data-ltv-variant 第八屏 G-b 的**并列口径**块（variant_all_ctx），条件渲染。verify_ltv_panel 要求它存在，且要求它与判决口径 （+1 14／−1 0）**印在同一块里**，并显式标注「不是判决」—— 只印全量那组数会把「抽取集上不显著」藏起来。
+       ○ data-ltvblock    第八屏「阈值向量」容器，条件渲染（只有点了 #tabLtv 才渲染）。同时承载 data-ltvstate 三态：ready / no-data —— 产物缺失时页面必须**明说缺什么**，不能静默空屏。
+       ○ data-ltvctx      第八屏逐上下文表每行的身份（pid@pos），条件渲染。verify_ltv_panel 靠它与产物 contexts[] 配对，并逐格对 m_p / g_v / α*预测 / α*实测 / 对照 α*。
+       ○ data-ltvgate     判决表每行的**门键**（G-a0/G-a/G-b/G-c/S1），与同行 data-verdict 配对。按门键而不是门名与产物配对 —— 门名可能重名。
+       ○ data-ltvgc       第八屏「G-c 逐档读数」整块，条件渲染于 gcMeasured（verdict ∈ {pass,fail} 且产物有 per_alpha）。verify_ltv_panel L19 要求它可见、三臂率/Δ/三条子判据/「该档总」逐格与产物相符；L20 要求它存在过之后页面就不再印那句过时的「那一道门本轮仍是没测」。
+       ○ data-ltvgcall    每行「该档总成立=1」的交叉核对属性。⚠ 第一版 L19 只查了三条子判据（✓/✗）、漏了这一格，变异 M3 把 all_three_hold 换成 true（把三档全不成立印成「成立」）时 L19 22/22 全绿 —— 由该变异台发现，现已补进 L19。
+       ○ data-ltvgcalpha  逐档读数表每一行一个（α=0.35/1.0/4.0），条件渲染。L19 逐档取三臂率/Δ/三条子判据/该档总，取的是**可见文本 innerText**，这个属性只用来定位行。
+       ○ data-ltvgcverdict 同上整块上的判决值，**只作交叉核对** —— L19 的判决比对走产物 gates['G-c'].verdict，不信这个属性。
+       ○ data-ltvneg      同上，标这一行是不是**负对照**。3 条负对照必须与 8 条真实轴一起进稀疏分解，否则「confidence_up」这个名字是编的 —— 只挑有利的轴分解，结论就不可信。
+       ○ data-ltvsens     第八屏拟合窗敏感性每一行的拟合窗，条件渲染。verify_ltv_panel 逐行与产物 fit_window_sensitivity 对账。
+       ○ data-ltvsent     第八屏句子轴每一行的 S_k 名，条件渲染。verify_ltv_panel 逐行与产物 sentence_diffs[].key 对账（S、S′、‖S−S′‖ 三格）。
+       ○ data-ltvsenttop  第八屏句子轴每一行「被 |c| 前 K_MAX 选中」的标记，条件渲染。verify_ltv_panel 用它数**负对照有几条进了选中** —— 负对照混进选中是「名字可疑」最直接的证据，必须可数，而且判据数的是**可见文案**（不是这个 data-*）。
+       ○ data-ltvslice    同上，这一行属不属于判决切片（holdout / extract）。G-b 在两个切片上一个显著一个不显著（p=1.22e-04 vs 9.23e-02），所以切片必须**印在每一行上**，不能只印一个总数。
+       ○ data-ltvstate    同上，区分 ready / no-data。屏幕没渲染与产物没载入是两件事，判红前必须先分清。
+       ○ data-patch-fails 第七屏的「N/M 道门没有通过」块，条件渲染。verify_patch 要求判否与没测的门都出现在这里，不许把不成立的门折叠掉或藏进详情。
+       ○ data-patch-limits 第七屏「这一屏不能回答的」诚实边界块，条件渲染。verify_patch P4 要求它存在且非空 —— 只印成立那半就红。
+       ○ data-patch-pid   逐题表的题号，verify_patch P3 拿它与产物 pid 配对。
+       ○ data-patchblock  第七屏「因果修补」容器，条件渲染（只有点了 #tabPatch 才渲染）。它同时承载 data-patchstate 三态：ok / no-data，产物缺失时页面必须**明说缺什么**，不能静默消失。
+       ○ data-patchstate  同上，与产物是否载入对应。
+       ○ data-pathblock   第 5 屏「逐步路径」整块的根标记（renderPathPanel 的返回值）。只在该屏打开时渲染；verify_path 读它的 data-pathstate 三态（ok / no-data / no-problem）与 data-pathpid、data-pathk。
+       ○ data-pathbtn     同上，两个视图切换按钮（只看分叉前后 ±5 步 / 看全部）。verify_path D2 点「看全部」查行数变成 k+1。
+       ○ data-pathfork    同上，标出哪一行是分叉步。verify_path C2 查「恰好一行且 t=k」。
+       ○ data-pathk       同上，当前题的分叉步。verify_path C1 拿它与产物里的 k 对账。
+       ○ data-pathpid     同上，当前题号。切题后必须跟着换，verify_path D3 查。
+       ○ data-pathstate   同上，三态标记。数据缺失时页面必须**明说**缺什么，不能静默消失 —— verify_path 的 A1 查的就是这个。
+       ○ data-patht       同上，每一行的步号（t=0..k）。verify_path D1/D2 靠它数行、点行展开。
+       ○ data-scene-token-badge 根页**真 3D 路径专属**的 HUD 标签（Scene3D.tsx:266，在 d2d2bff 里随 distanceFactor={undefined} 一起改过）。WebGL 不可用时走 Scene3DFallback，实测该组件里data-scene-* 计数为 0 ⇒ 降级 DOM 上没有它。verify_scene_link :302 读它，且那条是**唯一**验「3D 展示 hidden states 如何推导出 token」的判决（J6）。登记理由是**另一条渲染路径**，不是条件渲染。
+       ○ data-ta-gap-hi   同上。
+       ○ data-ta-gap-lo   ArchivedExperiments 第 5 档（ExtractionTable）专属，默认 idx=0 不渲染；Q0 逐档切过去核，Q1 用它交叉核对。
+       ○ data-thresh-bracket 同上，该行区间是 bracketed / left_censored / right_censored。verify_thresh T5 按它分别要求 区间 / "<" / ">"，不许三者混用。
+       ○ data-thresh-step 第六屏逐步阈值表的行号，条件渲染。verify_thresh T4/T5 逐行与产物 per_step[].step 对账，并强制右删失行印成 ">"（变异：去掉 > 前缀 ⇒ T5 红）。
+       ○ data-threshblock 第六屏「干预阈值」容器，条件渲染（只有点了 #tabThresh 才进 DOM）。verify_thresh T1/T2 靠它判「本屏已就绪」，数据没载入时它落成 data-threshstate=no-data。
+       ○ data-threshgen   第六屏「能不能迁移」那一节的判决标记，条件渲染。verify_thresh T6/T7 要求它与产物 generality.verdict **逐字相同**，且理由段落可见——判否时只印成立那半就红。
+       ○ data-threshstate 同上，区分 ready / no-data —— 产物缺失与屏幕没渲染是两件事，判红前要先分清。
+[PASS] C3 「3D 条件块白名单」必须只装**这一轮真的渲染不出来、却有判据想读**的标记（⚠ 恒真判据已修：原式被上游筛成恒真，清空整份名单它也 PASS）
+       名单 8 条：藏了 0 条（在 DOM 里却没人读：无）、没有任何判据想读 0 条（无）
+       ⚠ 这 4 个**不是死引用**，但也**不算验过**。
+       ✓ **本轮 WebGL 可用**（DOM 里已出现 4 个 data-scene-*：data-scene-focus-state, data-scene-loaded, data-scene-window-high, data-scene-window-low）
+         ⇒ 3D 的**存在性与接线**这一轮已进对账；
+           但**像素保真度**与**射线拾取点击**软件光栅给不出判决，
+           仍必须在真机 Chrome 上验。
+[FAIL] C4 页面上存在、但没有任何判据读过的标记，必须逐个**分类**（纯装饰进装饰簿；真缺口进「已知欠账」清单；两者都不许悄悄放过）
+       未读 104 = 装饰 1 + 已知欠账 16 ＋ **新增未分类 87**　新增未分类：data-bpath, data-bpath-block, data-bpath-caliber, data-bpath-generalization, data-bpath-hi-sites, data-bpath-retracted, data-bpath-rung, data-bpath-rung-known, data-bpath-rung-state, data-bpath-sampling, data-dose-traj, data-dot, data-engine, data-extreme-contrast, data-extreme-crit, data-extreme-e1, data-extreme-e2, data-extreme-e2-teeth, data-extreme-e3, data-extreme-n-judge, data-extreme-q4-p-vs-none, data-extreme-quartile, data-extreme-shape, data-extreme-verdict, data-freq-weighted, data-hi-agree, data-hi-crit, data-hi-d-median, data-hi-extreme, data-hi-extreme-judgeable, data-hi-extreme-n, data-hi-final, data-hi-g1, data-hi-pass, data-hi-quartile, data-hi-shape, data-hi-verdict, data-ids-positive, data-layer-arm, data-layer-traj, data-m1-pass, data-m2-pass, data-marker-id, data-mixture, data-mixture-caliber, data-mixture-cell, data-mixture-final, data-mixture-primary-gain, data-mixture-row, data-mode, data-nothink-mono, data-ortho-ctrl-ge, data-ortho-frac-pos, data-ortho-group, data-ortho-median, data-ortho-n, data-ortho-q3, data-ortho-think-neg, data-p9-n, data-p9-ok, data-p9-pass, data-p9-traj, data-retracted, data-schema, data-selection, data-selection-a1-pass, data-selection-a2-cover, data-selection-b2-enrich, data-selection-b2-pass, data-selection-crit, data-share, data-think-mono, data-token-batch, data-token-cell, data-token-dom-frac-e, data-token-dom-frac-hi, data-token-id, data-token-pos-chi2, data-token-pos-cutdef, data-token-reportable, data-token-row, data-token-small, data-token-t1-e, data-token-t1-hi, data-token-table, data-wminus-mono, data-wplus-mono　⚠ 已知欠账 16 条是**待还的账**，处置完一条删一条：data-anchor-note, data-anchor-status, data-arhead, data-arto, data-beats, data-ca-self-quote, data-cotpre, data-entropy-layer-note, data-filled, data-invisible-verified, data-n-candidates, data-specific, data-thin-dir, data-thin-n, data-thin-pool, data-thin-rho
+       ⚠ 已知欠账清单里有 2 个既不在页面上也不在判据里（处置完了？请删掉，否则欠账数字虚高）：data-replay-note, data-vec-scale
+       ⇒ 这 104 个是**覆盖缺口**。其中可能有一部分是纯装饰
+         （如 data-painted / data-rendered-points 这类渲染状态标记），
+         判它是不是缺口要看它们承载的信息有没有别的判据覆盖 ——
+         **不许因为「它只是装饰」就自动算数**。
+
+覆盖：两页合计 390 个标记，被判据读过 286 个（73%）；
+      分页：latent 页 38 个、root 页 354 个
+[PASS] C7 latent 页源码里有、两遍 DOM（加载后 / 点遍控件后）都没有的标记必须逐个登记理由（死代码：读代码的人以为它在，读者永远看不到）
+       源码 88 个标记 / 渲染 38 个 / 源码有而渲染没有 51 个
+       ○已登记 data-arjump        同上。
+       ○已登记 data-cotjump       同上：drawDeltaSide() 自己拼的入口行，不在 renderCotEffect() 里。
+       ○已登记 data-dr            第六屏那张剂量-反应小 canvas，条件渲染。只作**交叉核对**用（证明曲线节点在）；T2 的单调性由判据从 JSON 独立重算，不信 canvas，也不信页面上的数。
+       ○已登记 data-dr-mult       第六屏剂量-反应表的强度档，条件渲染。verify_thresh T3 逐档与产物 dose_response[] 对账（档数、‖δ‖、|Δlogit|、翻盘数）。
+       ○已登记 data-gate          判决表每行的门名，与同行 data-verdict 配对。
+       ○已登记 data-jump          DELTA 视图专属的跳转锚点，在 drawDeltaSide() 里 h +=，只有用户点开「干预 vs 对照」标签才存在。#extras 那份有意不带。
+       ○已登记 data-jumphint      同上（跳转按钮的提示位）。
+       ○已登记 data-key           判决表每行的**门键**（形如 G4[word/excessm]），与同行 data-gate / data-verdict 在同一个 <tr> 上，条件渲染。verify_patch 按**门键**而不是门名与产物 gates 对账 —— 三个量共用门名，只按门名认会互相认错。
+       ○已登记 data-lines         同上，记这张图画了几条线，跨屏可比的固定口径。
+       ○已登记 data-ltv-caveats   第八屏「这一屏不能回答的」诚实边界列表，条件渲染。产物自带 8 条，页面必须**逐条转述、条数相等** —— 后 3 条是判决切片的披露，少印一条就等于把那次的偏离藏起来。
+       ○已登记 data-ltv-decomp    第八屏「这个分解没有交付」那块头条，条件渲染。verify_ltv_panel 要求它存在、可见，且里面印的解释率 / 截断能量 / 负对照条数与产物 decomp 逐项相符 —— 这一块是**否定结论**，只印成立那半就红。
+       ○已登记 data-ltv-fails     第八屏的「N/M 道门没有通过」块，条件渲染。verify_ltv_panel 要求判否与没测的门都出现在这里，不许折叠。
+       ○已登记 data-ltv-gates     第八屏判决表的 tbody，条件渲染。每行一道门，verify_ltv_panel 逐行核对 data-verdict 与产物 gates[].verdict **逐字相同**（唯一结论字段，页面不许自己另判一次）。
+       ○已登记 data-ltv-slice     第八屏顶部的判决切片声明块，条件渲染。它的文字必须与产物 judge_slice / judge_slice_note **逐字相同** —— G-a 的 claim 与预登记表都写着「留出」，而第一版的判决跑在全量 36 个上下文上，所以这一块是那次口径偏离的现场披露。
+       ○已登记 data-ltv-variant   第八屏 G-b 的**并列口径**块（variant_all_ctx），条件渲染。verify_ltv_panel 要求它存在，且要求它与判决口径 （+1 14／−1 0）**印在同一块里**，并显式标注「不是判决」—— 只印全量那组数会把「抽取集上不显著」藏起来。
+       ○已登记 data-ltvblock      第八屏「阈值向量」容器，条件渲染（只有点了 #tabLtv 才渲染）。同时承载 data-ltvstate 三态：ready / no-data —— 产物缺失时页面必须**明说缺什么**，不能静默空屏。
+       ○已登记 data-ltvctx        第八屏逐上下文表每行的身份（pid@pos），条件渲染。verify_ltv_panel 靠它与产物 contexts[] 配对，并逐格对 m_p / g_v / α*预测 / α*实测 / 对照 α*。
+       ○已登记 data-ltvgate       判决表每行的**门键**（G-a0/G-a/G-b/G-c/S1），与同行 data-verdict 配对。按门键而不是门名与产物配对 —— 门名可能重名。
+       ○已登记 data-ltvgc         第八屏「G-c 逐档读数」整块，条件渲染于 gcMeasured（verdict ∈ {pass,fail} 且产物有 per_alpha）。verify_ltv_panel L19 要求它可见、三臂率/Δ/三条子判据/「该档总」逐格与产物相符；L20 要求它存在过之后页面就不再印那句过时的「那一道门本轮仍是没测」。
+       ○已登记 data-ltvgcall      每行「该档总成立=1」的交叉核对属性。⚠ 第一版 L19 只查了三条子判据（✓/✗）、漏了这一格，变异 M3 把 all_three_hold 换成 true（把三档全不成立印成「成立」）时 L19 22/22 全绿 —— 由该变异台发现，现已补进 L19。
+       ○已登记 data-ltvgcalpha    逐档读数表每一行一个（α=0.35/1.0/4.0），条件渲染。L19 逐档取三臂率/Δ/三条子判据/该档总，取的是**可见文本 innerText**，这个属性只用来定位行。
+       ○已登记 data-ltvgcverdict  同上整块上的判决值，**只作交叉核对** —— L19 的判决比对走产物 gates['G-c'].verdict，不信这个属性。
+       ○已登记 data-ltvneg        同上，标这一行是不是**负对照**。3 条负对照必须与 8 条真实轴一起进稀疏分解，否则「confidence_up」这个名字是编的 —— 只挑有利的轴分解，结论就不可信。
+       ○已登记 data-ltvsens       第八屏拟合窗敏感性每一行的拟合窗，条件渲染。verify_ltv_panel 逐行与产物 fit_window_sensitivity 对账。
+       ○已登记 data-ltvsent       第八屏句子轴每一行的 S_k 名，条件渲染。verify_ltv_panel 逐行与产物 sentence_diffs[].key 对账（S、S′、‖S−S′‖ 三格）。
+       ○已登记 data-ltvsenttop    第八屏句子轴每一行「被 |c| 前 K_MAX 选中」的标记，条件渲染。verify_ltv_panel 用它数**负对照有几条进了选中** —— 负对照混进选中是「名字可疑」最直接的证据，必须可数，而且判据数的是**可见文案**（不是这个 data-*）。
+       ○已登记 data-ltvslice      同上，这一行属不属于判决切片（holdout / extract）。G-b 在两个切片上一个显著一个不显著（p=1.22e-04 vs 9.23e-02），所以切片必须**印在每一行上**，不能只印一个总数。
+       ○已登记 data-ltvstate      同上，区分 ready / no-data。屏幕没渲染与产物没载入是两件事，判红前必须先分清。
+       ○已登记 data-patch-ask     第七屏顶部的问句块，条件渲染。它的文字必须与产物 what_it_asks 逐字相同 —— 读者第一眼看到的是它。
+       ○已登记 data-patch-chart   第七屏描述/因果对照图的容器，条件渲染。
+       ○已登记 data-patch-fails   第七屏的「N/M 道门没有通过」块，条件渲染。verify_patch 要求判否与没测的门都出现在这里，不许把不成立的门折叠掉或藏进详情。
+       ○已登记 data-patch-gates   第七屏判决表的 tbody，条件渲染。每行一个门，verify_patch P1 逐行核对 data-verdict 与产物 gates[].verdict**逐字相同**（唯一结论字段，不许页面自己另判一次）。
+       ○已登记 data-patch-limits  第七屏「这一屏不能回答的」诚实边界块，条件渲染。verify_patch P4 要求它存在且非空 —— 只印成立那半就红。
+       ○已登记 data-patch-pid     逐题表的题号，verify_patch P3 拿它与产物 pid 配对。
+       ○已登记 data-patch-problems 第七屏逐题表，条件渲染。每行一题，verify_patch P3 逐题与产物 problems[] 对账（题号、被解释 token、两臂改口与否）。
+       ○已登记 data-patchblock    第七屏「因果修补」容器，条件渲染（只有点了 #tabPatch 才渲染）。它同时承载 data-patchstate 三态：ok / no-data，产物缺失时页面必须**明说缺什么**，不能静默消失。
+       ○已登记 data-patchstate    同上，与产物是否载入对应。
+       ○已登记 data-pathblock     第 5 屏「逐步路径」整块的根标记（renderPathPanel 的返回值）。只在该屏打开时渲染；verify_path 读它的 data-pathstate 三态（ok / no-data / no-problem）与 data-pathpid、data-pathk。
+       ○已登记 data-pathbtn       同上，两个视图切换按钮（只看分叉前后 ±5 步 / 看全部）。verify_path D2 点「看全部」查行数变成 k+1。
+       ○已登记 data-pathfork      同上，标出哪一行是分叉步。verify_path C2 查「恰好一行且 t=k」。
+       ○已登记 data-pathk         同上，当前题的分叉步。verify_path C1 拿它与产物里的 k 对账。
+       ○已登记 data-pathpid       同上，当前题号。切题后必须跟着换，verify_path D3 查。
+       ○已登记 data-pathstate     同上，三态标记。数据缺失时页面必须**明说**缺什么，不能静默消失 —— verify_path 的 A1 查的就是这个。
+       ○已登记 data-patht         同上，每一行的步号（t=0..k）。verify_path D1/D2 靠它数行、点行展开。
+       ○已登记 data-svg           第七屏那张 SVG，条件渲染。只作**交叉核对**用（证明曲线在）；三条线的数值由判据从 JSON 独立重算，不信页面上的数。
+       ○已登记 data-thresh-bracket 同上，该行区间是 bracketed / left_censored / right_censored。verify_thresh T5 按它分别要求 区间 / "<" / ">"，不许三者混用。
+       ○已登记 data-thresh-step   第六屏逐步阈值表的行号，条件渲染。verify_thresh T4/T5 逐行与产物 per_step[].step 对账，并强制右删失行印成 ">"（变异：去掉 > 前缀 ⇒ T5 红）。
+       ○已登记 data-threshblock   第六屏「干预阈值」容器，条件渲染（只有点了 #tabThresh 才进 DOM）。verify_thresh T1/T2 靠它判「本屏已就绪」，数据没载入时它落成 data-threshstate=no-data。
+       ○已登记 data-threshgen     第六屏「能不能迁移」那一节的判决标记，条件渲染。verify_thresh T6/T7 要求它与产物 generality.verdict **逐字相同**，且理由段落可见——判否时只印成立那半就红。
+       ○已登记 data-threshstate   同上，区分 ready / no-data —— 产物缺失与屏幕没渲染是两件事，判红前要先分清。
+       ○已登记 data-verdict       判决表每行的结论，取值 pass/fail/na 三者之一。verify_patch P2 要求三态**都**可能出现在页面上，并要求 na 行同时给出 why_na —— 没测说成不成立是伪造结论。
+[PASS] C8 例外登记簿里不许留已经不再需要的条目（页修好了却忘了删登记，那条死代码就永远不会被再发现）
+       登记簿 57 条，全部仍然必要
+       ⚠ 登记簿里有 6 条在源码里**根本不存在**：data-deriv-default, data-ok, data-pfinal, data-scene-token-badge, data-ta-gap-hi, data-ta-gap-lo
+[PASS] C5 「有实质文字、但自己没被登记」的块必须逐条列名并计数（两页合计）
+       487 段；分页 latent 页 218 段、root 页 269 段；其中真孤儿 53 段（分页 latent 页 22 段、root 页 31 段）　⊘ 另有**纯壳** 14 段（分页 latent 页 5 段、root 页 9 段）：它们去掉子节点后一个字都不剩，不承载自己的主张，不算缺口（第三十三笔之十三）；⚠ 旧口径（只扫 <p> 且 ≥40 字）回算只有 77 段（分页 latent 页 0 段、root 页 77 段）—— 差出来的 410 段旧工具**从来没量过**（含导读浮层那 11 条实测全部在内，逐条断言见 mut_panel_coverage.py）
+       ⇒ 这 487 段**块级**没有标记，所以它们自己不会进矩阵；
+         但这不等于「没人读」——见下面 C6 的祖先统计。
+         判据不许因为「它没被登记」就自动算数，必须逐段看。
+         前 70 字里带数字的有 346 段（更可能是承载论证的）：
+       ⚠ 清单按两层看：**真孤儿**（C6 的缺口）与**在标记作用域内**（祖先属性多半带着同一句话的机器可读真值）。
+       ── latent 页 218 段（真孤儿 22 段）：data-arm=8、data-aroot=7、data-bmroot=11、data-cotarm=2、data-cotblock=71、data-cottext=11、data-dvblock=16、data-lensroot=9、data-orient-part=1、data-rolesroot=41、data-term=14、（祖先链为空）=27
+       ── root 页 269 段（真孤儿 31 段）：data-answer-power=1、data-answer-rows=13、data-archived=28、data-arm-asymmetry=1、data-axis=3、data-axis-row=4、data-block=4、data-bound-caveat=3、data-bpath=1、data-bpath-block=19、data-bpath-caliber=3、data-bpath-hi-sites=3、data-bpath-rung=12、data-bpath-sampling=3、data-claim-audit=1、data-derivation=5、data-direction-compare=6、data-extreme-shape=2、data-extreme-verdict=2、data-guard=1、data-heldout=2、data-hi-shape=2、data-hinge=11、data-hinge-item=5、data-ladder=2、data-law=5、data-lit-audit=1、data-mixture=5、data-mixture-caliber=4、data-ortho-group=4、data-outcome=14、data-rc=7、data-recipe-variants=1、data-repetition=1、data-rung=21、data-selection=5、data-spec-cell=6、data-specificity=2、data-structure=2、data-subspace=2、data-subspace-row=4、data-token-id=5、data-transfer-row=3、（祖先链为空）=40
+[PASS] C6a 被剔出缺口的「纯壳」必须真的一个字都不剩（ownLen=0 且它本身 len>0；两者都 0 的不是壳，是空块）
+       壳 14 条，冒充的有 0 条
+       ⚠ 登记簿里有 31 条在两页 DOM 上都不存在：div、div、div、div、div、div
+[FAIL] C6 「块级无标记且祖先链也为空」的块，必须**逐条有归属**（= 没有任何按标记读的判据能定位到它；⚠ 这不等于「没人读」，已有反例：ControlPanel 那段被 verify_picker 全文 includes 过）　⚠ 第三十三笔之十一改过判据形状：判「未登记的 = 0」而非「总数 = 0」，理由见上面那段注释
+       真孤儿 53 段 ：latent 页 （祖先链为空）=22、root 页 （祖先链为空）=31；已登记 装饰簿 19 + 欠账簿 25，**新增未分类 9** 段：div、div、div、div、div、div…
+       ── 真孤儿明细（latent 页 27 段；未分类 1 段）：
+         <div>  31 字      B 路干预：逐位置剂量、token 概率与 3D 状态位移 →
+       ── 真孤儿明细（root 页 40 段；未分类 8 段）：
+         <div>  12 字      disconnected
+         <div>  55 字      熵未记录：这批采集只存了隐状态， 没存 logits，所以颜色不代表置信度。 灰色 = 无数据，不是"中性"。
+         <div>  21 字      waiting for stream...
+         <div>  97 字      STEERING CONTROL No steering vectors loaded. python3 backend
+         <p>  27 字      No steering vectors loaded.
+         <p>  24 字      waiting for first frame…
+         <div>  48 字      REASONING TRACE 0 tokens awaiting first frame...
+         <div>  23 字      awaiting first frame...
+
+RESULT panel_coverage  RED  11/14 条通过
+   [FAIL] C2 判据里不许有真正的死引用（按它自己那页对账；不在页面、也不是 WebGL 条件块）
+   [FAIL] C4 页面上存在、但没有任何判据读过的标记，必须逐个**分类**（纯装饰进装饰簿；真缺口进「已知欠账」清单；两者都不许悄悄放过）
+   [FAIL] C6 「块级无标记且祖先链也为空」的块，必须**逐条有归属**（= 没有任何按标记读的判据能定位到它；⚠ 这不等于「没人读」，已有反例：ControlPanel 那段被 verify_picker 全文 includes 过）　⚠ 第三十三笔之十一改过判据形状：判「未登记的 = 0」而非「总数 = 0」，理由见上面那段注释
