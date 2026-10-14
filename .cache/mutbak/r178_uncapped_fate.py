@@ -114,10 +114,23 @@ def main():
                          if new.get(p, {}).get("strict") == "correct")
     drifted = [(p, old[p]["strict"], new[p]["strict"]) for p in established
                if p in new and new[p]["strict"] != old[p]["strict"]]
-    need = max(0, 10 - locked_correct)
+    # ⚠⚠⁴⚠⁴ 修订 193：**correct 有两路贡献，原版只数了第一路。**
+    #   路1 锁死 = 【新批标签 ∩ 旧批已确立题集】里 correct 的条数
+    #   路2 落袋 = C（候选里已跑完且 correct 的条数）
+    #   ⛔ 原式 need = 10 - locked_correct 把「已经拿到手的 C」
+    #     当成「还没拿到」⇒ 实测 locked=8、C=2 时印「还需 2 条」，
+    #     而实际到手已是 10 = 底线。**这是权威口径脚本，它会被直接引用。**
+    #   ⇒ need = max(0, 底线 - 锁死 - 落袋)。
+    need_locked_only = max(0, 10 - locked_correct)
+    inhand = locked_correct + c
+    need = max(0, 10 - inhand)
     print(f"  P6 底线 think correct >= 10")
-    print(f"  已确立题集（旧批 correct/wrong）{len(established)} 题里，"
-          f"新批拿到 correct **{locked_correct}** 条 ⇒ 还需 **{need}** 条来自候选池")
+    print(f"  路1 锁死 correct（新批 ∩ 旧批已确立题集）= **{locked_correct}**")
+    print(f"  路2 落袋 correct（C 类已跑完且 correct）= **{c}**")
+    print(f"  ★ 到手 correct = **{inhand}** = 锁死 {locked_correct} + 落袋 {c}")
+    print(f"  ⇒ 仍需 correct = **{need}**"
+          + (f"（⚠ 只数锁死那一路会算成 {need_locked_only}，**虚报缺口**）"
+             if need_locked_only != need else ""))
     if drifted:
         print(f"  ⚠⚠⚴⚠⚴ **已确立标签被改了 {len(drifted)} 条**（这不算「重跑扰动」，"
               f"是抬 cap 本身的效果）：")
@@ -130,11 +143,26 @@ def main():
     #   全池门槛 need/len(cands) 在 C 已落地时**仍然对**，但它不是行动数 ——
     #   行动数是「剩下那几条里还要几条」，分母是**未测数**，不是全池。
     #   只印全池门槛会让人以为「还差 2/19 就行」，而实际只剩 6 条可捞。
-    print(f"  全池口径门槛 = {100.0 * need / len(cands):.1f}%"
-          f"（{need} / {len(cands)}）—— 只有全池测完才能对照这个数")
-    if untested:
-        print(f"  ⚠⚠ **行动数**：还需 {need} 条，而**只剩 {len(untested)} 条未测**"
-              f" ⇒ 所需转化率 = {100.0 * need / len(untested):.1f}%（分母是未测数，不是全池）")
+    # ⚠⚠⁴ 修订 193：need 归 0 时，下面两行**不能再印** ——
+    #   「门槛 = 0.0%」会被读成「已经稳了」，而正确读法是「**没有缺口了**」。
+    if need == 0:
+        print(f"  ⛔ 缺口 = 0 ⇒ **不印门槛/所需转化率**：两个分母相除都退化成 0，"
+              f"读起来像「已稳」。")
+        if untested:
+            print(f"  ★★ **P6 底线已达成**（到手 {inhand} ≥ 底线 10），"
+                  f"且这是**单调下界**：")
+            print(f"     剩余 {len(untested)} 条 "
+                  f"{['p%02d' % p for p in untested]} **全是候选**，")
+            print(f"     只可能把 correct 往上加、不会减少 ⇒ 计数单调不减，"
+                  f"越过后不会再落回。")
+            print(f"     ⚠ 但完整 P6 判决仍须等 60/60 跑满，由 r182_verdict_pipeline 出。")
+    else:
+        print(f"  全池口径门槛 = {100.0 * need / len(cands):.1f}%"
+              f"（{need} / {len(cands)}）—— 只有全池测完才能对照这个数")
+        if untested:
+            print(f"  ⚠⚠ **行动数**：还需 {need} 条，而**只剩 {len(untested)} 条未测**"
+                  f" ⇒ 所需转化率 = {100.0 * need / len(untested):.1f}%"
+                  f"（分母是未测数，不是全池）")
     print()
     print("=== 逐条（不抽样）===")
     print("  %-6s %-24s %-8s %-10s" % ("题", "旧", "新n_tok", "归宿"))
