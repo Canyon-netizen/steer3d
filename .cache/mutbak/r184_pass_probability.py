@@ -114,6 +114,9 @@ def main():
                     help="已测候选条数（默认 6，即修订 184 当时）")
     ap.add_argument("--k-done", type=int, default=0,
                     help="已测候选里转成 correct 的条数（默认 0）")
+    ap.add_argument("--new-label", default=None,
+                    help="新批标注 json。给了就用它算锁死 correct，"
+                         "否则退回旧批（那只在漂移为 0 时对）")
     ap.add_argument("--progress", default=None,
                     help="当前跑批进度，如 '32/60'。不给就不印，避免写死变陈旧")
     a = ap.parse_args()
@@ -136,7 +139,31 @@ def main():
         return 2
 
     n_cand = sum(1 for s in pool.values() if s == "unlabeled")
-    locked = sum(1 for s in pool.values() if s == "correct")
+
+    # ⚠⚠⁴⚠⚴ 修订 189：这一段原来直接 `locked = 旧批 correct 数`。
+    #   ⚠⚠⚴⚠⚴ 那只在**漂移恒为 0** 时成立。实测打脸：新批 p18 think
+    #   旧批 wrong（8192 触顶答错）-> 新批 correct（10094 未触顶答对），
+    #   漂移 1 条 ⇒ 锁死值是 **8** 而不是 7，缺口是 **2** 而不是 3。
+    #   ⛔ 拿旧批数当「已经拿到手的东西」，等于把**治疗效果**排除在账外 ——
+    #     而抬 cap 恰恰就是治疗。
+    #   ⇒ 锁死 = 【新批标签】里、落在【旧批已确立题集】上的 correct 条数。
+    newpool = {}
+    if a.new_label:
+        import json as _j
+        _d = _j.load(open(a.new_label, encoding="utf-8"))
+        _rows = _d["rows"] if isinstance(_d, dict) and "rows" in _d else _d
+        for _r in _rows:
+            _m = TT_RE.match(str(_r.get("traj")))
+            if _m:
+                newpool[int(_m.group(1))] = _r.get("strict")
+        established = sorted(p for p, s in pool.items() if s != "unlabeled")
+        locked = sum(1 for p in established if newpool.get(p) == "correct")
+        drifted = [p for p in established
+                   if p in newpool and newpool[p] != pool[p]]
+    else:
+        established = sorted(p for p, s in pool.items() if s != "unlabeled")
+        locked = sum(1 for p in established if newpool.get(p) == "correct")
+        drifted = []
     need = max(0, P6_CORRECT_FLOOR - locked)
     n_done, k_done = a.n_done, a.k_done
     if n_done > n_cand:
@@ -160,8 +187,12 @@ def main():
     print("=== P6 达标条件（按 --n-done/--k-done 给的实测）===")
     print("  旧批 aime25 think 池      n = %d" % len(pool))
     print("  候选池（旧批 unlabeled）   n = %d" % n_cand)
-    print("  锁死 correct              = %d   （漂移检查见 r181_label_drift.py）"
+    print("  锁死 correct              = %d   （按新批标签 ∩ 旧批已确立题集算）"
           % locked)
+    if a.new_label:
+        print("  已确立标签被改            = %d 条 %s"
+              % (len(drifted), ("→ %s" % ["p%02d" % p for p in drifted])
+                 if drifted else "⇒ 锁死值与旧批一致"))
     print("  P6 底线                   = %d" % P6_CORRECT_FLOOR)
     print("  => 仍需 correct           >= %d" % need)
     print("  已测候选 %d 条，其中 C = %d 条" % (n_done, k_done))

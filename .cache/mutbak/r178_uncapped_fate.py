@@ -101,12 +101,40 @@ def main():
           f"（把话说完了但对 correct 贡献 0）")
     print(f"  C = {c}；已测段转化率 = "
           f"{'—（已测为 0）' if not measured else f'{100.0 * c / len(measured):.1f}%'}")
-    need = 10 - sum(1 for p, r in old.items() if r["strict"] == "correct")
-    print(f"  P6 底线 think correct >= 10；旧批 correct 已有 "
-          f"{sum(1 for p, r in old.items() if r['strict'] == 'correct')}"
-          f" ⇒ 还需 {need} 条来自候选池")
-    print(f"  ⚠ 全池口径的转化率门槛 = {100.0 * need / len(cands):.1f}%"
-          f"（{need} / {len(cands)}）——⚠ 只有全池测完才能对照这个数")
+    # ⚠⚠⁴⚠⁴ 修订 189：这一行原来写的是
+    #     need = 10 - sum(1 for p, r in old.items() if r["strict"] == "correct")
+    #   即拿**旧批**的 correct 数当「已锁死」。
+    #   ⚠⚠⚴⚠⚴ 那只在**漂移恒为 0** 时成立。实测打脸：
+    #     新批出现一条 `wrong -> correct`（p18 think，8192 触顶答错 -> 10094 未触顶答对）
+    #   ⇒ 旧批 correct=7，而新批实际**已经到手 8** ⇒ 缺口是 **2** 不是 3。
+    #   ⛔ 一个「权威口径」脚本印错缺口，比没有脚本更坏 —— 它会被直接引用。
+    #   ⇒ 「锁死」必须按【新批标签 ∩ 旧批已确立题集】算，漂移单列。
+    established = sorted(p for p, r in old.items() if r["strict"] != "unlabeled")
+    locked_correct = sum(1 for p in established
+                         if new.get(p, {}).get("strict") == "correct")
+    drifted = [(p, old[p]["strict"], new[p]["strict"]) for p in established
+               if p in new and new[p]["strict"] != old[p]["strict"]]
+    need = max(0, 10 - locked_correct)
+    print(f"  P6 底线 think correct >= 10")
+    print(f"  已确立题集（旧批 correct/wrong）{len(established)} 题里，"
+          f"新批拿到 correct **{locked_correct}** 条 ⇒ 还需 **{need}** 条来自候选池")
+    if drifted:
+        print(f"  ⚠⚠⚴⚠⚴ **已确立标签被改了 {len(drifted)} 条**（这不算「重跑扰动」，"
+              f"是抬 cap 本身的效果）：")
+        for p, o_, n_ in drifted:
+            print(f"       p%02d  {o_} -> {n_}" % p)
+        print(f"     ⇒ 「旧批 correct 数」**不能**当锁死值；上面那个 {locked_correct} 才是。")
+    else:
+        print(f"  已确立标签 0 处改动 ⇒ 锁死值与旧批一致。")
+    # ⚠⚠⁴⚠⚴ 修订 189：C 落袋之后，**两个分母都必须印**。
+    #   全池门槛 need/len(cands) 在 C 已落地时**仍然对**，但它不是行动数 ——
+    #   行动数是「剩下那几条里还要几条」，分母是**未测数**，不是全池。
+    #   只印全池门槛会让人以为「还差 2/19 就行」，而实际只剩 6 条可捞。
+    print(f"  全池口径门槛 = {100.0 * need / len(cands):.1f}%"
+          f"（{need} / {len(cands)}）—— 只有全池测完才能对照这个数")
+    if untested:
+        print(f"  ⚠⚠ **行动数**：还需 {need} 条，而**只剩 {len(untested)} 条未测**"
+              f" ⇒ 所需转化率 = {100.0 * need / len(untested):.1f}%（分母是未测数，不是全池）")
     print()
     print("=== 逐条（不抽样）===")
     print("  %-6s %-24s %-8s %-10s" % ("题", "旧", "新n_tok", "归宿"))
