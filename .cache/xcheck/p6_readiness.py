@@ -50,9 +50,14 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / ".cache/mutbak"))
 import strict_label                                  # noqa: E402  (R-27 标签规则，唯一来源)
 
-# ⚠ P0：旧批次 cap 2048，新批次 cap 8192。⚗ **不混池、不合并判。**
+# ⚠ P0：旧批次 cap 2048；⚠⚠ 新批次有两个**已知** cap。⚗ **不混池、不合并判。**
+#
+# ⚠⚠⁴⚠ 修订 166：32768 轮要进 P6，⚗⚠ **而 8192 不能被顶掉** ——
+# ⚗⚠⚴⚠⚴ **把 NEW_CAP 直接改成 32768 是错的**：那会让已有的 cap 8192 批次
+# ⚗⚠⚴（gen_b2 / strict_label_b2_full60）反过来变成「身份不明」，⚗⚠ **那是倒退。**
+# ⚗⚠⇒ 正解：认一个【已知新批次 cap 集合】，⚗⚠ **而混池继续拒**。
 OLD_CAP = 2048
-NEW_CAP = 8192
+KNOWN_NEW_CAPS = (8192, 32768)
 
 # ⚠ P6 的硬底线。⚗⚠⚴ 改动这里等于改预登记口径 —— ⚗⚠ 须改预登记正文并留痕。
 P6_CORRECT_FLOOR = 10
@@ -162,7 +167,10 @@ def main():
 
 
     # ---- 状态 1：批次是否符合 P0 声明 ----
-    if all_caps != [NEW_CAP]:
+    # ⚠⚠⁴⚠⚴ 修订 166：判据是「**批次内 cap 全等** 且 落在**已知新批次集合**里」。
+    # ⚗⚠⚴ **不是「cap 等于某一个数」** —— 放宽成集合最容易顺手把「混池」也放宽，
+    # ⚗⚠⚴⚠⚴⚴ 而混池正是 P0 明写要防的（8192 与 32768 混在一起 = 两个不同实验）。
+    if len(all_caps) != 1 or all_caps[0] not in KNOWN_NEW_CAPS:
         # ⚠⚠⚴ 旧批次**内部 cap 是混的**：实测 48 条里 8 条声明 1024、40 条声明 2048。
         # ⚗⚠⚴⚠⚠ §0 正文把它统称为「cap 2048」—— **那不精确，但不构成混池**
         # ⚗⚠⚴（混池的风险是旧批与新批混，而这里**每一条都 ≤ 2048**）。
@@ -185,8 +193,8 @@ def main():
             print("\nRESULT p6_readiness  OLD_BATCH  §0 的 4/2 %s复现"
                   % ("已" if ok else "**未**"))
             return 0 if ok else 3
-        print("\n⚠⚠⚴ cap=%s 既不是新批次（%d）也不是旧批次（%d）⇒ 批次身份不明。"
-              % (all_caps, NEW_CAP, OLD_CAP))
+        print("\n⚠⚠⚴ cap=%s 既不是已知新批次（%s）也不是旧批次（全部 ≤ %d）⇒ 批次身份不明。"
+              % (all_caps, " / ".join(str(c) for c in KNOWN_NEW_CAPS), OLD_CAP))
         print("⚠⚠⚴ P0 明写「不混池、不合并判」—— 身份不明的批次不许进 P6。")
         print("RESULT p6_readiness  MISMATCH  cap=%s" % all_caps)
         return 4
