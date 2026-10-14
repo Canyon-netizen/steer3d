@@ -56,6 +56,7 @@ def expect_reject(name, inject, needle):
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     bak = BACKUP_DIR / (BLOCKS.name + "." + name)
     shutil.copy2(str(BLOCKS), str(bak))
+    bak_mtime = bak.stat().st_mtime        # ⚠⚠⚠ 记下原始年龄，还原时必须用它
     try:
         inject()
         code, out = run_script()
@@ -72,7 +73,15 @@ def expect_reject(name, inject, needle):
         return rejected and blamed
     finally:
         shutil.copy2(str(bak), str(BLOCKS))   # ⚠⚠⚠ 必须还原
-        os.utime(str(BLOCKS), (time.time(), time.time()))
+        # ⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ 修订 159：**原来这一行是
+        #     os.utime(str(BLOCKS), (time.time(), time.time()))
+        # ⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ 它把产物的 mtime 刷成**当前时间**
+        # ⇒ **每次跑本测试都让 C0 的 7200 秒新鲜度闸重新开始计时。**
+        # ⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ ⚗ 本测试的职责是验证「过期产物会被拒绝」，
+        # ⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠ ⚗ 而它自己却在刷新产物年龄
+        # ⇒ **专门保护那道闸的仪器，把那道闸洗绿了。**
+        # ⚠⇒ 改为按备份里记录的**原始 mtime** 还原。
+        os.utime(str(BLOCKS), (bak_mtime, bak_mtime))
 
 
 def main():
@@ -98,6 +107,7 @@ def main():
     # ⚠ 备份真实产物，记下指纹，还原后要核它没变
     before_sha = sha(BLOCKS)
     before_lat_sha = sha(LAT_BLOCKS)
+    before_mtime = BLOCKS.stat().st_mtime   # ⚠⚠⚠ 修订 159：**年龄**也要还原，只核 sha 抓不到刷时间
 
     def t1_clobbered():
         """规模对不上：把标记数改掉，模拟「被别的模式顶掉的产物」。"""
@@ -128,6 +138,15 @@ def main():
         print("       ⚠⚠⚴ 真实产物已被改动且没能还原 —— 从 %s 恢复" % BACKUP_DIR)
         return 2
     ok.append(True)
+
+    # ---- 门 2b：**年龄**也要还原。只核 sha 抓不到「内容对、时间被刷新」 ----
+    same_mtime = abs(BLOCKS.stat().st_mtime - before_mtime) < 1e-6
+    print("[%s] G2b 产物 mtime 还原（不得被本测试刷新）：%s  跑前 %.0f 秒前 / 跑后 %.0f 秒前"
+          % ("PASS" if same_mtime else "FAIL", same_mtime,
+             time.time() - before_mtime, time.time() - BLOCKS.stat().st_mtime))
+    if not same_mtime:
+        print("       ⚠⚠⚴⚠⚴ 本测试把产物年龄刷成了现在 ⇒ C0 的 7200 秒闸被洗绿。")
+    ok.append(same_mtime)
 
     # ---- 门 3：还原后再跑一次，必须回到 exit 0 ----
     after_code, after_out = run_script()
