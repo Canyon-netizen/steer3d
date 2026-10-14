@@ -1,0 +1,25 @@
+=== 标签漂移检查 ===
+  旧批 = strict_label_b2_full60.json（cap 分布 {8192: 120}）
+  新批 = label_32768_r180.json（cap 分布 {32768: 18}）
+  同题同臂可比 = 18 条
+
+--- 旧标签 -> 新标签 转移矩阵 ---
+  correct    -> correct      7
+  unlabeled  -> unlabeled    1
+  unlabeled  -> wrong        2
+  wrong      -> wrong        8
+
+--- 已确立标签（分母限定在旧批 correct/wrong）---
+  合计 n=15
+  think     n= 6  一致  6  不一致 0  {('correct', 'correct'): 5, ('wrong', 'wrong'): 1}
+  no_think  n= 9  一致  9  不一致 0  {('correct', 'correct'): 2, ('wrong', 'wrong'): 7}
+
+--- 旧批 unlabeled 的 3 条（不算漂移，单列）---
+  aime__aime25__p04__think       ntok 8192   -> 20360   trunc True  -> False  -> wrong
+  aime__aime25__p06__think       ntok 8192   -> 32768   trunc True  -> True   -> unlabeled
+  aime__aime25__p08__think       ntok 8192   -> 23338   trunc True  -> False  -> wrong
+
+✅ 已确立标签 15/15 全部保持，无漂移。
+⚠ 适用范围：只覆盖当前两批**共同存在**的那些题。
+⚠ 新批尚未生成完时，本结果只是已生成那一段的，不得当作全池结论。
+RESULT label_drift  OK  n_locked=15

@@ -1,0 +1,25 @@
+=== 标签漂移检查 ===
+  旧批 = strict_label_b2_full60.json（cap 分布 {8192: 120}）
+  新批 = r181_synthetic_drift.json（cap 分布 {32768: 18}）
+  同题同臂可比 = 18 条
+
+--- 旧标签 -> 新标签 转移矩阵 ---
+  correct    -> correct      6
+  correct    -> wrong        1
+  unlabeled  -> unlabeled    1
+  unlabeled  -> wrong        2
+  wrong      -> wrong        8
+
+--- 已确立标签（分母限定在旧批 correct/wrong）---
+  合计 n=15
+  think     n= 6  一致  5  不一致 1  {('correct', 'wrong'): 1, ('correct', 'correct'): 4, ('wrong', 'wrong'): 1}
+  no_think  n= 9  一致  9  不一致 0  {('correct', 'correct'): 2, ('wrong', 'wrong'): 7}
+
+--- 旧批 unlabeled 的 3 条（不算漂移，单列）---
+  aime__aime25__p04__think       ntok 8192   -> 20360   trunc True  -> False  -> wrong
+  aime__aime25__p06__think       ntok 8192   -> 32768   trunc True  -> True   -> unlabeled
+  aime__aime25__p08__think       ntok 8192   -> 23338   trunc True  -> False  -> wrong
+
+⛔ 有漂移 1 条 —— 两批 correct 数之差不能直接归因于抬 cap。
+   aime__aime25__p00__think: correct -> wrong
+RESULT label_drift  DRIFT  n=1
