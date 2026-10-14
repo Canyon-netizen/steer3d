@@ -84,6 +84,22 @@ INSTRUMENTS = [
      [PY, "-m", "pytest", "tests", "-q"], BACKEND, None),
 ]
 
+# ⚠⚠⁴⚠⚴ 修订 162：**崩的时候必须给出可执行的修复命令。**
+# ⚗⚠⚴⚠⚠⚠⚠⚗ 修订 151 已把这套做给了 C0（scan_panel_coverage.py），
+# ⚗⚠⚴⚗⚗⚗⚗⚗ ⚗ **而本生成器一开始只会说「装置故障」，⚗⚠⚴⚗⚗⚗⚗⚗⚗ 不给怎么修。⚗⚠⚴⚗⚗⚗⚗⚗⚗**
+# ⚗⚠⚴ ⚗⚠⚴ **⚗⚠⚴⚗⚠⚴⚗⚠⚴ ⚗⚠⚴⚗⚠⚴ 判红却给不出可执行路径的判据，⚗⚠⚴⚗⚠⚴⚗⚠⚴ 等于半个判据。⚗⚠⚴⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗**
+# ⚗⚠⚴ ⚗⚠⚴⚗⚠⚴⚗⚠⚴ ⚗⚠⚴⚗⚠⚴ **⚗⚠⚴⚗⚠⚴ 本机硬约束（修订 161 实测）：⚗⚠⚴⚗⚗⚗⚗⚗⚗⚗⚗⚗**
+# ⚗⚠⚴ ⚗⚠⚴ ⚗⚠⚴⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗ **后台服务 maxRunMs = 3600 秒 ⇒ 服务每 1 小时被回收一次，⚗⚠⚴⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗**
+# ⚗⚠⚴ ⚗⚠⚴ ⚗⚠⚴⚗⚗⚗⚗⚗⚗⚗⚗ ⚗⚠ **⚗⚠⚴⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗ 而 C0 的窗口是 7200 秒 ⇒ ⚗⚠⚴⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗⚗**
+# ⚗⚠⚴ ⚗⚠⚴ ⚗⚠⚴⚗⚗⚗⚗⚗⚗⚗⚗ ⚗⚠⚴⚗⚗⚗⚗⚗⚗ ⚗⚠⚴⚗ **所以「产物新鲜」每 ~1 小时就得重起一次服务，⚗⚠⚴⚗⚗⚗⚗⚗⚗⚗⚗⚗**
+FIXES = {
+    "verify_path": ("页面服务不在 —— ⚗ 本机 `next start` **每 3600 秒会被后台任务回收一次**，"
+                    "⚗⚠ 而 C0 的窗口是 7200 秒 ⇒ **约每 1 小时就得重起一次**。\n"
+                    "     → cd frontend && npx next start -p 22224   （⚠ 必须作为后台任务起，别用 `(... &)`）\n"
+                    "     → 重跑本脚本即可；产物若也过期，另跑两页探针（见 scan_panel_coverage 的指引）"),
+    "backend": "     → cd backend && python3 -m pytest tests -q",
+}
+
 GREEN_WORDS = ("OK ", "ELIGIBLE", "OLD_BATCH", "RESULT OK")
 RED_WORDS = ("RED", "FAIL", "UNDERPOWERED", "POOL_ONLY", "MISMATCH", "CRASH")
 
@@ -156,6 +172,19 @@ def main():
 
     from collections import Counter
     cnt = Counter(states)
+    # ⚠⚠⁴⚠ 崩的仪表**逐个**给修复命令（判红的不给：红的下一步是拍板，不是修文件）
+    crashed = [r for r in rows if r[2] == "崩"]
+    if crashed:
+        print("\n--- 崩掉的仪表：可执行修复 ---")
+        for name, _, _, why in crashed:
+            print("  [%s] %s" % (name, why))
+            if name in FIXES:
+                print(FIXES[name])
+            else:
+                print("     ⚠ 本脚本未登记该仪表的修复路径 ⇒ 去 %s 看它自己的指引"
+                      % ".cache/mutbak/ 或 .cache/xcheck/")
+            print()
+
     print("\n汇总：" + "、".join("%s %d" % (k, v) for k, v in
                                    sorted(cnt.items(), key=lambda kv: -kv[1])))
 
