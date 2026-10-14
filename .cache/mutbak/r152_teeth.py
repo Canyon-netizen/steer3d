@@ -138,12 +138,43 @@ def main():
     print("[%s] G3 还原后回到基线 exit=%d" % ("PASS" if good else "FAIL", c6))
     ok.append(good)
 
-    # ---- 全量批次仍判 ELIGIBLE（证 T3 的临时文件没污染真数据）----
+    # ---- 全量批次必须判 POOL_ONLY（证 T3 的临时文件没污染真数据，
+    #      且**合并池确实被拦下**）----
     c7, o7 = run("--label", str(FULL))
-    good = c7 == 0 and "ELIGIBLE" in o7
-    print("[%s] G4 全量 120 条仍判 ELIGIBLE exit=%d（证 T3 没污染真数据）"
+    good = c7 == 3 and "POOL_ONLY" in o7
+    print("[%s] G4 全量 120 条判 POOL_ONLY exit=%d（证 T3 没污染 + 合并池被拦）"
           % ("PASS" if good else "FAIL", c7))
     ok.append(good)
+
+    # ---- T6 核心：单池达标但合并池超标时，必须判 POOL_ONLY 而非 ELIGIBLE ----
+    # ⚠⚠⚴⚠⚴⚠⚴⚠⚴⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚴⚴⚴
+    # ⚠⚠ 修订 153 的教训：**我上一轮就是被合并池骗过**，报出「全量够格」。
+    # ⚠⚠⇒ 这道门必须能证明「合并池够格」时它**仍然拒**。
+    # ⚗⚠ 做法：把底线临时降到 6（单池 aime25=7 ≥ 6）⇒ 此时
+    # ⚗⚠ **单池与合并池都达标** ⇒ 应判 ELIGIBLE；
+    # ⚗⚠ 再降到 8（单池 7 < 8 ≤ 合并 13）⇒ 必须判 POOL_ONLY。
+    new6 = patch("P6_CORRECT_FLOOR = 10", "P6_CORRECT_FLOOR = 8", "6a")
+    if new6 is not None:
+        SCRIPT.write_text(new6, encoding="utf-8")
+        c6a, o6a = run("--label", str(FULL))
+        g6a = c6a == 3 and "POOL_ONLY" in o6a
+        print("[%s] T6a 底线降到 8（单池 7<8≤合并 13）⇒ exit=%d 且 POOL_ONLY"
+              % ("PASS" if g6a else "FAIL", c6a))
+        if not g6a:
+            for ln in o6a.splitlines()[-6:]:
+                print("       | %s" % ln)
+        ok.append(g6a)
+    SCRIPT.write_text(orig, encoding="utf-8")
+
+    new6b = patch("P6_CORRECT_FLOOR = 10", "P6_CORRECT_FLOOR = 6", "6b")
+    if new6b is not None:
+        SCRIPT.write_text(new6b, encoding="utf-8")
+        c6b, o6b = run("--label", str(FULL))
+        g6b = c6b == 0 and "ELIGIBLE" in o6b
+        print("[%s] T6b 底线降到 6（单池 7≥6，两池都达标）⇒ exit=%d 且 ELIGIBLE"
+              % ("PASS" if g6b else "FAIL", c6b))
+        ok.append(g6b)
+    SCRIPT.write_text(orig, encoding="utf-8")
 
     n = sum(1 for x in ok if x)
     print("\nRESULT p6_teeth  %s %d/%d" % ("OK" if n == len(ok) else "FAIL", n, len(ok)))

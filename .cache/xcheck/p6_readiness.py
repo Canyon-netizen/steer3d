@@ -41,6 +41,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -60,6 +61,32 @@ P6_CORRECT_FLOOR = 10
 # ⚠⚠⚴ 这个数写在 §0 正文里，是已确立的事实。⚗⚠ 它必须被**当常量比对**，
 # ⚗⚠⚴⚠⚠ **而不是「现算现比」** —— 现算现比等于没有回归基线。
 OLD_BATCH_BASELINE = {"think_correct": 4, "think_wrong": 2, "think_n": 24}
+
+
+BENCH_RE = re.compile(r"^aime__([A-Za-z0-9]+)__")
+
+def bench_of(traj):
+    """从轨迹 id 取出 benchmark 名。
+
+    ⚠⚠⚴⚠⚴⚠⚠ 修订 153：**合并两个 benchmark 会把「够不够格」整个翻过来** ——
+    ⚗⚠ 实测 think 口径 aime25 correct=7 / aime26 correct=6，
+    ⚗⚠⚴ **两个都够不到 P6 的 10**，⚗⚠⚴⚠⚠⚠ **而合并池是 13 ⇒ 看着够格。**
+    ⚗⚠⚴⚠ **预登记 §停止规则明写「按题号停、不按标签停」，
+    ⚗⚠⚴⚠⚠ ⚠ 而那 60 条其实是 aime25(30) + aime26(30) 两个池。**
+    ⚗⚠⚴ ⇒ **判决必须按单个 benchmark 判，合并池不许用来过关。**
+    """
+    m = BENCH_RE.match(traj or "")
+    return m.group(1) if m else "?"
+
+
+def per_bench(rows, mode):
+    out = {}
+    for r in rows:
+        if r.get("mode") != mode:
+            continue
+        b = bench_of(r.get("traj"))
+        out.setdefault(b, []).append(r)
+    return out
 
 
 def per_mode(rows):
@@ -132,6 +159,8 @@ def main():
     th = stats["think"]
     all_caps = sorted({c for s in stats.values() for c in s["caps"]})
 
+
+
     # ---- 状态 1：批次是否符合 P0 声明 ----
     if all_caps != [NEW_CAP]:
         # ⚠⚠⚴ 旧批次**内部 cap 是混的**：实测 48 条里 8 条声明 1024、40 条声明 2048。
@@ -162,6 +191,30 @@ def main():
         print("RESULT p6_readiness  MISMATCH  cap=%s" % all_caps)
         return 4
 
+    # ---- ⚠⚠⚴⚠⚴ 按 benchmark 拆开：合并池会把结论翻过来 ----
+    bench = per_bench(rows, "think")
+    if len(bench) > 1:
+        print("\n--- 按 benchmark 拆开（⚠⚠⚴ **判决必须按单个 benchmark 判**）---")
+        per = {}
+        for b in sorted(bench):
+            c = Counter(r["strict"] for r in bench[b])
+            per[b] = c["correct"]
+            print("  %-10s n=%3d  correct=%3d  wrong=%3d  unlabeled=%3d  %s"
+                  % (b, len(bench[b]), c["correct"], c["wrong"], c["unlabeled"],
+                     "✅ 过 P6 底线" if c["correct"] >= P6_CORRECT_FLOOR
+                     else "⚠ 够不到 P6 底线"))
+        pooled = per.get(max(per, key=per.get), 0)
+        print("  %-10s n=%3d  correct=%3d  ← **合并池**" % ("合并", th["n"], th["correct"]))
+        if max(per.values()) < P6_CORRECT_FLOOR <= th["correct"]:
+            print("\n⚠⚠⚴⚠⚴⚠⚠⚠⚠ **合并池才够格**（%d ≥ %d），⚗⚠⚠⚠⚠ 而每个 benchmark 都够不到："
+                  % (th["correct"], P6_CORRECT_FLOOR))
+            print("⚗⚠⚴⚠⚠⚠⚠⚠ %s" % {b: v for b, v in per.items()})
+            print("⚗⚠⚴⚠⚠⚠ ⚗⚠ **这正是预登记停止规则要防的那件事**"
+                  "（「按题号停、不按标签停」，不让跑到多少 correct 反过来决定取多少题）。")
+            print("\nRESULT p6_readiness  POOL_ONLY  仅合并池达标 %d；单池 %s ⇒ **不许用合并池判 P6**"
+                  % (th["correct"], sorted(per.items())))
+            return 3
+
     # ---- 状态 2：P6 的 correct 底线 ----
     print("\n--- P6 底线核对 ---")
     print("  P6 原文：correct 组轨迹数 < %d ⇒ 记「**样本不足，不构成结论**」" % P6_CORRECT_FLOOR)
@@ -169,8 +222,11 @@ def main():
     if th["correct"] < P6_CORRECT_FLOOR:
         print("\n⚠⚠⚴ **样本不足。** ⚗⚠ 按 P6，这一格必须记「不构成结论」——")
         print("⚗⚠⚴⚠⚠ **既不能因为 p 值小就报显著，也不能因为 p 值大就报「无差异」。**")
-        print("⚗⚠⚠⚠⚠⚠ ⚠ 缺的是**轨迹本身**（带 hidden states 的 npz），")
-        print("⚗⚠⚴ 补数据的办法是把全量批次的其余轨迹取回来，不是重算。")
+        print("⚗⚠⚠⚠⚠⚠ ⚠ 缺的是**轨迹本身**（带 hidden states 的 npz），不是口径、不是算力。")
+        print("⚗⚠⚴⚠⚴ ⚠⚠⚴ **但先别急着去取数据** —— 修订 153 实测：")
+        print("⚗⚠⚴⚠⚴⚠ ⚠ 新批次**单个 benchmark** 的 correct 只有 6–7 条，")
+        print("⚗⚠⚴⚠⚴⚠ ⚗ **按预登记的停止点（前 30 题），再多取也到不了 10。**")
+        print("⚗⚠⚴⚠⚴ ⚠⚠⚴ **⇒ 这是设计问题，不是取数问题。**")
         print("\nRESULT p6_readiness  UNDERPOWERED  think correct=%d < %d ⇒ 「样本不足，不构成结论」"
               % (th["correct"], P6_CORRECT_FLOOR))
         return 3
