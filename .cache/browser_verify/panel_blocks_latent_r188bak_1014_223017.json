@@ -1,0 +1,5694 @@
+{
+  "page": "latent",
+  "url": "http://127.0.0.1:22224/latent/index.html",
+  "byDepth": {
+    "0": [
+      {
+        "data": "data-orient-part",
+        "all_data": [
+          "data-orient-part"
+        ],
+        "depth": 0,
+        "tag": "h1",
+        "tc_len": 16,
+        "it_len": 16,
+        "heading": "第一次打开这个页面？先读完这一页"
+      },
+      {
+        "data": "data-orient-part",
+        "all_data": [
+          "data-orient-part"
+        ],
+        "depth": 0,
+        "tag": "p",
+        "tc_len": 66,
+        "it_len": 66,
+        "heading": "一个只会写数学题的 AI，每写一个字之前脑子里那份\"笔记\"长什么样——这个页面把它摊开给你看"
+      },
+      {
+        "data": "data-orient-part",
+        "all_data": [
+          "data-orient-part"
+        ],
+        "depth": 0,
+        "tag": "h2",
+        "tc_len": 12,
+        "it_len": 12,
+        "heading": "一 · 这台机器在做什么"
+      },
+      {
+        "data": "data-latent-lead",
+        "all_data": [
+          "data-latent-lead"
+        ],
+        "depth": 0,
+        "tag": "p",
+        "tc_len": 85,
+        "it_len": 85,
+        "heading": "它读一道数学竞赛题，一个字一个字地把答案写出来。写每个字之前，它都要在内部先算一遍\"下一个字"
+      },
+      {
+        "data": "data-orient-part",
+        "all_data": [
+          "data-orient-part"
+        ],
+        "depth": 0,
+        "tag": "h2",
+        "tc_len": 16,
+        "it_len": 16,
+        "heading": "二 · 用页面上真实的数字走一遍"
+      },
+      {
+        "data": "data-lead-seg",
+        "all_data": [
+          "data-lead-seg"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 87,
+        "it_len": 87,
+        "heading": "页面刚打开时，左边「当前 token」是 0，模型正准备写 <think>。同名的token"
+      },
+      {
+        "data": "data-lead-seg",
+        "all_data": [
+          "data-lead-seg"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 39,
+        "it_len": 39,
+        "heading": "此时左边有一行，写着「熵 = 模型有多犹豫，0 是铁了心，越大越拿不定主意」。"
+      },
+      {
+        "data": "data-lead-seg",
+        "all_data": [
+          "data-lead-seg"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 35,
+        "it_len": 35,
+        "heading": "同一行后面是「top1 概率 = 排名第一的那个词有多大概率被选中」。"
+      },
+      {
+        "data": "data-lead-seg",
+        "all_data": [
+          "data-lead-seg"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 41,
+        "it_len": 41,
+        "heading": "这一行现在显示 0.001 / 1.000。意思是：它 100% 确定要写这个词。"
+      },
+      {
+        "data": "data-lead-seg",
+        "all_data": [
+          "data-lead-seg"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 85,
+        "it_len": 85,
+        "heading": "把「当前 token」滑块拖到第 5 步：它正在写 's，同一行变成 0.530 / 0.7"
+      },
+      {
+        "data": "data-lead-seg",
+        "all_data": [
+          "data-lead-seg"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 62,
+        "it_len": 62,
+        "heading": "这一刻右上角「top-64 候选词 = 模型此刻心里排队的字，按分数从高到低」表里，第 1 "
+      },
+      {
+        "data": "data-lead-seg",
+        "all_data": [
+          "data-lead-seg"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 69,
+        "it_len": 69,
+        "heading": "中间那张图上每一个点，是\"这一层 = 一次加工工序，共 28 道（L0 到 L27）所有 t"
+      },
+      {
+        "data": "data-lead-seg",
+        "all_data": [
+          "data-lead-seg"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 83,
+        "it_len": 83,
+        "heading": "那份状态是 2048 个数字（维度 = 一份状态里数字的个数），画到纸上时（投影 = 压成 "
+      },
+      {
+        "data": "data-lead-seg",
+        "all_data": [
+          "data-lead-seg"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 67,
+        "it_len": 67,
+        "heading": "那 2 个数字是用 PCA = 找\"最能解释差异的方向\"的算法挑的，PC1 / PC2 = "
+      },
+      {
+        "data": "data-lead-seg",
+        "all_data": [
+          "data-lead-seg"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 79,
+        "it_len": 79,
+        "heading": "拖左边「当前层」的滑块，能看这份状态在 28 道工序里怎么一步步变形。L0 是每个词的出厂编"
+      },
+      {
+        "data": "data-orient-part",
+        "all_data": [
+          "data-orient-part"
+        ],
+        "depth": 0,
+        "tag": "h2",
+        "tc_len": 14,
+        "it_len": 14,
+        "heading": "三 · 你会在这页上遇到的词"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 65,
+        "it_len": 68,
+        "heading": "隐空间"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 85,
+        "it_len": 87,
+        "heading": "token"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 48,
+        "it_len": 50,
+        "heading": "候选词"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 38,
+        "it_len": 40,
+        "heading": "维度"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 55,
+        "it_len": 57,
+        "heading": "投影"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 72,
+        "it_len": 74,
+        "heading": "PCA / PC1 / PC2"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 74,
+        "it_len": 76,
+        "heading": "层 / block"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 57,
+        "it_len": 59,
+        "heading": "embedding"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 79,
+        "it_len": 81,
+        "heading": "残差流 / 残差"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 78,
+        "it_len": 80,
+        "heading": "熵 / top1 概率"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 56,
+        "it_len": 58,
+        "heading": "范数 ‖h‖"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 109,
+        "it_len": 111,
+        "heading": "干预 / 对照"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 74,
+        "it_len": 76,
+        "heading": "位移 Δ"
+      },
+      {
+        "data": "data-term",
+        "all_data": [
+          "data-term"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 71,
+        "it_len": 73,
+        "heading": "logit"
+      },
+      {
+        "data": "data-orient-part",
+        "all_data": [
+          "data-orient-part"
+        ],
+        "depth": 0,
+        "tag": "h2",
+        "tc_len": 16,
+        "it_len": 16,
+        "heading": "四 · 本页不主张的 4 种说法"
+      },
+      {
+        "data": "data-latent-not-claimed",
+        "all_data": [
+          "data-latent-not-claimed"
+        ],
+        "depth": 0,
+        "tag": "p",
+        "tc_len": 56,
+        "it_len": 56,
+        "heading": "下面这些是新手最自然会形成的理解。它们在这个页面上曾经被当成结论写出来过，后来被实测数据否掉"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 0,
+        "tag": "b",
+        "tc_len": 10,
+        "it_len": 10,
+        "heading": "0.0%–20.7%"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 0,
+        "tag": "b",
+        "tc_len": 7,
+        "it_len": 7,
+        "heading": "587–831"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 0,
+        "tag": "span",
+        "tc_len": 4,
+        "it_len": 4,
+        "heading": "2048"
+      },
+      {
+        "data": "data-orient-part",
+        "all_data": [
+          "data-orient-part"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 53,
+        "it_len": 54,
+        "heading": "「换一个词，是因为草稿被挪了位置。」"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 0,
+        "tag": "span",
+        "tc_len": 4,
+        "it_len": 4,
+        "heading": "2048"
+      },
+      {
+        "data": "data-orient-part",
+        "all_data": [
+          "data-orient-part"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 59,
+        "it_len": 60,
+        "heading": "「干预是把答案推向某个方向。」"
+      },
+      {
+        "data": "data-orient-part",
+        "all_data": [
+          "data-orient-part"
+        ],
+        "depth": 0,
+        "tag": "h2",
+        "tc_len": 11,
+        "it_len": 11,
+        "heading": "五 · 这些数字的边界"
+      },
+      {
+        "data": "data-bound",
+        "all_data": [
+          "data-bound"
+        ],
+        "depth": 0,
+        "tag": "li",
+        "tc_len": 90,
+        "it_len": 90,
+        "heading": "只有 10 道题做过\"干预 vs 对照\"（题号 1984 到 2025，不连续；题号是模仿 "
+      },
+      {
+        "data": "data-bound",
+        "all_data": [
+          "data-bound"
+        ],
+        "depth": 0,
+        "tag": "li",
+        "tc_len": 44,
+        "it_len": 44,
+        "heading": "本页是 Qwen3-1.7B；两个尺寸都收录了（层数相同、只差宽度），换模型家族没测过。"
+      },
+      {
+        "data": "data-bound",
+        "all_data": [
+          "data-bound"
+        ],
+        "depth": 0,
+        "tag": "li",
+        "tc_len": 78,
+        "it_len": 78,
+        "heading": "只有 1 个干预方向（第 20 层往残差流 = 模型每一道工序都往同一份草稿上加东西，那份草"
+      },
+      {
+        "data": "data-bound",
+        "all_data": [
+          "data-bound"
+        ],
+        "depth": 0,
+        "tag": "li",
+        "tc_len": 37,
+        "it_len": 37,
+        "heading": "所以这些是\"在这一小块地方看到了什么\"，不是\"对所有模型、所有题都成立\"。"
+      },
+      {
+        "data": "data-orient-part",
+        "all_data": [
+          "data-orient-part"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 62,
+        "it_len": 50,
+        "heading": "我读完了，开始看"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 0,
+        "tag": "span",
+        "tc_len": 10,
+        "it_len": 10,
+        "heading": "Qwen3-1.7B"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 0,
+        "tag": "span",
+        "tc_len": 4,
+        "it_len": 4,
+        "heading": "2048"
+      },
+      {
+        "data": "data-filled",
+        "all_data": [
+          "data-filled"
+        ],
+        "depth": 0,
+        "tag": "select",
+        "tc_len": 143,
+        "it_len": 143,
+        "heading": "1983_I_1  共同前缀 27 步  未闭合1984_I_1  共同前缀 15 步  未"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 0,
+        "tag": "span",
+        "tc_len": 4,
+        "it_len": 4,
+        "heading": "2048"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 0,
+        "tag": "span",
+        "tc_len": 4,
+        "it_len": 4,
+        "heading": "2048"
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-step",
+        "all_data": [
+          "data-step"
+        ],
+        "depth": 0,
+        "tag": "i",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 0,
+        "tag": "span",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "4 题"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 0,
+        "tag": "span",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "16%"
+      },
+      {
+        "data": "data-lensroot",
+        "all_data": [
+          "data-lensroot"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 1333,
+        "it_len": 1116,
+        "heading": "每一层离「模型最后说出这个词」还有多远"
+      },
+      {
+        "data": "data-rolesroot",
+        "all_data": [
+          "data-rolesroot"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 2392,
+        "it_len": 1977,
+        "heading": "这个向量到底在做什么"
+      },
+      {
+        "data": "data-bmroot",
+        "all_data": [
+          "data-bmroot"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 1591,
+        "it_len": 1193,
+        "heading": "能把 token 映回隐状态吗 · 先说不能的部分"
+      },
+      {
+        "data": "data-dvblock",
+        "all_data": [
+          "data-dvblock",
+          "data-dvroot"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 800,
+        "it_len": 847,
+        "heading": "为什么最后吐出的是这个词，而不是另一个"
+      },
+      {
+        "data": "data-cotblock",
+        "all_data": [
+          "data-cotblock"
+        ],
+        "depth": 0,
+        "tag": "div",
+        "tc_len": 11220,
+        "it_len": 10057,
+        "heading": "向量把思维链改成了什么样"
+      }
+    ],
+    "1": [
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 1,
+        "tag": "b",
+        "tc_len": 4,
+        "it_len": 4,
+        "heading": "2048"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 1,
+        "tag": "span",
+        "tc_len": 4,
+        "it_len": 4,
+        "heading": "2048"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 1,
+        "tag": "span",
+        "tc_len": 4,
+        "it_len": 4,
+        "heading": "2048"
+      },
+      {
+        "data": "data-f",
+        "all_data": [
+          "data-f"
+        ],
+        "depth": 1,
+        "tag": "b",
+        "tc_len": 10,
+        "it_len": 10,
+        "heading": "Qwen3-1.7B"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1983_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1984_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1985_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1986_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1987_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1988_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1989_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1990_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1991_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1992_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1994_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "2000_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "2002_I_1"
+      },
+      {
+        "data": "data-lenspick",
+        "all_data": [
+          "data-lenspick"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "2004_I_1"
+      },
+      {
+        "data": "data-lenschart",
+        "all_data": [
+          "data-lenschart"
+        ],
+        "depth": 1,
+        "tag": "svg",
+        "tc_len": 38,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-lensstep",
+        "all_data": [
+          "data-lensstep"
+        ],
+        "depth": 1,
+        "tag": "input",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-lenshist",
+        "all_data": [
+          "data-lenshist"
+        ],
+        "depth": 1,
+        "tag": "svg",
+        "tc_len": 0,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 1,
+        "it_len": 1,
+        "heading": "0"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 2,
+        "it_len": 2,
+        "heading": "65"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "130"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "195"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "260"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "325"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "390"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "455"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "520"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "585"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "650"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "715"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 2,
+        "it_len": 2,
+        "heading": "72"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 2,
+        "it_len": 2,
+        "heading": "81"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "103"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "218"
+      },
+      {
+        "data": "data-bmstep",
+        "all_data": [
+          "data-bmstep"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "668"
+      },
+      {
+        "data": "data-bmgrid",
+        "all_data": [
+          "data-bmgrid"
+        ],
+        "depth": 1,
+        "tag": "svg",
+        "tc_len": 30,
+        "it_len": 0,
+        "heading": ""
+      },
+      {
+        "data": "data-bmgridn",
+        "all_data": [
+          "data-bmgridn"
+        ],
+        "depth": 1,
+        "tag": "span",
+        "tc_len": 2,
+        "it_len": 2,
+        "heading": "18"
+      },
+      {
+        "data": "data-dvl",
+        "all_data": [
+          "data-dvl"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 2,
+        "it_len": 2,
+        "heading": "L4"
+      },
+      {
+        "data": "data-dvl",
+        "all_data": [
+          "data-dvl"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "L12"
+      },
+      {
+        "data": "data-dvl",
+        "all_data": [
+          "data-dvl"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "L20"
+      },
+      {
+        "data": "data-dvl",
+        "all_data": [
+          "data-dvl"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "L26"
+      },
+      {
+        "data": "data-dvl",
+        "all_data": [
+          "data-dvl"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 6,
+        "it_len": 6,
+        "heading": "L28·最终"
+      },
+      {
+        "data": "data-dvdlgat",
+        "all_data": [
+          "data-dvdlgat"
+        ],
+        "depth": 1,
+        "tag": "b",
+        "tc_len": 5,
+        "it_len": 5,
+        "heading": "-3.62"
+      },
+      {
+        "data": "data-dvdirs",
+        "all_data": [
+          "data-dvdirs"
+        ],
+        "depth": 1,
+        "tag": "b",
+        "tc_len": 3,
+        "it_len": 3,
+        "heading": "128"
+      },
+      {
+        "data": "data-dvhits",
+        "all_data": [
+          "data-dvhits"
+        ],
+        "depth": 1,
+        "tag": "b",
+        "tc_len": 7,
+        "it_len": 7,
+        "heading": "123/768"
+      },
+      {
+        "data": "data-cotdir",
+        "all_data": [
+          "data-cotdir"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 9,
+        "it_len": 9,
+        "heading": "自信 ↓（更犹豫）"
+      },
+      {
+        "data": "data-cotdir",
+        "all_data": [
+          "data-cotdir"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 9,
+        "it_len": 9,
+        "heading": "自信 ↑（更敢说）"
+      },
+      {
+        "data": "data-cotdir",
+        "all_data": [
+          "data-cotdir"
+        ],
+        "depth": 1,
+        "tag": "button",
+        "tc_len": 5,
+        "it_len": 5,
+        "heading": "对 ↔ 错"
+      },
+      {
+        "data": "data-problemset",
+        "all_data": [
+          "data-problemset"
+        ],
+        "depth": 1,
+        "tag": "div",
+        "tc_len": 454,
+        "it_len": 402,
+        "heading": "先说题目本身：这 23 道题不是历年 AIME 原题。 题号是模仿 AIME 编号的命名，题"
+      },
+      {
+        "data": "data-aroot",
+        "all_data": [
+          "data-aroot"
+        ],
+        "depth": 1,
+        "tag": "div",
+        "tc_len": 4727,
+        "it_len": 4297,
+        "heading": "同一道题跑两遍：这两篇文章就是它算出来的两个数"
+      },
+      {
+        "data": "data-cottext",
+        "all_data": [
+          "data-cottext"
+        ],
+        "depth": 1,
+        "tag": "div",
+        "tc_len": 2318,
+        "it_len": 2215,
+        "heading": "逐字读：第 3 步，两条路开始分岔"
+      }
+    ],
+    "2": [
+      {
+        "data": "data-arpick",
+        "all_data": [
+          "data-arpick"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "2020_I_1"
+      },
+      {
+        "data": "data-arpick",
+        "all_data": [
+          "data-arpick"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1984_I_1"
+      },
+      {
+        "data": "data-arpick",
+        "all_data": [
+          "data-arpick"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1987_I_1"
+      },
+      {
+        "data": "data-arpick",
+        "all_data": [
+          "data-arpick"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1990_I_1"
+      },
+      {
+        "data": "data-arpick",
+        "all_data": [
+          "data-arpick"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1991_I_1"
+      },
+      {
+        "data": "data-arpick",
+        "all_data": [
+          "data-arpick"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "1994_I_1"
+      },
+      {
+        "data": "data-arpick",
+        "all_data": [
+          "data-arpick"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "2000_I_1"
+      },
+      {
+        "data": "data-arpick",
+        "all_data": [
+          "data-arpick"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "2004_I_1"
+      },
+      {
+        "data": "data-arpick",
+        "all_data": [
+          "data-arpick"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "2014_I_1"
+      },
+      {
+        "data": "data-arpick",
+        "all_data": [
+          "data-arpick"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "2025_I_1"
+      },
+      {
+        "data": "data-problemset",
+        "all_data": [
+          "data-problemset"
+        ],
+        "depth": 2,
+        "tag": "div",
+        "tc_len": 454,
+        "it_len": 402,
+        "heading": "先说题目本身：这 10 道题不是历年 AIME 原题。 题号是模仿 AIME 编号的命名，题"
+      },
+      {
+        "data": "data-arhead",
+        "all_data": [
+          "data-arhead"
+        ],
+        "depth": 2,
+        "tag": "div",
+        "tc_len": 60,
+        "it_len": 60,
+        "heading": "<think>"
+      },
+      {
+        "data": "data-arm",
+        "all_data": [
+          "data-arm"
+        ],
+        "depth": 2,
+        "tag": "div",
+        "tc_len": 564,
+        "it_len": 502,
+        "heading": "不加向量（对照）"
+      },
+      {
+        "data": "data-arm",
+        "all_data": [
+          "data-arm"
+        ],
+        "depth": 2,
+        "tag": "div",
+        "tc_len": 573,
+        "it_len": 511,
+        "heading": "加向量 0.2"
+      },
+      {
+        "data": "data-arto",
+        "all_data": [
+          "data-arto"
+        ],
+        "depth": 2,
+        "tag": "button",
+        "tc_len": 8,
+        "it_len": 8,
+        "heading": "↓ 直接跳到这里"
+      },
+      {
+        "data": "data-arm",
+        "all_data": [
+          "data-arm"
+        ],
+        "depth": 2,
+        "tag": "div",
+        "tc_len": 1031,
+        "it_len": 970,
+        "heading": "不加向量"
+      },
+      {
+        "data": "data-arm",
+        "all_data": [
+          "data-arm"
+        ],
+        "depth": 2,
+        "tag": "div",
+        "tc_len": 1035,
+        "it_len": 974,
+        "heading": "加向量 0.2"
+      },
+      {
+        "data": "data-cotpick",
+        "all_data": [
+          "data-cotpick"
+        ],
+        "depth": 2,
+        "tag": "select",
+        "tc_len": 948,
+        "it_len": 993,
+        "heading": "1987_I_1 · 自信↑ · 第43步"
+      },
+      {
+        "data": "data-cotpre",
+        "all_data": [
+          "data-cotpre"
+        ],
+        "depth": 2,
+        "tag": "div",
+        "tc_len": 7,
+        "it_len": 7,
+        "heading": "Okay, "
+      },
+      {
+        "data": "data-cotarm",
+        "all_data": [
+          "data-cotarm"
+        ],
+        "depth": 2,
+        "tag": "div",
+        "tc_len": 168,
+        "it_len": 155,
+        "heading": "加了向量（干预臂）"
+      },
+      {
+        "data": "data-cotarm",
+        "all_data": [
+          "data-cotarm"
+        ],
+        "depth": 2,
+        "tag": "div",
+        "tc_len": 168,
+        "it_len": 155,
+        "heading": "没加向量（对照臂）"
+      }
+    ],
+    "3": [
+      {
+        "data": "data-armtext",
+        "all_data": [
+          "data-armtext"
+        ],
+        "depth": 3,
+        "tag": "div",
+        "tc_len": 439,
+        "it_len": 439,
+        "heading": "of positive integers (m, n) such that m²n = 20"
+      },
+      {
+        "data": "data-armtext",
+        "all_data": [
+          "data-armtext"
+        ],
+        "depth": 3,
+        "tag": "div",
+        "tc_len": 440,
+        "it_len": 440,
+        "heading": "(m, n) of positive integers such that m square"
+      },
+      {
+        "data": "data-armtext",
+        "all_data": [
+          "data-armtext"
+        ],
+        "depth": 3,
+        "tag": "div",
+        "tc_len": 906,
+        "it_len": 906,
+        "heading": "…上文略…"
+      },
+      {
+        "data": "data-armtext",
+        "all_data": [
+          "data-armtext"
+        ],
+        "depth": 3,
+        "tag": "div",
+        "tc_len": 906,
+        "it_len": 906,
+        "heading": "…上文略…"
+      }
+    ]
+  },
+  "unmarked": [
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 60,
+      "head": "模型脑子里那份\"笔记\"本身。它不是文字，是一串数字。 在哪儿看：页面大标题、左侧「怎么读」那段、右侧「这一层在做什么」。",
+      "ownLen": 59,
+      "ownHead": "模型脑子里那份\"笔记\"本身。它不是文字，是一串数字。在哪儿看：页面大标题、左侧「怎么读」那段、右侧「这一层在做什么」。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 81,
+      "head": "模型一次写的一个词的碎片，不是完整的词。 在哪儿看：左边「当前 token」滑块。这道题一共 1024 步，滑块拨到第几步，下方那行 rea",
+      "ownLen": 80,
+      "ownHead": "模型一次写的一个词的碎片，不是完整的词。在哪儿看：左边「当前 token」滑块。这道题一共 1024 步，滑块拨到第几步，下方那行 read",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 46,
+      "head": "模型此刻心里排队的字，按分数从高到低排成一张表。 在哪儿看：右上「top-64 候选词」表。",
+      "ownLen": 45,
+      "ownHead": "模型此刻心里排队的字，按分数从高到低排成一张表。在哪儿看：右上「top-64 候选词」表。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 15,
+      "head": "PCA / PC1 / PC2",
+      "ownLen": 15,
+      "ownHead": "PCA / PC1 / PC2",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 58,
+      "head": "找\"最能解释差异的方向\"的算法；前两根轴叫 PC1、PC2。 在哪儿看：顶部副标题；图例里的「PC1/PC2 轴」。",
+      "ownLen": 57,
+      "ownHead": "找\"最能解释差异的方向\"的算法；前两根轴叫 PC1、PC2。在哪儿看：顶部副标题；图例里的「PC1/PC2 轴」。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 66,
+      "head": "一次加工工序，一共有 28 道（L0 到 L27）。 在哪儿看：左边「当前层 L14」滑块，以及它下面那行 L0 / Lk 的说明。",
+      "ownLen": 65,
+      "ownHead": "一次加工工序，一共有 28 道（L0 到 L27）。在哪儿看：左边「当前层 L14」滑块，以及它下面那行 L0 / Lk 的说明。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 49,
+      "head": "查表把一个词变成一串数字，模型内部的出厂编号。 在哪儿看：左边「相对 embedding 移动」。",
+      "ownLen": 48,
+      "ownHead": "查表把一个词变成一串数字，模型内部的出厂编号。在哪儿看：左边「相对 embedding 移动」。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 72,
+      "head": "模型只有一份草稿，每道工序加工完就把加工结果加到草稿上；\"残差\"就是这次新加上去的那部分。 在哪儿看：左边「怎么读」那段；右上候选词表下面那",
+      "ownLen": 71,
+      "ownHead": "模型只有一份草稿，每道工序加工完就把加工结果加到草稿上；\"残差\"就是这次新加上去的那部分。在哪儿看：左边「怎么读」那段；右上候选词表下面那段",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 11,
+      "head": "熵 / top1 概率",
+      "ownLen": 11,
+      "ownHead": "熵 / top1 概率",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 68,
+      "head": "熵 = 有多犹豫（0 是铁了心）；top1 概率 = 排第一的那个词有多大概率被选中。 在哪儿看：左边「熵 / top1 概率」那一行。",
+      "ownLen": 67,
+      "ownHead": "熵 = 有多犹豫（0 是铁了心）；top1 概率 = 排第一的那个词有多大概率被选中。在哪儿看：左边「熵 / top1 概率」那一行。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 51,
+      "head": "那份草稿有多长，用一个数字表示：数字越大，那一层的状态被改得越多。 在哪儿看：左边「‖h‖ 当前层」。",
+      "ownLen": 50,
+      "ownHead": "那份草稿有多长，用一个数字表示：数字越大，那一层的状态被改得越多。在哪儿看：左边「‖h‖ 当前层」。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 103,
+      "head": "干预 = 人为往草稿里推一把；对照 = 同一道题什么都不做地跑一遍，用来和它比。两个词必须合在一起看，只有一个没有意义。 在哪儿看：左边第 ",
+      "ownLen": 102,
+      "ownHead": "干预 = 人为往草稿里推一把；对照 = 同一道题什么都不做地跑一遍，用来和它比。两个词必须合在一起看，只有一个没有意义。在哪儿看：左边第 4",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 71,
+      "head": "被推了多远、朝哪个方向。 在哪儿看：「干预 vs 对照」下面那张图，图内左上角画着的那行小字（它在 canvas 上，所以没有图例色块可点）",
+      "ownLen": 70,
+      "ownHead": "被推了多远、朝哪个方向。在哪儿看：「干预 vs 对照」下面那张图，图内左上角画着的那行小字（它在 canvas 上，所以没有图例色块可点）。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-term",
+      "len": 67,
+      "head": "候选词还没归一化的原始打分，只有相对大小有意义。 在哪儿看：右边「这一层在做什么」那段（把 token 滑块拖过第 1 步就会出现）。",
+      "ownLen": 66,
+      "ownHead": "候选词还没归一化的原始打分，只有相对大小有意义。在哪儿看：右边「这一层在做什么」那段（把 token 滑块拖过第 1 步就会出现）。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-term"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-orient-part",
+      "len": 29,
+      "head": "关掉之后这一页不会再挡你；随时点左上的「📖 导读」重读。",
+      "ownLen": 29,
+      "ownHead": "关掉之后这一页不会再挡你；随时点左上的「📖 导读」重读。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-orient-part"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 31,
+      "head": "B 路干预：逐位置剂量、token 概率与 3D 状态位移 →",
+      "ownLen": 31,
+      "ownHead": "B 路干预：逐位置剂量、token 概率与 3D 状态位移 →",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 665,
+      "head": "题目 1983_I_1 ✓ (1024 tok) 1984_I_1 ✗ (1024 tok) 1985_I_1 ✗ (1024 tok) 1",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 527,
+      "head": "1983_I_1 ✓ (1024 tok) 1984_I_1 ✗ (1024 tok) 1985_I_1 ✗ (1024 tok) 1986",
+      "ownLen": 504,
+      "ownHead": "1983_I_1 ✓ (1024 tok)1984_I_1 ✗ (1024 tok)1985_I_1 ✗ (1024 tok)1986_I_",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 134,
+      "head": "Let x, y, and z all exceed 1, and let w be a positive number such that",
+      "ownLen": 134,
+      "ownHead": "Let x, y, and z all exceed 1, and let w be a positive number such that",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 44,
+      "head": "隐空间 2D 候选词 维度解读 干预 vs 对照 逐步路径 干预阈值 因果修补 阈值向量",
+      "ownLen": 44,
+      "ownHead": "隐空间 2D 候选词 维度解读 干预 vs 对照 逐步路径 干预阈值 因果修补 阈值向量",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 66,
+      "head": "当前层 L14 L0 = embedding 输出，Lk = 第 k−1 个 block 的输出（即第 k 个 block 的输入）",
+      "ownLen": 7,
+      "ownHead": "当前层 L14",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 58,
+      "head": "L0 = embedding 输出，Lk = 第 k−1 个 block 的输出（即第 k 个 block 的输入）",
+      "ownLen": 58,
+      "ownHead": "L0 = embedding 输出，Lk = 第 k−1 个 block 的输出（即第 k 个 block 的输入）",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 10,
+      "head": "当前 token 0",
+      "ownLen": 10,
+      "ownHead": "当前 token 0",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 24,
+      "head": "该 token 原始 token <think>",
+      "ownLen": 23,
+      "ownHead": "该 token 原始 token<think>",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 25,
+      "head": "熵 / top1 概率 0.001 / 1.000",
+      "ownLen": 24,
+      "ownHead": "熵 / top1 概率0.001 / 1.000",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 13,
+      "head": "‖h‖ 当前层 144.9",
+      "ownLen": 12,
+      "ownHead": "‖h‖ 当前层144.9",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 23,
+      "head": "相对 embedding 移动 1078.1%",
+      "ownLen": 22,
+      "ownHead": "相对 embedding 移动1078.1%",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 132,
+      "head": "隐空间 2D 投影 · L14 1983_I_1 · <think> · 共 1024 步（原始向量只打包了前 48 步） 当前 token",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 61,
+      "head": "隐空间 2D 投影 · L14 1983_I_1 · <think> · 共 1024 步（原始向量只打包了前 48 步）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "h2",
+      "panel": "（祖先链为空）",
+      "len": 15,
+      "head": "隐空间 2D 投影 · L14",
+      "ownLen": 15,
+      "ownHead": "隐空间 2D 投影 · L14",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 45,
+      "head": "1983_I_1 · <think> · 共 1024 步（原始向量只打包了前 48 步）",
+      "ownLen": 45,
+      "ownHead": "1983_I_1 · <think> · 共 1024 步（原始向量只打包了前 48 步）",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 70,
+      "head": "当前 token 已生成 token，按这一步的熵着色： 笃定 → 拿不准 未生成 token（淡显） 深度轨迹（跨层） PC1/PC2 轴",
+      "ownLen": 85,
+      "ownHead": "当前 token 已生成 token，按这一步的熵着色： 笃定 → 拿不准 未生成 token（淡显） 深度轨迹（跨层） PC1/PC2 轴",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 78,
+      "head": "这一层在做什么 L14：目前只有第 1 步这一个点，算不出离散度（单点的方差恒为 0）。把 token 滑块往后拖几个点，这里就会给出这一层",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 70,
+      "head": "L14：目前只有第 1 步这一个点，算不出离散度（单点的方差恒为 0）。把 token 滑块往后拖几个点，这里就会给出这一层点云的收拢程度。",
+      "ownLen": 70,
+      "ownHead": "L14：目前只有第 1 步这一个点，算不出离散度（单点的方差恒为 0）。把 token 滑块往后拖几个点，这里就会给出这一层点云的收拢程度。",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "h2",
+      "panel": "（祖先链为空）",
+      "len": 18,
+      "head": "TOP-64 候选词 · 第 0 步",
+      "ownLen": 18,
+      "ownHead": "top-64 候选词 · 第 0 步",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 31,
+      "head": "模型这一步选了 <think> 给了它 100.00% 的概率",
+      "ownLen": 31,
+      "ownHead": "模型这一步选了 <think> 给了它 100.00% 的概率",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 35,
+      "head": "几乎不做取舍。熵 0.0004 nats（越接近 0 = 越不做取舍）",
+      "ownLen": 35,
+      "ownHead": "几乎不做取舍。熵 0.0004 nats（越接近 0 = 越不做取舍）",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 52,
+      "head": "没选它的话，第二可能是 </think>（0.00%） · 还有 27 步比它更犹豫（最低 53.2%）",
+      "ownLen": 52,
+      "ownHead": "没选它的话，第二可能是 </think>（0.00%） · 还有 27 步比它更犹豫（最低 53.2%）",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 43,
+      "head": "每根 = 一步，高度 = 那一歩模型有多确定；红色 = 在犹豫。 跳到最犹豫的一步 →",
+      "ownLen": 43,
+      "ownHead": "每根 = 一步，高度 = 那一歩模型有多确定；红色 = 在犹豫。 跳到最犹豫的一步 →",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 375,
+      "head": "# 候选词 概率 占比 1 <think> ←选了 100.00% 2 </think> 0.00% 3 <|im_start|> 0.00",
+      "ownLen": 342,
+      "ownHead": "#候选词概率占比1<think> ←选了100.00%2</think>0.00%3<|im_start|>0.00%4<|im_end|>",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 13,
+      "head": "生成的文本 <think>",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-lensroot",
+      "len": 19,
+      "head": "每一层离「模型最后说出这个词」还有多远",
+      "ownLen": 19,
+      "ownHead": "每一层离「模型最后说出这个词」还有多远",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-lensroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-lensroot",
+      "len": 176,
+      "head": "把最后一层的读出方式（归一化 + 词表投影）套到每一层的 隐状态上，看它自己会说出哪个词。横轴 0–27 层，柱子越高表示这一层 越接近模型",
+      "ownLen": 176,
+      "ownHead": "把最后一层的读出方式（归一化 + 词表投影）套到每一层的 隐状态上，看它自己会说出哪个词。横轴 0–27 层，柱子越高表示这一层 越接近模型",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-lensroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-lensroot",
+      "len": 465,
+      "head": "先确认这条曲线不是随便画的：第 27 层的读出 必须说出模型真实选中的那个词。实测 1420/1420 全中（可判定步 = steps wh",
+      "ownLen": 465,
+      "ownHead": "先确认这条曲线不是随便画的：第 27 层的读出 必须说出模型真实选中的那个词。实测 1420/1420 全中（可判定步 = steps wh",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-lensroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-lensroot",
+      "len": 45,
+      "head": "共 24 道题（每题有 think / no_think 两条轨迹），这里只列前 14 道",
+      "ownLen": 45,
+      "ownHead": "共 24 道题（每题有 think / no_think 两条轨迹），这里只列前 14 道",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-lensroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-lensroot",
+      "len": 32,
+      "head": "第 546 步，模型最后选中 5 ——第 21 层开始就说对它了",
+      "ownLen": 32,
+      "ownHead": "第 546 步，模型最后选中 5 ——第 21 层开始就说对它了",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-lensroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-lensroot",
+      "len": 47,
+      "head": "绿柱 = 这一层说对了模型最后选中的词；灰柱 = 还在说别的。 虚线 = 第一次说对的那一层。",
+      "ownLen": 47,
+      "ownHead": "绿柱 = 这一层说对了模型最后选中的词；灰柱 = 还在说别的。 虚线 = 第一次说对的那一层。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-lensroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-lensroot",
+      "len": 36,
+      "head": "这条轨迹取的是最后 32 步 （答案被吐出来的位置），共 32 步可选。",
+      "ownLen": 36,
+      "ownHead": "这条轨迹取的是最后 32 步 （答案被吐出来的位置），共 32 步可选。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-lensroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-lensroot",
+      "len": 31,
+      "head": "全体 1536 步里，各层第一次说对最终 token 的步数：",
+      "ownLen": 31,
+      "ownHead": "全体 1536 步里，各层第一次说对最终 token 的步数：",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-lensroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-lensroot",
+      "len": 115,
+      "head": "峰值在 L21（由 counts 的 argmax 现算； 虚线与绿色柱都标的是这一层）。累计：L21 前 49%、L22 前 71%、 到",
+      "ownLen": 115,
+      "ownHead": "峰值在 L21（由 counts 的 argmax 现算； 虚线与绿色柱都标的是这一层）。累计：L21 前 49%、L22 前 71%、 到",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-lensroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 10,
+      "head": "这个向量到底在做什么",
+      "ownLen": 10,
+      "ownHead": "这个向量到底在做什么",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 91,
+      "head": "「加了它行为变了」只能说明它够用，说不出它的角色。三块一起看才 是一次完整刻画：够用吗（充分性）、模型自己跑的时候真的在用 这一维吗（必要性",
+      "ownLen": 91,
+      "ownHead": "「加了它行为变了」只能说明它够用，说不出它的角色。三块一起看才 是一次完整刻画：够用吗（充分性）、模型自己跑的时候真的在用 这一维吗（必要性",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 20,
+      "head": "① 必要性：模型自己跑的时候会用这一维吗",
+      "ownLen": 20,
+      "ownHead": "① 必要性：模型自己跑的时候会用这一维吗",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 138,
+      "head": "用留出法测的：在一半题目上重建对比、另一半评测，所以不是拿定义它的 数据去证明它自己。 ⚠ 第三十三笔之二：下面每个方向印的是两个折 —— ",
+      "ownLen": 138,
+      "ownHead": "用留出法测的：在一半题目上重建对比、另一半评测，所以不是拿定义它的 数据去证明它自己。 ⚠ 第三十三笔之二：下面每个方向印的是两个折 —— ",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 80,
+      "head": "confidence_up vs entropy ρ -0.655 / -0.684 通过 （高出随机上限 4.7σ） （两折 n=3303",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 24,
+      "head": "confidence_up vs entropy",
+      "ownLen": 24,
+      "ownHead": "confidence_up vs entropy",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 55,
+      "head": "ρ -0.655 / -0.684 通过 （高出随机上限 4.7σ） （两折 n=33030 / 36125）",
+      "ownLen": 55,
+      "ownHead": "ρ -0.655 / -0.684 通过 （高出随机上限 4.7σ） （两折 n=33030 / 36125）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 82,
+      "head": "confidence_down vs entropy ρ +0.655 / +0.684 通过 （高出随机上限 4.7σ） （两折 n=33",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 26,
+      "head": "confidence_down vs entropy",
+      "ownLen": 26,
+      "ownHead": "confidence_down vs entropy",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 55,
+      "head": "ρ +0.655 / +0.684 通过 （高出随机上限 4.7σ） （两折 n=33030 / 36125）",
+      "ownLen": 55,
+      "ownHead": "ρ +0.655 / +0.684 通过 （高出随机上限 4.7σ） （两折 n=33030 / 36125）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 94,
+      "head": "caution vs self_check 轨迹内 AUC 0.978 / 0.985 通过 （高出随机上限 1.7σ） （两折 n=330",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 21,
+      "head": "caution vs self_check",
+      "ownLen": 21,
+      "ownHead": "caution vs self_check",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 72,
+      "head": "轨迹内 AUC 0.978 / 0.985 通过 （高出随机上限 1.7σ） （两折 n=33030 / 36125，正例 215 / 17",
+      "ownLen": 72,
+      "ownHead": "轨迹内 AUC 0.978 / 0.985 通过 （高出随机上限 1.7σ） （两折 n=33030 / 36125，正例 215 / 17",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 108,
+      "head": "creativity vs in_think 轨迹内 AUC 0.521 / 0.523 通过 （高出随机上限 1.8σ） 循环口径下不通过",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 22,
+      "head": "creativity vs in_think",
+      "ownLen": 22,
+      "ownHead": "creativity vs in_think",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 85,
+      "head": "轨迹内 AUC 0.521 / 0.523 通过 （高出随机上限 1.8σ） 循环口径下不通过 （两折 n=33030 / 36125，正例",
+      "ownLen": 85,
+      "ownHead": "轨迹内 AUC 0.521 / 0.523 通过 （高出随机上限 1.8σ） 循环口径下不通过 （两折 n=33030 / 36125，正例",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 83,
+      "head": "reasoning_deep vs step_frac ρ +0.503 / +0.587 通过 （高出随机上限 5.9σ） （两折 n=3",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 27,
+      "head": "reasoning_deep vs step_frac",
+      "ownLen": 27,
+      "ownHead": "reasoning_deep vs step_frac",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 55,
+      "head": "ρ +0.503 / +0.587 通过 （高出随机上限 5.9σ） （两折 n=33030 / 36125）",
+      "ownLen": 55,
+      "ownHead": "ρ +0.503 / +0.587 通过 （高出随机上限 5.9σ） （两折 n=33030 / 36125）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 86,
+      "head": "reasoning_shallow vs step_frac ρ -0.503 / -0.587 通过 （高出随机上限 5.9σ） （两折 ",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 30,
+      "head": "reasoning_shallow vs step_frac",
+      "ownLen": 30,
+      "ownHead": "reasoning_shallow vs step_frac",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 55,
+      "head": "ρ -0.503 / -0.587 通过 （高出随机上限 5.9σ） （两折 n=33030 / 36125）",
+      "ownLen": 55,
+      "ownHead": "ρ -0.503 / -0.587 通过 （高出随机上限 5.9σ） （两折 n=33030 / 36125）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 80,
+      "head": "门槛不是 1/√(n−3)（只有 0.149）， 而是打败全部 16 个随机方向： 它们实测散布 [-0.353, 0.255]， 门槛取最",
+      "ownLen": 80,
+      "ownHead": "门槛不是 1/√(n−3)（只有 0.149）， 而是打败全部 16 个随机方向： 它们实测散布 [-0.353, 0.255]， 门槛取最",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 12,
+      "head": "② 充分性：只加它够不够",
+      "ownLen": 12,
+      "ownHead": "② 充分性：只加它够不够",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 88,
+      "head": "confidence_down@0.2 长度比中位 0.995 · token 一致 0.939 · 写完 21/23 注入向量范数 173",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 19,
+      "head": "confidence_down@0.2",
+      "ownLen": 19,
+      "ownHead": "confidence_down@0.2",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 68,
+      "head": "长度比中位 0.995 · token 一致 0.939 · 写完 21/23 注入向量范数 173.2 （n=23，零向量臂恒为 0）",
+      "ownLen": 68,
+      "ownHead": "长度比中位 0.995 · token 一致 0.939 · 写完 21/23 注入向量范数 173.2 （n=23，零向量臂恒为 0）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 85,
+      "head": "confidence_up@0.2 长度比中位 0.996 · token 一致 0.979 · 写完 5/23 注入向量范数 173.2 ",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 17,
+      "head": "confidence_up@0.2",
+      "ownLen": 17,
+      "ownHead": "confidence_up@0.2",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 67,
+      "head": "长度比中位 0.996 · token 一致 0.979 · 写完 5/23 注入向量范数 173.2 （n=23，零向量臂恒为 0）",
+      "ownLen": 67,
+      "ownHead": "长度比中位 0.996 · token 一致 0.979 · 写完 5/23 注入向量范数 173.2 （n=23，零向量臂恒为 0）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 245,
+      "head": "覆盖不全：充分性和特异性只能在这 2 个方向上测：32k 日志的 direction x strength 一共只有 4 格（confide",
+      "ownLen": 245,
+      "ownHead": "覆盖不全：充分性和特异性只能在这 2 个方向上测：32k 日志的 direction x strength 一共只有 4 格（confide",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 15,
+      "head": "③ 特异性：它只影响该影响的吗",
+      "ownLen": 15,
+      "ownHead": "③ 特异性：它只影响该影响的吗",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 42,
+      "head": "confidence_down 从哪一步开始变 轨迹的 0.13% 处 （n=23）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 23,
+      "head": "confidence_down 从哪一步开始变",
+      "ownLen": 23,
+      "ownHead": "confidence_down 从哪一步开始变",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 18,
+      "head": "轨迹的 0.13% 处 （n=23）",
+      "ownLen": 18,
+      "ownHead": "轨迹的 0.13% 处 （n=23）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 40,
+      "head": "confidence_up 从哪一步开始变 轨迹的 0.08% 处 （n=23）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 21,
+      "head": "confidence_up 从哪一步开始变",
+      "ownLen": 21,
+      "ownHead": "confidence_up 从哪一步开始变",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 18,
+      "head": "轨迹的 0.08% 处 （n=23）",
+      "ownLen": 18,
+      "ownHead": "轨迹的 0.08% 处 （n=23）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 79,
+      "head": "这个数字很小，说明效应是全局的：不是只在「该犹豫的地方」才犹豫， 而是从头到尾整体被推了一下。这和「这个方向就是 confidence 的实",
+      "ownLen": 79,
+      "ownHead": "这个数字很小，说明效应是全局的：不是只在「该犹豫的地方」才犹豫， 而是从头到尾整体被推了一下。这和「这个方向就是 confidence 的实",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 277,
+      "head": "有一条测不了：干预后每一步的熵是否同向变化（整体 vs 局部）。 cot_divergence_32k.json 的 per_run 每条只",
+      "ownLen": 277,
+      "ownHead": "有一条测不了：干预后每一步的熵是否同向变化（整体 vs 局部）。 cot_divergence_32k.json 的 per_run 每条只",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-rolesroot",
+      "len": 202,
+      "head": "循环论证：in_sample 那一块是循环论证的：这些向量就是这批 token 上两组均值之差，把它投影回同一批 token 再和同一批标签",
+      "ownLen": 202,
+      "ownHead": "循环论证：in_sample 那一块是循环论证的：这些向量就是这批 token 上两组均值之差，把它投影回同一批 token 再和同一批标签",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-rolesroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 25,
+      "head": "能把 token 映回隐状态吗 · 先说不能的部分",
+      "ownLen": 25,
+      "ownHead": "能把 token 映回隐状态吗 · 先说不能的部分",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 92,
+      "head": "直觉做法是：词表 151936 维压到隐空间 2048 维，那么一定有一大堆 看不见的方向，沿它们走 logits 完全不变，词也不变。 这",
+      "ownLen": 92,
+      "ownHead": "直觉做法是：词表 151936 维压到隐空间 2048 维，那么一定有一大堆 看不见的方向，沿它们走 logits 完全不变，词也不变。 这",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 160,
+      "head": "读出矩阵是满秩的，所以精确零空间是空的： 实测最小奇异值 4.4217、最大 145.91，条件数只有 33.0，秩 2048/2048。 ",
+      "ownLen": 149,
+      "ownHead": "读出矩阵是满秩的，所以精确零空间是空的： 实测最小奇异值 4.4217、最大 145.91，条件数只有 33.0，秩 2048/2048。 ",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 10,
+      "head": "产物原文： 点此查看",
+      "ownLen": 10,
+      "ownHead": "产物原文： 点此查看",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 91,
+      "head": "不唯一性确实存在，但机制不同：argmax 只保留 151936 个数里的 1 个， 落在这个锥里的所有隐状态都说出同一个词。下表两种情况差",
+      "ownLen": 91,
+      "ownHead": "不唯一性确实存在，但机制不同：argmax 只保留 151936 个数里的 1 个， 落在这个锥里的所有隐状态都说出同一个词。下表两种情况差",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 111,
+      "head": "「隐状态可移动」= 沿某个方向走，隐状态能挪动多少倍而说出的词不变。 厚锥上挪动 2.20 倍， 薄锥上只有 0.20 倍—— 后者的 ma",
+      "ownLen": 111,
+      "ownHead": "「隐状态可移动」= 沿某个方向走，隐状态能挪动多少倍而说出的词不变。 厚锥上挪动 2.20 倍， 薄锥上只有 0.20 倍—— 后者的 ma",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 45,
+      "head": "蓝=读出已指向该词（12 步），黄=需要微小修正（5 步）。 下面这一格是选中步的实测值。",
+      "ownLen": 45,
+      "ownHead": "蓝=读出已指向该词（12 步），黄=需要微小修正（5 步）。 下面这一格是选中步的实测值。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 49,
+      "head": "no_think · 第 668 步 · 目标 token 16 1 · margin 0.011",
+      "ownLen": 49,
+      "ownHead": "no_think · 第 668 步 · 目标 token 16 1 · margin 0.011",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 96,
+      "head": "最远的一条实测路径：隐状态移动 5.85× 之后，argmax 仍为 16； 边界处 margin = 0.00000000 （恰好为 0，",
+      "ownLen": 96,
+      "ownHead": "最远的一条实测路径：隐状态移动 5.85× 之后，argmax 仍为 16； 边界处 margin = 0.00000000 （恰好为 0，",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 83,
+      "head": "同一次移动里 logits 相对变化了 3.831。 所以「词没变」不等于「读出没变」——不可逆的地方是 argmax 丢掉了其余 1519",
+      "ownLen": 83,
+      "ownHead": "同一次移动里 logits 相对变化了 3.831。 所以「词没变」不等于「读出没变」——不可逆的地方是 argmax 丢掉了其余 1519",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-bmroot",
+      "len": 206,
+      "head": "自证：用全部 151936 维 logits 线性还原 h， 相对误差 0.000000000001（读出是单射，这印证了上面的满秩）。 但",
+      "ownLen": 206,
+      "ownHead": "自证：用全部 151936 维 logits 线性还原 h， 相对误差 0.000000000001（读出是单射，这印证了上面的满秩）。 但",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-bmroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 19,
+      "head": "为什么最后吐出的是这个词，而不是另一个",
+      "ownLen": 19,
+      "ownHead": "为什么最后吐出的是这个词，而不是另一个",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 100,
+      "head": "同一句前缀（第 27 步之前完全一样）分别喂给两条流。分数是原始打分，只看谁比谁高，不是概率。带 ← 的是各自真正吐出的词。下面这些是「读出",
+      "ownLen": 100,
+      "ownHead": "同一句前缀（第 27 步之前完全一样）分别喂给两条流。分数是原始打分，只看谁比谁高，不是概率。带 ← 的是各自真正吐出的词。下面这些是「读出",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 17,
+      "head": "1 greater ← 40.84",
+      "ownLen": 16,
+      "ownHead": "1 greater ←40.84",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 17,
+      "head": "2 exceeding 38.90",
+      "ownLen": 16,
+      "ownHead": "2 exceeding38.90",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 14,
+      "head": "3 larger 29.41",
+      "ownLen": 13,
+      "ownHead": "3 larger29.41",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 14,
+      "head": "4 bigger 28.59",
+      "ownLen": 13,
+      "ownHead": "4 bigger28.59",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 14,
+      "head": "5 exceed 24.85",
+      "ownLen": 13,
+      "ownHead": "5 exceed24.85",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 19,
+      "head": "1 exceeding ← 40.46",
+      "ownLen": 18,
+      "ownHead": "1 exceeding ←40.46",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 15,
+      "head": "2 greater 37.23",
+      "ownLen": 14,
+      "ownHead": "2 greater37.23",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 14,
+      "head": "3 exceed 28.31",
+      "ownLen": 13,
+      "ownHead": "3 exceed28.31",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 12,
+      "head": "4 over 25.24",
+      "ownLen": 11,
+      "ownHead": "4 over25.24",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 14,
+      "head": "5 larger 24.47",
+      "ownLen": 13,
+      "ownHead": "5 larger24.47",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 89,
+      "head": "先看这句：上面两行说明\"干预让模型改吐了一个词\"，但不能说明\"这次位移把它掰过去的\"——净效果只占维度总运动的 0.0%–20.7%，其余运",
+      "ownLen": 89,
+      "ownHead": "先看这句：上面两行说明\"干预让模型改吐了一个词\"，但不能说明\"这次位移把它掰过去的\"——净效果只占维度总运动的 0.0%–20.7%，其余运",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 106,
+      "head": "这一步本来就是险的。对照臂第 1 名只领先第 2 名 1.94 分，干预臂是 3.23 分 —— 换句话说，模型在改口前就已经几乎在「 ex",
+      "ownLen": 106,
+      "ownHead": "这一步本来就是险的。对照臂第 1 名只领先第 2 名 1.94 分，干预臂是 3.23 分 —— 换句话说，模型在改口前就已经几乎在「 ex",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 25,
+      "head": "前面每一步，第一名领先第二名多少（越低越接近改口）",
+      "ownLen": 25,
+      "ownHead": "前面每一步，第一名领先第二名多少（越低越接近改口）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-dvblock",
+      "len": 53,
+      "head": "灰＝对照臂，绿＝干预臂，竖虚线＝真正分叉的那一步。全程中位数：对照 8.23 分，最低到过 0.36 分。",
+      "ownLen": 53,
+      "ownHead": "灰＝对照臂，绿＝干预臂，竖虚线＝真正分叉的那一步。全程中位数：对照 8.23 分，最低到过 0.36 分。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-dvblock",
+          "data-dvroot"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 12,
+      "head": "向量把思维链改成了什么样",
+      "ownLen": 12,
+      "ownHead": "向量把思维链改成了什么样",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 91,
+      "head": "这是另一组实验：Qwen3-1.7B，L20 注入，24 道题，每题只生成 61 步，共 168 次运行。和上面那条配对流不是同一批数据，数",
+      "ownLen": 91,
+      "ownHead": "这是另一组实验：Qwen3-1.7B，L20 注入，24 道题，每题只生成 61 步，共 168 次运行。和上面那条配对流不是同一批数据，数",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 24,
+      "head": "注入强度 -0.2（对 ↔ 错）· 24 次运行",
+      "ownLen": 24,
+      "ownHead": "注入强度 -0.2（对 ↔ 错）· 24 次运行",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 34,
+      "head": "token 还一样 95.3% 每 100 个里约 4.7 个被改了",
+      "ownLen": 32,
+      "ownHead": "token 还一样95.3%每 100 个里约 4.7 个被改了",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 30,
+      "head": "推理步骤逐字重合 10% 措辞几乎整段重写，但说的是同一件事",
+      "ownLen": 28,
+      "ownHead": "推理步骤逐字重合10%措辞几乎整段重写，但说的是同一件事",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 26,
+      "head": "推理长度比 0.998 对照臂 1.000（零向量）",
+      "ownLen": 24,
+      "ownHead": "推理长度比0.998对照臂 1.000（零向量）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 47,
+      "head": "自我检查次数变化 +0.00 p = 0.00，n = 24 —— 测不出差别，不等于没有差别",
+      "ownLen": 45,
+      "ownHead": "自我检查次数变化+0.00p = 0.00，n = 24 —— 测不出差别，不等于没有差别",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 48,
+      "head": "最终答案是否改变 没测到 1 次能解析出答案（其中 0 次不同），24 次运行里其余的都还在半路",
+      "ownLen": 46,
+      "ownHead": "最终答案是否改变没测到1 次能解析出答案（其中 0 次不同），24 次运行里其余的都还在半路",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 23,
+      "head": "注入强度 0.2（对 ↔ 错）· 24 次运行",
+      "ownLen": 23,
+      "ownHead": "注入强度 0.2（对 ↔ 错）· 24 次运行",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 34,
+      "head": "token 还一样 95.8% 每 100 个里约 4.2 个被改了",
+      "ownLen": 32,
+      "ownHead": "token 还一样95.8%每 100 个里约 4.2 个被改了",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 29,
+      "head": "推理步骤逐字重合 4% 措辞几乎整段重写，但说的是同一件事",
+      "ownLen": 27,
+      "ownHead": "推理步骤逐字重合4%措辞几乎整段重写，但说的是同一件事",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 26,
+      "head": "推理长度比 0.994 对照臂 1.000（零向量）",
+      "ownLen": 24,
+      "ownHead": "推理长度比0.994对照臂 1.000（零向量）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 47,
+      "head": "自我检查次数变化 -0.08 p = 0.16，n = 24 —— 测不出差别，不等于没有差别",
+      "ownLen": 45,
+      "ownHead": "自我检查次数变化-0.08p = 0.16，n = 24 —— 测不出差别，不等于没有差别",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 48,
+      "head": "最终答案是否改变 没测到 0 次能解析出答案（其中 0 次不同），24 次运行里其余的都还在半路",
+      "ownLen": 46,
+      "ownHead": "最终答案是否改变没测到0 次能解析出答案（其中 0 次不同），24 次运行里其余的都还在半路",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 241,
+      "head": "一句话（只对下面这张表成立）：在这批 168 次运行里，改的是词，不是思路——措辞换掉 90% 之后，推理的条数和自查次数都没动。 \"长度也",
+      "ownLen": 239,
+      "ownHead": "一句话（只对下面这张表成立）：在这批 168 次运行里，改的是词，不是思路——措辞换掉 90% 之后，推理的条数和自查次数都没动。\"长度也没",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 35,
+      "head": "同一件事，加长预算重跑（92 次运行 · 23 题 · 注入 L20）",
+      "ownLen": 35,
+      "ownHead": "同一件事，加长预算重跑（92 次运行 · 23 题 · 注入 L20）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 74,
+      "head": "「32k」是什么 32000 ——每次生成最多新增多少个 token 的上限， 不是模型能读进去多少字的上下文长度。模型上下文是另一回事，这",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 65,
+      "head": "32000 ——每次生成最多新增多少个 token 的上限， 不是模型能读进去多少字的上下文长度。模型上下文是另一回事，这里没测。",
+      "ownLen": 65,
+      "ownHead": "32000 ——每次生成最多新增多少个 token 的上限， 不是模型能读进去多少字的上下文长度。模型上下文是另一回事，这里没测。",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 27,
+      "head": "└ 真的用满的次数 24/92 次跑到 32000 步",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 17,
+      "head": "24/92 次跑到 32000 步",
+      "ownLen": 17,
+      "ownHead": "24/92 次跑到 32000 步",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 45,
+      "head": "└ 实际长度（中位数） 12923 步；10% 分位 2867、 90% 分位 32000",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 11,
+      "head": "└ 实际长度（中位数）",
+      "ownLen": 11,
+      "ownHead": "└ 实际长度（中位数）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 33,
+      "head": "12923 步；10% 分位 2867、 90% 分位 32000",
+      "ownLen": 33,
+      "ownHead": "12923 步；10% 分位 2867、 90% 分位 32000",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 75,
+      "head": "所以「32k」是天花板，不是典型值： 多数题在 2867–12923 步就自己写完了。 下文凡是拿「步数」比长短的地方，读的是实际步数，不是",
+      "ownLen": 75,
+      "ownHead": "所以「32k」是天花板，不是典型值： 多数题在 2867–12923 步就自己写完了。 下文凡是拿「步数」比长短的地方，读的是实际步数，不是",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 113,
+      "head": "这一批还没跑完：计划 96 次 （24 道题），目前落盘 92 次 （23 道题），剩下 4 次还在服务器上算。 下面所有数字都会变——尤其",
+      "ownLen": 113,
+      "ownHead": "这一批还没跑完：计划 96 次 （24 道题），目前落盘 92 次 （23 道题），剩下 4 次还在服务器上算。 下面所有数字都会变——尤其",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 24,
+      "head": "跑完 68/92 （60 步那批是 0/168）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 21,
+      "head": "68/92 （60 步那批是 0/168）",
+      "ownLen": 21,
+      "ownHead": "68/92 （60 步那批是 0/168）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 30,
+      "head": "能解析出最终答案 67/92 （60 步那批是 7/168）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 21,
+      "head": "67/92 （60 步那批是 7/168）",
+      "ownLen": 21,
+      "ownHead": "67/92 （60 步那批是 7/168）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 23,
+      "head": "自信 ↓（更犹豫） 的答案 21/21 次全同",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 13,
+      "head": "自信 ↓（更犹豫） 的答案",
+      "ownLen": 13,
+      "ownHead": "自信 ↓（更犹豫） 的答案",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 21,
+      "head": "└ 跑完 21/23 （对照臂 0/24）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 16,
+      "head": "21/23 （对照臂 0/24）",
+      "ownLen": 16,
+      "ownHead": "21/23 （对照臂 0/24）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 21,
+      "head": "自信 ↑（更敢说） 的答案 8/8 次全同",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 13,
+      "head": "自信 ↑（更敢说） 的答案",
+      "ownLen": 13,
+      "ownHead": "自信 ↑（更敢说） 的答案",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 20,
+      "head": "└ 跑完 5/23 （对照臂 0/24）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 15,
+      "head": "5/23 （对照臂 0/24）",
+      "ownLen": 15,
+      "ownHead": "5/23 （对照臂 0/24）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 333,
+      "head": "这些差异不是 GPU 噪声。同一道题的 自信 ↑（更敢说） 与 自信 ↓（更犹豫） 在强度 0 时其实是同一个计算（零向量乘任何方向还是零）",
+      "ownLen": 333,
+      "ownHead": "这些差异不是 GPU 噪声。同一道题的 自信 ↑（更敢说） 与 自信 ↓（更犹豫） 在强度 0 时其实是同一个计算（零向量乘任何方向还是零）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 112,
+      "head": "换个问法，答案会变——但变的是算出来的数，不是答对的题数。 上面那句「答案一次都没变」比的是同一次运行里被强制同步的两臂；这里是同一个问题 ",
+      "ownLen": 112,
+      "ownHead": "换个问法，答案会变——但变的是算出来的数，不是答对的题数。 上面那句「答案一次都没变」比的是同一次运行里被强制同步的两臂；这里是同一个问题 ",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 31,
+      "head": "自信 ↑（更敢说） 的答案 0/5 次不同 （两臂都跑完的题）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 13,
+      "head": "自信 ↑（更敢说） 的答案",
+      "ownLen": 13,
+      "ownHead": "自信 ↑（更敢说） 的答案",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 17,
+      "head": "0/5 次不同 （两臂都跑完的题）",
+      "ownLen": 17,
+      "ownHead": "0/5 次不同 （两臂都跑完的题）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 27,
+      "head": "└ 其中答对的题数 4 → 4 （净 0，共 5 题）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 17,
+      "head": "4 → 4 （净 0，共 5 题）",
+      "ownLen": 17,
+      "ownHead": "4 → 4 （净 0，共 5 题）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 29,
+      "head": "对→对 4 · 对→错 0 · 错→对 0 · 错→错 1",
+      "ownLen": 29,
+      "ownHead": "对→对 4 · 对→错 0 · 错→对 0 · 错→错 1",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 52,
+      "head": "└ 放宽到「能解析就算」 3/11 ——多出来的那些有一臂根本没写完， 拿写完的答案去比没写完的不算改变",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 12,
+      "head": "└ 放宽到「能解析就算」",
+      "ownLen": 12,
+      "ownHead": "└ 放宽到「能解析就算」",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 39,
+      "head": "3/11 ——多出来的那些有一臂根本没写完， 拿写完的答案去比没写完的不算改变",
+      "ownLen": 39,
+      "ownHead": "3/11 ——多出来的那些有一臂根本没写完， 拿写完的答案去比没写完的不算改变",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 33,
+      "head": "自信 ↓（更犹豫） 的答案 10/20 次不同 （两臂都跑完的题）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 13,
+      "head": "自信 ↓（更犹豫） 的答案",
+      "ownLen": 13,
+      "ownHead": "自信 ↓（更犹豫） 的答案",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 19,
+      "head": "10/20 次不同 （两臂都跑完的题）",
+      "ownLen": 19,
+      "ownHead": "10/20 次不同 （两臂都跑完的题）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 28,
+      "head": "└ 其中答对的题数 7 → 7 （净 0，共 20 题）",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 18,
+      "head": "7 → 7 （净 0，共 20 题）",
+      "ownLen": 18,
+      "ownHead": "7 → 7 （净 0，共 20 题）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 30,
+      "head": "对→对 6 · 对→错 1 · 错→对 1 · 错→错 12",
+      "ownLen": 30,
+      "ownHead": "对→对 6 · 对→错 1 · 错→对 1 · 错→错 12",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 53,
+      "head": "└ 放宽到「能解析就算」 10/21 ——多出来的那些有一臂根本没写完， 拿写完的答案去比没写完的不算改变",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 12,
+      "head": "└ 放宽到「能解析就算」",
+      "ownLen": 12,
+      "ownHead": "└ 放宽到「能解析就算」",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 40,
+      "head": "10/21 ——多出来的那些有一臂根本没写完， 拿写完的答案去比没写完的不算改变",
+      "ownLen": 40,
+      "ownHead": "10/21 ——多出来的那些有一臂根本没写完， 拿写完的答案去比没写完的不算改变",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 25,
+      "head": "两臂都写完、且答案都在 0–999 内的真实例子：",
+      "ownLen": 25,
+      "ownHead": "两臂都写完、且答案都在 0–999 内的真实例子：",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 53,
+      "head": "1994_I_1 · 自信↓：零向量答 40 → 加向量答 3，标准答案 19（两边都错，只是错得不一样）",
+      "ownLen": 53,
+      "ownHead": "1994_I_1 · 自信↓：零向量答 40 → 加向量答 3，标准答案 19（两边都错，只是错得不一样）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 57,
+      "head": "2014_I_1 · 自信↓：零向量答 530 → 加向量答 580，标准答案 850（两边都错，只是错得不一样）",
+      "ownLen": 57,
+      "ownHead": "2014_I_1 · 自信↓：零向量答 530 → 加向量答 580，标准答案 850（两边都错，只是错得不一样）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 57,
+      "head": "2000_I_1 · 自信↓：零向量答 228 → 加向量答 120，标准答案 240（两边都错，只是错得不一样）",
+      "ownLen": 57,
+      "ownHead": "2000_I_1 · 自信↓：零向量答 228 → 加向量答 120，标准答案 240（两边都错，只是错得不一样）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 59,
+      "head": "2020_I_1 · 自信↓：零向量答 231 → 加向量答 210，标准答案 231（这题原本答对，加向量后答错了）",
+      "ownLen": 59,
+      "ownHead": "2020_I_1 · 自信↓：零向量答 231 → 加向量答 210，标准答案 231（这题原本答对，加向量后答错了）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 527,
+      "head": "所以两个方向的样子很不一样： 压低自信在两臂都写完的题里改了将近一半的答案——它改变的是模型算出来的数。 抬高自信一次都没改，但它让大量运行",
+      "ownLen": 527,
+      "ownHead": "所以两个方向的样子很不一样： 压低自信在两臂都写完的题里改了将近一半的答案——它改变的是模型算出来的数。 抬高自信一次都没改，但它让大量运行",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 189,
+      "head": "先看这句：下面这个\"长度比\"是干预臂的推理长度 ÷ 同题零向量对照臂的长度， 两条都是自由生成，所以它能动。表里另一个\"推理长度比\"是对 t",
+      "ownLen": 189,
+      "ownHead": "先看这句：下面这个\"长度比\"是干预臂的推理长度 ÷ 同题零向量对照臂的长度， 两条都是自由生成，所以它能动。表里另一个\"推理长度比\"是对 t",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 39,
+      "head": "推理长度比 · 跑完了 1.111× n=26，范围 0.592–3.628×",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 11,
+      "head": "推理长度比 · 跑完了",
+      "ownLen": 11,
+      "ownHead": "推理长度比 · 跑完了",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 27,
+      "head": "1.111× n=26，范围 0.592–3.628×",
+      "ownLen": 27,
+      "ownHead": "1.111× n=26，范围 0.592–3.628×",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 40,
+      "head": "推理长度比 · 没跑完 2.615× n=20，范围 0.865–15.634×",
+      "ownLen": 0,
+      "ownHead": "",
+      "shell": true,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 11,
+      "head": "推理长度比 · 没跑完",
+      "ownLen": 11,
+      "ownHead": "推理长度比 · 没跑完",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 28,
+      "head": "2.615× n=20，范围 0.865–15.634×",
+      "ownLen": 28,
+      "ownHead": "2.615× n=20，范围 0.865–15.634×",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotblock",
+      "len": 225,
+      "head": "所以现在能说的是：在 67 次能解析出答案的 同一次运行内，teacher-forced 的两臂答案一次都没变——那一维从\"没测到\" 变成了",
+      "ownLen": 225,
+      "ownHead": "所以现在能说的是：在 67 次能解析出答案的 同一次运行内，teacher-forced 的两臂答案一次都没变——那一维从\"没测到\" 变成了",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-aroot",
+      "len": 23,
+      "head": "同一道题跑两遍：这两篇文章就是它算出来的两个数",
+      "ownLen": 23,
+      "ownHead": "同一道题跑两遍：这两篇文章就是它算出来的两个数",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-aroot",
+      "len": 154,
+      "head": "上面那些百分比是摘要，这里是原文。同一道题、同一段提示，跑两遍完整推理： 一遍注入强度 0.2，一遍喂零向量（强度 0）。解码循环是自己写的",
+      "ownLen": 154,
+      "ownHead": "上面那些百分比是摘要，这里是原文。同一道题、同一段提示，跑两遍完整推理： 一遍注入强度 0.2，一遍喂零向量（强度 0）。解码循环是自己写的",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-aroot",
+      "len": 34,
+      "head": "2025_I_1 · 标准答案 760 · 两边都错，只是错得不一样",
+      "ownLen": 34,
+      "ownHead": "2025_I_1 · 标准答案 760 · 两边都错，只是错得不一样",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-aroot",
+      "len": 88,
+      "head": "两遍从这里开始逐字相同——同一个前缀、同一个模型，取 argmax 必然取到同一个词。 一致到第 126 个字符才分岔 （共同开头只有这 1",
+      "ownLen": 88,
+      "ownHead": "两遍从这里开始逐字相同——同一个前缀、同一个模型，取 argmax 必然取到同一个词。 一致到第 126 个字符才分岔 （共同开头只有这 1",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-aroot",
+      "len": 13,
+      "head": "从这里开始，两边各写各的：",
+      "ownLen": 13,
+      "ownHead": "从这里开始，两边各写各的：",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-arm",
+      "len": 16,
+      "head": "同一个问题，喂零向量（强度 0）",
+      "ownLen": 16,
+      "ownHead": "同一个问题，喂零向量（强度 0）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-arm"
+        ],
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-arm",
+      "len": 39,
+      "head": "写了 12923 步 · 46250 字符 · 答案 3246 （boxed）",
+      "ownLen": 39,
+      "ownHead": "写了 12923 步 · 46250 字符 · 答案 3246 （boxed）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-arm"
+        ],
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-arm",
+      "len": 24,
+      "head": "同一个问题，注入 confidence_down",
+      "ownLen": 24,
+      "ownHead": "同一个问题，注入 confidence_down",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-arm"
+        ],
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-arm",
+      "len": 39,
+      "head": "写了 14739 步 · 50104 字符 · 答案 3228 （boxed）",
+      "ownLen": 39,
+      "ownHead": "写了 14739 步 · 50104 字符 · 答案 3228 （boxed）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-arm"
+        ],
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-aroot",
+      "len": 130,
+      "head": "上面那一段灰字是两遍共有的原文，到这里之后两篇各写各的。 越过第 126 个字符之后，两段文本没有任何对齐关系—— 它们长度不同（46250",
+      "ownLen": 130,
+      "ownHead": "上面那一段灰字是两遍共有的原文，到这里之后两篇各写各的。 越过第 126 个字符之后，两段文本没有任何对齐关系—— 它们长度不同（46250",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-arm",
+      "len": 39,
+      "head": "写了 12923 步 · 46250 字符 · 答案 3246 （boxed）",
+      "ownLen": 39,
+      "ownHead": "写了 12923 步 · 46250 字符 · 答案 3246 （boxed）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-arm"
+        ],
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-arm",
+      "len": 11,
+      "head": "答案就写在这一段的末尾",
+      "ownLen": 11,
+      "ownHead": "答案就写在这一段的末尾",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-arm"
+        ],
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-arm",
+      "len": 39,
+      "head": "写了 14739 步 · 50104 字符 · 答案 3228 （boxed）",
+      "ownLen": 39,
+      "ownHead": "写了 14739 步 · 50104 字符 · 答案 3228 （boxed）",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-arm"
+        ],
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-arm",
+      "len": 11,
+      "head": "答案就写在这一段的末尾",
+      "ownLen": 11,
+      "ownHead": "答案就写在这一段的末尾",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-arm"
+        ],
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-aroot",
+      "len": 322,
+      "head": "读这两段之前，三件事要知道： 一、「第 126 个字符」是字符位置，不是 token 步数； token 步数是另一套编号，两者在这一屏里指",
+      "ownLen": 322,
+      "ownHead": "读这两段之前，三件事要知道： 一、「第 126 个字符」是字符位置，不是 token 步数； token 步数是另一套编号，两者在这一屏里指",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-aroot"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 17,
+      "head": "逐字读：第 3 步，两条路开始分岔",
+      "ownLen": 17,
+      "ownHead": "逐字读：第 3 步，两条路开始分岔",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 126,
+      "head": "同一道题让模型写两遍：一遍加了向量，一遍没加。两臂都吃到同一段已经写好的 前缀，所以分歧不是\"两篇作文碰巧不同\"，是同一个位置上的选择被掰弯",
+      "ownLen": 126,
+      "ownHead": "同一道题让模型写两遍：一遍加了向量，一遍没加。两臂都吃到同一段已经写好的 前缀，所以分歧不是\"两篇作文碰巧不同\"，是同一个位置上的选择被掰弯",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 24,
+      "head": "下面是生成时逐步量出来的数字，不是从文字反推的：",
+      "ownLen": 24,
+      "ownHead": "下面是生成时逐步量出来的数字，不是从文字反推的：",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 46,
+      "head": "两臂第一次选出不同的词 第 3 步 整条推理共 18447 步，所以它落在第 0.02% 处",
+      "ownLen": 45,
+      "ownHead": "两臂第一次选出不同的词 第 3 步整条推理共 18447 步，所以它落在第 0.02% 处",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 33,
+      "head": "之后还有多少词一样 93.4% 每 100 个里换掉约 6.6 个",
+      "ownLen": 32,
+      "ownHead": "之后还有多少词一样 93.4%每 100 个里换掉约 6.6 个",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 26,
+      "head": "两个分布差多远 0.0748 nats，越大差得越远",
+      "ownLen": 25,
+      "ownHead": "两个分布差多远 0.0748nats，越大差得越远",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 56,
+      "head": "模型的犹豫程度（熵） 0.313 vs 无干预 0.270 加了向量之后升了 16%——更犹豫了，和方向名字一致",
+      "ownLen": 55,
+      "ownHead": "模型的犹豫程度（熵） 0.313 vs 无干预 0.270加了向量之后升了 16%——更犹豫了，和方向名字一致",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 23,
+      "head": "下面是两臂的原文。到分岔处为止，两臂一字不差：",
+      "ownLen": 23,
+      "ownHead": "下面是两臂的原文。到分岔处为止，两臂一字不差：",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 41,
+      "head": "从这里开始，两臂各走各的（左边是加了向量写的， 右边是没加时在同一位置会选的词）：",
+      "ownLen": 41,
+      "ownHead": "从这里开始，两臂各走各的（左边是加了向量写的， 右边是没加时在同一位置会选的词）：",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotarm",
+      "len": 144,
+      "head": "let's try to figure out this problem. So, we have two skaters, Allie a",
+      "ownLen": 144,
+      "ownHead": "let's try to figure out this problem. So, we have two skaters, Allie a",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotarm"
+        ],
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cotarm",
+      "len": 145,
+      "head": "so's try to figure out this problem. So, there have two skaters, Allie",
+      "ownLen": 145,
+      "ownHead": "so's try to figure out this problem. So, there have two skaters, Allie",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cotarm"
+        ],
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 309,
+      "head": "先看这条，否则上面第二段会被读反： 下面那行不是\"没有向量时模型会写的那篇文章\"。它在每个换词的地方都会语法破碎 （比如 \"We need ",
+      "ownLen": 309,
+      "ownHead": "先看这条，否则上面第二段会被读反： 下面那行不是\"没有向量时模型会写的那篇文章\"。它在每个换词的地方都会语法破碎 （比如 \"We need ",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "data-cottext",
+      "len": 184,
+      "head": "采集链路本身是干净的：同一道题、同一段代码， 只是把向量换成零向量再跑一遍——两臂的词 逐字完全相同（一致率 100%）。 零向量臂的开头长",
+      "ownLen": 184,
+      "ownHead": "采集链路本身是干净的：同一道题、同一段代码， 只是把向量换成零向量再跑一遍——两臂的词 逐字完全相同（一致率 100%）。 零向量臂的开头长",
+      "shell": false,
+      "ancestors": [
+        [
+          "data-cottext"
+        ],
+        [
+          "data-cotblock"
+        ]
+      ],
+      "orphan": false,
+      "volatile": false
+    },
+    {
+      "tag": "div",
+      "panel": "（祖先链为空）",
+      "len": 16,
+      "head": "[29] post-canvas",
+      "ownLen": 16,
+      "ownHead": "[29] post-canvas",
+      "shell": false,
+      "ancestors": [],
+      "orphan": true,
+      "volatile": false
+    }
+  ],
+  "census": {
+    "sel": "h1,h2,h3,p,li,div",
+    "thrs": [
+      0,
+      6,
+      10,
+      12,
+      16,
+      20,
+      30,
+      40
+    ],
+    "byTag": {
+      "div": {
+        "0": 257,
+        "6": 246,
+        "10": 222,
+        "12": 211,
+        "16": 190,
+        "20": 171,
+        "30": 132,
+        "40": 108
+      },
+      "h2": {
+        "0": 6,
+        "6": 3,
+        "10": 2,
+        "12": 2,
+        "16": 1
+      }
+    },
+    "total": {
+      "0": 263,
+      "6": 249,
+      "10": 224,
+      "12": 213,
+      "16": 191,
+      "20": 171,
+      "30": 132,
+      "40": 108
+    },
+    "orphan": {
+      "0": 38,
+      "6": 35,
+      "10": 32,
+      "12": 29,
+      "16": 26,
+      "20": 24,
+      "30": 20,
+      "40": 17
+    }
+  },
+  "thresh": 10,
+  "vol": {
+    "waitMs": 4000,
+    "samples": 3,
+    "streamed": null,
+    "nA": 218,
+    "nB": 218,
+    "nC": 218,
+    "changed": 0,
+    "changed_if_single_sample": 0,
+    "changed_by_clock": 0,
+    "changed_by_load": 0,
+    "onlyInA": 0,
+    "onlyInB": 0
+  },
+  "beforeNames": [
+    "data-arhead",
+    "data-arm",
+    "data-armtext",
+    "data-aroot",
+    "data-arpick",
+    "data-arto",
+    "data-bmgrid",
+    "data-bmgridn",
+    "data-bmroot",
+    "data-bmstep",
+    "data-bound",
+    "data-cotarm",
+    "data-cotblock",
+    "data-cotdir",
+    "data-cotpick",
+    "data-cotpre",
+    "data-cottext",
+    "data-dvblock",
+    "data-dvdirs",
+    "data-dvdlgat",
+    "data-dvhits",
+    "data-dvl",
+    "data-dvroot",
+    "data-f",
+    "data-filled",
+    "data-latent-lead",
+    "data-latent-not-claimed",
+    "data-lead-seg",
+    "data-lenschart",
+    "data-lenshist",
+    "data-lenspick",
+    "data-lensroot",
+    "data-lensstep",
+    "data-orient-part",
+    "data-problemset",
+    "data-rolesroot",
+    "data-step",
+    "data-term"
+  ],
+  "afterNames": [
+    "data-arhead",
+    "data-arm",
+    "data-armtext",
+    "data-aroot",
+    "data-arpick",
+    "data-arto",
+    "data-bmgrid",
+    "data-bmgridn",
+    "data-bmroot",
+    "data-bmstep",
+    "data-bound",
+    "data-cotarm",
+    "data-cotblock",
+    "data-cotdir",
+    "data-cotpick",
+    "data-cotpre",
+    "data-cottext",
+    "data-dvblock",
+    "data-dvdirs",
+    "data-dvdlgat",
+    "data-dvhits",
+    "data-dvl",
+    "data-dvroot",
+    "data-f",
+    "data-filled",
+    "data-latent-lead",
+    "data-latent-not-claimed",
+    "data-lead-seg",
+    "data-lenschart",
+    "data-lenshist",
+    "data-lenspick",
+    "data-lensroot",
+    "data-lensstep",
+    "data-orient-part",
+    "data-problemset",
+    "data-rolesroot",
+    "data-step",
+    "data-term"
+  ],
+  "appeared": [],
+  "clicked": 58,
+  "webgl": {
+    "available": true,
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "webglRequested": true
+}
