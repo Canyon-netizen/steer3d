@@ -1,8 +1,8 @@
 {
- "n": 14,
+ "n": 16,
  "counter": {
   "correct": 6,
-  "wrong": 7,
+  "wrong": 9,
   "unlabeled": 1
  },
  "ghosts": [],
@@ -229,6 +229,38 @@
    "legacy_correct": false,
    "legacy_answer": "11",
    "strict": "unlabeled",
+   "ghost": false
+  },
+  {
+   "traj": "aime__aime25__p07__no_think",
+   "mode": "no_think",
+   "cap": 32768,
+   "n_tok": 4014,
+   "truncated": false,
+   "n_boxed": 2,
+   "n_statements": 2,
+   "stated": "57",
+   "stated_src": "boxed",
+   "gt": "77",
+   "legacy_correct": false,
+   "legacy_answer": "57",
+   "strict": "wrong",
+   "ghost": false
+  },
+  {
+   "traj": "aime__aime25__p07__think",
+   "mode": "think",
+   "cap": 32768,
+   "n_tok": 6003,
+   "truncated": false,
+   "n_boxed": 2,
+   "n_statements": 7,
+   "stated": "43",
+   "stated_src": "boxed",
+   "gt": "77",
+   "legacy_correct": false,
+   "legacy_answer": "43",
+   "strict": "wrong",
    "ghost": false
   }
  ]
