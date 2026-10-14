@@ -74,6 +74,24 @@ BLOCKS = ROOT / ".cache/browser_verify/panel_blocks.json"
 LATENT_BLOCKS = ROOT / ".cache/browser_verify/panel_blocks_latent.json"
 BVDIR = ROOT / ".cache/browser_verify"
 
+# ⚠⚠⚴ 修订 151：**重跑两页探针的命令清单，只许有这一处**。
+#   原来它以字面量写在「产物不存在」分支里，而「产物比源码旧」分支写着
+#   「先重跑两页的探针（**见上面的两条命令**）」—— ⚠⚠⚴⚠⚠
+#   **那两条命令只在上面那个分支才被打印，走下面那条分支时它们从未出现过。**
+#   ⇒ 判红时给不出任何可执行的修复路径。
+#   ⚠ 提成常量不是为了少写几行，是为了**让这两个分支不可能再各写一份而跑偏**。
+PROBE_CMD_LINES = [
+    "两页都要跑，顺序有讲究（改完页面 → 起服务 → 逐页跑探针）：",
+    "  BV_URL=<根>/ node .cache/browser_verify/probe_panels.mjs",
+    "  BV_URL=<根>/latent/index.html PROBE_OUT="
+    "…/panel_blocks_latent.json node .cache/browser_verify/probe_panels.mjs",
+]
+# ⚠⚠⚴ 第二遍忘了换 PROBE_OUT，会覆盖根页那份 ——
+#   于是根页看起来也覆盖了 latent 页，而其实根页一个标记都没量。
+PROBE_OUT_WARNING = (
+    "⚠ 跑第二遍时**别忘了换 PROBE_OUT** —— 忘了它会覆盖根页那份，"
+    "于是根页看起来也覆盖了 latent 页，而其实根页一个标记都没量。")
+
 # 「产物是否新鲜」要比的不是**绝对年龄**，而是**它有没有比源码新**。
 # ⚠ 第十二笔的教训：C0 原来只判 `age < 7200`（两小时），而我这一轮去重改了
 #   两个组件、产物是 45 分钟前写的 —— 45 分钟前正好**在改动之前**。
@@ -718,13 +736,7 @@ def main():
               "缺 %s —— 探针没跑，或跑失败了"
               % ", ".join(p.name for p in missing))
         return abort("产物文件不存在",
-                     ["两页都要跑，顺序有讲究（改完页面 → 起服务 → 逐页跑探针）：",
-                      "  BV_URL=<根>/ node .cache/browser_verify/probe_panels.mjs",
-                      "  BV_URL=<根>/latent/index.html PROBE_OUT="
-                      "…/panel_blocks_latent.json node "
-                      ".cache/browser_verify/probe_panels.mjs",
-                      "⚠ 跑第二遍时**别忘了换 PROBE_OUT** —— 忘了它会覆盖根页那份，"
-                      "于是根页看起来也覆盖了 latent 页，而其实根页一个标记都没量。"])
+                     PROBE_CMD_LINES + [PROBE_OUT_WARNING])
     ages = {p: time.time() - p.stat().st_mtime for p in (BLOCKS, LATENT_BLOCKS)}
     raws = {p: json.load(io.open(str(p), encoding="utf-8")) for p in (BLOCKS, LATENT_BLOCKS)}
     # 探针第二版把产物改成 {byDepth, unmarked}。兼容旧的纯 byDepth 结构。
@@ -813,6 +825,26 @@ def main():
           % (ages[BLOCKS], ages[LATENT_BLOCKS], len(flat), has_all, has_own, has_vol,
              pages[BLOCKS.name], pages[LATENT_BLOCKS.name],
              src_which or "（无源文件）", newer_than_src))
+    # ⚠⚠⚴ 修订 151：「产物过期」这条红原来**一声不吭**。
+    #   它是 C0 四个条件里唯一没有 abort 分支的，而它恰恰是**最常走的那条**
+    #   （改完源码放着不动，两小时一到就红）。
+    #   ⇒ C0 判红却不给任何可执行的修复路径，而调用方只能自己去猜。
+    # ⚠⚠⚴⚠⚠ **这里只印指引、绝不 abort** ——
+    #   abort 会提前退出、后面的 C2/C4/C6 就不会跑，那是**改判决**。
+    #   ⚗⚠ 修「提示语」与改「判什么」必须分开，否则会把一次文案修复偷偷变成口径变更。
+    # ⚠⚠⚴ 两种红长得一模一样（「产物不够新」），处置却相反：
+    #   ⚗ age 超窗而比源码新 ⇒ **测量是对的，只是放久了** ⇒ 重跑即可，别怀疑页面
+    #   ⚗ 比源码旧             ⇒ **测量的是改动前的 DOM** ⇒ 重跑且要查装置
+    if max(ages.values()) >= 7200 and newer_than_src:
+        oldest = max(ages, key=lambda p: ages[p])
+        print("       ⇒ ⚠ C0 判红的这一条是「**绝对年龄**」，不是「比源码旧」：")
+        print("       ⇒   %s 已经 %.0f 秒前写的（窗口 7200 秒），"
+              % (oldest.name, ages[oldest]))
+        print("       ⇒   而它**比最新源码新** ⇒ 这份测量本身仍然是有效的，")
+        print("       ⇒   ⚠⚠ 只是放久了。**处置是重跑，不必先怀疑页面。**")
+        for ln in PROBE_CMD_LINES:
+            print("       ⇒   " + ln)
+        print("       ⇒   " + PROBE_OUT_WARNING)
     if not page_ok:
         return abort("两份探针产物没有各自自报页面",
                      ["panel_blocks.json 的 page 必须是 root、"
@@ -824,9 +856,10 @@ def main():
                       "别去改产品，先修探针。"])
     if not newer_than_src:
         return abort("产物比源码旧，页面侧输入是改动前的 DOM",
-                     ["产物比源码**旧** ⇒ 后面每一个数字都不可信。",
-                      "先重跑两页的探针（见上面的两条命令），",
-                      "顺序很重要：改完页面 → 起服务 → 逐页跑探针 → 才跑本扫描。"])
+                     ["产物比源码**旧** ⇒ 后面每一个数字都不可信。"]
+                     + PROBE_CMD_LINES
+                     + ["⚠⚠⚴ 顺序很重要：改完页面 → 起服务 → 逐页跑探针 → 才跑本扫描。",
+                        PROBE_OUT_WARNING])
 
     # ---- dom 按页分开，最后合并 ----
     # ⚠ 两遍（加载后 / 点遍控件后）的并集才是这一页真实的标记面。
