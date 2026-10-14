@@ -816,15 +816,34 @@ def main():
     # 产物必须比**被测源码**新。只比绝对年龄是不够的（见 SRC_GLOBS 上方注释）。
     # ⚠ 用两份里**更旧**的那份比：只要有一份比源码旧，那一页的数字就不可信。
     newer_than_src = (src_mt == 0.0) or (blocks_mt > src_mt)
+    # ⚠⚠⁴⚠⁴ 修订 188：C0 加第 7 个条件 —— **两支探针的 WebGL 档位必须一致**。
+    # ⚗ 探针 `probe_panels.mjs:41-49` 明写「两支探针必须开同一个开关」，
+    # ⚗⚠⚠⚠ 而在此之前 `scan_panel_coverage.py` 全文 `grep webgl` = **零次**：
+    # ⚗⚠⚠⚴ 这个约定只活在探针的注释里，扫描器**从来没查过**。
+    # ⚗⚠⚠⚠ 档位由环境变量 `BV_PROBE_WEBGL=1` 决定，
+    # ⚗⚠⚠⚴ 产物里 `webglRequested = WEBGL_FLAGS.length > 0`（probe_panels.mjs:524）。
+    # ⚗⇒ 两页若跑在不同档位上，一页看得见 3D 块、另一页看不见，
+    # ⚗⚠  合并后的 DOM 就会「多出」或「少掉」真 3D 标记 ——
+    # ⚗⚠  报出来的现象长得像「覆盖矩阵有缺口」，**而缺口是采集环境造出来的**。
+    _webgl_by_page = {pages[p.name]: (raws[p].get("webglRequested")
+                                      if isinstance(raws[p], dict) else None)
+                      for p in (BLOCKS, LATENT_BLOCKS)}
+    _wg_present = all(v is not None for v in _webgl_by_page.values())
+    _wg_same = _wg_present and len(set(_webgl_by_page.values())) == 1
+
     check("C0 两页探针产物新鲜、字段完整、且各自自报是哪一页",
           has_all and has_own and has_vol and page_ok
-          and max(ages.values()) < 7200 and newer_than_src,
+          and max(ages.values()) < 7200 and newer_than_src and _wg_same,
           "根页 %d 秒前 / latent %d 秒前；根页 %d 个元素，all_data 齐全=%s，"
           "ownLen/shell 齐全=%s，volatile 齐全=%s；"
-          "page 字段 根=%s latent=%s；产物比最新源码（%s）新=%s（取两份里更旧的比）"
+          "page 字段 根=%s latent=%s；产物比最新源码（%s）新=%s（取两份里更旧的比）；"
+          "WebGL 档位 两页自报=%s，一致=%s"
           % (ages[BLOCKS], ages[LATENT_BLOCKS], len(flat), has_all, has_own, has_vol,
              pages[BLOCKS.name], pages[LATENT_BLOCKS.name],
-             src_which or "（无源文件）", newer_than_src))
+             src_which or "（无源文件）", newer_than_src,
+             "、".join("%s=%s" % (pg, _webgl_by_page[pg])
+                       for pg in sorted(_webgl_by_page)),
+             _wg_same))
     # ⚠⚠⚴ 修订 151：「产物过期」这条红原来**一声不吭**。
     #   它是 C0 四个条件里唯一没有 abort 分支的，而它恰恰是**最常走的那条**
     #   （改完源码放着不动，两小时一到就红）。
@@ -850,6 +869,15 @@ def main():
                      ["panel_blocks.json 的 page 必须是 root、"
                       "panel_blocks_latent.json 的 page 必须是 latent。",
                       "两页都跑同一个 URL 会让其中一份悄悄覆盖另一份。"])
+    if not _wg_same:
+        return abort("两页探针的 WebGL 档位不一致（或产物没自报档位）",
+                     ["探针的约定是**两支必须开同一个开关**（probe_panels.mjs:41-49）。",
+                      "档位由环境变量 BV_PROBE_WEBGL=1 决定，两页都要带同一个值重跑。",
+                      "自报值：%s" % _webgl_by_page,
+                      "⚠⚠ 档位不同 ⇒ 一页看见 3D 块、另一页看不见，"
+                      "合并后的 DOM 会多出或少掉真 3D 标记，",
+                      "   报出来的「覆盖矩阵缺口」是采集环境造的，不是产品的问题。"]
+                     + PROBE_CMD_LINES)
     if not has_all:
         return abort("探针产物字段不完整",
                      ["这是**探针**坏了（第一版只记第一个 data-* 属性）。",

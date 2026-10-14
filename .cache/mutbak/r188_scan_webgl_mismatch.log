@@ -1,0 +1,15 @@
+[PASS] C0b 两页的未读清单必须用**同一个口径**（元素集与阈值都自报在产物里）
+       thresh：latent=10、root=10；census 齐全=True
+[FAIL] C0 两页探针产物新鲜、字段完整、且各自自报是哪一页
+       根页 272 秒前 / latent 0 秒前；根页 423 个元素，all_data 齐全=True，ownLen/shell 齐全=True，volatile 齐全=True；page 字段 根=root latent=latent；产物比最新源码（frontend/public/latent/data/arm_asymmetry.json）新=True（取两份里更旧的比）；WebGL 档位 两页自报=latent=False、root=True，一致=False
+       ⇒ 探针的约定是**两支必须开同一个开关**（probe_panels.mjs:41-49）。
+       ⇒ 档位由环境变量 BV_PROBE_WEBGL=1 决定，两页都要带同一个值重跑。
+       ⇒ 自报值：{'root': True, 'latent': False}
+       ⇒ ⚠⚠ 档位不同 ⇒ 一页看见 3D 块、另一页看不见，合并后的 DOM 会多出或少掉真 3D 标记，
+       ⇒    报出来的「覆盖矩阵缺口」是采集环境造的，不是产品的问题。
+       ⇒ 两页都要跑，顺序有讲究（改完页面 → 起服务 → 逐页跑探针）：
+       ⇒   BV_URL=<根>/ node .cache/browser_verify/probe_panels.mjs
+       ⇒   BV_URL=<根>/latent/index.html PROBE_OUT=…/panel_blocks_latent.json node .cache/browser_verify/probe_panels.mjs
+
+RESULT panel_coverage  FAIL  1/2 条通过 —— **一条都没跑完**（两页探针的 WebGL 档位不一致（或产物没自报档位））
+   [FAIL] C0 两页探针产物新鲜、字段完整、且各自自报是哪一页
