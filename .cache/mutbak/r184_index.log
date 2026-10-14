@@ -1,0 +1,6 @@
+python3: error: couldn't create cache file '/var/folders/sc/nq243_j17_729hfclw93m0jw0000gn/T/xcrun_db-abngHrEc' (errno=Operation not permitted)
+已写出 /Users/zhourui/code/steer3d/.cache/xcheck/R6_RERUN_INDEX.md
+  修订 182 条 / 缺口 [41, 171]
+  小节式 20 个 / 两笔 commit [48, 49, 50, 51, 52]
+  坏字 0 / 以换行结尾 True
+  行范围自检 182 行 / 不合口径 0
