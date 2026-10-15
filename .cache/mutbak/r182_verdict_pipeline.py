@@ -62,6 +62,7 @@ IDENTITY = MUT / "r177_batch_identity.py"
 DRIFT = MUT / "r181_label_drift.py"
 FATE = MUT / "r178_uncapped_fate.py"
 P6 = XC / "p6_readiness.py"
+RESOLVABILITY = XC / "p6_resolvability.py"
 
 STAMP = "r182"
 
@@ -102,7 +103,27 @@ def main():
     ap.add_argument("--allow-partial", action="store_true",
                     help="允许部分数据（只跑观测步骤，结构上禁止 p6_readiness）")
     ap.add_argument("--dry-run", action="store_true", help="只列计划，不连远端")
+    # ⚠⚠ 修订 198：这三个一起给才跑可分辨性闸。
+    # ⚠ ⚗ 刻意**不给默认值** —— 静默用一个猜的 logit 量级，
+    # ⚠   等于偷偷替读数定口径（本项目反复栽的那类错）。
+    ap.add_argument("--w-unembed", default=None,
+                    help="w_unembed_align.py 的产物 json（取 dot_marker_mean）")
+    ap.add_argument("--w-meta", default=None, help="w*.npy.json（取 class_gap）")
+    ap.add_argument("--w-name", default=None,
+                    help="产物里这条 w 的名字。三项须与 --w-unembed 对应")
+    ap.add_argument("--logit-mag", type=float, default=None,
+                    help="注入点实测 |logit| 量级，**必填无默认**：不同 2 的幂区间 ulp 不同")
     a = ap.parse_args()
+
+    # ⚠ 三个参数必须齐；只给一部分多半是漏了，而漏了就等于没查。
+    _res = [a.w_unembed, a.w_meta, a.w_name, a.logit_mag]
+    if any(_res) and not all(_res):
+        print("[错误] 可分辨性闸的四个参数必须**一起**给："
+              "--w-unembed / --w-meta / --w-name / --logit-mag")
+        print("        现在给了 %d/4 —— 只给一部分 = 闸没跑，却像是跑过。"
+              % sum(1 for x in _res if x is not None))
+        print("        要么四个都给，要么四个都不给（后者会打印「未检查」警告）。")
+        return EXIT_USAGE
 
     if not DRIFT.exists() or not PRECOND.exists():
         print("[错误] 判据脚本缺失，先确认 .cache/mutbak/ 下文件在不在")
@@ -125,8 +146,13 @@ def main():
               % (STAMP, EXPECT_CAP, EXPECT_ROWS))
         print("  6. r181_label_drift.py <旧批> <新批>          <- 观测")
         print("  7. r178_uncapped_fate.py %s_label.json         <- 权威口径" % STAMP)
+        print("  7.5 p6_resolvability.py                       <- 可分辨性闸"
+              "（修订 198）%s"
+              % ("" if (a.w_unembed and a.w_meta and a.w_name and a.logit_mag)
+                 else "  ⚠ 本次未给四个参数 ⇒ 该闸**不跑**，届时会打印未检查警告"))
         print("  8. p6_readiness.py --label %s_label.json       <- 判决仪器"
               % STAMP)
+        print("     ⚠ 它只查**样本量**（correct≥10）；⚗「量测不测得出来」由 7.5 管")
         print("\n模式：%s"
               % ("增量测量（禁止跑第 8 步）" if a.allow_partial
                  else "完整判决（要求 %d/%d）" % (EXPECT_ROWS, EXPECT_ROWS)))
@@ -235,6 +261,40 @@ def main():
     if rc != 0:
         print("⛔ 权威口径脚本失败")
         return EXIT_USAGE
+
+    # ---- 步骤 7.5：观测量可分辨性（修订 198 新增）----
+    # ⚠⚠ 为什么插在这里：p6_readiness 只查 **样本量**（correct>=10），
+    # ⚠⚠ 它不查 **观测量本身是否低于仪器分辨率**。两者是不同的「不成立」。
+    # ⚠⚠ 不接这一步的话，本脚本会照常印 ELIGIBLE，
+    # ⚠⚠ 而那个 ELIGIBLE **不等于** U 检验跑出来的 p 值可解释。
+    resolvable_known = None
+    given = (a.w_unembed, a.w_meta, a.logit_mag)
+    if all(given):
+        step(75, "p6_resolvability —— 观测量可分辨性（修订 198）")
+        rc, out = run([sys.executable, str(RESOLVABILITY),
+                       "--w-unembed", a.w_unembed,
+                       "--w-meta", a.w_meta,
+                       "--name", a.w_name,
+                       "--logit-mag", str(a.logit_mag)])
+        print(out)
+        print(">>> p6_resolvability EXIT=%d" % rc)
+        resolvable_known = (rc == 0)
+        if rc == 3:
+            print("⛔⛔ **观测量低于仪器分辨率** ⇒ 即使 correct 组够 10 条，")
+            print("   Mann–Whitney U 也在拿噪声和噪声比 ⇒ **不跑 P6 全量**。")
+            print("   ⚠ 要抬出分辨率须动预登记口径（A/B/C/D，见修订 197 §197.4），")
+            print("   ⚠ 本脚本不替规则选。C（调剂量）明令禁止。")
+            print("RESULT pipeline  BLOCKED  below-resolution")
+            return EXIT_BLOCKED
+    else:
+        print("\n" + "-" * 70)
+        print("⚠⚠⚠ **观测量可分辨性：未检查**（未给 --w-unembed/--w-meta/--logit-mag）")
+        print("⚠ 本脚本**不**据此阻断，但它必须被写下来：")
+        print("⚠ `p6_readiness` 印 ELIGIBLE 只说明**样本量够**（correct≥10），")
+        print("⚠ ⚗ **不等于**那个量测得出来。真实尺度若低于 bf16 一个 ulp，")
+        print("⚠   U 检验就是拿噪声和噪声比，p 值不可解释。")
+        print("⚠ 闸：`python3 .cache/xcheck/p6_resolvability.py --w-unembed … "
+              "--w-meta … --name … --logit-mag …`")
 
     # ---- 步骤 8：判决仪器 ----
     step(8, "p6_readiness —— 判决仪器")
