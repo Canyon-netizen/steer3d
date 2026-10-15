@@ -74,6 +74,37 @@ def cuda_visible_for(uuid):
     return uuid if uuid.startswith("GPU-") else "GPU-" + uuid
 
 
+def repeat_summary(rep):
+    """把「同一剂量上重复跑的读数」折成诊断量。**纯函数**，可单测。
+
+    ⚠⚠⛔ 这里有个最容易犯的错：`rep_std == 0.0` 时，
+    ⚠⚠⛔ 它表示「重复之间**逐位相同**」（forward 是确定性的），
+    ⚠⚠⛔ 而**不是**「没量到 / 量不出来」。
+    ⚠⚠⛔ ⇒ 所以绝不能用 `if std:` 之类的 truthy 判断把 0 当成缺数据，
+    ⚠⚠⛔ 必须另给一个显式的 `rep_exact` 布尔量。
+    ⚗ 这正是「测得为 0」≠「不存在」那个家族（见 agent memory）。
+
+    参 `rep`：{"lo": [...], "hi": [...]}，每个是同一剂量上的多次读数。
+    返回可直接并进 analyze() 结果的 dict。
+    """
+    import statistics as _st
+    out = {}
+    if not rep:                       # ⚠ 空/None 输入 ⇒ 空结果，不抛
+        return out
+    for lab in ("lo", "hi"):
+        v = list(rep.get(lab) or [])
+        if not v:
+            continue
+        out["rep_n_%s" % lab] = len(v)
+        # ⚠ n==1 ⇒ 没有散布可言。stdev 会抛 ValueError，且 std 恰 0 会被误读成
+        # 「确定性」⇒ 这里 n==1 时给 None（**没量到**），不是 0.0（**确定性**）。
+        out["rep_std_%s" % lab] = (_st.stdev(v) if len(v) > 1 else None)
+        out["rep_spread_%s" % lab] = max(v) - min(v)
+        out["rep_mean_%s" % lab] = sum(v) / len(v)
+        out["rep_exact_%s" % lab] = (max(v) == min(v))
+    return out
+
+
 def analyze(alphas, dm, dc, gap=None, band=60.0, meas=None):
     """把一条 α 扫描折成 {slope, resid_std, n_distinct, min_adj_diff, …}。
 
@@ -242,13 +273,44 @@ def run_cell(a):
     # 3.038，而 a_lo/a_hi 一般**落在两个格点之间** ⇒ 插值不可替代实测。
     # 代价：每格 +2 次 forward（80 次里的 2 次）。
     # ⚗⇒ 这是 P9 规格真正要的那两个数（账本 :25824「用单次读数，不是拟合」）。
+    #
+    # ---- ⚠⚠⚴ `--repeat R`：量「同一剂量上单读」的可重复性 ---------------
+    # 修订 207 §207.5 的死结：`err_hi - err_lo = 真·剂量间变化 + 两次单读
+    # 噪声之差`，而当时的表里**没有任何量能剥掉后面那一项**。
+    # ⚗⇒ 在同一剂量上重复跑，直接把单读噪声量出来。
+    # ⛔⛔ **报给判据的仍然是第 1 次读数**（`meas[0]`）—— 规格写的是「单次读数」。
+    #     重复的均值/散布只作**诊断**另存，不许折进判据里改口径。
     meas = None
+    rep = {}
     if a.gap:
-        m_lo = lse_t(forward(W, 0.5 * a.gap)[mk]) - b_mark
-        m_hi = lse_t(forward(W, 1.0 * a.gap)[mk]) - b_mark
-        meas = (m_lo, m_hi)
+        for _lab, _al in (("lo", 0.5 * a.gap), ("hi", 1.0 * a.gap)):
+            vals = [lse_t(forward(W, _al)[mk]) - b_mark
+                    for _ in range(max(1, a.repeat))]
+            rep[_lab] = vals
+        meas = (rep["lo"][0], rep["hi"][0])
 
     st = analyze(alphas, dm, dc, gap=a.gap, band=a.band, meas=meas)
+
+    # ---- 诊断量：单读可重复性（不进判据）--------------------------------
+    if rep:
+        st.update(repeat_summary(rep))
+
+    # ---- ⚠ 原始读数曲线落盘：不落盘就没法离线复核，任何事后分析都得重跑 GPU
+    if a.dump_raw:
+        _fn = os.path.join(a.dump_raw, "%s__pos%s.json"
+                           % (a.tid, str(a.pos_frac).replace(".", "_")))
+        os.makedirs(a.dump_raw, exist_ok=True)
+        with open(_fn, "w", encoding="utf-8") as _fh:
+            json.dump({"tid": a.tid, "pos_frac": a.pos_frac,
+                       "alphas": [float(x) for x in alphas],
+                       "dm": [float(x) for x in dm],
+                       "dc": [float(x) for x in dc],
+                       "meas_lo": (meas[0] if meas else None),
+                       "meas_hi": (meas[1] if meas else None),
+                       "b_mark": float(b_mark), "b_ctl": float(b_ctl),
+                       "resid_std": st["resid_std"],
+                       "slope": st["slope"]}, _fh)
+        st["dump_raw"] = _fn
     out = {"tid": a.tid, "pos_frac": a.pos_frac, "t": t, "n_gen": n, "P": P,
            "n_steps": int(a.n_steps)}
     out.update(st)
@@ -271,6 +333,13 @@ def run_cell(a):
               "up_mono(实测)=%s  拟合偏高 %+.2f sigma"
               % (st["p9_lo_meas"], st["p9_hi_meas"], st["p9_up_mono"],
                  st["up_mono_meas"], st["fit_err_hi_sigma"]), flush=True)
+    # ⚠⚠⚴ 单读可重复性必须印出来：它决定「拟合偏高」到底是曲率还是噪声。
+    # ⛔ rep_std 恰为 0.0 时那**不是**「没量到」，而是「真的逐位相同」——
+    # ⛔ 所以这里显式打 exact，别让人把 0 当成缺数据。
+    if st.get("rep_n_lo"):
+        print("        单读重复 n=%d：lo 散布=%.3e(exact=%s) hi 散布=%.3e(exact=%s)"
+              % (st["rep_n_lo"], st["rep_spread_lo"], st["rep_exact_lo"],
+                 st["rep_spread_hi"], st["rep_exact_hi"]), flush=True)
 
     print(json.dumps(out, ensure_ascii=False))
     return out
@@ -318,6 +387,10 @@ def run_driver(a):
             cmd += ["--band", str(a.band)]
             if a.gap is not None:
                 cmd += ["--gap", str(a.gap)]
+            if a.repeat is not None and a.repeat != 1:
+                cmd += ["--repeat", str(a.repeat)]
+            if a.dump_raw:
+                cmd += ["--dump-raw", a.dump_raw]
             if a.gpu_uuid:
                 cmd += ["--gpu-uuid", a.gpu_uuid]
             p = subprocess.run(cmd, capture_output=True, text=True)
@@ -344,6 +417,12 @@ def run_driver(a):
                           % (r["p9_lo_meas"], r["p9_hi_meas"],
                              r["up_mono_meas"], r["margin_meas"],
                              r["fit_err_hi_sigma"]))
+            if r.get("rep_n_lo"):
+                # ⚠⚠ **单读可重复性**：0.0 意味着**逐位相同**（确定性），
+                # ⚠⚠ 不是「没量到」⇒ 所以单独打 exact 标志。
+                extra += ("  [重复%d次 lo/hi散布=%.1e/%.1e exact=%s/%s]"
+                          % (r["rep_n_lo"], r["rep_spread_lo"], r["rep_spread_hi"],
+                             r["rep_exact_lo"], r["rep_exact_hi"]))
             print("  [%d/%d] %s pos=%.2f  resid=%.6f  slope=%+.6f%s"
                   % (len(rows), len(tids) * len(fracs), tid, fr,
                      r["resid_std"], r["slope"], extra), flush=True)
@@ -410,6 +489,11 @@ def main():
                     help="局部拟合带（±band）；band < alpha-max 才能分辨非线性")
     ap.add_argument("--gap", type=float, default=None,
                     help="w 的 class_gap（取自 w*.npy.json）。给了就额外报 P9 量")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="⚠ 在每个 P9 工作剂量上重复跑几次（默认 1 = 保持原口径）。"
+                         "报给判据的**仍是第 1 次**；重复只用于量单读可重复性。")
+    ap.add_argument("--dump-raw", default=None,
+                    help="把每格的原始读数曲线（alphas/dm/dc/meas）写到该目录")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
 

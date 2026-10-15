@@ -326,6 +326,41 @@ def main():
     check("F11 ⛔ 变异：把 fit_err 定义成 f(a_hi) - a_lo ⇒ F10 的符号必反",
           not ((st_q["p9_hi"] - 0.5 * GAP) > 1.0))
 
+    print("\n=== G：⛔ 单读可重复性（「拟合偏高」是曲率还是噪声）===")
+    # ⚠⚠⛔ 修订 207 §207.5 的死结：`err_hi − err_lo = 真·剂量间变化 + 两次单读
+    # ⚠⚠⛔ 噪声之差`，当时没有任何量能剥掉后面那项。本组盯住新加的量。
+    r_det = M.repeat_summary({"lo": [0.4618] * 5, "hi": [0.8655] * 5})
+    check("G1 逐位相同 ⇒ rep_exact=True", r_det["rep_exact_lo"] is True)
+    check("G2 ⛔⛔ 逐位相同 ⇒ rep_std 恰为 0.0，**不是** None（这是确定性）",
+          r_det["rep_std_lo"] == 0.0, repr(r_det["rep_std_lo"]))
+    check("G3 ⛔⛔ 变异：truthy 判断会把 0.0 当成「没量到」⇒ 必须有 rep_exact",
+          (r_det["rep_std_lo"] is not None) and (r_det["rep_exact_lo"] is True))
+    r_one = M.repeat_summary({"lo": [0.46], "hi": [0.87]})
+    check("G4 ⛔ n==1 ⇒ rep_std 是 **None**（没量到），绝不是 0.0（确定性）",
+          r_one["rep_std_lo"] is None, repr(r_one["rep_std_lo"]))
+    check("G5 ⛔ n==1 ⇒ spread 仍是 0（只有一个数），但 rep_n 必须是 1",
+          r_one["rep_n_lo"] == 1 and r_one["rep_spread_lo"] == 0.0)
+    # ⛔ 核心：真的有噪声时，量级必须能看出来
+    r_noisy = M.repeat_summary({"lo": [0.40, 0.50, 0.45, 0.55],
+                                "hi": [0.80, 0.90, 0.85, 0.95]})
+    check("G6 有散布 ⇒ rep_exact=False", r_noisy["rep_exact_lo"] is False)
+    check("G7 有散布 ⇒ rep_std > 0 且 ≤ spread",
+          0 < r_noisy["rep_std_lo"] <= r_noisy["rep_spread_lo"],
+          "std=%.4f spread=%.4f" % (r_noisy["rep_std_lo"],
+                                    r_noisy["rep_spread_lo"]))
+    check("G8 ⛔ 变异：把 rep_exact 写成恒 False ⇒ G1 必红",
+          not (r_det["rep_exact_lo"] is False))
+    # ⛔ 缺一组标签时不得产出半套键（下游会读到 rep_std_hi 却读不到 rep_n_hi）
+    r_part = M.repeat_summary({"lo": [0.4, 0.5]})
+    check("G9 ⛔ 缺 hi 组 ⇒ 不得出现任何 rep_*_hi 键",
+          not any(k.endswith("_hi") for k in r_part),
+          repr(sorted(r_part)))
+    check("G10 ⛔ 空输入 ⇒ 返回空 dict（不许凭空造键）",
+          M.repeat_summary({}) == {} and M.repeat_summary(None) == {})
+    # ⚗⇒ 这条判别式本身也要能给出结论：噪声=0 ⇒ 偏差全归曲率/模型误差
+    check("G11 ⛔⛔ 若 rep_std==0 ⇒ 可断言「偏差不是噪声造成」",
+          (r_det["rep_std_lo"] == 0.0 and r_det["rep_exact_lo"]) is True)
+
     print("\n=== 汇总 ===")
     if FAILS:
         print("RESULT r204_noise_selftest  FAIL  %d/%d 项红：%s"
