@@ -60,6 +60,20 @@ CONTROL_ID = 279          # ' the '
 LAYER = 20
 
 
+def cuda_visible_for(uuid):
+    """把 `--gpu-uuid` 的值转成 `CUDA_VISIBLE_DEVICES` 该有的样子。
+
+    ⚠⚠⚴ **`CUDA_VISIBLE_DEVICES` 要的是带 `GPU-` 前缀的完整 UUID。**
+    ⚠⚠⚴ 我移植 r201 时**只抄了注释没抄逻辑**（注释写着「脚本自己拼 GPU-」，
+    ⚠⚠⚴ 代码却是裸赋值）⇒ 每一格都 `RuntimeError: No CUDA GPUs are
+    ⚠⚠⚴ available`，整轮 10/10 全废且只有一行 stderr。
+    ⚗⇒ 抽出来单测：前缀缺失、前缀重复、None 三态都要验。
+    """
+    if not uuid:
+        return None
+    return uuid if uuid.startswith("GPU-") else "GPU-" + uuid
+
+
 def analyze(alphas, dm, dc, gap=None, band=60.0):
     """把一条 α 扫描折成 {slope, resid_std, n_distinct, min_adj_diff, …}。
 
@@ -139,8 +153,9 @@ def run_cell(a):
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    if a.gpu_uuid:
-        os.environ["CUDA_VISIBLE_DEVICES"] = a.gpu_uuid      # ⛔ 裸 UUID，脚本自己拼 GPU-
+    _cv = cuda_visible_for(a.gpu_uuid)
+    if _cv:
+        os.environ["CUDA_VISIBLE_DEVICES"] = _cv
 
     tok = AutoTokenizer.from_pretrained(MODEL)
     model = AutoModelForCausalLM.from_pretrained(
@@ -272,6 +287,13 @@ def run_driver(a):
                   % (len(rows), len(tids) * len(fracs), tid, fr,
                      r["resid_std"], r["slope"], extra), flush=True)
 
+    # ⚠⚠⚴ 0 格成功时原来直接 `rows[0]` ⇒ **IndexError**，而真正的错误
+    # ⚠⚠⚴ （10 格各自的 stderr）在上面 10 行里。⇒ 必须自己先说清楚。
+    if not rows:
+        print("⛔⛔ **0/%d 格成功** —— 产物没写。"
+              % (len(tids) * len(fracs)))
+        print("   ⚠ 各格失败原因见上面 ⛔ 行（**第一处通常是根因**）。")
+        return 4
     if a.out:
         with open(a.out, "w", newline="", encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))

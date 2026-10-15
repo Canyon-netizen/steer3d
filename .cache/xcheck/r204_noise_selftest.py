@@ -239,6 +239,34 @@ def main():
           abs(st_d1["slope_local"] - st_d1["slope"]) / abs(st_d1["slope"]) < 0.5,
           "%.6f vs %.6f" % (st_d1["slope_local"], st_d1["slope"]))
 
+    print("\n=== E：⛔ CUDA UUID 前缀（一个整轮全废且只有一行 stderr 的坑）===")
+    # ⚠⚠⚴ 2026-10-15 实测踩中：移植 r201 时**只抄了注释没抄逻辑**
+    # ⚠⚠⚴ （注释写「脚本自己拼 GPU-」，代码是裸赋值）⇒ 10/10 格全失败。
+    check("E1 ⛔ 裸 UUID 必须补上 GPU- 前缀",
+          M.cuda_visible_for("400e9565-f983-2bfe-60c4-549ab0447366")
+          == "GPU-400e9565-f983-2bfe-60c4-549ab0447366",
+          repr(M.cuda_visible_for("400e9565-f983-2bfe-60c4-549ab0447366")))
+    check("E2 ⛔ 已带前缀的**不得**重复拼（否则 GPU-GPU-…）",
+          M.cuda_visible_for("GPU-400e9565-f983-2bfe-60c4-549ab0447366")
+          == "GPU-400e9565-f983-2bfe-60c4-549ab0447366",
+          repr(M.cuda_visible_for("GPU-400e9565-f983-2bfe-60c4-549ab0447366")))
+    # ⚠⚠ E3 **幂等性**：两种写法必须得到**同一个**结果 ——
+    # ⚠⚠ 否则「用户传哪种」会决定跑不跑，而这是静默的。
+    check("E3 ⛔⛔ 两种写法必须幂等（结果完全相同）",
+          M.cuda_visible_for("400e9565-f983-2bfe-60c4-549ab0447366")
+          == M.cuda_visible_for("GPU-400e9565-f983-2bfe-60c4-549ab0447366"),
+          "裸: %r  带前缀: %r" % (
+              M.cuda_visible_for("400e9565-f983-2bfe-60c4-549ab0447366"),
+              M.cuda_visible_for("GPU-400e9565-f983-2bfe-60c4-549ab0447366")))
+    check("E4 ⛔ 没给 uuid ⇒ 返回 None（不设该环境变量）",
+          M.cuda_visible_for(None) is None and M.cuda_visible_for("") is None,
+          repr(M.cuda_visible_for(None)))
+    # E5 ⛔ 反证：若实现退化成裸赋值（我踩的那个），E1/E3 必红
+    bad = lambda u: u                      # 变异：裸赋值
+    check("E5 ⛔ 变异（裸赋值）必须让 E1 的判据失败 —— 证明本组有分辨力",
+          bad("400e9565-f983-2bfe-60c4-549ab0447366")
+          != "GPU-400e9565-f983-2bfe-60c4-549ab0447366")
+
     print("\n=== 汇总 ===")
     if FAILS:
         print("RESULT r204_noise_selftest  FAIL  %d/%d 项红：%s"
