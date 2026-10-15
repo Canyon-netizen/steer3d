@@ -183,10 +183,13 @@ def run_cell(a):
     out = {"tid": a.tid, "pos_frac": a.pos_frac, "t": t, "n_gen": n, "P": P,
            "n_steps": int(a.n_steps)}
     out.update(st)
+    # ⚠⚠⚴ flush：⛔ 不加的话，重定向到日志文件时 print 被**块缓冲**，
+    # ⚠⚠⚴ 进度要等进程退出才刷出来 —— 于是「跑到第几格」这件事**看不见**。
+    # ⚗ 与浏览器探针那个「等不到看不见」是同一类毛病（修订 205 之外那笔）。
     print("RESULT r204_cell  %s pos=%.2f  resid_std=%.6f  n_distinct=%d/%d  "
           "min_adj=%.6f  slope=%.6f"
           % (a.tid, a.pos_frac, st["resid_std"], st["n_distinct"], a.n_steps,
-             st["min_adj_diff"], st["slope"]))
+             st["min_adj_diff"], st["slope"]), flush=True)
     print(json.dumps(out, ensure_ascii=False))
     return out
 
@@ -249,7 +252,7 @@ def run_driver(a):
                             r["p9_up_mono"], r["p9_margin_se"]))
             print("  [%d/%d] %s pos=%.2f  resid=%.6f  slope=%+.6f%s"
                   % (len(rows), len(tids) * len(fracs), tid, fr,
-                     r["resid_std"], r["slope"], extra))
+                     r["resid_std"], r["slope"], extra), flush=True)
 
     if a.out:
         with open(a.out, "w", newline="", encoding="utf-8") as fh:
