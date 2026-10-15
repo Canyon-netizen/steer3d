@@ -267,6 +267,65 @@ def main():
           bad("400e9565-f983-2bfe-60c4-549ab0447366")
           != "GPU-400e9565-f983-2bfe-60c4-549ab0447366")
 
+    print("\n=== F：⛔ 实测读数 vs 拟合代入（P9 规格要的是**单次读数**）===")
+    # ⚠⚠⚴ 账本 :25789 的规格是 `w+@1.0 >= w+@0.5`，而 :25824 自己标注
+    # ⚠⚠⚴ 「P9 的 up_mono 用的是单次读数，不是拟合」⇒ 拟合代入版是**替换**。
+    # ⚗ 本组验三件事：① 没测必须显式没测 ② 测了能判 ③ 两者会不一致。
+    lin = alphas * 0.007                    # 纯线性，斜率 +0.007
+    st_nm = M.analyze(alphas, lin, np.zeros_like(lin), gap=GAP)
+    check("F1 ⛔⛔ 没传 meas ⇒ up_mono_meas 必须是 **None**，绝不是 False",
+          st_nm["up_mono_meas"] is None, repr(st_nm["up_mono_meas"]))
+    check("F2 ⛔ 没测时**不许**出现 p9_lo_meas/p9_hi_meas 两个键",
+          ("p9_lo_meas" not in st_nm) and ("p9_hi_meas" not in st_nm),
+          repr(sorted(k for k in st_nm if "meas" in k)))
+    # 拟合恰好正确 ⇒ 拟合值 == 实测值 ⇒ 误差 0，且两者判决必须一致
+    st_ok = M.analyze(alphas, lin, np.zeros_like(lin), gap=GAP,
+                      meas=(st_nm["p9_lo"], st_nm["p9_hi"]))
+    check("F3 实测 == 拟合 ⇒ fit_err_hi = 0（纯线性时拟合不该有偏）",
+          abs(st_ok["fit_err_hi"]) < 1e-9, "%.3e" % st_ok["fit_err_hi"])
+    check("F4 实测 == 拟合 ⇒ 两个判决必须一致",
+          st_ok["up_mono_meas"] == st_ok["p9_up_mono"],
+          "拟合=%r 实测=%r" % (st_ok["p9_up_mono"], st_ok["up_mono_meas"]))
+    # ⛔ 核心反证：斜率**为负** ⇒ 拟合说「不过」，实测可以完全反过来
+    neg = alphas * (-0.007)
+    st_neg_fit = M.analyze(alphas, neg, np.zeros_like(neg), gap=GAP)
+    check("F5 ⛔ 斜率为负 ⇒ 拟合版 p9_up_mono=False（基准）",
+          st_neg_fit["p9_up_mono"] is False)
+    st_neg_meas = M.analyze(alphas, neg, np.zeros_like(neg), gap=GAP,
+                            meas=(st_neg_fit["p9_lo"], st_neg_fit["p9_hi"]))
+    check("F6 ⛔ 实测取到的是同一对数 ⇒ 判决也必须随之变 ⇒ 判据跟 meas 走",
+          st_neg_meas["up_mono_meas"] is False)
+    # ⛔ 真正要拦的：**两者不一致**的情形。
+    # ⚠⚠ 这里第一次写成了 meas=(0.10, -0.20) —— 而 -0.20 >= 0.10 是 False，
+    # ⚠⚠ 于是「期望 True」与夹具自相矛盾，F7 直接红。⛔ 是**夹具**写错了，
+    # ⚠⚠ 不是判据坏了：要与「负斜率 ⇒ 拟合判 False」相反，实测须是
+    # ⚠⚠   m_lo=-0.20、m_hi=+0.10（升序）⇒ 实测判 True。
+    st_disc = M.analyze(alphas, neg, np.zeros_like(neg), gap=GAP,
+                        meas=(-0.20, 0.10))
+    check("F7 ⛔⛔ 实测与拟合**相反**时，实测版必须给出**相反**的判决",
+          st_disc["up_mono_meas"] is True and st_disc["p9_up_mono"] is False,
+          "拟合=%r 实测=%r" % (st_disc["p9_up_mono"], st_disc["up_mono_meas"]))
+    check("F8 ⛔⛔ 变异：把 up_mono_meas 写成恒等于 p9_up_mono ⇒ F7 必红",
+          not (st_disc["p9_up_mono"] is True))
+    # ⛔ 偏差要用**残差**当尺子：二次项时大剂量处拟合必然偏低
+    quad = 0.007 * alphas - 1.0e-6 * alphas ** 2
+    st_q = M.analyze(alphas, quad, np.zeros_like(quad), gap=GAP)
+    st_qm = M.analyze(alphas, quad, np.zeros_like(quad), gap=GAP,
+                      meas=(st_q["p9_lo"], st_q["p9_hi"]))
+    check("F9 ⛔ 注入的 meas 若恰等于拟合 ⇒ fit_err_hi 仍为 0（对照组）",
+          abs(st_qm["fit_err_hi"]) < 1e-9, "%.3e" % st_qm["fit_err_hi"])
+    # 真值：二次项 ⇒ 真实读数**低于**直线代入（小 α² 项为负）
+    true_hi = 0.007 * GAP - 1.0e-6 * GAP ** 2
+    st_q2 = M.analyze(alphas, quad, np.zeros_like(quad), gap=GAP,
+                      meas=(0.007 * 0.5 * GAP - 1.0e-6 * (0.5 * GAP) ** 2,
+                            true_hi))
+    check("F10 ⛔ 真实读数低于拟合 ⇒ fit_err_hi 必须为**正**且 > 1σ",
+          st_q2["fit_err_hi"] > 0 and st_q2["fit_err_hi_sigma"] > 1.0,
+          "err=%.4f sigma=%.2f" % (st_q2["fit_err_hi"],
+                                   st_q2["fit_err_hi_sigma"]))
+    check("F11 ⛔ 变异：把 fit_err 定义成 f(a_hi) - a_lo ⇒ F10 的符号必反",
+          not ((st_q["p9_hi"] - 0.5 * GAP) > 1.0))
+
     print("\n=== 汇总 ===")
     if FAILS:
         print("RESULT r204_noise_selftest  FAIL  %d/%d 项红：%s"

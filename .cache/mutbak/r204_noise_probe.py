@@ -74,7 +74,7 @@ def cuda_visible_for(uuid):
     return uuid if uuid.startswith("GPU-") else "GPU-" + uuid
 
 
-def analyze(alphas, dm, dc, gap=None, band=60.0):
+def analyze(alphas, dm, dc, gap=None, band=60.0, meas=None):
     """把一条 α 扫描折成 {slope, resid_std, n_distinct, min_adj_diff, …}。
 
     ⚠⚠⚴ 抽出来是为了**能在无 GPU 的合成数据上自检** ——
@@ -144,6 +144,32 @@ def analyze(alphas, dm, dc, gap=None, band=60.0):
             "p9_up_mono": bool(f(a_hi) >= f(a_lo)),
             "p9_margin_se": abs(f(a_hi) - f(a_lo)) / se(a_hi) if se(a_hi) > 0 else float("inf"),
         })
+        # ---- ⚠⚠⚴ P9 的规格是「**单次读数**」，不是拟合值 -------------
+        # 账本 R6_RERUN_PREREG.md:25789 写的是 `w+@1.0 >= w+@0.5`，
+        # 而 :25824 自己已经标注「P9 的 up_mono 用的是单次读数，不是拟合」。
+        # ⇒ 上面那套 f(a_lo)/f(a_hi) 是**代入**，它是本探针为了省两次 forward
+        #    做的替换，替换本身合法但**不能**当成读数用。
+        # ⚗⇒ meas=(dm@a_lo, dm@a_hi) 是**在那两个剂量上真跑一遍**得到的读数。
+        if meas is not None:
+            m_lo, m_hi = float(meas[0]), float(meas[1])
+            out.update({
+                "p9_lo_meas": m_lo, "p9_hi_meas": m_hi,
+                # 直线在工作剂量上偏高/偏低多少；再除以 resid_std 就是
+                # 「这个偏差比噪声大几个 σ」。
+                "fit_err_lo": f(a_lo) - m_lo,
+                "fit_err_hi": f(a_hi) - m_hi,
+                "fit_err_hi_sigma": (f(a_hi) - m_hi) / rstd_ if rstd_ > 0
+                                    else float("nan"),
+                # ⛔ 按**实测读数**判的 up_mono —— 这才是规格要的那一条。
+                "up_mono_meas": bool(m_hi >= m_lo),
+                "margin_meas": abs(m_hi - m_lo) / rstd_ if rstd_ > 0
+                               else float("inf"),
+            })
+        else:
+            # ⚠⚠⚴ 没测就必须**显式**说没测。
+            # ⛔ 绝不许用 False 代替 None —— 那样「没量」会被读成「量了且没过」，
+            #    而 P9 的通过率正是靠这些布尔值汇总的。
+            out["up_mono_meas"] = None
     return out
 
 
@@ -211,7 +237,18 @@ def run_cell(a):
         dm.append(lse_t(lg[mk]) - b_mark)
         dc.append(lse_t(lg[ctl]) - b_ctl)
 
-    st = analyze(alphas, dm, dc, gap=a.gap, band=a.band)
+    # ---- ⚠⚠⚴ 在 P9 的两个工作剂量上**真跑一遍** ----------------------
+    # α 网格是 linspace(-alpha_max, alpha_max, n_steps)：80 点跨 240 ⇒ 间距
+    # 3.038，而 a_lo/a_hi 一般**落在两个格点之间** ⇒ 插值不可替代实测。
+    # 代价：每格 +2 次 forward（80 次里的 2 次）。
+    # ⚗⇒ 这是 P9 规格真正要的那两个数（账本 :25824「用单次读数，不是拟合」）。
+    meas = None
+    if a.gap:
+        m_lo = lse_t(forward(W, 0.5 * a.gap)[mk]) - b_mark
+        m_hi = lse_t(forward(W, 1.0 * a.gap)[mk]) - b_mark
+        meas = (m_lo, m_hi)
+
+    st = analyze(alphas, dm, dc, gap=a.gap, band=a.band, meas=meas)
     out = {"tid": a.tid, "pos_frac": a.pos_frac, "t": t, "n_gen": n, "P": P,
            "n_steps": int(a.n_steps)}
     out.update(st)
@@ -222,6 +259,19 @@ def run_cell(a):
           "min_adj=%.6f  slope=%.6f"
           % (a.tid, a.pos_frac, st["resid_std"], st["n_distinct"], a.n_steps,
              st["min_adj_diff"], st["slope"]), flush=True)
+    # ⚠⚠⚴ 实测判决必须**印在日志上**，不能只躺在 JSON 里
+    # ⚠⚠⚴ （进度行是给人看的；JSON 只有真去翻文件才看得到 ⇒ 等于看不见）。
+    # ⛔⛔ 没测就印 NOT-MEASURED，**绝不许**印 False ——
+    #    False 与「没量」在汇总时会被当成同一件事。
+    if st.get("up_mono_meas") is None:
+        print("        p9(实测) ⛔ NOT-MEASURED（未传 --gap 或未采到读数）",
+              flush=True)
+    else:
+        print("        p9 实测: lo=%+.4f hi=%+.4f  up_mono(拟合)=%s "
+              "up_mono(实测)=%s  拟合偏高 %+.2f sigma"
+              % (st["p9_lo_meas"], st["p9_hi_meas"], st["p9_up_mono"],
+                 st["up_mono_meas"], st["fit_err_hi_sigma"]), flush=True)
+
     print(json.dumps(out, ensure_ascii=False))
     return out
 
@@ -280,9 +330,20 @@ def run_driver(a):
             r = rows[-1]
             extra = ""
             if "p9_up_mono" in r:
-                extra = ("  p9: lo=%+.4f±%.4f hi=%+.4f±%.4f mono=%s margin=%.2fSE"
+                extra = ("  p9(拟合): lo=%+.4f±%.4f hi=%+.4f±%.4f mono=%s "
+                         "margin=%.2fSE"
                          % (r["p9_lo"], r["p9_se_lo"], r["p9_hi"], r["p9_se_hi"],
                             r["p9_up_mono"], r["p9_margin_se"]))
+            # ⚠⚠⚴ 实测那一条与拟合那条**并列**印出来：两者会不一致，
+            # ⚠⚠⚴ 而不一致本身就是这轮要看的证据（拟合在工作剂量上偏了多少）。
+            if r.get("up_mono_meas") is None:
+                extra += "  ⛔实测 NOT-MEASURED"
+            else:
+                extra += ("  |实测: lo=%+.4f hi=%+.4f mono=%s margin=%.2f sigma"
+                          " 拟合偏高=%+.2f sigma"
+                          % (r["p9_lo_meas"], r["p9_hi_meas"],
+                             r["up_mono_meas"], r["margin_meas"],
+                             r["fit_err_hi_sigma"]))
             print("  [%d/%d] %s pos=%.2f  resid=%.6f  slope=%+.6f%s"
                   % (len(rows), len(tids) * len(fracs), tid, fr,
                      r["resid_std"], r["slope"], extra), flush=True)
@@ -295,12 +356,24 @@ def run_driver(a):
         print("   ⚠ 各格失败原因见上面 ⛔ 行（**第一处通常是根因**）。")
         return 4
     if a.out:
+        # ⚠⚠⚴ fieldnames 必须取**所有行的键的并集**，不能只取 rows[0]。
+        # ⚠⚠⚴ 只取第一行时，若后面某行多一个键（如某格没采到读数而没有
+        # ⚠⚠⚴ p9_lo_meas），DictWriter 默认 extrasaction="raise"
+        # ⚠⚠⚴ ⇒ 整轮**崩在写文件这一步**，前面所有格子的计算全部作废。
+        # ⚗ 与刚修的「0 格成功时 rows[0] ⇒ IndexError」是同一族：
+        # ⚗   **聚合阶段的崩溃会把已经付过款的测量一起吞掉**。
+        fn, seen = [], set()
+        for r in rows:
+            for k in r:
+                if k not in seen:
+                    seen.add(k)
+                    fn.append(k)
         with open(a.out, "w", newline="", encoding="utf-8") as fh:
-            w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+            w = csv.DictWriter(fh, fieldnames=fn)
             w.writeheader()
             for r in rows:
                 w.writerow(r)
-        print("已写 %s（%d 行）" % (a.out, len(rows)))
+        print("已写 %s（%d 行，%d 列）" % (a.out, len(rows), len(fn)))
 
     # ---- 分布，不是单点 ----
     if rows:
