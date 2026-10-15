@@ -112,18 +112,31 @@ def main():
     ap.add_argument("--w-name", default=None,
                     help="产物里这条 w 的名字。三项须与 --w-unembed 对应")
     ap.add_argument("--logit-mag", type=float, default=None,
-                    help="注入点实测 |logit| 量级，**必填无默认**：不同 2 的幂区间 ulp 不同")
+                    help="注入点实测 |logit| 量级（由它**推导**地板）。"
+                         "⚠ 实测证明推导值对不上读数量子，能给 --floor 就给 --floor")
+    ap.add_argument("--floor", type=float, default=None,
+                    help="**直接**给分辨率地板（推荐）。34 个实测读数的公共步长是 0.125")
+    ap.add_argument("--floor-source", default=None,
+                    help="地板的出处，**必填**。例：empirical-gcd-of-34-readings")
     a = ap.parse_args()
 
     # ⚠ 三个参数必须齐；只给一部分多半是漏了，而漏了就等于没查。
-    _res = [a.w_unembed, a.w_meta, a.w_name, a.logit_mag]
-    if any(_res) and not all(_res):
-        print("[错误] 可分辨性闸的四个参数必须**一起**给："
-              "--w-unembed / --w-meta / --w-name / --logit-mag")
-        print("        现在给了 %d/4 —— 只给一部分 = 闸没跑，却像是跑过。"
-              % sum(1 for x in _res if x is not None))
-        print("        要么四个都给，要么四个都不给（后者会打印「未检查」警告）。")
+    _base = [a.w_unembed, a.w_meta, a.w_name]
+    _floor = [a.floor, a.logit_mag, a.floor_source]
+    if any(_base) and not all(_base):
+        print("[错误] 可分辨性闸的三个定位参数必须**一起**给："
+              "--w-unembed / --w-meta / --w-name")
+        print("        现在给了 %d/3 —— 只给一部分 = 闸没跑，却像是跑过。"
+              % sum(1 for x in _base if x is not None))
         return EXIT_USAGE
+    if any(_base):
+        if not a.floor_source:
+            print("[错误] --floor-source 必填：地板这个数**从哪来**必须写下来。")
+            return EXIT_USAGE
+        if (a.floor is None) == (a.logit_mag is None):
+            print("[错误] 地板来源必须**二选一**：--floor（实测）或 "
+                  "--logit-mag（推导）。给了两个或都没给都不行。")
+            return EXIT_USAGE
 
     if not DRIFT.exists() or not PRECOND.exists():
         print("[错误] 判据脚本缺失，先确认 .cache/mutbak/ 下文件在不在")
@@ -146,10 +159,13 @@ def main():
               % (STAMP, EXPECT_CAP, EXPECT_ROWS))
         print("  6. r181_label_drift.py <旧批> <新批>          <- 观测")
         print("  7. r178_uncapped_fate.py %s_label.json         <- 权威口径" % STAMP)
+        _gate_on = bool(a.w_unembed and a.w_meta and a.w_name
+                        and a.floor_source
+                        and ((a.floor is None) != (a.logit_mag is None)))
         print("  7.5 p6_resolvability.py                       <- 可分辨性闸"
-              "（修订 198）%s"
-              % ("" if (a.w_unembed and a.w_meta and a.w_name and a.logit_mag)
-                 else "  ⚠ 本次未给四个参数 ⇒ 该闸**不跑**，届时会打印未检查警告"))
+              "（修订 198/200）%s"
+              % ("" if _gate_on
+                 else "  ⚠ 本次参数不全 ⇒ 该闸**不跑**，届时会打印未检查警告"))
         print("  8. p6_readiness.py --label %s_label.json       <- 判决仪器"
               % STAMP)
         print("     ⚠ 它只查**样本量**（correct≥10）；⚗「量测不测得出来」由 7.5 管")
@@ -268,14 +284,15 @@ def main():
     # ⚠⚠ 不接这一步的话，本脚本会照常印 ELIGIBLE，
     # ⚠⚠ 而那个 ELIGIBLE **不等于** U 检验跑出来的 p 值可解释。
     resolvable_known = None
-    given = (a.w_unembed, a.w_meta, a.logit_mag)
+    given = (a.w_unembed, a.w_meta)
     if all(given):
         step(75, "p6_resolvability —— 观测量可分辨性（修订 198）")
         rc, out = run([sys.executable, str(RESOLVABILITY),
                        "--w-unembed", a.w_unembed,
                        "--w-meta", a.w_meta,
                        "--name", a.w_name,
-                       "--logit-mag", str(a.logit_mag)])
+                       "--floor", str(a.floor),
+                       "--floor-source", a.floor_source])
         print(out)
         print(">>> p6_resolvability EXIT=%d" % rc)
         resolvable_known = (rc == 0)

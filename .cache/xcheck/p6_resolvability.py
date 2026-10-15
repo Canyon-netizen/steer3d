@@ -65,24 +65,36 @@ def bf16_ulp(mag):
     return 2.0 ** (floor(log2(mag)) - 7)
 
 
-def assess(dot_marker_mean, class_gap, logit_mag,
+def assess(dot_marker_mean, class_gap, logit_mag=None, floor=None,
            rel_max=1.0, attenuation=ATTENUATION_L20):
-    """返回判决字典。纯算术，可离线验。"""
+    """返回判决字典。纯算术，可离线验。
+
+    ⚠⚠ 修订 200 修正：**地板优先用实测的 `--floor`，`--logit-mag` 只是推导它的一种办法。**
+    ⚠⚠ 原版把地板写死成 `bf16_ulp(logit_mag)`，而实测证明那**推不对**：
+    ⚠⚠   logit 量级 ~3.094 ⇒ bf16 ulp 0.015625
+    ⚠⚠   norm 输出量级 ~144–150 ⇒ bf16 ulp 1.0
+    ⚠⚠   而 34 个实测读数的公共步长是 **0.125** —— 三者**互不相等**。
+    ⚗⇒ 真正决定判决的是**读数实际能分辨多细**，那是个**实测量**，
+    ⚗   不是任何单个张量的 dtype 网格推出来的数。
+    """
+    if floor is None:
+        if logit_mag is None:
+            raise ValueError("floor 与 logit_mag 至少要给一个")
+        floor = bf16_ulp(logit_mag)
     alpha = rel_max * class_gap
     d_calib = alpha * dot_marker_mean           # 校准点的一阶效应（精确）
     d_l20 = d_calib / attenuation              # L=20 的应得残差（衰减后）
-    floor_ulp = bf16_ulp(logit_mag)
-    ratio = d_l20 / floor_ulp
+    ratio = d_l20 / floor
     return {
         "alpha": alpha,
         "d_calib": d_calib,
         "d_l20": d_l20,
+        "floor": floor,
         "logit_mag": logit_mag,
-        "floor_ulp": floor_ulp,
         "ratio_to_floor": ratio,
         # ⛔ 用 >= 而不是 >：恰在一个 ulp 上算「勉强可分辨」，边界归可跑，
         # ⛔ 这样本闸只会拒掉「明确不可分辨」的，不会拒掉边界情形。
-        "resolvable": d_l20 >= floor_ulp,
+        "resolvable": d_l20 >= floor,
     }
 
 
@@ -105,9 +117,16 @@ def main():
                     help="w_unembed_align.py 的产物 json（取 dot_marker_mean）")
     ap.add_argument("--w-meta", required=True, help="w*.npy.json（取 class_gap）")
     ap.add_argument("--name", required=True, help="产物里这条 w 的名字")
-    ap.add_argument("--logit-mag", type=float, required=True,
-                    help="注入点处实测 |logit| 量级。**必填，不给默认值** —— "
-                         "不同 2 的幂区间 ulp 不同，结论可能翻转")
+    ap.add_argument("--logit-mag", type=float, default=None,
+                    help="注入点实测 |logit| 量级；用它**推导**地板 "
+                         "（bf16_ulp）。⚠ 实测证明推导值对不上读数量子，"
+                         "所以能直接给 --floor 就给 --floor")
+    ap.add_argument("--floor", type=float, default=None,
+                    help="**直接**给分辨率地板。优先于 --logit-mag —— "
+                         "34 个实测读数的公共步长是 0.125，与任何 dtype 推导值都不同")
+    ap.add_argument("--floor-source", default=None,
+                    help="地板的**出处**，必填。例：empirical-gcd-of-34-readings。"
+                         "⚠ 不写出处 = 数字没有来源，正是本项目反复栽的那类错")
     ap.add_argument("--rel-max", type=float, default=1.0,
                     help="P3 剂量阶梯的最大档，默认 1.0（预登记写死的，不得调）")
     ap.add_argument("--attenuation", type=float, default=ATTENUATION_L20,
@@ -121,7 +140,18 @@ def main():
         print("[错误] 读输入失败：%s" % e)
         return 2
 
-    r = assess(dot, gap, a.logit_mag, a.rel_max, a.attenuation)
+    if a.floor is not None and a.logit_mag is not None:
+        print("[错误] --floor 与 --logit-mag 给了**两个**地板来源 —— "
+              "这正是「口径含糊」的形态，只给一个。")
+        return 2
+    if a.floor is None and a.logit_mag is None:
+        print("[错误] 地板必须给一个：--floor（实测，推荐）或 --logit-mag（推导）。")
+        return 2
+    if not a.floor_source:
+        print("[错误] --floor-source 必填：地板这个数**从哪来**必须写下来。")
+        return 2
+
+    r = assess(dot, gap, a.logit_mag, a.floor, a.rel_max, a.attenuation)
 
     print("=== P6 观测量可分辨性（%s）===" % a.name)
     print("  w·U[marker] 均值        = %+.6f" % dot)
@@ -131,8 +161,13 @@ def main():
     print("  校准点一阶效应 α·(w·U)  = %+.4f      （该点恒等式**精确**）" % r["d_calib"])
     print("  ÷ 衰减 %.1f（§11.3 实测） = %+.4f      （L=20 的应得残差）"
           % (a.attenuation, r["d_l20"]))
-    print("  注入点 |logit| 量级      = %.1f" % r["logit_mag"])
-    print("  bf16 ulp = 2^⌊log₂v⌋·2⁻⁷ = %.4f" % r["floor_ulp"])
+    if r["logit_mag"] is not None:
+        print("  注入点 |logit| 量级      = %.4f（由它推导地板）" % r["logit_mag"])
+        print("    ⇒ bf16_ulp = 2^⌊log₂v⌋·2⁻⁷ = %.6f" % bf16_ulp(r["logit_mag"]))
+    else:
+        print("  地板 **直接实测给定**（不经推导）")
+    print("  ★ 地板 floor              = %.6f" % r["floor"])
+    print("    出处：%s" % a.floor_source)
     print("  残差 / 分辨率            = %.3f" % r["ratio_to_floor"])
     print()
 

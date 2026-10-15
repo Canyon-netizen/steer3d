@@ -61,9 +61,9 @@ def main():
 
     print("\n=== R5–R6：两份真实夹具必须判出**不同**结果 ===")
     a_b = assess(FIXTURES["armB"]["dot_marker_mean"],
-                 FIXTURES["armB"]["class_gap"], LOGIT)
+                 FIXTURES["armB"]["class_gap"], logit_mag=LOGIT)
     a_n = assess(FIXTURES["new_p2a"]["dot_marker_mean"],
-                 FIXTURES["new_p2a"]["class_gap"], LOGIT)
+                 FIXTURES["new_p2a"]["class_gap"], logit_mag=LOGIT)
     check("R5 armB ⇒ RESOLVABLE", a_b["resolvable"] is True,
           "ratio=%.3f" % a_b["ratio_to_floor"])
     check("R6 new_p2a ⇒ BELOW_FLOOR", a_n["resolvable"] is False,
@@ -77,14 +77,14 @@ def main():
           "实得 %.4f" % a_b["d_calib"])
     check("R8 new_p2a L20 残差 ≈ +0.1225（< ulp 0.25）",
           isclose(a_n["d_l20"], (113.474 * 0.043172) / ATTENUATION_L20, rel_tol=1e-9)
-          and a_n["d_l20"] < a_n["floor_ulp"],
-          "实得 d_l20=%.4f floor=%.4f" % (a_n["d_l20"], a_n["floor_ulp"]))
+          and a_n["d_l20"] < a_n["floor"],
+          "实得 d_l20=%.4f floor=%.4f" % (a_n["d_l20"], a_n["floor"]))
 
     print("\n=== R9–R10：边界必须测到（>= 而非 >） ===")
     floor_ulp = bf16_ulp(LOGIT)                       # 0.25
     at_floor = floor_ulp * ATTENUATION_L20 / 1.0     # 反解出恰在一个 ulp 上的 dot
-    r_eq = assess(at_floor, 1.0, LOGIT)              # rel=1, gap=1 ⇒ α=1
-    r_lt = assess(at_floor * 0.999, 1.0, LOGIT)
+    r_eq = assess(at_floor, 1.0, floor=floor_ulp)   # rel=1, gap=1 ⇒ α=1
+    r_lt = assess(at_floor * 0.999, 1.0, floor=floor_ulp)
     check("R9 恰在一个 ulp 上 ⇒ RESOLVABLE（>= 不是 >）",
           r_eq["resolvable"] is True, "实得 %r" % r_eq["resolvable"])
     check("R10 略低于一个 ulp ⇒ BELOW_FLOOR",
@@ -92,14 +92,14 @@ def main():
 
     print("\n=== R11：收紧方向 —— 闸只能拒，不能放行 ===")
     # 给一个「本该拒」的组合，再看闸有没有被参数绕过去
-    r_tiny = assess(1e-9, 1.0, LOGIT)
+    r_tiny = assess(1e-9, 1.0, floor=floor_ulp)
     check("R11 极小 dot ⇒ BELOW_FLOOR（绕不过去）",
           r_tiny["resolvable"] is False, "实得 %r" % r_tiny["resolvable"])
 
     print("\n=== R12：分桶敏感性（结论会随 logit 量级翻转，必须自报） ===")
     # new_p2a 在 [32,64) 桶不可分辨；若 logit 落在 [2,4) 桶，ulp=0.0156，则可分辨
     r_low = assess(FIXTURES["new_p2a"]["dot_marker_mean"],
-                   FIXTURES["new_p2a"]["class_gap"], 3.0)
+                   FIXTURES["new_p2a"]["class_gap"], logit_mag=3.0)
     check("R12 同一条 w 换分桶 ⇒ 结论会翻转（故 --logit-mag 必填）",
           r_low["resolvable"] != a_n["resolvable"],
           "40 桶=%r, 3 桶=%r" % (a_n["resolvable"], r_low["resolvable"]))
