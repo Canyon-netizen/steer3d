@@ -63,6 +63,10 @@ DRIFT = MUT / "r181_label_drift.py"
 FATE = MUT / "r178_uncapped_fate.py"
 P6 = XC / "p6_readiness.py"
 RESOLVABILITY = XC / "p6_resolvability.py"
+# ⚠⚠ 修订 202：U 检验本体。⛔ 不接进流水线，它就是第二个死开关
+# ⚠⚠ —— 本项目已经为同一件事付过两次代价（修订 195 的 pos_ok、
+# ⚠⚠   修订 199 的 resolvable_known）。
+P6_U = XC / "p6_u_test.py"
 
 STAMP = "r182"
 
@@ -118,6 +122,14 @@ def main():
                     help="**直接**给分辨率地板（推荐）。34 个实测读数的公共步长是 0.125")
     ap.add_argument("--floor-source", default=None,
                     help="地板的出处，**必填**。例：empirical-gcd-of-34-readings")
+    # ⚠⚠ 修订 202：U 判决仪器的输入。
+    # ⚠ ⚗ 同样**刻意不给默认值** —— 找不到产物就应当「未检查」，
+    # ⚠   而不是偷偷换个文件或跳过这一步（修订 195 的死开关、199 的第二个死开关）。
+    ap.add_argument("--r6-rows", default=None,
+                    help="r6_rerun.py 的**测量**产物 json（含 rows 与 "
+                         "device_validated）。不给 ⇒ 步骤 8.5 报「未检查」")
+    ap.add_argument("--p6-field", default="mark_w+_1.0",
+                    help="从 rows 取哪个字段做 Δlogit（§P6 原文口径，默认即它）")
     a = ap.parse_args()
 
     # ⚠ 三个参数必须齐；只给一部分多半是漏了，而漏了就等于没查。
@@ -168,6 +180,11 @@ def main():
                  else "  ⚠ 本次参数不全 ⇒ 该闸**不跑**，届时会打印未检查警告"))
         print("  8. p6_readiness.py --label %s_label.json       <- 判决仪器"
               % STAMP)
+        print("  8.5 p6_u_test.py --rows <测量产物>              <- **U 检验本体**"
+              "（修订 202）%s"
+              % ("" if a.r6_rows else "  ⚠ 本次没给 --r6-rows ⇒ 该步**不跑**，"
+                                    "届时会打印未检查警告"))
+        print("  9. 汇总会**同时**写进退出码与 RESULT 行（修订 195/202 的两处纪律）")
         print("     ⚠ 它只查**样本量**（correct≥10）；⚗「量测不测得出来」由 7.5 管")
         print("\n模式：%s"
               % ("增量测量（禁止跑第 8 步）" if a.allow_partial
@@ -299,8 +316,13 @@ def main():
         if rc == 3:
             print("⛔⛔ **观测量低于仪器分辨率** ⇒ 即使 correct 组够 10 条，")
             print("   Mann–Whitney U 也在拿噪声和噪声比 ⇒ **不跑 P6 全量**。")
-            print("   ⚠ 要抬出分辨率须动预登记口径（A/B/C/D，见修订 197 §197.4），")
-            print("   ⚠ 本脚本不替规则选。C（调剂量）明令禁止。")
+            print("   ⚠⚠⚴ **修订 201 已把这道闸降级** —— 实测证明「地板」是")
+            print("   ⚗ **伪地板**（P9 每条轨迹只评 6 个组合，样本量太小，公因子是巧合；")
+            print("   ⚗ 定点扫描 400 点里 399 个不同值，最小相邻差 6e-06）。")
+            print("   ⚠ ⇒ 本次 rc=3 说明的是「按**你给的那个**地板算出观测量偏低」，")
+            print("   ⚗ 不等于「测不出来」。⚠ **判决对这个尚未确定的量不稳健。**")
+            print("   ⚗ A/B/C/D 选项表**已作废**（201.5 第 3 条）：改注入层(A)、")
+            print("   ⚗ 换 pos_offset(B)、提剂量(C) 三条仍全部禁，本脚本不替规则选。")
             print("RESULT pipeline  BLOCKED  below-resolution")
             return EXIT_BLOCKED
     else:
@@ -329,12 +351,61 @@ def main():
         print(out)
         print(">>> p6_readiness EXIT=%d" % rc)
 
+    # ---- 步骤 8.5：U 检验本体（修订 202 新增）----
+    # ⚠⚠⚴ 为什么不接这一步，结论会是错的：
+    # ⚠⚠⚴ `p6_readiness` 印 ELIGIBLE 只说明**样本量够**（correct≥10 条）。
+    # ⚠⚠⚴ 那个「10 条」是**轨迹数**，而 §P6 的 U 检验吃的必须是
+    # ⚠⚴⚴ **轨迹级**的数（每条轨迹先对它各位置的 Δlogit 取均值）。
+    # ⚠⚠⚴ 不跑它 ⇒ 没人知道 (a) 装置验没验（device_validated）、
+    # ⚠⚠⚴ (b) 两组到底是 n=11 还是被伪重复撑成的 n=66、
+    # ⚠⚠⚴ (c) 功效够不够 —— 而这三条每一条都会改变结论的**含义**。
+    p6_verdict = "NOT-RUN"
+    p6_rc = None
+    if a.allow_partial:
+        print("\n" + "-" * 70)
+        print(">>> 跳过 8.5（不是失败，是设计）：批次未跑满。")
+        print("   同 8：部分数据上 p6_u_test 的 n<10 底线与功效披露都会说假话（修订 180）。")
+    elif not a.r6_rows:
+        print("\n" + "-" * 70)
+        print("⚠⚠⚠ **U 检验未检查**（没给 --r6-rows，指定义是 r6_rerun 的测量产物）")
+        print("⚠ 本脚本**不**据此阻断，但这一条必须被写下来：")
+        print("⚠ ⚗ 上面那个 ELIGIBLE **不是** P6 的判决，只是「样本量够进入判决」。")
+        print("⚠ ⚗ 装置验没验（`device_validated`）、两组是**轨迹级**还是被伪重复")
+        print("⚗   撑大的行数、功效够不够 —— 这三条**一条都还没查**。")
+        print("⚠ 闸：`python3 .cache/xcheck/p6_u_test.py --rows <测量产物>`")
+    else:
+        step(85, "p6_u_test —— U 检验本体（修订 202）")
+        rc, out = run([sys.executable, str(P6_U),
+                       "--rows", a.r6_rows, "--field", a.p6_field])
+        print(out)
+        print(">>> p6_u_test EXIT=%d" % rc)
+        p6_rc = rc
+        if rc == 0:
+            p6_verdict = "RUN"
+        else:
+            p6_verdict = "BLOCKED(rc=%d)" % rc
+            print("⛔⛔ **U 检验未能出判决（EXIT=%d）** —— 上面那个 ELIGIBLE" % rc)
+            print("   **不是** P6 结论。常见原因（按可能性排序）：")
+            print("   · EXIT 4 且 `device_validated=false` ⇒ P9 装置闸没过（修订 195/196）")
+            print("   · EXIT 4 且 correct **轨迹数** < 10 ⇒ §P6「样本不足，不构成结论」")
+            print("   · EXIT 4 且 rows 缺 `traj` ⇒ 无法按轨迹聚合，拒绝出判决（修订 202）")
+            print("   · EXIT 3 ⇒ 产物里没有 usable 的 correct/wrong 读数")
+            print("RESULT pipeline  BLOCKED  p6-u-test-rc=%d  u_verdict=%s"
+                  % (rc, p6_verdict))
+            return EXIT_BLOCKED
+
     print("\n" + "=" * 70)
     print("汇总：完整性闸 0 · 身份闸 0 · 漂移 EXIT=%d · 口径 0" % drift_rc)
+    print("     U 检验（修订 202）：%s" % p6_verdict)
+    if p6_verdict == "NOT-RUN":
+        # ⚠⚠⚴ 纪律：没跑必须写在**结果**里，不能只留在上面的过程输出里。
+        # ⚠⚴ 只打印不记账 = 下一个人读 RESULT 行会以为 P6 判过了。
+        print("⚠⚠⚴ **本次没有出 P6 的 U 判决。** 上面那个 ELIGIBLE 只是")
+        print("       「样本量够进入判决」，⛔ 不是判决本身。")
     if drift_rc != 0:
         print("⚠ 检出标签漂移 —— 两批 correct 数之差**不能**直接归因于抬 cap。")
-    print("RESULT pipeline  DONE  n=%d  mode=%s"
-          % (n_remote, "partial" if a.allow_partial else "full"))
+    print("RESULT pipeline  DONE  n=%d  mode=%s  u_verdict=%s"
+          % (n_remote, "partial" if a.allow_partial else "full", p6_verdict))
     return EXIT_OK if drift_rc == 0 else EXIT_BLOCKED
 
 
