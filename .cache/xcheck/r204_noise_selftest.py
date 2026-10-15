@@ -208,6 +208,37 @@ def main():
           st3["p9_margin_se"] < st_out["p9_margin_se"],
           "噪声大 %.4f vs 原 %.4f" % (st3["p9_margin_se"], st_out["p9_margin_se"]))
 
+    print("\n=== D：两段拟合（局部 vs 全域）—— 线性还成不成立 ===")
+    wide = np.linspace(-120.0, 120.0, 80)
+    # D1 纯线性 + 噪声 ⇒ lin_ratio 应 ≈ 1（两段量的是同一个 σ）
+    d1 = 0.0039 * wide + rng.normal(0.0, 0.05, wide.size)
+    st_d1 = M.analyze(wide, d1, np.zeros_like(d1), band=60.0)
+    check("D1 纯线性 ⇒ lin_ratio 落在 0.7–1.5（实得 %.3f）" % st_d1["lin_ratio"],
+          0.7 <= st_d1["lin_ratio"] <= 1.5, "实得 %.3f" % st_d1["lin_ratio"])
+    # D2 ⛔ 带二次项 ⇒ 全域残差应**显著**大于局部（= 大剂量处弯了）
+    d2 = 0.0039 * wide + 0.00025 * wide ** 2 + rng.normal(0.0, 0.05, wide.size)
+    st_d2 = M.analyze(wide, d2, np.zeros_like(d2), band=60.0)
+    print("      （二次项时 lin_ratio = %.2f，局部 %.4f / 全域 %.4f）"
+          % (st_d2["lin_ratio"], st_d2["resid_std_local"], st_d2["resid_std"]))
+    check("D2 ⛔ 带二次项 ⇒ lin_ratio 必须 > 3（局部量不到那个弯）",
+          st_d2["lin_ratio"] > 3.0, "实得 %.2f" % st_d2["lin_ratio"])
+    check("D2b ⛔ 且它必须比 D1（纯线性）大至少 3 倍",
+          st_d2["lin_ratio"] > 3.0 * st_d1["lin_ratio"],
+          "%.2f vs %.2f" % (st_d2["lin_ratio"], st_d1["lin_ratio"]))
+    # D3 ⛔ band 覆盖全域 ⇒ 局部=全域 ⇒ lin_ratio 必须恰为 1
+    st_d3 = M.analyze(wide, d2, np.zeros_like(d2), band=200.0)
+    check("D3 ⛔ band=200 覆盖全域 ⇒ lin_ratio 恰为 1（否则分段写错了）",
+          abs(st_d3["lin_ratio"] - 1.0) < 1e-9, "实得 %.9f" % st_d3["lin_ratio"])
+    # D4 ⛔ 局部带点数不足 ⇒ 必须是 nan 而**不是**悄悄当成 1
+    st_d4 = M.analyze(np.linspace(-120.0, 120.0, 6), np.zeros(6), np.zeros(6), band=5.0)
+    check("D4 ⛔ 局部点不足 ⇒ lin_ratio 为 nan（不许静默给 1）",
+          st_d4["lin_ratio"] != st_d4["lin_ratio"], "实得 %r" % st_d4["lin_ratio"])
+    # D5 两段斜率应当彼此接近（同一个真斜率）
+    check("D5 局部斜率与全域斜率相差 < 50%%（%.6f vs %.6f）"
+          % (st_d1["slope_local"], st_d1["slope"]),
+          abs(st_d1["slope_local"] - st_d1["slope"]) / abs(st_d1["slope"]) < 0.5,
+          "%.6f vs %.6f" % (st_d1["slope_local"], st_d1["slope"]))
+
     print("\n=== 汇总 ===")
     if FAILS:
         print("RESULT r204_noise_selftest  FAIL  %d/%d 项红：%s"

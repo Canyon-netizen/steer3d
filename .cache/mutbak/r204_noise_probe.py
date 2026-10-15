@@ -60,7 +60,7 @@ CONTROL_ID = 279          # ' the '
 LAYER = 20
 
 
-def analyze(alphas, dm, dc, gap=None):
+def analyze(alphas, dm, dc, gap=None, band=60.0):
     """把一条 α 扫描折成 {slope, resid_std, n_distinct, min_adj_diff, …}。
 
     ⚠⚠⚴ 抽出来是为了**能在无 GPU 的合成数据上自检** ——
@@ -88,9 +88,26 @@ def analyze(alphas, dm, dc, gap=None):
     ad = ad[ad != 0.0]
     ac = np.abs(np.diff(dc))
     ac = ac[ac != 0.0]
+    # ---- 两段拟合：局部(±band) vs 全域 ⇒ 线性还成不成立 ----
+    # ⚠⚠⚴ 只报一个 resid_std 不够：若扫域比 P9 的工作区间大，
+    # ⚠⚠⚴ 那个残差里混着「噪声」与「非线性」两样东西，分不开。
+    # ⚗⇒ 同时做两段：局部带残差 ≈ 纯噪声；全域残差 ÷ 局部残差
+    # ⚗   ≈ 1 ⇒ 线性成立；显著 >1 ⇒ 大剂量处弯了。
+    m = np.abs(alphas) <= band
+    if int(m.sum()) >= 5 and float(alphas[m].std()) > 0:
+        cl, *_ = np.linalg.lstsq(A[m], dm[m], rcond=None)
+        rl = dm[m] - A[m].dot(cl)
+        rstd_local = float(rl.std(ddof=1))
+        slope_local = float(cl[0])
+    else:
+        rstd_local, slope_local = float("nan"), float("nan")
     out = {
         "slope": float(coef[0]),
         "resid_std": float(resid.std(ddof=1)),
+        "slope_local": slope_local,
+        "resid_std_local": rstd_local,
+        "lin_ratio": (float(resid.std(ddof=1)) / rstd_local)
+                     if rstd_local == rstd_local and rstd_local > 0 else float("nan"),
         "n_distinct": int(len({round(float(x), 9) for x in dm})),
         "min_adj_diff": float(ad.min()) if ad.size else 0.0,
         "ctl_n_distinct": int(len({round(float(x), 9) for x in dc})),
@@ -179,7 +196,7 @@ def run_cell(a):
         dm.append(lse_t(lg[mk]) - b_mark)
         dc.append(lse_t(lg[ctl]) - b_ctl)
 
-    st = analyze(alphas, dm, dc, gap=a.gap)
+    st = analyze(alphas, dm, dc, gap=a.gap, band=a.band)
     out = {"tid": a.tid, "pos_frac": a.pos_frac, "t": t, "n_gen": n, "P": P,
            "n_steps": int(a.n_steps)}
     out.update(st)
@@ -233,6 +250,7 @@ def run_driver(a):
                    "--labels", a.labels, "--w", a.w, "--tid", tid,
                    "--pos-frac", str(fr), "--n-steps", str(a.n_steps),
                    "--alpha-max", str(a.alpha_max)]
+            cmd += ["--band", str(a.band)]
             if a.gap is not None:
                 cmd += ["--gap", str(a.gap)]
             if a.gpu_uuid:
@@ -293,6 +311,8 @@ def main():
     ap.add_argument("--n-steps", type=int, default=60)
     ap.add_argument("--alpha-max", type=float, default=120.0,
                     help="⚠ 必覆盖 P9 的最高剂量 α=1.0×class_gap（≈113.5）")
+    ap.add_argument("--band", type=float, default=60.0,
+                    help="局部拟合带（±band）；band < alpha-max 才能分辨非线性")
     ap.add_argument("--gap", type=float, default=None,
                     help="w 的 class_gap（取自 w*.npy.json）。给了就额外报 P9 量")
     ap.add_argument("--out", default=None)
