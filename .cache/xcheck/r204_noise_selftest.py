@@ -146,6 +146,68 @@ def main():
             print("      %s 抛异常：%r" % (nm, e))
         check("A6 %s 不得抛异常" % nm, ok)
 
+    print("\n=== B：P9 相关量（α=rel×gap）===")
+    # ⚠⚠⚴ 第一遍扫描只到 ±60，而 gap≈113 ⇒ α=1.0·gap **落在扫域外**。
+    # ⚠⚠⚴ 在外推区报出的 se 若不随外推距离变大，那个 se 就是装饰。
+    GAP = 113.474
+    dm = true_slope * alphas + rng.normal(0.0, 0.05, alphas.size)
+    st_out = M.analyze(alphas, dm, np.zeros_like(dm), gap=GAP)
+    check("B1 给了 gap 才报 P9 量（不给就没有这些键）",
+          "p9_hi" in st_out and "p9_up_mono" in st_out)
+
+    small_gap = 30.0                      # α_hi=30 落在 ±60 之内
+    st_in = M.analyze(alphas, dm, np.zeros_like(dm), gap=small_gap)
+    check("B2 ⛔ 外推（gap=113）时 p9_se_hi 必须**大于**域内（gap=30）",
+          st_out["p9_se_hi"] > st_in["p9_se_hi"],
+          "外推 %.4f vs 域内 %.4f" % (st_out["p9_se_hi"], st_in["p9_se_hi"]))
+    # 手算：se(x) = rstd·sqrt(1 + 1/n + (x−x̄)²/Sxx)
+    n = alphas.size
+    xbar = float(alphas.mean()); sxx = float(((alphas - xbar) ** 2).sum())
+    rstd_in = st_in["resid_std"]
+    # ⚠⚠⚴ 第一版这里拿 `p9_se_lo`（在 α=**0.5**·gap）去比按 **1.0**·gap 算的手算
+    # ⚠⚠⚴ ⇒ 差 0.4%。**是我的尺子用错了 x**，不是代码错。
+    hand = rstd_in * (1.0 + 1.0 / n + (0.5 * small_gap - xbar) ** 2 / sxx) ** 0.5
+    check("B3 p9_se_lo 与手算公式逐位一致（x 取 0.5·gap）",
+          abs(st_in["p9_se_lo"] - hand) < 1e-12,
+          "实得 %.9f 手算 %.9f" % (st_in["p9_se_lo"], hand))
+    hand_hi = rstd_in * (1.0 + 1.0 / n + (1.0 * small_gap - xbar) ** 2 / sxx) ** 0.5
+    check("B3b p9_se_hi 与手算一致（x 取 1.0·gap）",
+          abs(st_in["p9_se_hi"] - hand_hi) < 1e-12,
+          "实得 %.9f 手算 %.9f" % (st_in["p9_se_hi"], hand_hi))
+
+    print("\n=== C：P9 单调判据的符号 ===")
+    for slp, want in ((0.0039, True), (-0.0039, False)):
+        d2 = slp * alphas + rng.normal(0.0, 0.05, alphas.size)
+        st2 = M.analyze(alphas, d2, np.zeros_like(d2), gap=GAP)
+        check("C 斜率 %+.4f ⇒ p9_up_mono=%s" % (slp, want),
+              st2["p9_up_mono"] is want, "实得 %r" % st2["p9_up_mono"])
+    # ⛔ 关键：p9_up_mono 只看**斜率符号**，与噪声大小无关 ——
+    # ⛔ 所以它是一个**确定性**判据；噪声影响的是另一个判据（比随机方向大）。
+    # ⛔ 斜率恰为 0 时「我期望 True」是**没有依据的**：拟合斜率是纯噪声，
+    # ⛔ 符号随机。⇒ 真正该测的是它的**通过率**。
+    nz = M.analyze(alphas, true_slope * alphas + rng.normal(0.0, 0.05, alphas.size),
+                   np.zeros(alphas.size), gap=GAP)
+    check("C ⛔ p9_up_mono 必须**恒等于**「拟合斜率 ≥ 0」（这是它真正在做的事）",
+          nz["p9_up_mono"] == (nz["slope"] >= 0.0),
+          "up_mono=%r slope=%r" % (nz["p9_up_mono"], nz["slope"]))
+    hits = 0
+    T = 400
+    for _ in range(T):
+        d0 = rng.normal(0.0, 0.05, alphas.size)      # 真斜率 0
+        st0 = M.analyze(alphas, d0, np.zeros(alphas.size), gap=GAP)
+        hits += 1 if st0["p9_up_mono"] else 0
+    rate = hits / float(T)
+    print("      （零效应下 p9_up_mono 通过率 = %.1f%%，n=%d 次）" % (100 * rate, T))
+    check("C ⛔⛔ 零效应下通过率必须落在 40%%–60%%（⇒ 它是**掷硬币**，不是判据）",
+          0.40 <= rate <= 0.60, "实得 %.1f%%" % (100 * rate))
+    noisy = true_slope * alphas + rng.normal(0.0, 0.5, alphas.size)   # 噪声 10 倍
+    st3 = M.analyze(alphas, noisy, np.zeros_like(noisy), gap=GAP)
+    check("C ⛔ 噪声放大 10 倍仍照符号判（说明它**不是**一个抗噪判据）",
+          st3["p9_up_mono"] is True, "实得 %r" % st3["p9_up_mono"])
+    check("C ⛔ 但 margin_se 必须随噪声变大而变小（抗噪度体现在这里）",
+          st3["p9_margin_se"] < st_out["p9_margin_se"],
+          "噪声大 %.4f vs 原 %.4f" % (st3["p9_margin_se"], st_out["p9_margin_se"]))
+
     print("\n=== 汇总 ===")
     if FAILS:
         print("RESULT r204_noise_selftest  FAIL  %d/%d 项红：%s"

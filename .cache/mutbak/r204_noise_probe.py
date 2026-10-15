@@ -60,13 +60,22 @@ CONTROL_ID = 279          # ' the '
 LAYER = 20
 
 
-def analyze(alphas, dm, dc):
+def analyze(alphas, dm, dc, gap=None):
     """把一条 α 扫描折成 {slope, resid_std, n_distinct, min_adj_diff, …}。
 
     ⚠⚠⚴ 抽出来是为了**能在无 GPU 的合成数据上自检** ——
     ⚠⚠⚴ 「残差 std 算得对不对」这件事本身此前从未被验过，
     ⚠⚠⚴ 而它是修订 201 §201.5 要测的那个量的**定义**。
     ⚗⇒ 见 `r204_noise_selftest.py`（四组：已知噪声 / 无噪声 / 量化台阶 / 斜率复原）。
+
+    ⚠⚠⚴ `gap` 给了之后额外报 **P9 相关量**：
+    ⚠⚠⚴ P9 的剂量是 `α = rel × class_gap`，rel ∈ {0.5, 1.0}。gap≈113 ⇒
+    ⚠⚠⚴ **α=113.5 那一档落在第一遍的扫域（±60）之外**，
+    ⚠⚠⚴ 那个域里量到的斜率**不能**替 P9 说话。⚗ 本函数因此显式报：
+      p9_lo / p9_hi   线性拟合在 α=0.5·gap 与 α=1.0·gap 处的**预测**读数
+      p9_se_hi        该预测的**标准误**（含残差与外推距离两项）
+      p9_up_mono      预测是否满足 P9 的「+w 随剂量升」
+      p9_margin_se    两档预测差 / 标准误（≳1 才谈得上「压得住噪声」）
     """
     import numpy as np
     alphas = np.asarray(alphas, dtype=float)
@@ -79,7 +88,7 @@ def analyze(alphas, dm, dc):
     ad = ad[ad != 0.0]
     ac = np.abs(np.diff(dc))
     ac = ac[ac != 0.0]
-    return {
+    out = {
         "slope": float(coef[0]),
         "resid_std": float(resid.std(ddof=1)),
         "n_distinct": int(len({round(float(x), 9) for x in dm})),
@@ -89,6 +98,22 @@ def analyze(alphas, dm, dc):
         "dm_min": float(dm.min()),
         "dm_max": float(dm.max()),
     }
+    if gap:
+        n = alphas.size
+        xbar = float(alphas.mean())
+        sxx = float(((alphas - xbar) ** 2).sum())
+        rstd_ = out["resid_std"]
+        a_lo, a_hi = 0.5 * gap, 1.0 * gap
+        f = lambda x: float(coef[0] * x + coef[1])
+        se = lambda x: rstd_ * float(np.sqrt(1.0 + 1.0 / n + (x - xbar) ** 2 / sxx))
+        out.update({
+            "gap": float(gap),
+            "p9_lo": f(a_lo), "p9_hi": f(a_hi),
+            "p9_se_lo": se(a_lo), "p9_se_hi": se(a_hi),
+            "p9_up_mono": bool(f(a_hi) >= f(a_lo)),
+            "p9_margin_se": abs(f(a_hi) - f(a_lo)) / se(a_hi) if se(a_hi) > 0 else float("inf"),
+        })
+    return out
 
 
 def run_cell(a):
@@ -154,7 +179,7 @@ def run_cell(a):
         dm.append(lse_t(lg[mk]) - b_mark)
         dc.append(lse_t(lg[ctl]) - b_ctl)
 
-    st = analyze(alphas, dm, dc)
+    st = analyze(alphas, dm, dc, gap=a.gap)
     out = {"tid": a.tid, "pos_frac": a.pos_frac, "t": t, "n_gen": n, "P": P,
            "n_steps": int(a.n_steps)}
     out.update(st)
@@ -205,6 +230,8 @@ def run_driver(a):
                    "--labels", a.labels, "--w", a.w, "--tid", tid,
                    "--pos-frac", str(fr), "--n-steps", str(a.n_steps),
                    "--alpha-max", str(a.alpha_max)]
+            if a.gap is not None:
+                cmd += ["--gap", str(a.gap)]
             if a.gpu_uuid:
                 cmd += ["--gpu-uuid", a.gpu_uuid]
             p = subprocess.run(cmd, capture_output=True, text=True)
@@ -214,9 +241,15 @@ def run_driver(a):
                       % (tid, fr, p.returncode, (p.stderr or p.stdout)[-300:]))
                 continue
             rows.append(json.loads(line[-1]))
-            print("  [%d/%d] %s pos=%.2f  resid_std=%.6f"
+            r = rows[-1]
+            extra = ""
+            if "p9_up_mono" in r:
+                extra = ("  p9: lo=%+.4f±%.4f hi=%+.4f±%.4f mono=%s margin=%.2fSE"
+                         % (r["p9_lo"], r["p9_se_lo"], r["p9_hi"], r["p9_se_hi"],
+                            r["p9_up_mono"], r["p9_margin_se"]))
+            print("  [%d/%d] %s pos=%.2f  resid=%.6f  slope=%+.6f%s"
                   % (len(rows), len(tids) * len(fracs), tid, fr,
-                     rows[-1]["resid_std"]))
+                     r["resid_std"], r["slope"], extra))
 
     if a.out:
         with open(a.out, "w", newline="", encoding="utf-8") as fh:
@@ -255,7 +288,10 @@ def main():
     ap.add_argument("--pos-fracs", default="0.25,0.5,0.75")
     ap.add_argument("--n-traj", type=int, default=5)
     ap.add_argument("--n-steps", type=int, default=60)
-    ap.add_argument("--alpha-max", type=float, default=60.0)
+    ap.add_argument("--alpha-max", type=float, default=120.0,
+                    help="⚠ 必覆盖 P9 的最高剂量 α=1.0×class_gap（≈113.5）")
+    ap.add_argument("--gap", type=float, default=None,
+                    help="w 的 class_gap（取自 w*.npy.json）。给了就额外报 P9 量")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
 
