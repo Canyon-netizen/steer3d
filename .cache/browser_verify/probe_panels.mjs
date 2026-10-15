@@ -20,6 +20,10 @@ import { launch, Page, CDP } from './cdp_client.mjs';
  *     交互后仍不渲染」这一类（C7）—— 本轮发现的那块
  *     「为什么最后吐出的是这个词」正是这一类，旧的探针看不见它。
  */
+// ⚠⚠⚴ 就绪等待抽成独立模块（ready_wait.mjs）——原循环内联且超时后静默继续，
+//   产物里没有任何字段能区分「等到了」与「空等 24 秒」。
+import { waitReady, readyWhenAttr, readyWhenPresent } from './ready_wait.mjs';
+
 const URL = process.env.BV_URL || 'http://127.0.0.1:21540/';
 const OUT = process.env.PROBE_OUT
   || '/Users/zhourui/code/steer3d/.cache/browser_verify/panel_blocks.json';
@@ -57,13 +61,30 @@ try {
 
   // 等就绪信号。⚠ 根页原来写死等 data-outcome=ready，latent 页没有这个属性，
   //   照抄会空转 24 秒然后照常收工 —— 「等超时」和「等到了」长得一模一样。
-  for (let i = 0; i < 20; i++) {
-    const s = await page.eval(READY_ATTR
-      ? `(document.querySelector('[${READY_ATTR}]')||{getAttribute:()=>''})`
-        + `.getAttribute('${READY_ATTR}')||''`
-      : `!!document.querySelector('${READY_SEL}')`);
-    if (READY_ATTR ? s === 'ready' : s) break;
-    await sleep(1200);
+  //
+  // ⚠⚠⚴ **自报**（本轮补）：原循环超时后直接往下走，产物里**没有任何字段**
+  // ⚠⚠⚴ 能告诉读者「到底等到了没有」⇒ 「等到了」与「等了 24 秒什么也没等到」
+  // ⚠⚠⚴ 被当成同一件事。⚗ 三个字段进产物与控制台：readyOK / readyAttr /
+  // ⚗   readyWaitedMs。⚠ 等不到**不是**失败，只是必须可见。
+  const READY_MAX_MS = 24000, READY_POLL_MS = 1200;
+  const readReady = () => page.eval(READY_ATTR
+    ? `(document.querySelector('[${READY_ATTR}]')||{getAttribute:()=>''})`
+      + `.getAttribute('${READY_ATTR}')||''`
+    : `!!document.querySelector('${READY_SEL}')`);
+  const R = await waitReady(readReady,
+    READY_ATTR ? readyWhenAttr(READY_ATTR) : readyWhenPresent,
+    { maxMs: READY_MAX_MS, pollMs: READY_POLL_MS, sleep });
+  const readyOK = R.ok;
+  const readyAttrVal = String(R.last ?? '');
+  const readyWaitedMs = R.waitedMs;
+  if (!readyOK) {
+    console.log('⚠⚠⚴ **就绪信号等了 %dms 没等到**（轮询 %d 次）—— '
+      + '这一轮读的是**未就绪**的页面。%s',
+      readyWaitedMs, R.polls,
+      READY_ATTR
+        ? `选择器 [${READY_ATTR}="ready"] 最后读到 "${readyAttrVal}"`
+        : `选择器 ${READY_SEL} 最后读到 ${readyAttrVal}`);
+    console.log('   ⚗ 下面的块清单因此**不可**当作「页面完整内容」的证据。');
   }
 
   const B = JSON.parse(await page.eval(`(() => {
@@ -518,6 +539,11 @@ try {
 
   fs.writeFileSync(OUT, JSON.stringify({
     page: IS_LATENT ? 'latent' : 'root', url: URL,
+    // ⚠⚠⚴ 就绪自报：⚗ readyOK=false 时，下面 byDepth/unmarked 全部是
+    // 「**未就绪**页面」上的读数，不是「页面完整内容」的证据。
+    // ⚠ 不写这三个字段的话，读者无法区分「等到了」与「空等 24 秒」。
+    readyOK, readyAttr: READY_ATTR ? READY_ATTR + '=' + readyAttrVal
+      : (READY_SEL + '=' + readyAttrVal), readyWaitedMs,
     byDepth: B, unmarked, census: CENSUS, thresh: THRESH,
     vol: vol,
     beforeNames, afterNames, appeared, clicked: clickSweep.length,
@@ -535,6 +561,9 @@ try {
   }
   console.log('已写出 %s（page=%s，加载后 %d 个标记 / 交互后 %d 个）',
               OUT, IS_LATENT ? 'latent' : 'root', beforeNames.length, afterNames.length);
+  console.log('　就绪自报：%s（等 %dms，读到 %s）',
+              readyOK ? '✅ 等到了' : '⚠⚠⚴ 没等到（本轮读的是未就绪页面）',
+              readyWaitedMs, readyAttrVal || '(空)');
   console.log('　本轮 WebGL：请求=%s 实得=%s%s',
               WEBGL_FLAGS.length ? '开' : '关（默认）',
               WEBGL.available ? '可用' : '**不可用**',
