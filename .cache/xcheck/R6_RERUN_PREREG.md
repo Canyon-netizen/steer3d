@@ -27647,3 +27647,107 @@ A3 ⛔⛔ 判据必须对这两种情形给出**相反**结论；A6 ⛔ 变异 `
     python3 -c "import csv,statistics as st;S={ (r['tid'],r['pos_frac']):r for r in csv.DictReader(open('.cache/mutbak/r208_meas.tsv',encoding='utf-8')) };A={ (r['tid'],r['pos_frac']):r for r in csv.DictReader(open('.cache/mutbak/r210_all10.tsv',encoding='utf-8')) };ks=sorted(set(S)&set(A));p=[(float(S[k]['resid_std']),float(A[k]['resid_std'])) for k in ks];print('升',sum(1 for s,a in p if a>s),'降',sum(1 for s,a in p if a<s));print('中位数之比 %.4f  逐格比值中位 %.4f'%(st.median([a for _,a in p])/st.median([s for s,_ in p]),st.median([a/s for s,a in p])));print('跨度 %.2fx -> %.2fx'%(max(s for s,_ in p)/min(s for s,_ in p),max(a for _,a in p)/min(a for _,a in p)))"
 
 ⚠ 数据未改动；本条**纯离线复核**，无新脚本、无新 GPU 消耗。
+
+---
+
+## 修订 218 —— ⚠⚠⚔ **P6 读数来源用的正是被证明「与流水线不是同一个量」的那个口径**
+
+### §218.1 起因：一句被当成安全的话，其实掩盖了一个错
+
+账本里出现了 200 多遍这样一句：
+
+    ⛔ 本节**没有**动 §P6 的任何口径（剂量、注入层、pos_offset、U 检验定义全未动）。
+
+⚠⚠⛔ 这句话**是真的**，而且正是它让人放心。
+⚠⚠⛔ 但它问的是「有没有改」，⛔⛔ **没问「原来那个对不对」**。
+⚖⇒ 「一个字没改」≠「改对了」。不动只能保证没引入新错，不能保证没有旧错。
+
+### §218.2 读代码，不靠转述：P6 的读数是谁产的
+
+`p6_u_test.py` 自己写得很清楚（docstring 第 14 行）：
+
+    ⚠⚠⚴ 本脚本**只做算术，不产生读数**。读数必须来自 `r6_rerun.py` 的全量产物
+
+⇒ 真正的读数来源是 `.cache/mutbak/r6_rerun.py:284-305`：
+
+    def logits_at(ids, t, vec, alpha):
+        blk = model.model.layers[LAYER]
+        inj = len(ids) - 1
+        def pre(mod, inp):
+            ...
+            h[:, inj, :] = h[:, inj, :] + alpha * v      # ⛔ 单点注入
+        ...
+        o = model(input_ids=ids.unsqueeze(0), use_cache=False, ...)   # ⛔ 纯 prefill
+
+⚖ 与 `run_intervention.ResidualSteerer._hook` 对照（`run_intervention.py:176`，实测行号）：
+
+    return (x + self.vector,) + tuple(inputs[1:])      # vector 形状 (1, 1, -1)，广播到**所有**位置
+
+⇒ ⛔⛔ **`r6_rerun.py` 注入到 1 个位置；真实流水线注入到所有位置。**
+⇒ ⛔⛔ `r6_rerun.py` 只做一次 `use_cache=False` 的 prefill；真实流水线是 256 步增量解码。
+
+### §218.3 这**不是**某个副本的笔误
+
+⛔ 三份 `r6_rerun.py` 的注入代码**逐行相同**（都在第 284 / 296 / 303 行）：
+
+    .cache/mutbak/r6_rerun.py
+    .cache/bpath/r6_rerun.py
+    .cache/bpath/results_B/r6_rerun.py
+
+⚠ `mutbak` 与 `bpath` 两份的 md5 **不同**，差异在别处 ——
+`mutbak` 多了 `finalize()`，那是修订 195「把 P9 闸接到退出码」的修。
+⇒ **口径不受该差异影响**，结论对三份都成立。
+
+### §218.4 这正是修订 209/210 判定「不是同一个量」的那个口径
+
+| 修订 | 结论 |
+|---|---|
+| 209 | 因子实验：探针与流水线的差异**只来自注入范围**（单点 vs 全位置）；`no_grad`/`use_cache` 贡献为 **0** |
+| 210 | 加 `--inject-scope all` 后与流水线 **20/20 逐位一致**；`single` 口径下 **10 格判决 0/10 翻转** |
+| 215 | 同一输入上口径差中位 0.14；256 步下 fed 链 **19/20 分叉**；口径还改「生成会不会提前结束」 |
+| 217 | `all` 口径下 resid_std 格间跨度 **8.01×** ⇒ 没有标量噪声底 |
+
+⇒ ⛔⛔ `r6_rerun.py` 跑出来的 P6 读数，是**流水线永远不会产生的那一个量**，
+⛔⛔ 而且差得足以让 10 格的 P9 判决**全部翻转**。
+
+### §218.5 ⚠⚠ 但这不是「P6 写错了」——是预登记**本来就**这么定的
+
+§P5 规格原文：
+
+    注入在 `t−1`，读 `t`（沿用旧实验的 OFF=1）。
+
+ⓘ 单点、`OFF=1`、prefill 读数 —— 这是**预登记时就写死的**，
+ⓘ 不是后来某次修改引入的。⚠⚠ **所以这不是 bug，是预登记与真实流水线之间的口径差。**
+⚖⇒ 问题的性质是：**P6 测的是一个代理量，而那个代理量与部署系统的注入语义不同。**
+
+### §218.6 因此，P6 那个待拍板项多了一个**此前没被看见的轴**
+
+⚠⚠⛔ 挂了很久的那句「按**原口径**跑 P6 全量 + 如实披露功效不足」，
+⚠⚠⛔ 其中的「原口径」**现在是有歧义的**，而且两条路的代价差别很大：
+
+| 选项 | 做什么 | 代价 |
+|---|---|---|
+| **① 保持 `single`** | P6 继续按预登记的单点注入跑 | ⚠⚠⚔ 忠实于预登记，但测的是**流水线不产生的量**；且**已知与 P9 判决 0/10 翻转相关** |
+| **② 改成 `all`** | P6 改成全位置广播 | ⚠⚠⚔ 与流水线一致（探针已验 5140/5140），但这是**偏离预登记**，属协议变更，需给出理由 |
+| **③ 两套都跑并报差** | 同批数据出两个口径的 U 检验 | ⚠ 成本约 2×，但把「口径」这个变量变成**可测的**而不是先验假设 |
+
+⛔⛔ **这三条是规则选择，助手不替用户选。**
+⚖ 本节只负责把「原来那个口径是哪一个、它与流水线差多少」摆出来。
+
+### §218.7 这条**不能**被读成什么
+
+1. ⛔⛔ **本节没有跑 P6**，也没有改 `r6_rerun.py` 的任何一行。
+2. ⛔⛔ 本节**不主张** P6 的预登记口径是错的 —— 它是预登记**明写**的。
+   本节只主张：**它与真实流水线的注入语义不同，而账本此前没有把这件事记下来。**
+3. ⛔⛔ 「10 格判决 0/10 翻转」是 **P9** 的判决，不是 P6 的。
+   ⛔ P6 的 U 检验在两个口径下会怎么变，**未测**。
+
+### §218.8 复现
+
+⛔ 命令一律写成**单行**。
+
+    grep -n "h\[:, inj, :\] + alpha \* v" .cache/mutbak/r6_rerun.py .cache/bpath/r6_rerun.py .cache/bpath/results_B/r6_rerun.py
+
+    grep -n "return (x + self.vector,)" backend/examples/run_intervention.py
+
+⚠ 数据未改动；本条**纯静态代码核查**，无 GPU 消耗。
