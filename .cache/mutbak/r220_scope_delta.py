@@ -46,12 +46,25 @@ PROVENANCE_KEYS = ("inject_scope", "pos_ok", "device_validated", "dose_source",
 
 
 def _sign_test(n_pos, n_neg):
-    """符号检验：z = (n_pos - n_neg)/sqrt(n)，双尾 p 用 erf。分母为 0 返回 None。"""
+    """符号检验。返回 (z, p)：`z` 是方向统计量，`p` 是**精确**双尾二项。
+
+    ⚠⚠⁴ `p` **不用**正态近似 `erfc(|z|/√2)`。
+    ⚖ 2026-10-17 实测：n=4 全同向时正态近似给 **p=0.0455**，
+    ⚖ 而精确值是 **2/2⁴ = 0.125** —— ⚠⚠ 那个值**比理论下界还小**，
+    ⚖ 等于报出了一个 n=4 下**不可能达到**的显著水平。
+    ⚖⇒ 小样本符号检验必须用精确二项；任何时候 `p >= 2/2^n` 都应成立。
+    ⚖ 分母为 0 返回 (None, None)。
+
+    ⚗ `z` 仍然照报，但 ⚠ 它**不是** p 的计算依据（小 n 时不可用）。
+    """
     n = n_pos + n_neg
     if n == 0:
         return None, None
     z = (n_pos - n_neg) / math.sqrt(n)
-    p = math.erfc(abs(z) / math.sqrt(2.0))
+    k = min(n_pos, n_neg)
+    obs = math.comb(n, k)
+    probs = [math.comb(n, j) for j in range(n + 1)]
+    p = sum(c for c in probs if c <= obs) / float(2 ** n)
     return z, p
 
 

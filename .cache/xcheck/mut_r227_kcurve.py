@@ -61,6 +61,11 @@ MUTATIONS = [
     # G7 把功效下界公式改成常数 0 ⇒ K10 该红
     ("G7", "lb = 2.0 ** (1 - n)",
      "lb = 0.0", "K10"),
+    # G8 把**精确**二项换回正态近似 ⇒ K14 该红
+    # ⚠⚠ 2026-10-17 真机读数时撞出来的：近似在 n=4 全同向给 p=0.0455，
+    # ⚖ 而理论下界是 0.125 —— 一个**不可能达到**的显著水平。
+    ("G8", "p = sum(c for c in probs if c <= obs) / float(2 ** n)",
+     "p = math.erfc(abs((pos - neg) / math.sqrt(n)) / math.sqrt(2.0))", "K14"),
 ]
 
 
@@ -120,10 +125,19 @@ def find_code_line(src, needle):
             % (len(hits), detail))
     lineno, line = hits[0]
     col = line.index(needle)
+    # ⚠ needle 的起点**不许落在前导空白里**：函数体延续行上 col 0 那里
+    # ⚖ **没有 token**（Python 只在缩进列变大时发 INDENT）⇒ 指到那里得 None。
+    # ⚖ ⚠ 但 needle 起点落在**行中**（如 docstring 内部）是合法的，别误伤。
+    lead = len(line) - len(line.lstrip())
+    if col < lead:
+        raise AssertionError(
+            "needle 指到第%d行第%d列，落在前导缩进里（前导空白占 %d 列）"
+            "⇒ 请去掉 needle 的前导空格" % (lineno, col, lead))
     tok_type, tok_str = token_at(src, lineno, col)
     if tok_type is None:
-        raise AssertionError("第%d行第%d列没落在任何 token 上 ⇒ 定位器坏了，先停下"
-                             % (lineno, col))
+        raise AssertionError(
+            "第%d行第%d列没落在任何 token 上（多半是指到了空白/标点之间的缝）"
+            "⇒ 先停下重新定位" % (lineno, col))
     if _is_prose(tok_type):
         raise AssertionError("第%d行第%d列落在**散文** token（%s）上，不是代码：%s"
                              % (lineno, col,

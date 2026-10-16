@@ -67,22 +67,32 @@ def _median(xs):
 
 
 def sign_test(deltas):
-    """符号检验。返回 (z, p, n_pos, n_neg, n_tie, p_lower_bound)。
+    """**精确**双尾符号检验。返回 (p, n_pos, n_neg, n_tie, p_lower_bound, z)。
 
-    ⚠ p_lower_bound = 2/2^n 是 n 个全同向时**最小可能**的 p。
-    ⚖ 它 > 0.05 ⇒ 这套设计**结构上没有能力**在 0.05 上给结论，
-    ⚖ 再加轨迹数也救不了 —— 只能去拿更多**独立问题**。
+    ⚠⚠⁴ 这里**不许用正态近似** `erfc(|z|/√2)`。
+    ⚖ 2026-10-17 实测：n=4 全同向时正态近似给 **p=0.0455**，
+    ⚖ 而精确值是 **2/2⁴ = 0.125** —— ⚠⚠ 那个近似值**比理论下界还小**，
+    ⚖ 也就是说它报出了一个**在 n=4 下不可能达到**的显著水平。
+    ⚖⇒ 小样本符号检验必须用精确二项，任何时候 p ≥ 2/2^n 都应成立；
+    ⚖ 若报出的 p 小于下界，那不是统计结论，是伪影。
+
+    ⚖ p_lower_bound = 2/2^n 是 n 个全同向时**最小可能**的 p。
+    ⚖ 它 > 0.05 ⇒ 这套设计**结构上没有能力**在 0.05 上给结论。
     """
     pos = sum(1 for d in deltas if d > 0)
     neg = sum(1 for d in deltas if d < 0)
     tie = sum(1 for d in deltas if d == 0)
     n = pos + neg
     if n == 0:
-        return None, None, pos, neg, tie, None
-    z = (pos - neg) / math.sqrt(n)
-    p = math.erfc(abs(z) / math.sqrt(2.0))
+        return None, pos, neg, tie, None, None
+    k = min(pos, neg)
+    # ⚖ 精确双尾：把所有「不比观测到的更可能」的结果都算进去
+    obs = math.comb(n, k)
+    probs = [math.comb(n, j) for j in range(n + 1)]
+    p = sum(c for c in probs if c <= obs) / float(2 ** n)
     lb = 2.0 ** (1 - n)
-    return z, p, pos, neg, tie, lb
+    z = (pos - neg) / math.sqrt(n)
+    return p, pos, neg, tie, lb, z
 
 
 # ---------------------------------------------------------------- 解析
@@ -351,39 +361,47 @@ def report(r, verbose=True):
                 L.append("     %-10s %5.1f%%       %+.4f      %+.4f"
                          % (sc, frac, rr["p9_lo_meas"], rr["p9_hi_meas"]))
 
-    # 【2】漂移与抖动对比 —— 报趋势前必须过这一关
-    L.append("\n【2】漂移 vs 抖动尺（判决用**相邻档差**，极差只作参考）")
-    L.append("     %-28s %-11s %-11s %-10s %-10s"
-             % ("tid", "single→all", "k_hi→all", "相邻档差", "极差"))
+    # 【2】两个**不同的问题**，必须分开读
+    L.append("\n【2】两个不同的问题（⚠⚠ 别把它们当同一条曲线上的两点看）")
+    L.append("    ⚠⚠ `single` 注入的是 prefix 的**最后一位**（inj = n_eff−1），")
+    L.append("    ⚖ 而 `k=1` 挑的是种子 0 置换里的某个位置 ⇒ **位点身份不同**。")
+    L.append("    ⚗ 所以 `single→all` 那列是**口径差**（修订 219–221 那个问题），")
+    L.append("    ⚗ ⛔ **不是**剂量曲线上的一点。剂量问题只看 `k_hi→all`。")
+    L.append("     %-28s %-15s %-15s %-10s %-10s"
+             % ("tid", "k_hi→all(剂量)", "single→all(口径)", "相邻档差", "极差"))
     for t in r["tids"]:
         p = r["per"][t]
         d1 = p["drift_single_all"]
         d2 = p["drift_khi_all"]
-        L.append("     %-28s %-11s %-11s %-10s %-10s"
+        L.append("     %-28s %-15s %-15s %-10s %-10s"
                  % (t,
-                    "%+.4f" % d1 if d1 is not None else "未量到",
                     "%+.4f" % d2 if d2 is not None else "未量到",
+                    "%+.4f" % d1 if d1 is not None else "未量到",
                     "%.4f" % p["jitter"] if p["jitter"] is not None else "未量到",
                     "%.4f" % p["span"] if p["span"] is not None else "未量到"))
     L.append("")
     for t in r["tids"]:
         p = r["per"][t]
-        L.append("     %-28s k_hi: %s" % (t, p["verdict_khi"]))
-        L.append("     %-28s single: %s" % (t, p["verdict_single"]))
+        L.append("     %-28s k_hi(剂量): %s" % (t, p["verdict_khi"]))
+        L.append("     %-28s single(口径): %s" % (t, p["verdict_single"]))
 
-    # 【3】分层符号检验
-    L.append("\n【3】符号检验（k_hi→all 的漂移）—— ⚠ 轨迹 ≠ 独立问题")
+    # 【3】分层符号检验（**精确**二项，⛔ 不用正态近似）
+    L.append("\n【3】符号检验（k_hi→all 的漂移，剂量问题）—— ⚠ 轨迹 ≠ 独立问题")
+    L.append("    ⚖ **精确**双尾二项符号检验。⛔ 小 n 时正态近似会给出**比理论下界还小**")
+    L.append("       的 p（n=4 全同向：近似 0.0455 vs 精确 0.125）⇒ 那是伪影不是结论。")
     for name, st, n, label in (("轨迹级", r["traj"], len(r["tids"]), "轨迹"),
                                ("问题级", r["prob"], r["n_problems"], "问题")):
-        z, p_, pos, neg, tie, lb = st
-        if z is None:
+        p_, pos, neg, tie, lb, z = st
+        if p_ is None:
             L.append("     %s：⛔ 无漂移读数，没法检验（不是「无差异」）" % name)
             continue
-        L.append("     %s n=%-3d 正%2d/负%2d/零%2d  z=%+.2f  p=%.4g"
-                 % (name, pos + neg, pos, neg, tie, z, p_))
+        L.append("     %s n=%-3d 正%2d/负%2d/零%2d  p=%.4g（精确）"
+                 % (name, pos + neg, pos, neg, tie, p_))
         L.append("            功效下界 2/2^n = %.3g%s"
                  % (lb, "   ⚠⚠ > 0.05 ⇒ 这套设计结构上到不了 0.05"
                     if lb > 0.05 else ""))
+        if p_ < lb:
+            L.append("            ⛔⛔ p < 下界 —— 内部矛盾，检验本身坏了")
     L.append("     ⚖ %d 条轨迹只来自 %d 个问题（think / no_think 同属一个问题）"
              % (len(r["tids"]), r["n_problems"]))
     return "\n".join(L)
@@ -580,17 +598,20 @@ def selftest():
         assert seen == 2, seen
     ck("K9 绿：差值 ≪ 抖动 ⇒ 判决印「噪声主导」（2 条轨迹都验到）", k9)
 
-    # K10 绿：双尾符号检验的功效下界公式
+    # K10 绿：精确双尾符号检验 —— 全同向时 p **等于**功效下界
     def k10():
-        z, p, pos, neg, tie, lb = sign_test([1.0] * 5)
-        assert (pos, neg, tie) == (5, 0, 0), (pos, neg, tie)
-        assert abs(lb - 0.0625) < 1e-12, lb   # 2/2^5 = 0.0625
-        assert lb > 0.05, "n=5 时下界 0.0625 > 0.05，必须触发「结构上到不了」"
-        z2, p2, pos2, neg2, tie2, lb2 = sign_test([])
-        assert z2 is None and lb2 is None, (z2, lb2)
-        z3, p3, pos3, neg3, _, lb3 = sign_test([1.0] * 13)
-        assert pos3 == 13 and abs(lb3 - 2.0 ** -12) < 1e-15, (pos3, lb3)
-    ck("K10 绿：功效下界 2/2^n（n=5 ⇒ 0.0625 > 0.05）", k10)
+        for n in (4, 5, 8, 13):
+            p, pos, neg, tie, lb, z = sign_test([1.0] * n)
+            assert (pos, neg, tie) == (n, 0, 0), (n, pos, neg, tie)
+            assert abs(lb - 2.0 ** (1 - n)) < 1e-15, (n, lb)
+            assert abs(p - lb) < 1e-15, \
+                "n=%d 全同向时精确 p 应等于下界 %r，实得 %r" % (n, lb, p)
+            assert p >= lb, (n, p, lb)
+        p5 = sign_test([1.0] * 5)[0]
+        assert p5 > 0.05, "n=5 时 p=%.4f > 0.05，必须触发「结构上到不了」" % p5
+        p_e, pos_e, neg_e, tie_e, lb_e, z_e = sign_test([])
+        assert p_e is None and lb_e is None, (p_e, lb_e)
+    ck("K10 绿：精确符号检验（全同向 p ≡ 下界 2/2^n，n=4..13）", k10)
 
     # K11 绿：只有 1 档阶梯 ⇒ 抖动不可比，必须写「未量到」而不是 0
     def k11():
@@ -630,6 +651,30 @@ def selftest():
         assert "nan%" not in out, "回退之后 k/n_eff 仍是 nan，说明没真用上 P+t"
         assert "24.9%" in out, "no_think 末档 122/490 应印 24.9%"
     ck("K13 绿：BEGIN 无 n_eff ⇒ 从 P+t 回退并标明未互证", k13)
+
+    # K14 红：正态近似给 n=4 一个**比理论下界还小**的 p —— 那不是统计，是伪影
+    # ⚠⚠ 这条是 2026-10-17 真机读数时撞出来的：读数器印了 p=0.0455，
+    # ⚖ 却在同一屏印下界 2/2⁴=0.125 —— p 不可能低于下界，输出自相矛盾。
+    def k14():
+        p, pos, neg, tie, lb, z = sign_test([1.0] * 4)
+        assert abs(p - 0.125) < 1e-12, \
+            "n=4 全同向的精确 p 应为 0.125，实得 %r" % p
+        # ⚖ 把正态近似也算出来，记住它有多离谱（这就是本条存在的理由）
+        approx = math.erfc(abs((0 - 4) / math.sqrt(4)) / math.sqrt(2.0))
+        assert abs(approx - 0.0455) < 1e-3, approx
+        assert approx < lb, \
+            "本条的前提是「正态近似低于下界」；若哪天不成立了请重写本条"
+        # ⚖ 报告里绝不许出现 p < 下界（那是内部矛盾的信号）
+        r = analyze(_read_pair(*_synthetic()))
+        out = report(r)
+        assert "内部矛盾" not in out, "报告自称内部矛盾"
+        for line in out.split("\n"):
+            if "（精确）" in line:
+                m = re.search(r"p=([0-9.eE+-]+)", line)
+                assert m, line
+                val = float(m.group(1))
+                assert 0.0 < val <= 1.0, line
+    ck("K14 红：n=4 精确 p=0.125；正态近似的 0.0455 是伪影", k14)
 
     npass = sum(1 for _, s, _ in T if s == "PASS")
     for name, st_, msg in T:

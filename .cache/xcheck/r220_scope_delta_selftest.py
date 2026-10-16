@@ -338,6 +338,27 @@ def _():
     assert "只在 B 2" in txt, txt[:400]
 
 
+@case("E8 ⚠⚠ 符号检验必须是**精确**二项：n=4 全同向的 p 是 0.125，"
+      "不是正态近似的 0.0455")
+def _():
+    import math
+    z, p = r220._sign_test(0, 4)
+    lb = 2.0 ** (1 - 4)
+    assert abs(p - 0.125) < 1e-12, \
+        "n=4 全同向的精确 p 应为 0.125，实得 %r" % p
+    assert p >= lb, "p=%r 低于理论下界 %r —— 那是伪影" % (p, lb)
+    # ⚖ 把正态近似也算出来，记住它有多离谱（这就是本条存在的理由）
+    approx = math.erfc(abs(z) / math.sqrt(2.0))
+    assert abs(approx - 0.0455) < 1e-3, approx
+    assert approx < lb, \
+        "本条的前提是「正态近似低于下界」；若哪天不成立请重写本条"
+    # ⚖ 其它 n：全同向时 p 恒等于下界
+    for n in (5, 8, 13):
+        _, pn = r220._sign_test(n, 0)
+        assert abs(pn - 2.0 ** (1 - n)) < 1e-15, (n, pn)
+    assert r220._sign_test(0, 0) == (None, None)
+
+
 def main():
     npass = nfail = 0
     for name, fn in CASES:
