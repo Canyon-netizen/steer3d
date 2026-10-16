@@ -1,0 +1,303 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""mut_r227_kcurve —— r227_kcurve.py 自检的**变异台**。
+
+## 这条在量什么
+
+`r227_kcurve.py --selftest` 报 13/13。⚠⚠ 那**只证明「没报错」**，
+⛔ 不证明「能红」—— 一套恒绿的检查和一个真正有牙的检查，在输出上长得一模一样。
+
+⚖ 所以本脚本拿 7 个**定点变异**去咬它：
+每条变异都必须让**指定的**那条判据由 PASS 变 FAIL。
+⚖ 只要有哪条变异「STAYED GREEN」，就说明那条判据是恒绿的装饰品。
+
+## ⚠⚠⁴ 变异台设计纪律
+
+1. ⚠⚠⁴ **变异必须只改一处代码点**，⛔ 不许顺手改注释/散文。
+   改散文等于没改代码 —— 那样「变异后仍绿」会被误读成「判据有牙」。
+2. ⚖ **定位按代码行，不按文件子串**：先确认目标串落在**唯一一行**上，
+   不唯一就先停下重新定位，⛔ 不许猜。
+3. ⛔ **不许事后调变异调到绿为止**。台架红了就是红了，说明该修判据或换变异。
+4. ⚖ 变异在**内存里**做（`exec` 一份改过的源码），⛔ 不落临时文件、不动原件。
+
+跑法：
+    python3 mut_r227_kcurve.py           # 变异台
+    python3 mut_r227_kcurve.py --selftest # 自检（变异台自身：台架本身也要能红）
+退出码：0 = 全部变异都被抓住；1 = 有变异存活，或台架自身自检失败。
+"""
+
+import argparse
+import io
+import contextlib
+import os
+import sys
+import types
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+TARGET = os.path.join(HERE, "..", "mutbak", "r227_kcurve.py")
+
+
+# ⚖ 变异表：每一项 = (名字, 唯一代码串, 替身, 必须变红的那条判据)
+# ⚠⚠ 每条的替身只改**一个条件/一个表达式**，不改别的。
+MUTATIONS = [
+    # G1 去掉「块数 ≠ 状态行数 ⇒ 硬失败」⇒ K3 该红（错位防护被拆）
+    ("G1", "if len(blocks) != len(rows):",
+     "if False and len(blocks) != len(rows):", "K3"),
+    # G2 去掉「rc=0 却没读数 ⇒ 硬失败」⇒ K8 该红
+    ("G2", "elif r[\"rc\"] == 0:",
+     "elif False and r[\"rc\"] == 0:", "K8"),
+    # G3 去掉「状态 k ≠ 读数自报 k ⇒ 硬失败」⇒ K5 该红
+    ("G3", "if r[\"scope\"] == \"k\" and c[\"k\"] != r[\"k\"]:",
+     "if False and r[\"scope\"] == \"k\" and c[\"k\"] != r[\"k\"]:", "K5"),
+    # G4 去掉「n_eff ≠ P+t ⇒ 硬失败」⇒ K6 该红（**正是修订 226 排错阶梯那道**）
+    ("G4", "if b[\"n_eff\"] != pt_sum:",
+     "if False and b[\"n_eff\"] != pt_sum:", "K6"),
+    # G5 去掉「tid 对不上 ⇒ 硬失败」⇒ K4 该红
+    ("G5", "if b[\"tid\"] != r[\"tid\"]:",
+     "if False and b[\"tid\"] != r[\"tid\"]:", "K4"),
+    # G6 把「差值 ≪ 抖动 ⇒ 噪声主导」的判据**反过来** ⇒ K9 该红
+    ("G6", "if abs(diff) < jitter:",
+     "if abs(diff) > jitter:", "K9"),
+    # G7 把功效下界公式改成常数 0 ⇒ K10 该红
+    ("G7", "lb = 2.0 ** (1 - n)",
+     "lb = 0.0", "K10"),
+]
+
+
+def token_at(src, lineno, col):
+    """⚖ 覆盖 (lineno, col) 那个位置的 token 的 (类型, 文本)。
+
+    ⚠⚠⁴ 为什么问「**这个点**」而不是「**这一行**是不是散文」：
+    ⚖ 2026-10-17 实测踩到 —— 代码行 `if b["tid"] != r["tid"]:` 里有个
+    ⚖ 字符串字面量 `"tid"`，它的 STRING token 就落在那一行 ⇒
+    ⚖ 按行判断会把**真代码**判成散文，于是 4 条变异定位全部失败。
+    ⚖ 「行是散文」与「匹配点是散文」是两个不同的量，别混。
+    ⚖ 所以这里**问解释器**，⛔ 不自己判断。
+    """
+    import tokenize
+    from io import StringIO
+    try:
+        for tok in tokenize.generate_tokens(StringIO(src).readline):
+            (srow, scol), (erow, ecol) = tok.start, tok.end
+            if srow > lineno:
+                break
+            if srow <= lineno <= erow:
+                if srow == erow:
+                    if scol <= col < ecol:
+                        return tok.type, tok.string
+                elif col >= scol:
+                    return tok.type, tok.string
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return None, None
+    return None, None
+
+
+def _is_prose(tok_type):
+    """⚖ COMMENT / STRING / FSTRING_* 才算散文。⛔ INDENT/DEDENT/NL 不是。"""
+    import token as _t
+    import tokenize as _tz
+    prose = {_t.COMMENT, _t.STRING}
+    # ⚖ Python 3.12+ 才有 f-string 分 token；老版本没有这两个常量。
+    for name in ("FSTRING_START", "FSTRING_MIDDLE", "FSTRING_END"):
+        prose.add(getattr(_t, name, -1))
+    return tok_type in prose
+
+
+def find_code_line(src, needle):
+    """⚖ 按**代码点**定位：needle 必须落在唯一一行的**代码 token** 上。
+
+    ⛔ 不唯一就抛错 —— 变异台定位错了，台架报什么都不可信。
+    ⚖ 落在注释/docstring 上也抛错 —— 变异散文不叫变异，
+    ⚖ 那种「变异后仍绿」会被误读成「判据恒绿」。
+    """
+    hits = [(i + 1, l) for i, l in enumerate(src.split("\n")) if needle in l]
+    if len(hits) != 1:
+        # ⚠ 这条报错路径只在**多行命中**时才走到 —— 单行命中根本不走它。
+        # ⚠ 所以它必须被 T3 显式验到，否则它坏了没人知道（2026-10-17 实测）。
+        detail = "\n".join("  第%d行: %s" % (h[0], h[1]) for h in hits)
+        raise AssertionError(
+            "目标串在 %d 行上出现（应为 1 行）⇒ 变异定位不可靠，先停下重新定位：\n%s"
+            % (len(hits), detail))
+    lineno, line = hits[0]
+    col = line.index(needle)
+    tok_type, tok_str = token_at(src, lineno, col)
+    if tok_type is None:
+        raise AssertionError("第%d行第%d列没落在任何 token 上 ⇒ 定位器坏了，先停下"
+                             % (lineno, col))
+    if _is_prose(tok_type):
+        raise AssertionError("第%d行第%d列落在**散文** token（%s）上，不是代码：%s"
+                             % (lineno, col,
+                                {62: "COMMENT", 3: "STRING"}.get(tok_type, tok_type),
+                                line.strip()))
+    return lineno, line
+
+
+def apply_mutation(src, needle, repl):
+    lineno, line = find_code_line(src, needle)
+    # ⚖ 只替换那一行里的目标串，别的一律不动
+    new_line = line.replace(needle, repl)
+    out = src.replace(line, new_line)          # ⚠ 按整行替换，缩进原样保留
+    if out == src:
+        raise AssertionError("变异没有真的改到文件（needle=%r）" % needle)
+    return out, lineno
+
+
+def run_selftest(src):
+    """在内存里跑一份改过的源码的 --selftest，返回 (rc, 输出文本)。
+
+    ⚖ ⚠ `__name__` 不叫 __main__ ⇒ 模块底部的 sys.exit(main()) 不会触发，
+    ⚖ 于是我们能干净地只调 selftest()。
+    """
+    mod = types.ModuleType("mutant_r227_kcurve")
+    mod.__file__ = "r227_kcurve.py(mutant)"
+    code = compile(src, "r227_kcurve.py(mutant)", "exec")
+    exec(code, mod.__dict__)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = mod.selftest()
+    return rc, buf.getvalue()
+
+
+def failed_tests(text):
+    """从自检输出里抽出 FAIL 的判据编号。"""
+    out = set()
+    for line in text.split("\n"):
+        if line.startswith("[FAIL]"):
+            tok = line.split()[1] if len(line.split()) > 1 else ""
+            if tok and tok[0] == "K" and tok[1:].isdigit():
+                out.add(tok)
+    return out
+
+
+def passed_tests(text):
+    out = set()
+    for line in text.split("\n"):
+        if line.startswith("[PASS]"):
+            tok = line.split()[1] if len(line.split()) > 1 else ""
+            if tok and tok[0] == "K" and tok[1:].isdigit():
+                out.add(tok)
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--target", default=TARGET)
+    ap.add_argument("--selftest", action="store_true",
+                    help="变异台自身的自检（用坏变异证明本台架会红）")
+    a = ap.parse_args()
+
+    with open(a.target) as f:
+        base = f.read()
+
+    # ---- 变异台自身的自检：证明**定位器**该成功时成功、该报错时报错
+    # ⚠⚠ 极性必须写对：合法变异**本来就该定位成功**，
+    # ⚠⚠ 自检若期待它报错，那是在测一个相反的东西 —— 自检红了不等于台架坏了。
+    if a.selftest:
+        ok = 0
+        total = 0
+
+        # T1 合法串：恰好一行、且是代码行 ⇒ 必须定位成功
+        total += 1
+        try:
+            ln, line = find_code_line(base, MUTATIONS[0][1])
+            assert "if " in line, line
+            print("[PASS] T1 合法串定位成功且是代码行（第%d行）" % ln)
+            ok += 1
+        except Exception as e:
+            print("[FAIL] T1 合法串竟然定位失败：%s" % e)
+
+        # T2 不存在的串：必须被拒（不许「变异了一个不存在的地方」）
+        total += 1
+        try:
+            find_code_line(base, "这段串在文件里根本不存在_zzz")
+            print("[FAIL] T2 不存在的串居然定位成功")
+        except AssertionError:
+            print("[PASS] T2 不存在的串被正确拒绝")
+            ok += 1
+
+        # T3 出现在多行的串：必须被拒（定位不唯一 ⇒ 变异不可靠）
+        total += 1
+        try:
+            find_code_line(base, "HardFail")
+            print("[FAIL] T3 多行串居然定位成功 —— 会『猜中一个地方』")
+        except AssertionError as e:
+            assert "应为 1 行" in str(e), str(e)
+            print("[PASS] T3 多行串被正确拒绝（%s）" % str(e).split("⇒")[0].strip())
+            ok += 1
+
+        # T4 落在散文（注释/docstring）上的串：必须被拒
+        # ⚖ 两例都要：一条真 `#` 注释，一条**模块 docstring 里的续行**
+        # ⚖ （后者是 `startswith("#")` 测不到的那一类，2026-10-17 实测）
+        for label, needle, expect in (
+                ("#注释", "# ⚖ 两个尺子", "落在**散文** token"),
+                ("docstring续行", "读一半比读错强这句话是错的", "落在**散文** token")):
+            total += 1
+            try:
+                find_code_line(base, needle)
+                print("[FAIL] T4 %s 串居然定位成功 —— 会变异散文" % label)
+            except AssertionError as e:
+                if expect not in str(e):
+                    print("[FAIL] T4 %s 报错信息不对：%s" % (label, e))
+                else:
+                    print("[PASS] T4 %s 串被正确拒绝（变异的是散文，不是代码）" % label)
+                    ok += 1
+
+        # T5 逐条变异都必须真的改到文件（改了 0 处也要报错）
+        total += len(MUTATIONS)
+        for name, needle, repl, expect in MUTATIONS:
+            try:
+                mut_src, ln = apply_mutation(base, needle, repl)
+                assert mut_src != base, name
+                print("[PASS] T5.%s 变异确实改到了第%d行" % (name, ln))
+                ok += 1
+            except Exception as e:
+                print("[FAIL] T5.%s 变异没改到：%s" % (name, e))
+
+        print("mut_r227_kcurve --selftest: %d/%d" % (ok, total))
+        return 0 if ok == total else 1
+
+    # ---- 变异台本体
+    rc0, text0 = run_selftest(base)
+    n0 = len(passed_tests(text0)) + len(failed_tests(text0))
+    print("=" * 74)
+    print("变异台：目标 %s" % os.path.basename(a.target))
+    print("基线自检：%d/%d%s" % (len(passed_tests(text0)), n0,
+                                 "（基线就不绿，先修判据再谈变异）"
+                                 if rc0 != 0 else ""))
+    print("=" * 74)
+    if rc0 != 0:
+        print("⛔ 基线就不全绿 —— 变异结果没有意义，先修判据。")
+        return 1
+    base_pass = passed_tests(text0)
+    print("基线判据：%s\n" % ",".join(sorted(base_pass)))
+
+    survived = []
+    for name, needle, repl, expect in MUTATIONS:
+        try:
+            mut_src, lineno = apply_mutation(base, needle, repl)
+        except AssertionError as e:
+            print("[台架坏了] %s 定位失败：%s" % (name, e))
+            survived.append(name + "(定位失败)")
+            continue
+        rc, text = run_selftest(mut_src)
+        red = failed_tests(text)
+        if expect in red:
+            print("[抓住了] %-3s 第%-4d行  %-46s ⇒ %s 由 PASS 变 FAIL ✅"
+                  % (name, lineno, needle[:46], expect))
+        else:
+            print("[存活!!] %-3s 第%-4d行  %-46s ⇒ %s **仍是 PASS** ⛔"
+                  % (name, lineno, needle[:46], expect))
+            survived.append("%s→%s" % (name, expect))
+
+    print("\n" + "=" * 74)
+    if survived:
+        print("⛔ 有 %d 个变异存活：%s" % (len(survived), "、".join(survived)))
+        print("   ⇒ 这些判据是**恒绿的装饰品**，要么修判据，要么换能改变被观测量的变异。")
+        return 1
+    print("✅ %d 个变异全部被抓住（每条都让**指定的**那条判据由 PASS 变 FAIL）"
+          % len(MUTATIONS))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
