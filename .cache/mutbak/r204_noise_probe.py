@@ -105,7 +105,29 @@ def repeat_summary(rep):
     return out
 
 
-def inject_at(h, v, alpha, scope, inj):
+def _k_positions(n, k, seed=0):
+    """确定性地挑出 `k` 个位置（0 <= k <= n），**可复现**。
+
+    ⚠⚠⛔ 这里**必须**用固定种子。仪器里出现未设种子的随机，等于
+    ⚠⚠⛔ 「同一个命令两次跑出两个数」—— 而本项目所有判决都靠**逐位相同**，
+    ⚖ 一旦不可复现，那些判据全部失效。
+    ⚖ 种子固定为 0 ⇒ 同一 (n, k) 永远挑到同一组位置。
+    """
+    import numpy as _np
+    n, k = int(n), int(k)
+    if n <= 0:
+        raise ValueError("序列长度为 0")
+    if k < 0 or k > n:
+        raise ValueError("k=%r 越界：必须 0 <= k <= n=%d" % (k, n))
+    if k == n:
+        return list(range(n))
+    if k == 0:
+        return []
+    return sorted(_np.random.default_rng(int(seed)).choice(n, size=k,
+                                                             replace=False).tolist())
+
+
+def inject_at(h, v, alpha, scope, inj, n_sites=None):
     """把 `alpha * v` 注入残差 `h`。**纯函数**，numpy 与 torch 都能跑。
 
     ⚠⚠⛔ `scope` 是**口径开关**，两个值量的**不是同一个东西**：
@@ -127,6 +149,21 @@ def inject_at(h, v, alpha, scope, inj):
 
     if scope == "all":
         return h + (alpha * v).reshape(1, 1, -1)
+    # ⚠⚠⁴ 修订 223：`"k"` = 在**确定性的 k 个位置**上注入。
+    # ⚖ 用途只有一个：把「all 的基线漂移是不是注入位点数堆出来的」
+    # ⚖ 里那个**不可分的混杂**（位点数 ≡ 序列长度 ≡ think/no_think）拆开 ——
+    # ⚖ 固定同一条序列、只变 k，就能测出 Δ(k) 曲线。
+    # ⛔⛔ 本项目所有判决靠逐位相同 ⇒ **种子必须固定**（见 `_k_positions`）。
+    # ⚠ 增量解码时 chunk 长度是 1 ⇒ k 会被夹到 1，此时 k 与 single 同形
+    # ⚠ （这正是修订 209 那条「长度 1 时 all ≡ single」的推论）。
+    if scope == "k":
+        if n_sites is None:
+            raise ValueError("inject_scope=k 但没给 n_sites")
+        pos = _k_positions(h.shape[1], n_sites)
+        out = h.copy() if hasattr(h, "copy") else h.clone()
+        for j in pos:
+            out[:, j, :] = out[:, j, :] + alpha * v
+        return out
     if scope != "single":
         raise ValueError("未知 inject_scope: %r" % (scope,))
     j = min(int(inj), int(h.shape[1]) - 1)
@@ -234,7 +271,7 @@ def analyze(alphas, dm, dc, gap=None, band=60.0, meas=None):
 
 
 def decode_trace(vec, alpha, scope, ids, mk, lse_t, k, inj, eos_id, ctx="no_grad",
-                 use_cache=True):
+                 use_cache=True, n_sites=None):
     """prefill + k 步**贪心增量解码**，逐步回报 marker 的 logsumexp。**纯逻辑**。
 
     ⚠⚠⛔ 修订 210/211/212 建立的「`probe(all)` 与流水线**逐位一致**」只在
@@ -266,7 +303,9 @@ def decode_trace(vec, alpha, scope, ids, mk, lse_t, k, inj, eos_id, ctx="no_grad
             return None
         h = inp[0]
         v = torch.as_tensor(vec, dtype=h.dtype, device=h.device)
-        return (inject_at(h, v, alpha, scope, inj),) + inp[1:]
+        # ⚠⚠⚠ `k` 在本函数里是**解码步数**（修订 213），不是注入位点数。
+        # ⚠⚠⚠ 同名会让「扫位点数」静默变成「扫步数」—— 故另起 `n_sites`。
+        return (inject_at(h, v, alpha, scope, inj, n_sites),) + inp[1:]
 
     hk = blk.register_forward_pre_hook(pre)
     try:
@@ -361,7 +400,8 @@ def run_cell(a):
                 return None
             h = inp[0]
             v = torch.as_tensor(vec, dtype=h.dtype, device=h.device)
-            return (inject_at(h, v, alpha, a.inject_scope, inj),) + inp[1:]
+            return (inject_at(h, v, alpha, a.inject_scope, inj,
+                                a.inject_n_sites),) + inp[1:]
 
 
         hk = blk.register_forward_pre_hook(pre)
@@ -406,6 +446,9 @@ def run_cell(a):
 
     st = analyze(alphas, dm, dc, gap=a.gap, band=a.band, meas=meas)
     st["inject_scope"] = a.inject_scope
+    # ⚠⚠⁴ 修订 223：位点数也要落盘，否则「扫 k」的各档读数混起来
+    # ⚠⚠⁴ 与 single/all 分不清 —— 与修订 220 那条同源。
+    st["inject_n_sites"] = a.inject_n_sites
     # ⚠⚠⛔ 口径必须**随数一起落盘**：`single` 与 `all` 是两个**不同的量**，
     # ⛔⛔ 而它们的差（修订 209 实测 Δ=−0.155）比 resid_std 还大。
     # ⛔   不记这一列 ⇒ 两批读数会被混进同一个汇总里，而日志上完全看不出来。
@@ -435,7 +478,8 @@ def run_cell(a):
         for _lab, _al in (("base", 0.0), ("lo", 0.5 * a.gap), ("hi", 1.0 * a.gap)):
             dec[_lab] = decode_trace(W, _al, a.inject_scope, ids, mk, lse_t,
                                      int(a.decode_steps), inj, _eos,
-                                     ctx="no_grad", use_cache=True)
+                                     ctx="no_grad", use_cache=True,
+                                     n_sites=a.inject_n_sites)
         # ⚠⚠⛔ 探针的 ctx 是 no_grad、use_cache=True；流水线那份是
         # ⚠⚠⛔ inference_mode + use_cache=True。修订 209 实测 A→B Δ=0，
         # ⚠⚠⛔ 但那是在**单步**上测的 ⇒ 这里逐���能不能也对上，**要靠对账验**，
@@ -488,6 +532,7 @@ def run_cell(a):
                        "dec_alpha": ({"base": 0.0, "lo": 0.5 * a.gap,
                                       "hi": 1.0 * a.gap} if dec else None),
                        "inject_scope": a.inject_scope,
+                       "inject_n_sites": a.inject_n_sites,
                        }, _fh)
         st["dump_raw"] = _fn
     out = {"tid": a.tid, "pos_frac": a.pos_frac, "t": t, "n_gen": n, "P": P,
@@ -590,6 +635,8 @@ def run_driver(a):
                 cmd += ["--decode-steps", str(a.decode_steps)]
             if a.inject_scope != "single":
                 cmd += ["--inject-scope", a.inject_scope]
+            if a.inject_n_sites is not None:
+                cmd += ["--inject-n-sites", str(a.inject_n_sites)]
             if a.gpu_uuid:
                 cmd += ["--gpu-uuid", a.gpu_uuid]
             p = subprocess.run(cmd, capture_output=True, text=True)
@@ -697,9 +744,20 @@ def main():
                     help="⚠ 在每个 P9 工作剂量上重复跑几次（默认 1 = 保持原口径）。"
                          "报给判据的**仍是第 1 次**；重复只用于量单读可重复性。")
     ap.add_argument("--inject-scope", default="single",
-                    choices=["single", "all"],
+                    choices=["single", "all", "k"],
                     help="⛔ 口径开关：single=只注入 prefix 最后一位（探针原样，修订 205-208 用的是它）；all=广播到**所有**位置（run_intervention.ResidualSteerer 的语义）。⚠⚠ 两者量的**不是同一个东西**，差 0.155 > resid_std。"
                          "默认值 single 保持既有读数可复现。")
+    ap.add_argument("--inject-n-sites", type=int, default=None,
+                    help="⛔ 注入位点数。**只有** --inject-scope k 时才被读；"
+                         "不给就用 none。\n"
+                         "⚠⚠ 修订 223：这是修订 222 那条「基线漂移是不是位点数堆的」"
+                         "的唯一干净测法 ——\n"
+                         "⚖   固定**同一条序列**，只变位点数，把「位点数」从"
+                         "「序列长度 ≡ think/no_think」里摘出来。\n"
+                         "⚠⚠⛔ 名字里带 n_ 是因为本文件已有一个 `k` 表示**解码步数**"
+                         "（修订 213）—— 同名会静默串味。\n"
+                         "⚖ 位点由固定种子挑出 ⇒ 同一 (长度, n_sites) 永远同一组位点，"
+                         "逐位可复现。")
     ap.add_argument("--dump-raw", default=None,
                     help="把每格的原始读数曲线（alphas/dm/dc/meas）写到该目录")
     ap.add_argument("--decode-steps", type=int, default=0,
@@ -711,6 +769,18 @@ def main():
                          "那不是跑满了，是分母变小了。")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
+
+    # ⚠⚠⛔ 组合校验。两个错配都会**静默**：
+    #   scope=k 但没给 n_sites ⇒ 纯函数抛错（好，能看见）；
+    #   给了 n_sites 但 scope 不是 k ⇒ 位点数被**完全忽略**，
+    #   而产物里还记着 n_sites ⇒ 读数看着像「扫过 k」，其实一个位点都没多。
+    if a.inject_scope == "k" and a.inject_n_sites is None:
+        raise SystemExit("⛔ --inject-scope k 必须配 --inject-n-sites N")
+    if a.inject_n_sites is not None and a.inject_scope != "k":
+        raise SystemExit("⛔ --inject-n-sites 只在 --inject-scope k 下有意义；"
+                         "当前 scope=%r ⇒ 给它会被静默忽略" % (a.inject_scope,))
+    if a.inject_n_sites is not None and a.inject_n_sites < 1:
+        raise SystemExit("⛔ --inject-n-sites 必须 >= 1")
 
     if a.cell:
         if not a.tid:

@@ -38,6 +38,14 @@ def check(name, cond, detail=""):
         FAILS.append(name)
 
 
+def _raises(fn):
+    try:
+        fn()
+    except Exception:
+        return True
+    return False
+
+
 def load():
     spec = importlib.util.spec_from_file_location("p204", PROBE)
     m = importlib.util.module_from_spec(spec)
@@ -408,6 +416,53 @@ def main():
           bool((d[0, :, 1] == -4.0).all()) and bool((d[0, :, 0] == 2.0).all()),
           repr(d[0, :, :2]))
 
+
+
+    # =======================================================================
+    # K 组（修订 223）：`scope="k"` = 固定序列、变注入位点数
+    # =======================================================================
+    # ⛔ 这个口径存在的**唯一**理由：修订 222 发现「all 的基线漂移是不是
+    # ⛔ 位点数堆的」不可分 —— 位点数 ≡ 序列长度 ≡ think/no_think。
+    # ⚖ 固定同一条序列、只变位点数，才能把那三个变量分开。
+
+    def _touched(out, base):
+        """返回被改动过的位置下标。"""
+        return [j for j in range(base.shape[1])
+                if not (out[0, j, :] == base[0, j, :]).all()]
+
+    hk = _np.zeros((1, 12, 3)); vk = _np.array([1.0, -2.0, 0.5])
+    ok_all = (ra := M.inject_at(hk, vk, 1.0, "all", 0)) is not None
+
+    check("K1 k=1 ⇒ 恰好一个位置被加", len(_touched(M.inject_at(hk, vk, 1.0, "k", 0, 1), hk)) == 1)
+    check("K2 ⛔ k=n ⇒ 与 all 逐位相同（k 的上界就是 all）",
+          _np.array_equal(M.inject_at(hk, vk, 1.0, "k", 0, 12),
+                          M.inject_at(hk, vk, 1.0, "all", 0)))
+    check("K3 ⛔⛔ 同一 (长度,k) 两次调用必须给出**同一组位点**（仪器靠逐位复现）",
+          _np.array_equal(M.inject_at(hk, vk, 1.0, "k", 0, 5),
+                          M.inject_at(hk, vk, 1.0, "k", 0, 5)))
+    check("K4 k>序列长度必须抛错，不许静默夹住",
+          _raises(lambda: M.inject_at(hk, vk, 1.0, "k", 0, 99)))
+    check("K5 ⛔ scope=k 但没给位点数必须抛错（不许默认成 all）",
+          _raises(lambda: M.inject_at(hk, vk, 1.0, "k", 0, None)))
+    check("K6 ⛔ k 口径不许就地改入参（否则重复调用会越叠越高）",
+          (lambda b: (M.inject_at(b, vk, 5.0, "k", 0, 4), _np.array_equal(b, hk))[1])(hk.copy()))
+    check("K7 ⛔ 位点确实**互不相同**（不能重复注入同一位）",
+          len(set(M._k_positions(40, 7))) == 7)
+    check("K8 ⛔ k=1 时位点落在 [0,n) 内",
+          all(0 <= j < 40 for j in M._k_positions(40, 1)))
+    # ⛔ CLI 两个错配必须被拦（否则位点数被静默忽略，而产物里还记着它）
+    _src = open(PROBE, encoding="utf-8").read()
+    check("K9 ⛔ CLI：scope=k 必须配位点数", 'a.inject_scope == "k" and a.inject_n_sites is None' in _src)
+    check("K10 ⛔ CLI：位点数与 scope=k 不同时必须报错（否则被静默忽略）",
+          'a.inject_n_sites is not None and a.inject_scope != "k"' in _src)
+    check("K11 ⛔ 位点数必须随数落盘（与 inject_scope 同一个理由）",
+          '"inject_n_sites"' in _src)
+    # ⛔ 变异：去掉固定种子 ⇒ K3 必须红（那是仪器逐位复现的根基）
+    _mut = _src.replace("default_rng(int(seed))", "default_rng()")
+    _nm = {}
+    exec(compile(_mut, "p204_mut.py", "exec"), _nm)
+    check("K12 ⛔ 变异：去掉固定种子 ⇒ 同一 (长度,k) 会挑出不同位点 ⇒ K3 会红",
+          _nm["_k_positions"](40, 7) != _nm["_k_positions"](40, 7))
 
     print("\n=== 汇总 ===")
     if FAILS:
