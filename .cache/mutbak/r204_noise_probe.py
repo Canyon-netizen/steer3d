@@ -233,6 +233,90 @@ def analyze(alphas, dm, dc, gap=None, band=60.0, meas=None):
     return out
 
 
+def decode_trace(vec, alpha, scope, ids, mk, lse_t, k, inj, eos_id, ctx="no_grad",
+                 use_cache=True):
+    """prefill + k 步**贪心增量解码**，逐步回报 marker 的 logsumexp。**纯逻辑**。
+
+    ⚠⚠⛔ 修订 210/211/212 建立的「`probe(all)` 与流水线**逐位一致**」只在
+    ⚠⚠⛔ **第 0 步（prefill）**上成立。真实流水线
+    ⚠⚠⛔ `run_paired_steering.generate` 是 `for step in 1..budget:` 的增量解码，
+    ⚠⚠⛔ 每步都 `record_logits(out)` ⇒ 它在**每一步**都有一个读数，
+    ⚠⚠⛔ 而探针此前只量第 0 步 ⇒ 「等价」这句话覆盖不到那些步。
+    ⚗⇒ 本函数补的就是这个缺口。
+
+    ⚠⚠⛔ **必须用贪心 argmax 而不是教师强制**，否则不是流水线的那个量：
+    流水线喂的是 `int(torch.argmax(logits))`（`run_paired_steering.py:147,163`），
+    自己选 token。用 npz 里的 ground-truth token 会把「token 序列」这个变量
+    偷偷换掉 ⇒ 那时比的就不是「同一段生成」了。
+    ⚗ 好处是贪心还自带一个免费的判别器：**两边 argmax 一致 ⇒ token 链一致**，
+    于是第 k 步的比较才是「同一段历史的同一位置」。
+    ⛔ 反面：**两边一旦分叉，后续步比的就是两条不同历史** ⇒ 所以必须报
+    ⛔ `first_divergence_step`，不能只报「N/N 一致」。
+
+    ⚠⚠⛔ **EOS 必须显式记账**：`argmax == eos` 时流水线 `break`。
+    ⛔ 若不报「这一格只跑了 k' < k 步」，那 k' 步全绿会被读成 k 步全绿 ——
+    ⛔ 这是「恒绿不是绿」那个家族：**分母变小而通过率不变**。
+    """
+    import torch
+    blk = _LAYER_BLOCK[0]
+    steps = {"marks": [], "tops": [], "fed": [], "eos_step": None}
+
+    def pre(mod, inp):
+        if alpha == 0.0:
+            return None
+        h = inp[0]
+        v = torch.as_tensor(vec, dtype=h.dtype, device=h.device)
+        return (inject_at(h, v, alpha, scope, inj),) + inp[1:]
+
+    hk = blk.register_forward_pre_hook(pre)
+    try:
+        # ⚠⚠⛔ 上下文管理器必须**在 with 语句里新建**，不能提到外面复用同一个实例：
+        # ⚠⚠⛔ `no_grad()`/`inference_mode()` 把状态存在实例上，跨 `with` 复用
+        # ⚠⚠⛔ 在某些 torch 版本上会**静默不再生效** ⇒ 那时探针就在
+        # ⚠⚠⛔ 非推理模式下跑，而流水线在推理模式下跑 ⇒ 比的不是同一个东西，
+        # ⚠⚠⛔ 而且**日志上完全看不出来**。
+        with (torch.inference_mode() if ctx == "inference"
+              else torch.no_grad()):
+            # ⚠ 与 run_paired_steering 一致：prefill **带** attention_mask，
+            # ⚠ 增量解码步**不带**（那边 `:157-159` 就是这么写的）。
+            o = model_ref[0](input_ids=ids, attention_mask=torch.ones_like(ids),
+                             use_cache=use_cache, return_dict=True)
+            past = o.past_key_values
+            lg = o.logits[0, -1].float()
+            steps["marks"].append(lse_t(lg[mk]))
+            nxt = int(torch.argmax(lg).item())
+            steps["tops"].append(nxt)
+            for _ in range(k):
+                if nxt == eos_id:
+                    steps["eos_step"] = len(steps["marks"]) - 1
+                    break
+                steps["fed"].append(nxt)
+                o = model_ref[0](input_ids=torch.tensor([[nxt]], device=ids.device),
+                                 past_key_values=past, use_cache=use_cache,
+                                 return_dict=True)
+                past = o.past_key_values
+                lg = o.logits[0, -1].float()
+                steps["marks"].append(lse_t(lg[mk]))
+                nxt = int(torch.argmax(lg).item())
+                steps["tops"].append(nxt)
+            else:
+                # ⚠⚠⛔ 跑满 k 步而**没**撞上 EOS ⇒ 记 None，不是 k。
+                # ⛔ 「没撞上」与「撞上了」在三态里必须分开，否则汇总分母不同。
+                steps["eos_step"] = None
+    finally:
+        hk.remove()
+    steps["n_ran"] = len(steps["marks"]) - 1     # 减掉 prefill 那一步
+    return steps
+
+
+# ⚠⚠⛔ 模块级单槽：decode_trace 需要 layer-20 的 block 与 model 实例，
+# ⚠⚠⛔ 而它们只在 run_cell 里加载。抽成纯函数是为了**能在无 GPU 的合成数据上
+# ⚠⚠⛔ 单测口径语义**（同 inject_at 的理由），代价就是这两个单槽。
+# ⛔ 单槽意味着**不可并发** —— 驱动本来就是每格独立进程，不受影响。
+_LAYER_BLOCK = [None]
+model_ref = [None]
+
+
 def run_cell(a):
     """量一格：扫 α，拟直线，回报残差 std / 不同值个数 / 最小相邻差。"""
     import numpy as np
@@ -246,6 +330,9 @@ def run_cell(a):
     tok = AutoTokenizer.from_pretrained(MODEL)
     model = AutoModelForCausalLM.from_pretrained(
         MODEL, torch_dtype=torch.bfloat16).cuda().eval()
+    # ⚠ decode_trace 用这两个单槽（见其 docstring 的理由）
+    model_ref[0] = model
+    _LAYER_BLOCK[0] = model.model.layers[LAYER]
 
     z = np.load(os.path.join(a.npz_dir, a.tid + ".npz"))
     gen = z["token_ids"].tolist()
@@ -329,6 +416,47 @@ def run_cell(a):
     st["marker_raw_lo"] = float(b_mark + meas[0]) if meas else None
     st["marker_raw_hi"] = float(b_mark + meas[1]) if meas else None
 
+    # ---- ⚠⚠⛔ 增量解码逐步读数（`--decode-steps K`）---------------------
+    # ⚠⚠⛔ 修订 210-212 的逐位等价只在**第 0 步**成立；流水线在每一步都 record_logits。
+    # ⚠⚠⛔ 这里量的是**同一个量**的第二段历史：prefill 之后按贪心 argmax
+    # ⚠⚠⛔ 喂 K 步，逐步取 marker 的 logsumexp。
+    # ⛔⛔ 三条剂量都量：base(α=0) 与 P9 两档。缺 base 就没法在下游算 Δ，
+    # ⛔⛔ 而「Δ 在逐步上是不是也逐位为 0」才是等价性的真正表述。
+    # ⚠⚠⛔ 这段必须排在 `st = analyze(...)` **之后**：decode_trace 要把结果
+    # ⚠⚠⛔ 写进 st，而 st 在这里才第一次被赋值。
+    # ⛔⛔ 我第一版把它插在 analyze 之前 ⇒ 真机最小样直接
+    # ⛔⛔ `UnboundLocalError: cannot access local variable 'st'`。
+    # ⛔⛔ 这条路径此前**从未被执行过**，静态检查（ast.parse）看不出来。
+    dec = {}
+    if a.decode_steps and a.decode_steps > 0:
+        st["dec_n_steps"] = int(a.decode_steps)
+    if a.decode_steps and a.decode_steps > 0 and a.gap:
+        _eos = tok.eos_token_id
+        for _lab, _al in (("base", 0.0), ("lo", 0.5 * a.gap), ("hi", 1.0 * a.gap)):
+            dec[_lab] = decode_trace(W, _al, a.inject_scope, ids, mk, lse_t,
+                                     int(a.decode_steps), inj, _eos,
+                                     ctx="no_grad", use_cache=True)
+        # ⚠⚠⛔ 探针的 ctx 是 no_grad、use_cache=True；流水线那份是
+        # ⚠⚠⛔ inference_mode + use_cache=True。修订 209 实测 A→B Δ=0，
+        # ⚠⚠⛔ 但那是在**单步**上测的 ⇒ 这里逐���能不能也对上，**要靠对账验**，
+        # ⚠⚠⛔ 不许拿单步的 Δ=0 直接当逐步也成立。
+        st["dec_marks_base"] = dec["base"]["marks"]
+        st["dec_tops_base"] = dec["base"]["tops"]
+        st["dec_ran_base"] = dec["base"]["n_ran"]
+        st["dec_eos_base"] = dec["base"]["eos_step"]
+        for _lab in ("lo", "hi"):
+            st["dec_marks_%s" % _lab] = dec[_lab]["marks"]
+            st["dec_tops_%s" % _lab] = dec[_lab]["tops"]
+            st["dec_ran_%s" % _lab] = dec[_lab]["n_ran"]
+            st["dec_eos_%s" % _lab] = dec[_lab]["eos_step"]
+        # ⛔⛔ 三条剂量各自撞 EOS 的步数**必须一样**，否则 token 链已经分叉，
+        # ⛔⛔ 后面的逐步比较就不是「同一段历史」了 ⇒ 显式报出来，不合成一个数。
+        st["dec_eos_agree"] = (dec["base"]["eos_step"] == dec["lo"]["eos_step"]
+                               == dec["hi"]["eos_step"])
+    elif a.decode_steps and a.decode_steps > 0:
+        # ⚠⚠⛔ 要跑逐步读数就必须有 P9 的两个工作剂量 ⇒ 没传 --gap 时
+        # ⚠⚠⛔ **显式说没量**，绝不许静默跳过（否则日志上「跑了」看起来一样）。
+        st["dec_status"] = "NOT-MEASURED：--decode-steps 需要 --gap（没有 P9 工作剂量）"
 
     # ---- 诊断量：单读可重复性（不进判据）--------------------------------
     if rep:
@@ -348,7 +476,19 @@ def run_cell(a):
                        "meas_hi": (meas[1] if meas else None),
                        "b_mark": float(b_mark), "b_ctl": float(b_ctl),
                        "resid_std": st["resid_std"],
-                       "slope": st["slope"]}, _fh)
+                       "slope": st["slope"],
+                       # ⚠⚠⛔ 逐步读数**必须一起落盘**：对账只用落盘原始浮点，
+                       # ⚠⚠⛔ 而日志里是 %.6f 转录值（修订 212 的教训）。
+                       "dec": ({k: {kk: vv for kk, vv in v.items()}
+                                for k, v in dec.items()} if dec else None),
+                       # ⚠⚠⛔ 逐步读数用的是**哪三个剂量**必须落盘：
+                       # ⚠⚠⛔ 对账时要把探针的 base/lo/hi 映射到锚点的 alpha，
+                       # ⚠⚠⛔ 靠的是**数值相等**而不是标签顺序 —— 顺序假设一旦错，
+                       # ⚠⚠⛔ 比的就把 lo 当成 hi，而两边都「自洽」，看不出来。
+                       "dec_alpha": ({"base": 0.0, "lo": 0.5 * a.gap,
+                                      "hi": 1.0 * a.gap} if dec else None),
+                       "inject_scope": a.inject_scope,
+                       }, _fh)
         st["dump_raw"] = _fn
     out = {"tid": a.tid, "pos_frac": a.pos_frac, "t": t, "n_gen": n, "P": P,
            "n_steps": int(a.n_steps)}
@@ -379,6 +519,22 @@ def run_cell(a):
         print("        单读重复 n=%d：lo 散布=%.3e(exact=%s) hi 散布=%.3e(exact=%s)"
               % (st["rep_n_lo"], st["rep_spread_lo"], st["rep_exact_lo"],
                  st["rep_spread_hi"], st["rep_exact_hi"]), flush=True)
+    # ⚠⚠⛔ 逐步读数必须**显式**印出跑了多少步、是不是提前 EOS ——
+    # ⚠⚠⛔ 「只跑了 2 步就 EOS」与「跑满 8 步全绿」在汇总里长得一样。
+    if st.get("dec_n_steps"):
+        if st.get("dec_status"):
+            print("        ⚠⚠ 逐步读数 ⛔ %s" % st["dec_status"], flush=True)
+        else:
+            print("        逐步解码 预算=%d 实跑=%d(base)/%d(lo)/%d(hi)  "
+                  "EOS步一致=%s"
+                  % (st["dec_n_steps"], st["dec_ran_base"], st["dec_ran_lo"],
+                     st["dec_ran_hi"], st["dec_eos_agree"]), flush=True)
+            print("        base marks: %s"
+                  % ["%.6f" % x for x in st["dec_marks_base"]], flush=True)
+            print("        lo   marks: %s"
+                  % ["%.6f" % x for x in st["dec_marks_lo"]], flush=True)
+            print("        hi   marks: %s"
+                  % ["%.6f" % x for x in st["dec_marks_hi"]], flush=True)
 
     print(json.dumps(out, ensure_ascii=False))
     return out
@@ -430,6 +586,8 @@ def run_driver(a):
                 cmd += ["--repeat", str(a.repeat)]
             if a.dump_raw:
                 cmd += ["--dump-raw", a.dump_raw]
+            if a.decode_steps:
+                cmd += ["--decode-steps", str(a.decode_steps)]
             if a.inject_scope != "single":
                 cmd += ["--inject-scope", a.inject_scope]
             if a.gpu_uuid:
@@ -544,6 +702,13 @@ def main():
                          "默认值 single 保持既有读数可复现。")
     ap.add_argument("--dump-raw", default=None,
                     help="把每格的原始读数曲线（alphas/dm/dc/meas）写到该目录")
+    ap.add_argument("--decode-steps", type=int, default=0,
+                    help="⚠⚠⛔ 增量解码逐步读数的**预算步数**（默认 0 = 完全不跑，"
+                         "保持修订 205-212 的既有读数不变）。>0 时在 base/0.5·gap/"
+                         "1.0·gap 三条剂量上各跑一遍 prefill+贪心解码，逐步回报 "
+                         "marker 的 logsumexp。⚠⚠ **必须配 --gap**，否则那格显式报 "
+                         "NOT-MEASURED。⚠ 撞 EOS 会**提前停**，实跑步数会 < 预算 —— "
+                         "那不是跑满了，是分母变小了。")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
 

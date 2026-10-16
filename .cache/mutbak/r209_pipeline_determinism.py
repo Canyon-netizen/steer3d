@@ -61,6 +61,12 @@ def main():
                          "2.0e-04 —— 读数仍相同（bf16 抹掉了），但那是**另一回事**。")
 
     ap.add_argument("--repeat", type=int, default=2)
+    ap.add_argument("--decode-steps", type=int, default=0,
+                    help="⚠⚠⛔ 增量解码逐步读数的**预算步数**（默认 0 = 不跑，"
+                         "保持修订 211/212 锚点不变）。>0 时每个配置都跑 "
+                         "prefill+贪心解码，逐步记 marker 的 logsumexp，"
+                         "并检查四条 fed 序列是否逐位相同。⚠ 撞 EOS 会提前停 ⇒ "
+                         "实跑步数 < 预算，那不是跑满了。")
     ap.add_argument("--gpu-uuid", default=None)
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
@@ -117,6 +123,49 @@ def main():
             return (lse_t(lg[mk]), lse_t(lg[ctl]),
                     int(torch.argmax(lg).item()))
 
+    # ---- ⚠⚠⛔ 增量解码逐步读数（流水线侧）--------------------------------
+    # 修订 210-212 的逐位等价只在**第 0 步（prefill）**上成立。真实流水线
+    # `run_paired_steering.generate` 是 `for step in 1..budget:` 的增量解码，
+    # 每步 `record_logits(out)` ⇒ 它在**每一步**都有一个读数。
+    # ⛔⛔ 本函数与 `r204_noise_probe.decode_trace` 是**同一段逻辑的两份实现**
+    # ⛔⛔ （刻意不共用代码：共用就等于自证，见「两条探针必须用不同实现路径」）。
+    def run_decode(ids, inj, ctx_name, all_pos, k):
+        import torch
+        eos = tok.eos_token_id
+        st = {"marks": [], "tops": [], "fed": [], "eos_step": None}
+        with (torch.inference_mode() if ctx_name == "inference"
+               else torch.no_grad()):
+            hk = make_hook(all_pos, inj)
+            try:
+                o = model(input_ids=ids,
+                          attention_mask=torch.ones_like(ids),
+                          use_cache=True, return_dict=True)
+                past = o.past_key_values
+                lg = o.logits[0, -1].float()
+                st["marks"].append(lse_t(lg[mk]))
+                nxt = int(torch.argmax(lg).item())
+                st["tops"].append(nxt)
+                for _ in range(k):
+                    if nxt == eos:
+                        st["eos_step"] = len(st["marks"]) - 1
+                        break
+                    st["fed"].append(nxt)
+                    # ⚠ 与 run_paired_steering 一致：解码步**不带** attention_mask
+                    o = model(input_ids=torch.tensor([[nxt]], device=ids.device),
+                              past_key_values=past, use_cache=True,
+                              return_dict=True)
+                    past = o.past_key_values
+                    lg = o.logits[0, -1].float()
+                    st["marks"].append(lse_t(lg[mk]))
+                    nxt = int(torch.argmax(lg).item())
+                    st["tops"].append(nxt)
+                else:
+                    st["eos_step"] = None      # 跑满 k 步而没撞 EOS
+            finally:
+                hk.remove()
+        st["n_ran"] = len(st["marks"]) - 1
+        return st
+
     tids = [x.strip() for x in a.tid.split(",") if x.strip()]
     fracs = [float(x) for x in a.pos_frac.split(",") if x.strip()]
     alphas = [float(x) for x in a.alpha.split(",") if x.strip()]
@@ -167,6 +216,29 @@ def main():
                          "all_pos": allp, "mark": marks[0], "ctl": vals[0][1],
                          "spread": spread, "exact": (max(marks) == min(marks)),
                          "top1_stable": len(set(top1)) == 1})
+                # ⚠⚠⛔ 逐步读数：prefill + 贪心增量解码 k 步
+                # ⚠⚠⛔ 四个配置**全跑**，这样每一步上仍能做因子分解
+                # ⚠⚠⛔ （A→B/B→C 是否仍为 0，C→D 是否仍非 0）。
+                if a.decode_steps and a.decode_steps > 0:
+                    for name, ctx, cache, allp in CONFIGS:
+                        d = run_decode(ids, inj, ctx, allp, int(a.decode_steps))
+                        cfg = [c for c in cell["by_alpha"]["%.12f" % al]["configs"]
+                               if c["name"] == name][0]
+                        cfg["dec"] = d
+                        print("    ↳ 逐步 %s  实跑=%d  EOS步=%s  marks[:4]=%s"
+                              % (name.split()[0], d["n_ran"], d["eos_step"],
+                                 ["%.6f" % x for x in d["marks"][:4]]),
+                              flush=True)
+                    # ⚠⚠⛔ **两条链的分叉步**：A→B→C→D 四份 fed 序列，
+                    # ⚠⚠⛔ 若某两份不同 ⇒ 第那一步之后比的就不是同一段历史了。
+                    _fed = {c["name"][0]: c["dec"]["fed"]
+                            for c in cell["by_alpha"]["%.12f" % al]["configs"]
+                            if c.get("dec")}
+                    if len(_fed) > 1:
+                        cell["by_alpha"]["%.12f" % al]["dec_fed_agree"] = (
+                            len({tuple(v) for v in _fed.values()}) == 1)
+                        cell["by_alpha"]["%.12f" % al]["dec_fed"] = {
+                            k: v for k, v in _fed.items()}
                 by = {c["name"][0]: c
                       for c in cell["by_alpha"]["%.12f" % al]["configs"]}
                 cell["by_alpha"]["%.12f" % al]["deltas"] = {
@@ -186,6 +258,27 @@ def main():
                  for al in c["by_alpha"].values())
         print("  |%s| max %.3e（%s）" % (tag, mx, why))
     print("  ⇒ 数值路径两类差都是 **0**；全部差异来自注入范围。")
+
+    if a.decode_steps and a.decode_steps > 0:
+        n_cells = sum(1 for c in cells for al in c["by_alpha"].values()
+                      if al.get("dec_fed") is not None)
+        n_agree = sum(1 for c in cells for al in c["by_alpha"].values()
+                      if al.get("dec_fed_agree") is True)
+        ran = [d["n_ran"] for c in cells for al in c["by_alpha"].values()
+               for cc in al["configs"] if cc.get("dec") for d in [cc["dec"]]]
+        eos = [d["eos_step"] for c in cells for al in c["by_alpha"].values()
+               for cc in al["configs"] if cc.get("dec") for d in [cc["dec"]]]
+        print()
+        print("=== 逐步（预算 %d 步）===" % a.decode_steps)
+        print("  四配置 fed 序列逐位相同：%d/%d 个「格×剂量」" % (n_agree, n_cells))
+        if ran:
+            print("  实跑步数：min=%d 中位=%d max=%d（预算 %d）"
+                  % (min(ran), sorted(ran)[len(ran) // 2], max(ran),
+                     a.decode_steps))
+        print("  撞 EOS 的步数分布：%s"
+              % {str(x): eos.count(x) for x in sorted(set(eos),
+                                                    key=lambda z: (z is None, z))})
+        print("  ⚠⚠⛔ 实跑 < 预算的那些**不是跑满了**，是提前 EOS ⇒ 分母变小。")
 
     if a.out:
         with open(a.out, "w", encoding="utf-8") as fh:
