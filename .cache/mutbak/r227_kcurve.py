@@ -280,12 +280,23 @@ def analyze(cells, verbose=True):
                                     - ladder[-1]["reading"]["p9_lo_meas"])
         else:
             row["drift_khi_all"] = None
+        # ⚖⚖ 位置身份效应：`single` 就是「1 个位点、位置=prefix 最后一位」
+        # ⚖ （inject_at 的 inj = ids.shape[1]-1），而 `k=1` 是「1 个位点、
+        # ⚖ 位置=种子 0 置换里的那个」⇒ **两者位点数相同，只有位置身份不同**。
+        # ⚖⇒ `single − k=1` 直接量出位置身份的效应，⛔ 不需要另跑一档。
+        # ⚠ 阶梯里若没有 k=1 那一档（如 p03__think 从 k=3 起），就是「未量到」。
+        one = next((c for c in ladder if c["k"] == 1), None)
+        row["k_one"] = one
+        lo_s = s["reading"]["p9_lo_meas"] if s else None
+        lo_1 = one["reading"]["p9_lo_meas"] if one else None
+        row["drift_single_k1"] = (lo_s - lo_1) if (lo_s is not None and lo_1 is not None) else None
         per[t] = row
 
     # ---- 判决：差值 vs 抖动
     for t, r in per.items():
         r["verdict_khi"] = _verdict(r["drift_khi_all"], r["jitter"])
         r["verdict_single"] = _verdict(r["drift_single_all"], r["jitter"])
+        r["verdict_posid"] = _verdict(r["drift_single_k1"], r["jitter"])
 
     # ---- 分层符号检验：轨迹级 vs 问题级
     tr = [per[t]["drift_khi_all"] for t in tids if per[t]["drift_khi_all"] is not None]
@@ -297,18 +308,32 @@ def analyze(cells, verbose=True):
             continue
         prob.setdefault(p, []).append(d)
     pd_ = [_median(v) for v in prob.values()]
+
+    # ---- 位置身份：single − k=1（位点数相同，只有位置不同）
+    pid = [per[t]["drift_single_k1"] for t in tids
+           if per[t]["drift_single_k1"] is not None]
+    pid_prob = {}
+    for t in tids:
+        p = re.sub(r"__(?:no_)?think$", "", t) or t
+        d = per[t]["drift_single_k1"]
+        if d is not None:
+            pid_prob.setdefault(p, []).append(d)
+    pid_pd = [_median(v) for v in pid_prob.values()]
+
     return {"arm": arms[0] if arms else None,
             "nested": nested[0] if nested else None,
             "n_cells": len(cells), "n_ok": len(ok), "n_bad": len(bad),
             "bad": bad, "tids": tids, "per": per,
             "traj": sign_test(tr), "prob": sign_test(pd_),
+            "pid_traj": sign_test(pid), "pid_prob": sign_test(pid_pd),
+            "n_pid": len(pid),
             "n_problems": len(prob)}
 
 
 def _verdict(diff, jitter):
     """⚠⚠⁴ 差值 ≪ 抖动 ⇒ 只能写「噪声主导」。"""
     if diff is None:
-        return "未量到（缺 all 或缺阶梯）"
+        return "未量到（缺比较所需的格子）"
     if jitter is None or jitter == 0.0:
         return "未量到（阶梯只有 1 档，没有抖动可比）"
     if abs(diff) < jitter:
@@ -404,6 +429,37 @@ def report(r, verbose=True):
             L.append("            ⛔⛔ p < 下界 —— 内部矛盾，检验本身坏了")
     L.append("     ⚖ %d 条轨迹只来自 %d 个问题（think / no_think 同属一个问题）"
              % (len(r["tids"]), r["n_problems"]))
+
+    # 【4】位置身份：single − k=1（**位点数相同，只有位置不同**）
+    L.append("\n【4】位置身份效应 = `single` − `k=1`")
+    L.append("    ⚖ 两者都是**只注入 1 个位点**；`single` 的位置是 prefix 最后一位，")
+    L.append("    ⚖ `k=1` 的位置是种子 0 置换里的那个 ⇒ **位点数恒同，只有身份不同**。")
+    L.append("    ⚗ 所以这个差**不需要**另跑一档，它已经在数据里了。")
+    L.append("     %-28s %-12s %-12s %-10s" % ("tid", "single−k=1", "抖动地板", "判决"))
+    for t in r["tids"]:
+        p = r["per"][t]
+        d = p["drift_single_k1"]
+        one = p.get("k_one")
+        if d is None:
+            why = "缺 k=1 档（阶梯最小 k=%s）" % (one["k"] if one else "无")
+            L.append("     %-28s %-12s %-12s %s"
+                     % (t, "未量到", "—", why))
+            continue
+        L.append("     %-28s %-12s %-12s %s"
+                 % (t, "%+.4f" % d,
+                    "%.4f" % p["jitter"] if p["jitter"] is not None else "—",
+                    p["verdict_posid"]))
+    L.append("")
+    for name, st in (("轨迹级", r["pid_traj"]), ("问题级", r["pid_prob"])):
+        p_, pos, neg, tie, lb, z = st
+        if p_ is None:
+            L.append("     位置身份 %s：⛔ 没有可比的格子（不是「无差异」）" % name)
+            continue
+        L.append("     位置身份 %s n=%-3d 正%2d/负%2d/零%2d  p=%.4g（精确）  下界 %.3g%s"
+                 % (name, pos + neg, pos, neg, tie, p_, lb,
+                    "   ⚠⚠ > 0.05" if lb > 0.05 else ""))
+    L.append("     ⚖ 有 %d/%d 条轨迹能算这个差（⛔ 其余是「未量到」，不是 0）"
+             % (r["n_pid"], len(r["tids"])))
     return "\n".join(L)
 
 
@@ -675,6 +731,32 @@ def selftest():
                 val = float(m.group(1))
                 assert 0.0 < val <= 1.0, line
     ck("K14 红：n=4 精确 p=0.125；正态近似的 0.0455 是伪影", k14)
+
+    # K15 绿：位置身份差 = single − k=1；阶梯里没有 k=1 档时必须报「未量到」
+    def k15():
+        lg, st = _synthetic()
+        r = analyze(_read_pair(lg, st))
+        for t in r["tids"]:
+            p = r["per"][t]
+            assert p["k_one"] is not None, t
+            assert p["drift_single_k1"] is not None, t
+            # ⚖ 夹具：SINGLE_LO 减去第一档 LADDER_LO[0]
+            assert abs(p["drift_single_k1"] - (SINGLE_LO - LADDER_LO[0])) < 1e-9, \
+                p["drift_single_k1"]
+        assert "【4】位置身份效应" in report(r)
+        # ⚖ 阶梯最小档不是 1（如 p03__think 从 k=3 起）⇒ **未量到**，⛔ 不是 0
+        lg2, st2 = _synthetic(ks=["6"])
+        r2 = analyze(_read_pair(lg2, st2))
+        for t in r2["tids"]:
+            assert r2["per"][t]["k_one"] is None, t
+            assert r2["per"][t]["drift_single_k1"] is None, \
+                "没有 k=1 档却算出了位置身份差"
+            assert "未量到" in r2["per"][t]["verdict_posid"], \
+                r2["per"][t]["verdict_posid"]
+        assert r2["n_pid"] == 0, r2["n_pid"]
+        out2 = report(r2)
+        assert "缺 k=1 档" in out2, out2[-700:]
+    ck("K15 绿：位置身份差 = single−k=1；无 k=1 档 ⇒ 报「未量到」不是 0", k15)
 
     npass = sum(1 for _, s, _ in T if s == "PASS")
     for name, st_, msg in T:

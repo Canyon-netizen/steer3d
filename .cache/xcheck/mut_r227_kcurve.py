@@ -66,6 +66,11 @@ MUTATIONS = [
     # ⚖ 而理论下界是 0.125 —— 一个**不可能达到**的显著水平。
     ("G8", "p = sum(c for c in probs if c <= obs) / float(2 ** n)",
      "p = math.erfc(abs((pos - neg) / math.sqrt(n)) / math.sqrt(2.0))", "K14"),
+    # G9 把位置身份差**减反**（single−k=1 ⇒ k=1−single）⇒ K15 该红
+    # ⚖ 符号反了仍是一条「有读数、有 p」的曲线 ⇒ ⛔ 不可能被结构性检查抓到，
+    # ⚖ 只能靠一条**知道正确答案**的判据（K15 拿夹具的 SINGLE_LO/LADDER_LO 算）。
+    ("G9", "(lo_s - lo_1) if (lo_s is not None",
+     "(lo_1 - lo_s) if (lo_s is not None", "K15"),
 ]
 
 
