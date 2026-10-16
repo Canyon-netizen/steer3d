@@ -292,6 +292,13 @@ def analyze(cells, verbose=True):
         row["span"] = (max(los) - min(los)) if los else None
         row["k_lo"] = ladder[0]["k"] if ladder else None
         row["k_hi"] = ladder[-1]["k"] if ladder else None
+        # ⚠⚠⁴ 阶梯的**档数**本身就是一个必须报出来的量。
+        # ⚖ `jitter` 是**极值**统计量（取 max），⚖ 而「档数越多 max 只会越大」
+        # ⚖ ⇒ **两条曲线若阶梯档数不同，它们的 `jitter` 连尺度都不一样**。
+        # ⚖ 修订 234 引入新问题时踩到：旧的四条是 6/5/6/6 档，新的十条是 6/5 混合，
+        # ⚖ ⛔ 直接把 14 条轨迹的 max 尺排进一张表 = 让下一个人跨尺度比大小。
+        # ⚖⇒ 必须先分组，同组内才可比。
+        row["k_n"] = len(ladder)
 
         a = ends.get("all")
         s = ends.get("single")
@@ -373,6 +380,15 @@ def analyze(cells, verbose=True):
             pid_prob.setdefault(p, []).append(d)
     pid_pd = [_median(v) for v in pid_prob.values()]
 
+    # ⚖⚠ 阶梯档数的分布 —— **判决尺可比性的分组键**。
+    # ⚖ 判定：`jitter`（max）只在**档数相同**的曲线之间可比；
+    # ⚖ `jitter_med` 对档数不敏感，但仍要报出来让人自己判断。
+    k_n_hist = {}
+    for t in tids:
+        n = per[t].get("k_n")
+        if n is not None:
+            k_n_hist[n] = k_n_hist.get(n, 0) + 1
+
     return {"arm": arms[0] if arms else None,
             "nested": nested[0] if nested else None,
             "n_cells": len(cells), "n_ok": len(ok), "n_bad": len(bad),
@@ -380,6 +396,8 @@ def analyze(cells, verbose=True):
             "traj": sign_test(tr), "prob": sign_test(pd_),
             "pid_traj": sign_test(pid), "pid_prob": sign_test(pid_pd),
             "n_pid": len(pid),
+            "k_n_hist": k_n_hist,
+            "k_n_uniform": len(k_n_hist) <= 1,
             "n_problems": len(prob)}
 
 
@@ -439,30 +457,42 @@ def report(r, verbose=True):
                 L.append("     %-10s %5.1f%%       %+.4f      %+.4f"
                          % (sc, frac, rr["p9_lo_meas"], rr["p9_hi_meas"]))
 
-    # 【2】两个**不同的问题**，必须分开读
-    L.append("\n【2】两个不同的问题（⚠⚠ 别把它们当同一条曲线上的两点看）")
+    # 【2】**不同的问题**，必须分开读
+    L.append("\n【2】%d 个不同的问题、%d 条轨迹（⚠⚠ 别把它们当同一条曲线上的多点看）"
+             % (r["n_problems"], len(r["tids"])))
     L.append("    ⚠⚠ `single` 注入的是 prefix 的**最后一位**（inj = n_eff−1），")
     L.append("    ⚖ 而 `k=1` 挑的是种子 0 置换里的某个位置 ⇒ **位点身份不同**。")
     L.append("    ⚗ 所以 `single→all` 那列是**口径差**（修订 219–221 那个问题），")
     L.append("    ⚗ ⛔ **不是**剂量曲线上的一点。剂量问题只看 `k_hi→all`。")
-    L.append("     %-28s %-15s %-15s %-10s %-10s %-10s"
-             % ("tid", "k_hi→all(剂量)", "single→all(口径)",
+    L.append("     %-28s %-4s %-15s %-15s %-10s %-10s %-10s"
+             % ("tid", "档数", "k_hi→all(剂量)", "single→all(口径)",
                 "相邻档差max", "相邻档差med", "极差"))
     for t in r["tids"]:
         p = r["per"][t]
         d1 = p["drift_single_all"]
         d2 = p["drift_khi_all"]
-        L.append("     %-28s %-15s %-15s %-10s %-10s %-10s"
+        L.append("     %-28s %-4s %-15s %-15s %-10s %-10s %-10s"
                  % (t,
+                    p.get("k_n") if p.get("k_n") is not None else "—",
                     "%+.4f" % d2 if d2 is not None else "未量到",
                     "%+.4f" % d1 if d1 is not None else "未量到",
                     "%.4f" % p["jitter"] if p["jitter"] is not None else "未量到",
                     "%.4f" % p["jitter_med"] if p["jitter_med"] is not None else "未量到",
                     "%.4f" % p["span"] if p["span"] is not None else "未量到"))
     L.append("    ⚠⚠⚠ **`相邻档差max` 是极值统计量，档位越多它只会越大** ⇒")
-    L.append("       多测两档就会让「噪声主导」更容易成立。⚖ 本轮实测 p03__think 的")
-    L.append("       max 从 0.1300 涨到 0.3343 ⇒ ⛔ **跨轮次的判决不可比**。")
+    L.append("       修订 232 实测：p03__think 的 max 从 0.1300 涨到 0.3343")
+    L.append("       （只是多测两档，数据没变）⇒ ⛔ **跨轮次的判决不可比**。")
     L.append("       ⚖ 要跨轮次比，请看 `相邻档差med`（中位数，对档位数不敏感）。")
+    # ⚖⚠⚠ 档数不同 ⇒ 连**同一轮之内**的 max 尺都跨尺度了，必须分组说。
+    if r["k_n_uniform"]:
+        L.append("       ⚖ 本轮阶梯档数**一致**（%d 档）⇒ max 尺在本轮内可比。"
+                 % list(r["k_n_hist"])[0])
+    else:
+        L.append("       ⚠⚠⚠ **本轮阶梯档数不一致** ⇒ `相邻档差max` 在不同档数的曲线之间")
+        L.append("          ⛔ **跨尺度、不可比**（档多的那条 max 天然更大）。分组："
+                 + ", ".join("%d 档×%d 条" % (k, v)
+                             for k, v in sorted(r["k_n_hist"].items())))
+        L.append("          ⚖ **比 max 尺时只许在同组内比**；跨组请用 med 尺。")
     L.append("")
     for t in r["tids"]:
         p = r["per"][t]
@@ -567,6 +597,22 @@ SINGLE_LO = 0.30
 ALL_LO = 0.20
 
 
+def _ts(i):
+    """第 i 格的时间戳，**永远是合法的 `HH:MM:SS`**。
+
+    ⚠⚠⚠ 修订 234 自检踩到的坑：`BEGIN_RE` 的时间组是
+    ⚖ `\\d\\d:\\d\\d:\\d\\d`（各**恰好**两位），⚖ 而我第一版夹具写
+    ⚖ `"00:%02d:%02d" % (0, i)` ⇒ i 到 100 时印出 `00:00:100`
+    ⚖ ⇒ 那一行**匹配不上** ⇒ 块被**静默丢掉**。
+    ⚖ 实测 7 个问题 = 112 格 ⇒ 块数 99 ≠ 状态 112，差 **13** = i≥100 的格数。
+
+    ⚗⇒ 好在它**不是静默出错**：块数与状态行数对不上时 `join` 直接 HardFail
+    ⚖ （那正是读数器第一道交叉校验）。⚖ 但夹具必须能造**任意格数**，
+    ⚖ 否则下一个人写一个 >99 格的判据会先撞上这个假故障。
+    """
+    return "%02d:%02d:%02d" % (i // 3600, (i // 60) % 60, i % 60)
+
+
 def _synthetic(mutate=None, ks=None):
     """造一份格式真实的合成日志 + 状态文件（每块自带 P + t = n_eff）。"""
     cells = [("aime__aime25__p00__think", 1762, ["1", "6", "27", "110"]),
@@ -579,7 +625,7 @@ def _synthetic(mutate=None, ks=None):
     for tid, n_eff, klist in cells:
         for j, k in enumerate(klist):
             i += 1
-            log.append("### BEGIN %s n_eff=%d  00:%02d:%02d" % (tid, n_eff, 0, i))
+            log.append("### BEGIN %s n_eff=%d  %s" % (tid, n_eff, _ts(i)))
             log.append('{"tid": "%s", "p9_lo_meas": %.6f, "p9_hi_meas": -0.01, '
                        '"inject_scope": "k", "inject_n_sites": %s, '
                        '"inject_nested": true, "arm": "rand", "P": 108, "t": %d}'
@@ -587,7 +633,7 @@ def _synthetic(mutate=None, ks=None):
             st.append("%s k=%s rc=0" % (tid, k))
         for sc, lo in (("single", SINGLE_LO), ("all", ALL_LO)):
             i += 1
-            log.append("### BEGIN %s %s n_eff=%d  00:%02d:%02d" % (tid, sc, n_eff, 0, i))
+            log.append("### BEGIN %s %s n_eff=%d  %s" % (tid, sc, n_eff, _ts(i)))
             log.append('{"tid": "%s", "p9_lo_meas": %.6f, "p9_hi_meas": -0.01, '
                        '"inject_scope": "%s", "inject_nested": true, "arm": "rand", '
                        '"P": 108, "t": %d}' % (tid, lo, sc, n_eff - 108))
@@ -909,6 +955,86 @@ def selftest():
                 "夹具形状不对：max %r 与 med %r 相等，测不出区别" % (
                     p["jitter"], p["jitter_med"])
     ck("K18 绿：稳健尺是**中位数**不是 max（且 max ≥ med、两者不相等）", k18)
+
+    # K19 绿：阶梯档数不一致时，max 尺必须被显式标成**跨尺度不可比**
+    # ⚠⚠ 这条是修订 234 加的：加独立问题时，阶梯长度天然会变（5 或 6 档）
+    # ⚖ 而 `jitter`（max）是**极值**统计量，⚖ 档数多的那条 max 天然更大
+    # ⚖ ⇒ 把它们排进同一张表 = 让人跨尺度比大小。
+    def _synthetic_multi(n_prob, klists):
+        """造 n_prob 个问题 × 2 条轨迹。
+
+        ⚖ `klists` 可以是**一个**阶梯（所有轨迹同长），
+        ⚖ 也可以是**阶梯的列表**（逐轨迹取，长度可以不等）——
+        ⚖ 后者才是修订 234 的真实场景：n_eff 不同 ⇒ `n_eff/{1024,…,2}`
+        ⚖ 整除后档数不同（实测 5 或 6 档都有）。
+        """
+        log, st, i = [], [], 0
+        ti = 0
+        for pi in range(n_prob):
+            prob = "aime__aime25__q%02d" % pi
+            n_eff = 1000 + 100 * pi
+            for suf in ("__think", "__no_think"):
+                tid = prob + suf
+                kl = klists[ti % len(klists)] if klists and isinstance(
+                    klists[0], (list, tuple)) else klists
+                ti += 1
+                for k in kl:
+                    i += 1
+                    log.append("### BEGIN %s n_eff=%d  %s"
+                               % (tid, n_eff, _ts(i)))
+                    log.append('{"tid": "%s", "p9_lo_meas": %.6f, "p9_hi_meas": -0.01, '
+                               '"inject_scope": "k", "inject_n_sites": %s, '
+                               '"inject_nested": true, "arm": "rand", "P": 108, '
+                               '"t": %d}' % (tid, LADDER_LO[i % len(LADDER_LO)], k,
+                                              n_eff - 108))
+                    st.append("%s k=%s rc=0" % (tid, k))
+                for sc, lo in (("single", SINGLE_LO), ("all", ALL_LO)):
+                    i += 1
+                    log.append("### BEGIN %s %s n_eff=%d  %s"
+                               % (tid, sc, n_eff, _ts(i)))
+                    log.append('{"tid": "%s", "p9_lo_meas": %.6f, "p9_hi_meas": -0.01, '
+                               '"inject_scope": "%s", "inject_nested": true, '
+                               '"arm": "rand", "P": 108, "t": %d}'
+                               % (tid, lo, sc, n_eff - 108))
+                    st.append("%s %s rc=0" % (tid, sc))
+        return "\n".join(log) + "\n", "\n".join(st) + "\n"
+
+    def k19():
+        # ⚖ ① 7 个问题 ⇒ 问题级符号检验 n=7，下界 2/2⁷ = 0.0156 ≤ 0.05
+        lg, st = _synthetic_multi(7, [1, 2, 3, 4, 5, 6])
+        r = analyze(_read_pair(lg, st))
+        assert r["n_problems"] == 7, r["n_problems"]
+        assert len(r["tids"]) == 14, len(r["tids"])
+        _p, pos, neg, tie, lb, _z = r["prob"]
+        assert abs(lb - 2.0 / 128) < 1e-12, lb
+        assert lb <= 0.05, "n=7 的下界 %r 应 ≤0.05" % lb
+        # ⚖ ② 档数一致 ⇒ 报告说「可比」，且不许出现跨尺度警告
+        assert r["k_n_uniform"] is True, r["k_n_hist"]
+        assert r["k_n_hist"] == {6: 14}, r["k_n_hist"]
+        out = report(r)
+        assert "档数**一致**" in out, "等档数时该说 max 尺本轮可比"
+        assert "跨尺度、不可比" not in out, "等档数时不该报跨尺度不可比"
+        # ⚖ ③ 档数不一致 ⇒ 必须报分组 + 跨尺度不可比
+        # ⚠⚠ 第一版这里传了**单个**阶梯 `[1,2,3,4,5]` ⇒ 14 条全是 5 档 ⇒
+        # ⚖ 档数其实**一致**、`k_n_uniform=True` 是对的 ⇒ 判据自己写反了。
+        # ⚖ 要造「不一致」必须给**两个不同长度**的阶梯。
+        lg2, st2 = _synthetic_multi(7, [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5, 6]])
+        r2 = analyze(_read_pair(lg2, st2))
+        assert r2["k_n_uniform"] is False, r2["k_n_hist"]
+        assert r2["k_n_hist"] == {5: 7, 6: 7}, r2["k_n_hist"]
+        out2 = report(r2)
+        assert "阶梯档数不一致" in out2, out2[-800:]
+        assert "跨尺度、不可比" in out2, out2[-800:]
+        assert "5 档×7 条" in out2 and "6 档×7 条" in out2, out2[-800:]
+        # ⚖ ④ 表头的问题数必须是**数据里的**数，不能写死「两个」
+        assert "7 个不同的问题" in out2, out2[:600]
+        # ⚖ ⑤ **同一轮内档数混合**（修订 234 的真实形状）⇒ 两组都要报出来
+        lg3, st3 = _synthetic_multi(3, [[1, 2, 3, 4, 5], [1, 2, 3, 4, 5, 6]])
+        r3 = analyze(_read_pair(lg3, st3))
+        assert r3["k_n_hist"] == {5: 3, 6: 3}, r3["k_n_hist"]
+        out3 = report(r3)
+        assert "5 档×3 条" in out3 and "6 档×3 条" in out3, out3[-900:]
+    ck("K19 绿：7 个问题 + 阶梯档数不一致 ⇒ max 尺被标成跨尺度不可比", k19)
 
     npass = sum(1 for _, s, _ in T if s == "PASS")
     for name, st_, msg in T:

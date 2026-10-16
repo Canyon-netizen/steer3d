@@ -84,6 +84,15 @@ MUTATIONS = [
     # ⚖ ⇒ 「多测两档就更容易判噪声主导」那个坑又回来了，而输出上看不出来。
     ("G12", "row[\"jitter_med\"] = _median(diffs) if diffs else None",
      "row[\"jitter_med\"] = max(diffs) if diffs else None", "K18"),
+    # G13 让 `k_n_uniform` **恒为真** ⇒ 跨尺度警告永远不触发 ⇒ K19 该红
+    # ⚠⚠ 症状：阶梯档数明明不一样（5 档 vs 6 档），报告却印「max 尺本轮内可比」
+    # ⚖ ⇒ 下一个人会把两把不同刻度的尺子的数排进同一列比大小，
+    # ⚖ 而输出上**看不出**任何异常 —— 这正是修订 232 那条坑原地复活。
+    # ⚗ needle 从 `len` 起（NAME token）而不是从 `"k_n_uniform"` 起：
+    # ⚖ 第一版从第 12 列的字符串字面量起，⚖ 台架直接判「落在散文 token 上」
+    # ⚖ 而拒收 —— 这正是那个 tokenize 判据该干的事。
+    ("G13", "len(k_n_hist) <= 1,",
+     "True,  # mutated", "K19"),
 ]
 
 
