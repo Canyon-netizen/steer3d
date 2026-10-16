@@ -37,7 +37,12 @@ import math
 import sys
 
 # ⚠ 纯出处的字段：**不是**读数，比较时必须排除。
-PROVENANCE_KEYS = ("inject_scope", "pos_ok", "device_validated", "dose_source")
+# ⚠⚠⁴ 修订 221：`smoke_traj` / `smoke_traj_arg` 也进这里 ——
+# ⚠⚠⁴ 它们决定**覆盖面**（比了几条轨迹），不是读数本身。
+# ⚖ 但覆盖面差异**不许被静默**：compare_bench 的 only_in_a/only_in_b 会
+# ⚖ 把格数不同这件事报出来，且报告【1】会印比较点数。
+PROVENANCE_KEYS = ("inject_scope", "pos_ok", "device_validated", "dose_source",
+                   "smoke_traj", "smoke_traj_arg")
 
 
 def _sign_test(n_pos, n_neg):

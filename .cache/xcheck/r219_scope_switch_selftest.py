@@ -444,6 +444,77 @@ def _():
     assert not ok, "变异后 C7 仍绿 ⇒ C7 没有分辨力"
 
 
+@case("C8 ⛔⛔⛔ --smoke-traj 默认必须是 3（= 改之前的硬编码 [:3]）")
+def _():
+    # ⚠⚠ 改这个默认 = 「默认跑的覆盖面」被静默放大，且**不可见**：
+    # ⚠⚠ 产物里多几条格子而已，日志不会说「我今天多跑了」。
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    assert 'ap.add_argument("--smoke-traj", type=int, default=3' in src, \
+        "⛔⛔ --smoke-traj 默认不是 3 —— 默认覆盖面被改了"
+    # ⛔⛔ 而 smoke 必须真的用它，而不是还写着硬编码的切片。
+    # ⚠⚠⁴ ⚠⚠⚠ **第一版这条判据写错了，教训记在这里**：
+    # ⚠⚠⁴ 我写的是 `assert "[:3]" not in src` —— 可 `[:3]` 出现在
+    # ⚠⚠⁴ argparse 的 help 文本和**我自己的注释**里（L439/441/560），
+    # ⚠⚠⁴ 于是一条**什么都没测的判据**被自己的说明文字判红了。
+    # ⚖⇒ 「不许出现某个串」这种判据，必须先定位到**代码点**再断言，
+    # ⚖   否则它读的是散文，不是程序。
+    code_lines = [l for l in src.split("\n") if "smoke_tids = " in l]
+    assert len(code_lines) == 1, \
+        "smoke_tids 赋值行不唯一（%d 行）⇒ 判据要先重新定位" % len(code_lines)
+    assert "[:a.smoke_traj]" in code_lines[0], \
+        "⛔⛔ smoke 没用 --smoke-traj，参数是摆设（该行是 %r）" % code_lines[0]
+    # ⚗ 顺带自证：[:3] 确实只活在散文里，代码里没有
+    for i, l in enumerate(src.split("\n"), 1):
+        if "[:3]" in l:
+            assert not l.lstrip().startswith(("smoke_tids", "z = np.load")), \
+                "⛔ 第 %d 行的 [:3] 是**代码**，不是注释/帮助文本" % i
+
+
+@case("C9 ⛔ smoke-traj 必须有分母守卫（0 会得到空 bench 却照样写产物）")
+def _():
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    assert "if a.smoke_traj < 1:" in src, \
+        "⛔ --smoke-traj 0 会让 smoke_tids 为空 ⇒ 空 bench、pos_ok=False、退出码 1，" \
+        "产物却『有产出』—— 与『0 条比较点不许印一致』同一个坑"
+    # ⚠ 守卫必须**在**取切片之前
+    guard = src.find("if a.smoke_traj < 1:")
+    slice_ = src.find("[:a.smoke_traj]")
+    assert 0 <= guard < slice_, "⛔ 守卫写在切片之后 ⇒ 拦不住"
+
+
+@case("H8 ⛔ 变异：把 --smoke-traj 默认改成 10 ⇒ C8 必须红")
+def _():
+    # ⚠⚠ 双向：原版必须满足，变异体必须不满足。
+    needle = 'ap.add_argument("--smoke-traj", type=int, default=3'
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    assert needle in src, "原版不满足 C8 ⇒ C8 写错了"
+    mut = src.replace(needle, 'ap.add_argument("--smoke-traj", type=int, default=10')
+    assert mut != src, "变异没生效"
+    assert needle not in mut, "⛔ 变异后 C8 仍然通过 ⇒ C8 没有分辨力"
+
+
+@case("H9 ⛔ 变异：加完参数却还留硬编码切片 ⇒ C8 必须红（参数成了摆设）")
+def _():
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    line = [l for l in src.split("\n") if "smoke_tids = " in l][0]
+    assert "[:a.smoke_traj]" in line, "原版不满足 C8"
+    # ⚠⚠ 只改**那一行**，不动散文 —— 改散文等于没改代码。
+    mut = src.replace(line, line.replace("[:a.smoke_traj]", "[:3]"))
+    assert mut != src, "变异没生效"
+    mline = [l for l in mut.split("\n") if "smoke_tids = " in l][0]
+    assert "[:a.smoke_traj]" not in mline and "[:3]" in mline, \
+        "⛔ 变异后 C8 仍然通过 ⇒ C8 抓不住『参数没接上』"
+
+
+@case("H10 ⛔ 变异：去掉 smoke-traj 分母守卫 ⇒ C9 必须红")
+def _():
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    assert "if a.smoke_traj < 1:" in src, "原版不满足 C9"
+    mut = src.replace("if a.smoke_traj < 1:", "if False:")
+    assert mut != src, "变异没生效"
+    assert "if a.smoke_traj < 1:" not in mut, "⛔ 变异后 C9 仍然通过"
+
+
 def main():
     npass = nfail = 0
     for name, fn in CASES:

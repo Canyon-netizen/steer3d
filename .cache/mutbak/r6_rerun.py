@@ -435,6 +435,14 @@ def main():
                          "⚠⚠ 两者量的**不是同一个东西**（修订 209/210/215），且 all 会让 token 链分叉、"
                          "P9 判决 0/10 翻转。⛔⛔ 改这个默认值 = 改 P6 的预登记协议，须人拍板。")
     ap.add_argument("--smoke", action="store_true", help="只跑 3 条轨迹的装置符号基准")
+    ap.add_argument("--smoke-traj", type=int, default=3,
+                    help="⛔ smoke 分支跑几条轨迹（默认 3 = 改之前的硬编码 [:3]，"
+                         "**默认值不许改**）。\n"
+                         "⚠ 修订 221：原先是写死的 [:3]，而 --limit-traj 只能把它"
+                         "**缩小**（它先筛 metas，smoke 再取前 3）⇒ 想扩覆盖面"
+                         "只能改代码。\n"
+                         "⚠⚠ 加这个参数是为了让「口径差在更大 n 上稳不稳」可测，"
+                         "**不是**为了让默认跑得更多。")
     ap.add_argument("--train-only", action="store_true",
                     help="只训 w 并存成 .npy 后退出：**不加载模型、不需要 GPU**。"
                          "训练只吃 npz 的 hidden_states，所以可以在本机跑，"
@@ -549,7 +557,16 @@ def main():
         MODEL, dtype=torch.bfloat16).to("cuda:0").eval()
     fwd = make_forward(model, tok, scope=a.inject_scope)
 
-    smoke_tids = [t for t in sorted(metas) if metas[t]["markers"]][:3]
+    # ⚠⚠⁴ 修订 221：原先是写死的 `[:3]`。`--limit-traj` 先筛 metas、
+    # ⚠⚠⁴ 这里再取前 3 ⇒ limit_traj 只能让它**更小**，永远扩不大。
+    # ⚖ 默认仍是 3 ⇒ **默认行为逐位不变**，只是把那个魔数变成了可声明的参数。
+    # ⚠⚠⛔ 分母不许是 0：`[:0]` 会得到空 bench，而 `finalize` 照样写产物、
+    # ⚠⚠⛔ `pos_ok` 在空 bench 上必然为 False ⇒ 退出码 1，读数却「有产出」。
+    # ⚠⚠⛔ 那正是本项目记过多次的「0 条比较点不许印一致」的同一个坑。
+    if a.smoke_traj < 1:
+        raise SystemExit("⛔ --smoke-traj 必须 >= 1（0 会得到空 bench，"
+                         "却照样写出产物并返回退出码 1）")
+    smoke_tids = [t for t in sorted(metas) if metas[t]["markers"]][:a.smoke_traj]
     print(f"\n[P9 装置符号基准] 用 {len(smoke_tids)} 条轨迹")
     bench = {}
     for tid in smoke_tids:
@@ -611,7 +628,12 @@ def main():
                          "label_coverage": coverage,
                          # ⚠⚠⁴ 口径必须**每一条**落盘路径都记，否则「两批读数混批
                          # ⚠⚠⁴ 时看不出来」这条理由在 smoke 批次上不成立。
-                         "inject_scope": a.inject_scope},
+                         "inject_scope": a.inject_scope,
+                         # ⚠⚠⁴ 覆盖面也必须落盘：`--smoke-traj 3` 与
+                         # ⚠⚠⁴ `--smoke-traj 10` 是**两份不可比的读数**，
+                         # ⚠⚠⁴ 而它们的 bench 格子数不同这一点要靠数格子才知道。
+                         "smoke_traj": len(smoke_tids),
+                         "smoke_traj_arg": a.smoke_traj},
                         a.out, pos_ok)
 
     # ---- 全量变体 ----

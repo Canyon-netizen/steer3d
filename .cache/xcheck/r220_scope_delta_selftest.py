@@ -59,10 +59,17 @@ def _load_mutant(old, new):
     return mod
 
 
+# ⚠ 真产物里 label_coverage.n_traj = **60**（数据集轨迹数），不是 bench 的格数。
+# ⚠⚠⁴ 第一版这里写成了 len(bench)，于是 E6 里 3 条 vs 10 条轨迹被伪装成
+# ⚠⚠⁴ 「label_coverage 变了」⇒ 单变量守卫拒绝归因，读数器**判得对**、夹具**写错了**。
+# ⚖ 这条记在这里，因为它是个容易再犯的错：把「覆盖面」和「读数」塞进同一个数。
+N_TRAJ_DATASET = 60
+
+
 def _payload(bench, scope="single", ok=True, extra=None):
     p = {"bench": bench, "bench_v": {t: {"ok": ok} for t in bench},
          "pos_ok": ok, "device_validated": ok,
-         "label_coverage": {"n_traj": len(bench), "n_missing": 0, "frac": 1.0}}
+         "label_coverage": {"n_traj": N_TRAJ_DATASET, "n_missing": 0, "frac": 1.0}}
     if scope is not None:
         p["inject_scope"] = scope
     if extra:
@@ -263,10 +270,8 @@ def _():
 
 @case("F3 ⛔ 变异：把 bench 也当出处字段排除 ⇒ C2 必须红")
 def _():
-    mod = _load_mutant('PROVENANCE_KEYS = ("inject_scope", "pos_ok", '
-                       '"device_validated", "dose_source")',
-                       'PROVENANCE_KEYS = ("inject_scope", "pos_ok", '
-                       '"device_validated", "dose_source", "bench", "bench_v")')
+    mod = _load_mutant('"device_validated", "dose_source",',
+                       '"device_validated", "dose_source", "bench", "bench_v",')
     a = _payload(B1, "single", extra={"rows": [{"t": 1}]})
     b = _payload(B1, "all", extra={"rows": [{"t": 2}]})
     r = mod.analyze(a, b)
@@ -298,6 +303,39 @@ def _():
         "⛔ 水平远大于噪声，却被判成「没有意义」⇒ 守卫过宽"
     txt = r220.report(r)
     assert "中位数之比" in txt and "别引用" not in txt
+
+
+@case("E6 ⛔ smoke_traj 是覆盖面出处：不同不该被当成「口径差」，也不该被静默")
+def _():
+    # ⚠ 两批读数比的是 3 条 vs 10 条轨迹 ⇒ 覆盖面不同。
+    # ⚖ 它们**不是**读数差异（⇒ 不该让单变量守卫拒绝归因），
+    # ⚖ 但**必须**被看见（⇒ 格数不同要报出来，不能悄悄只比交集）。
+    a = _payload(B1, "single", extra={"smoke_traj": 3, "smoke_traj_arg": 3})
+    big = {"t%d" % i: {"w+@0.5": 0.5, "w+@1.0": 0.25} for i in range(1, 11)}
+    b = _payload(big, "all", extra={"smoke_traj": 10, "smoke_traj_arg": 10})
+    r = r220.analyze(a, b)
+    assert r["single_variable_ok"], "⛔ 覆盖面差异被误判成「不止一个变量变了」"
+    assert r["bench"]["n_bench_rows"] == 2 and r["bench"]["n_compared"] == 4, \
+        "⛔ 比较点数算错：交集应是 2 条 × 2 点 = 4"
+    assert len(r["bench"]["only_in_b"]) == 16, \
+        "⛔ 只在 B 的格数不对（8 条 × 2 点）"
+    txt = r220.report(r)
+    assert "比较点 4 个（2 条轨迹）" in txt, "⛔ 覆盖面没印出来"
+
+
+@case("E7 ⛔⛔ 只在 B 出现的新格必须被看见，不能只比交集就宣布「逐位相同」")
+def _():
+    a = _payload(B1, "single")
+    b = dict(_payload(B1, "single"))
+    b["bench"] = dict(b["bench"])
+    b["bench"]["t9"] = {"w+@0.5": 0.5, "w+@1.0": 0.25}
+    r = r220.analyze(a, b)
+    assert r["bench"]["n_exact"] == r["bench"]["n_compared"] == 8
+    # ⚠⚠ 交集全同，但两边格数不同 ⇒ 「逐位相同」这句话必须带上「只在 B」这个事实
+    assert r["bench"]["only_in_b"] == [("t9", "w+@0.5"), ("t9", "w+@1.0")], \
+        r["bench"]["only_in_b"]
+    txt = r220.report(r)
+    assert "只在 B 2" in txt, txt[:400]
 
 
 def main():
