@@ -291,7 +291,25 @@ def analyze(cells, verbose=True):
         row["jitter_med"] = _median(diffs) if diffs else None
         row["span"] = (max(los) - min(los)) if los else None
         row["k_lo"] = ladder[0]["k"] if ladder else None
-        row["k_hi"] = ladder[-1]["k"] if ladder else None
+        # ⚠⚠⚠⁴ `k_hi` **必须按覆盖率钉死**，⛔ 绝不能取 `ladder[-1]`。
+        # ⚖ 这里的坑是**静默**的，而且已经改过一次历史读数的含义：
+        # ⚖ 修订 229 时阶梯只到 n_eff/2 ⇒ `ladder[-1]` **恰好**就是 50% 点；
+        # ⚖ 修订 232 给旧曲线**追加**了 75% 与 87.5% 档 ⇒ `ladder[-1]` 变成 87.5% 点
+        # ⚖ ⇒ ⛔ `k_hi→all` 的**区间**从「最后 50%」缩成「最后 12.5%」。
+        # ⚖⚖ 用 p00__think 实测：all 的 lo = +0.2617，
+        # ⚖   k=881(50.0%) → −0.1298（**修订 229 报的就是这个**）
+        # ⚖   k=1541(87.5%) → −0.1872（**修订 232 报的是这个**）
+        # ⚖ 两个数都能从同一批读数精确复现，⛔ 但量的**不是同一个东西**，
+        # ⚖ 而输出上**看不出任何区别** —— 符号一样、口径名字也一样。
+        # ⚖⇒ 判据：`2*k <= n_eff`（整数，与尾段过滤器同一套口径）。
+        below = [c for c in ladder if n_eff and 2 * c["k"] <= n_eff]
+        row["k_hi"] = below[-1]["k"] if below else None
+        row["k_hi_cover"] = (100.0 * row["k_hi"] / n_eff
+                             if (below and n_eff) else None)
+        # ⚖⚠ 记下「这个曲线的阶梯里有没有 >50% 的档」——
+        # ⚖ 有 ⇒ 旧的 `ladder[-1]` 会被这些档顶掉，⚖ 这是判据变更的现场。
+        row["k_n_above_half"] = len([c for c in ladder
+                                    if n_eff and 2 * c["k"] > n_eff])
         # ⚠⚠⁴ 阶梯的**档数**本身就是一个必须报出来的量。
         # ⚖ `jitter` 是**极值**统计量（取 max），⚖ 而「档数越多 max 只会越大」
         # ⚖ ⇒ **两条曲线若阶梯档数不同，它们的 `jitter` 连尺度都不一样**。
@@ -304,9 +322,14 @@ def analyze(cells, verbose=True):
         s = ends.get("single")
         row["drift_single_all"] = (a["reading"]["p9_lo_meas"]
                                    - s["reading"]["p9_lo_meas"]) if (a and s) else None
-        if a and ladder:
+        if a and below:
             row["drift_khi_all"] = (a["reading"]["p9_lo_meas"]
-                                    - ladder[-1]["reading"]["p9_lo_meas"])
+                                    - below[-1]["reading"]["p9_lo_meas"])
+        elif a and ladder:
+            # ⚠⚠⚠ 阶梯里**没有** ≤50% 的档 ⇒ 这个漂移**没法按 50% 口径算**。
+            # ⚖⛔ 这里必须报「未量到」，⛔ 绝不许退回 `ladder[-1]` ——
+            # ⚖ 那正是本条要修的那个静默错误，只是换个地方再犯一次。
+            row["drift_khi_all"] = None
         else:
             row["drift_khi_all"] = None
         # ⚖⚖ 位置身份效应：`single` 就是「1 个位点、位置=prefix 最后一位」
@@ -1035,6 +1058,42 @@ def selftest():
         out3 = report(r3)
         assert "5 档×3 条" in out3 and "6 档×3 条" in out3, out3[-900:]
     ck("K19 绿：7 个问题 + 阶梯档数不一致 ⇒ max 尺被标成跨尺度不可比", k19)
+
+    # K20 绿：`k_hi` 必须按**覆盖率**钉在 ≤50% 的那一档，⛔ 不是 ladder[-1]
+    # ⚠⚠ 这条是修订 234 撞出的**静默**缺陷：修订 232 给旧曲线追加了 75%/87.5% 档，
+    # ⚖ 而读数器取 `ladder[-1]` ⇒ `k_hi→all` 的区间从「最后 50%」缩成「最后 12.5%」，
+    # ⚖ 而输出上**看不出任何区别**。
+    def k20():
+        # ⚖ ① 阶梯里有 >50% 的档时，k_hi 仍必须取 ≤50% 的最后一档
+        lg, st = _synthetic_multi(1, [[1, 2, 4, 8, 16, 25]])   # n_eff=1000 ⇒ 25 是 2.5%
+        r = analyze(_read_pair(lg, st))
+        t = r["tids"][0]
+        p = r["per"][t]
+        assert p["k_hi"] == 25, "k_hi=%r，应取 ≤50%% 的最后一档 25" % p["k_hi"]
+        # ⚖ ② 刻意再加两档 **>50%** ⇒ k_hi **不许**跟着变
+        # ⚗⚠ 第一版取 75/88，⚖ 而 n_eff=1000 ⇒ 它们只有 7.5%/8.8%，
+        # ⚖ **本来就在一半以下** ⇒ 判据测的其实还是同一条路径，
+        # ⚖ 「k_hi 不受高档影响」这件事**根本没被测到**。⇒ 必须 >500。
+        lg2, st2 = _synthetic_multi(1, [[1, 2, 4, 8, 16, 25, 600, 880]])
+        r2 = analyze(_read_pair(lg2, st2))
+        p2 = r2["per"][r2["tids"][0]]
+        assert p2["k_hi"] == 25, "k_hi=%r；加了 75/88 两档后它不该变" % p2["k_hi"]
+        assert p2["k_n_above_half"] == 2, p2["k_n_above_half"]
+        # ⚖⚖ ③ 漂移必须按 k_hi 那一档算，⛔ 不是 ladder[-1]
+        allv = p2["all"]["reading"]["p9_lo_meas"]
+        khi_cell = [c for c in p2["ladder"] if c["k"] == 25][0]
+        exp = allv - khi_cell["reading"]["p9_lo_meas"]
+        assert abs(p2["drift_khi_all"] - exp) < 1e-12, \
+            "drift=%r 应按 k=25 算成 %r" % (p2["drift_khi_all"], exp)
+        # ⚖⚠ ④ 阶梯里**没有** ≤50% 的档 ⇒ 报「未量到」，⛔ 绝不退回 ladder[-1]
+        lg3, st3 = _synthetic_multi(1, [[600, 700, 800, 900]])   # n_eff=1000，全 >50%
+        r3 = analyze(_read_pair(lg3, st3))
+        p3 = r3["per"][r3["tids"][0]]
+        assert p3["k_hi"] is None, p3["k_hi"]
+        assert p3["drift_khi_all"] is None, \
+            "没有 ≤50%% 的档时 drift 必须未量到，实际 %r" % p3["drift_khi_all"]
+        assert "未量到" in report(r3), "报告里该写未量到"
+    ck("K20 绿：k_hi 按覆盖率钉在 ≤50% 档（>50% 的档不许顶掉它）", k20)
 
     npass = sum(1 for _, s, _ in T if s == "PASS")
     for name, st_, msg in T:
