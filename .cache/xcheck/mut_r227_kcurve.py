@@ -71,6 +71,19 @@ MUTATIONS = [
     # ⚖ 只能靠一条**知道正确答案**的判据（K15 拿夹具的 SINGLE_LO/LADDER_LO 算）。
     ("G9", "(lo_s - lo_1) if (lo_s is not None",
      "(lo_1 - lo_s) if (lo_s is not None", "K15"),
+    # G10 拆掉**重复档检测** ⇒ K16 该红
+    # ⚖ 拆掉它之后，重复档两次都能通过其余交叉校验 ⇒ 会**静默混进曲线**。
+    ("G10", "if key in seen:",
+     "if False and key in seen:", "K16"),
+    # G11 把尾段阈值从「整整一半」改成「任何档」（等于把整条阶梯都算进尾段）⇒ K17 该红
+    # ⚖ 症状：尾段「有四档」的断言失效，而输出看上去仍然四平八稳。
+    ("G11", "if c[\"k\"] * 2 >= n_eff:",
+     "if c[\"k\"] * 1 >= n_eff:", "K17"),
+    # G12 把**稳健尺** jitter_med 换成 max ⇒ K18 该红
+    # ⚠⚠ 症状：med 与 max 变成同一个数，跨轮次比较的尺子**静默退化成极值统计量**
+    # ⚖ ⇒ 「多测两档就更容易判噪声主导」那个坑又回来了，而输出上看不出来。
+    ("G12", "row[\"jitter_med\"] = _median(diffs) if diffs else None",
+     "row[\"jitter_med\"] = max(diffs) if diffs else None", "K18"),
 ]
 
 

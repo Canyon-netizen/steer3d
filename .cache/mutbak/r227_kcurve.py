@@ -177,6 +177,7 @@ def join(blocks, rows):
             "位置配对会错位，拒绝读" % (len(blocks), len(rows)))
 
     cells = []
+    seen = {}
     for i, (b, r) in enumerate(zip(blocks, rows)):
         if b["tid"] != r["tid"]:
             raise HardFail("第 %d 格 tid 对不上：日志 %r vs 状态 %r（错位一格会把"
@@ -219,6 +220,22 @@ def join(blocks, rows):
         elif r["rc"] == 0:
             raise HardFail("第 %d 格 rc=0 却没读到 JSON —— 状态与日志矛盾，拒绝读"
                            % (i + 1))
+        # ⚠⚠⁴ **重复档检测**。这一条是 2026-10-17 修订 232 才补上的，
+        # ⚖ 因为那一轮改用「**追加进同一份日志**」的驱动形态（只跑新增档，
+        # ⚖ 而不重跑已入库的 31 格）。
+        # ⚖⚠ 那个形态有个新风险：**驱动被误跑两次 ⇒ 同一个 (tid, 口径, k) 出现两次**。
+        # ⚖ 而上面的交叉校验两次都过得去（状态与读数确实一致）⇒
+        # ⚖ 重复档会**静默混进曲线**，既虚增「抖动地板」又让该档被算两次。
+        # ⚖⚠ 分母、显著性、单调性都会被它污染，而输出上看不出任何异常。
+        if reading is not None:
+            key = (c["tid"], c["scope"], c["k"])
+            if key in seen:
+                raise HardFail(
+                    "第 %d 格与第 %d 格**重复**：tid=%s 口径=%s k=%s"
+                    "⇒ 同一档被跑了两遍（驱动被误跑两次？）。"
+                    "⚠ 重复档会虚增抖动地板并让该档被算两次，⛔ 拒绝读。"
+                    % (i + 1, seen[key], c["tid"], c["scope"], c["k"]))
+            seen[key] = i + 1
         cells.append(c)
     return cells
 
@@ -259,14 +276,19 @@ def analyze(cells, verbose=True):
                "n_cells": len(cs), "n_crash": ncrash,
                "ladder": ladder, "single": ends.get("single"), "all": ends.get("all")}
 
-        # ⚖ 两个尺子，判决只用**较小**的那个（更保守，更难宣称「噪声主导」）：
-        #   jitter = 相邻档 lo 之差的最大绝对值  ← 判决尺
-        #   span   = 阶梯内 lo 的极差（max − min）  ← 参考尺
-        # ⚠ 修订 226 的账本里写的是 0.3460，那是**极差**；本脚本的 0.2291 是**相邻档差**。
-        # ⚖ 两者不是同一个数，结论（噪声主导）在两个尺子下都成立，但必须标明用的是哪个。
+        # ⚖ 三个尺子：
+        #   jitter     = 相邻档 lo 之差的**最大**绝对值  ← 判决尺（极值）
+        #   jitter_med = 相邻档 lo 之差的**中位数**      ← 稳健尺（跨轮次可比）
+        #   span       = 阶梯内 lo 的极差（max − min）  ← 参考尺
+        # ⚠ 修订 226 账本里的 0.3460 是**极差**，不是相邻档差。
+        # ⚠⚠⚠ 修订 232 查出一条**必须写在这里**的坑：**`jitter` 是极值统计量，
+        # ⚖ 档位越多它只会越大** ⇒ 多测两档就会让「噪声主导」更容易成立。
+        # ⚖ 本轮实测：多测两档后 p03__think 的 jitter 从 0.1300 涨到 0.3343
+        # ⚖ ⇒ ⛔ **跨轮次的判决不可比**；要跨轮次比，请用 `jitter_med`。
         los = [c["reading"]["p9_lo_meas"] for c in ladder]
-        row["jitter"] = max([abs(los[i + 1] - los[i]) for i in range(len(los) - 1)],
-                            default=None)
+        diffs = [abs(los[i + 1] - los[i]) for i in range(len(los) - 1)]
+        row["jitter"] = max(diffs) if diffs else None
+        row["jitter_med"] = _median(diffs) if diffs else None
         row["span"] = (max(los) - min(los)) if los else None
         row["k_lo"] = ladder[0]["k"] if ladder else None
         row["k_hi"] = ladder[-1]["k"] if ladder else None
@@ -290,6 +312,33 @@ def analyze(cells, verbose=True):
         lo_s = s["reading"]["p9_lo_meas"] if s else None
         lo_1 = one["reading"]["p9_lo_meas"] if one else None
         row["drift_single_k1"] = (lo_s - lo_1) if (lo_s is not None and lo_1 is not None) else None
+        # ⚖⚖ 尾段（≥50% + `all`）逐档。修订 229 §229.5 记的是
+        # ⚖ 「50%–100% 之间**只有两个点**，中间是空的」；修订 232 补了 3/4、7/8
+        # ⚖ ⇒ 这一段变成四点 ⇒ ⛔「最后一步是不是真的只有一步」现在可判了。
+        pts = []
+        if n_eff:
+            for c in ladder:
+                # ⚖ 阈值按**整数**判 `k*2 >= n_eff`，⛔ 不用百分比浮点。
+                # ⚖⚠ 2026-10-17 更正我自己一次**误判**：我曾把
+                # ⚖ `p03__no_think` 的 k=570 被排除当成「差 0.04% 的缺陷」，
+                # ⚗ 其实是 `n_eff=1141` 的一半是 **570.5**，`2×570=1140 < 1141`
+                # ⚗ ⇒ k=570 **确实在半数以下**，⛔ 排除是对的，不是 bug。
+                # ⚖ 整数比与百分比判据等价，但少一层浮点面，值得保留。
+                if c["k"] * 2 >= n_eff:
+                    pts.append((100.0 * c["k"] / n_eff, "k=%d" % c["k"],
+                                c["reading"]["p9_lo_meas"]))
+        if a:
+            pts.append((100.0, "all", a["reading"]["p9_lo_meas"]))
+        pts.sort(key=lambda x: x[0])
+        row["tail"] = pts
+        # ⚖ 尾段里逐档差**超过抖动地板**的次数 ⇒ 0 就是「整段都落在噪声内」
+        # ⚖ 两个尺子各数一遍：max 是极值（随档位变多而变大），med 才是稳健的那个
+        jx, jm = row.get("jitter"), row.get("jitter_med")
+        row["tail_jitter_exceed"] = (
+            sum(1 for j in range(1, len(pts)) if jx is not None
+                and abs(pts[j][2] - pts[j - 1][2]) > jx),
+            sum(1 for j in range(1, len(pts)) if jm is not None
+                and abs(pts[j][2] - pts[j - 1][2]) > jm))
         per[t] = row
 
     # ---- 判决：差值 vs 抖动
@@ -297,6 +346,10 @@ def analyze(cells, verbose=True):
         r["verdict_khi"] = _verdict(r["drift_khi_all"], r["jitter"])
         r["verdict_single"] = _verdict(r["drift_single_all"], r["jitter"])
         r["verdict_posid"] = _verdict(r["drift_single_k1"], r["jitter"])
+        # ⚖ 稳健尺的同一批判决（跨轮次可比用这一组）
+        r["verdict_khi_med"] = _verdict(r["drift_khi_all"], r["jitter_med"])
+        r["verdict_single_med"] = _verdict(r["drift_single_all"], r["jitter_med"])
+        r["verdict_posid_med"] = _verdict(r["drift_single_k1"], r["jitter_med"])
 
     # ---- 分层符号检验：轨迹级 vs 问题级
     tr = [per[t]["drift_khi_all"] for t in tids if per[t]["drift_khi_all"] is not None]
@@ -392,23 +445,31 @@ def report(r, verbose=True):
     L.append("    ⚖ 而 `k=1` 挑的是种子 0 置换里的某个位置 ⇒ **位点身份不同**。")
     L.append("    ⚗ 所以 `single→all` 那列是**口径差**（修订 219–221 那个问题），")
     L.append("    ⚗ ⛔ **不是**剂量曲线上的一点。剂量问题只看 `k_hi→all`。")
-    L.append("     %-28s %-15s %-15s %-10s %-10s"
-             % ("tid", "k_hi→all(剂量)", "single→all(口径)", "相邻档差", "极差"))
+    L.append("     %-28s %-15s %-15s %-10s %-10s %-10s"
+             % ("tid", "k_hi→all(剂量)", "single→all(口径)",
+                "相邻档差max", "相邻档差med", "极差"))
     for t in r["tids"]:
         p = r["per"][t]
         d1 = p["drift_single_all"]
         d2 = p["drift_khi_all"]
-        L.append("     %-28s %-15s %-15s %-10s %-10s"
+        L.append("     %-28s %-15s %-15s %-10s %-10s %-10s"
                  % (t,
                     "%+.4f" % d2 if d2 is not None else "未量到",
                     "%+.4f" % d1 if d1 is not None else "未量到",
                     "%.4f" % p["jitter"] if p["jitter"] is not None else "未量到",
+                    "%.4f" % p["jitter_med"] if p["jitter_med"] is not None else "未量到",
                     "%.4f" % p["span"] if p["span"] is not None else "未量到"))
+    L.append("    ⚠⚠⚠ **`相邻档差max` 是极值统计量，档位越多它只会越大** ⇒")
+    L.append("       多测两档就会让「噪声主导」更容易成立。⚖ 本轮实测 p03__think 的")
+    L.append("       max 从 0.1300 涨到 0.3343 ⇒ ⛔ **跨轮次的判决不可比**。")
+    L.append("       ⚖ 要跨轮次比，请看 `相邻档差med`（中位数，对档位数不敏感）。")
     L.append("")
     for t in r["tids"]:
         p = r["per"][t]
-        L.append("     %-28s k_hi(剂量): %s" % (t, p["verdict_khi"]))
-        L.append("     %-28s single(口径): %s" % (t, p["verdict_single"]))
+        L.append("     %-28s k_hi(剂量)  max尺: %s" % (t, p["verdict_khi"]))
+        L.append("     %-28s             med尺: %s" % (t, p["verdict_khi_med"]))
+        L.append("     %-28s single(口径) max尺: %s" % (t, p["verdict_single"]))
+        L.append("     %-28s             med尺: %s" % (t, p["verdict_single_med"]))
 
     # 【3】分层符号检验（**精确**二项，⛔ 不用正态近似）
     L.append("\n【3】符号检验（k_hi→all 的漂移，剂量问题）—— ⚠ 轨迹 ≠ 独立问题")
@@ -435,20 +496,17 @@ def report(r, verbose=True):
     L.append("    ⚖ 两者都是**只注入 1 个位点**；`single` 的位置是 prefix 最后一位，")
     L.append("    ⚖ `k=1` 的位置是种子 0 置换里的那个 ⇒ **位点数恒同，只有身份不同**。")
     L.append("    ⚗ 所以这个差**不需要**另跑一档，它已经在数据里了。")
-    L.append("     %-28s %-12s %-12s %-10s" % ("tid", "single−k=1", "抖动地板", "判决"))
+    L.append("     %-28s %-12s %-12s %-10s" % ("tid", "single−k=1", "max尺", "med尺"))
     for t in r["tids"]:
         p = r["per"][t]
         d = p["drift_single_k1"]
         one = p.get("k_one")
         if d is None:
             why = "缺 k=1 档（阶梯最小 k=%s）" % (one["k"] if one else "无")
-            L.append("     %-28s %-12s %-12s %s"
-                     % (t, "未量到", "—", why))
+            L.append("     %-28s %-12s %-12s %s" % (t, "未量到", "—", why))
             continue
-        L.append("     %-28s %-12s %-12s %s"
-                 % (t, "%+.4f" % d,
-                    "%.4f" % p["jitter"] if p["jitter"] is not None else "—",
-                    p["verdict_posid"]))
+        L.append("     %-28s %-12s %-12s %-10s"
+                 % (t, "%+.4f" % d, p["verdict_posid"], p["verdict_posid_med"]))
     L.append("")
     for name, st in (("轨迹级", r["pid_traj"]), ("问题级", r["pid_prob"])):
         p_, pos, neg, tie, lb, z = st
@@ -460,16 +518,51 @@ def report(r, verbose=True):
                     "   ⚠⚠ > 0.05" if lb > 0.05 else ""))
     L.append("     ⚖ 有 %d/%d 条轨迹能算这个差（⛔ 其余是「未量到」，不是 0）"
              % (r["n_pid"], len(r["tids"])))
-    return "\n".join(L)
 
+    # 【5】尾段细分（≥50% + all）—— 回答「50%→100% 是不是真的只有一步」
+    L.append("\n【5】尾段细分（覆盖率 ≥50% 的档 + `all`）")
+    L.append("    ⚖ 修订 229 记的是「50%–100% 之间只有两个点，中间是空的」；")
+    L.append("    ⚖ 补了 3/4、7/8 之后这一段才有四档 ⇒ 逐步的差才可判。")
+    for t in r["tids"]:
+        p = r["per"][t]
+        tail = p.get("tail") or []
+        if len(tail) < 2:
+            L.append("\n  ── %s   ⛔ 尾段只有 %d 个点，没法分步（不是「无差异」）"
+                     % (t, len(tail)))
+            continue
+        j = p["jitter"]
+        jm = p["jitter_med"]
+        L.append("\n  ── %s   尾段 %d 档，max尺 %s / med尺 %s"
+                 % (t, len(tail),
+                    ("%.4f" % j) if j is not None else "未量到",
+                    ("%.4f" % jm) if jm is not None else "未量到"))
+        L.append("     %-10s %-9s %-11s %-20s" % ("档", "覆盖", "lo", "与上一档之差"))
+        for idx, (frac, lab, lo) in enumerate(tail):
+            if idx == 0:
+                d = "—"
+            else:
+                delta = lo - tail[idx - 1][2]
+                mk = ""
+                if j is not None:
+                    mk += "⛔超max" if abs(delta) > j else "max内"
+                if jm is not None:
+                    mk += " ⛔超med" if abs(delta) > jm else " med内"
+                d = "%+.4f  %s" % (delta, mk)
+            L.append("     %-10s %5.1f%%   %+.4f      %s" % (lab, frac, lo, d))
+        ex_max, ex_med = p["tail_jitter_exceed"]
+        L.append("     ⇒ 逐档差超过地板的次数：max尺 %d 次%s"
+                 % (ex_max, "（整段落在噪声内）" if ex_max == 0 else ""))
+        L.append("       ⚖ med尺 %d 次%s"
+                 % (ex_med, "（整段落在噪声内）" if ex_med == 0 else ""))
+    return "\n".join(L)
 
 # ---------------------------------------------------------------- 自检
 
 
 # ⚖ 合成数据的形状是**故意**设计的，不是随手写的：
-# ⚖ 阶梯相邻档大幅振荡（抖动地板 0.40），而端点漂移只有 0.25
-# ⚖ ⇒ 用来验「差值 ≪ 抖动 ⇒ 必须判成噪声主导」这条判决分支真的能红。
-LADDER_LO = [0.00, 0.40, 0.05, 0.45]
+# ⚖ 阶梯相邻档大幅振荡，且**最大步与中位步不相等**（0.40 vs 0.36），
+# ⚖ 这样「判决尺=max」与「稳健尺=med」两套判决能被**区分开**测。
+LADDER_LO = [0.00, 0.40, 0.05, 0.42]
 SINGLE_LO = 0.30
 ALL_LO = 0.20
 
@@ -757,6 +850,65 @@ def selftest():
         out2 = report(r2)
         assert "缺 k=1 档" in out2, out2[-700:]
     ck("K15 绿：位置身份差 = single−k=1；无 k=1 档 ⇒ 报「未量到」不是 0", k15)
+
+    # K16 红：**重复档**必须硬失败 —— 这是「追加进同一份日志」驱动形态的专属风险
+    def k16():
+        def mut(log, st):
+            # ⚖ `mutate` 收到的是**行列表**，⛔ 不是字符串（见 `_synthetic`）
+            return list(log) + log[:2], list(st) + [st[0]]
+        lg, st = _synthetic(mutate=mut)
+        try:
+            _read_pair(lg, st)
+            raise AssertionError("应当硬失败却读成功了 —— 重复档被静默读进来了")
+        except HardFail as e:
+            assert "重复" in str(e), str(e)
+            assert "虚增抖动地板" in str(e), str(e)
+    ck("K16 红：同一档跑两遍 ⇒ 硬失败（否则虚增抖动地板、该档被算两次）", k16)
+
+    # K17 绿：尾段（≥50% + all）逐档展开；尾段不足 2 点 ⇒ 「未量到」不是 0
+    def k17():
+        lg, st = _synthetic()
+        r = analyze(_read_pair(lg, st))
+        out = report(r)
+        assert "【5】尾段细分" in out
+        for t in r["tids"]:
+            tail = r["per"][t]["tail"]
+            # ⚖ 夹具里 max k = 110，而 n_eff=1762 ⇒ 110/1762 = 6.2% < 50%
+            # ⚖ ⇒ k 档一档都不进尾段，只有 `all` ⇒ ⛔ 不足 2 点
+            assert len(tail) == 1, (t, tail)
+            assert "没法分步" in report(r) and t in report(r)
+        # ⚖ 再造一份**尾段够长**的：把阶梯拉到覆盖 ≥50%
+        lg2, st2 = _synthetic(ks=["1100", "1400", "1700"])
+        r2 = analyze(_read_pair(lg2, st2))
+        assert len(r2["per"][r2["tids"][0]]["tail"]) == 4, \
+            r2["per"][r2["tids"][0]]["tail"]      # 3 个 k 档 + all
+        o2 = report(r2)
+        assert "逐档差超过地板的次数" in o2
+    ck("K17 绿：尾段逐档展开；尾段不足 2 点 ⇒ 报「没法分步」不是 0", k17)
+
+    # K18 绿：稳健尺 `jitter_med` 必须是**中位数**，且 max ≥ med
+    # ⚠⚠ 这条是修订 232 加的：`jitter`（max）是极值统计量，档位越多只会越大
+    # ⚖ ⇒ 跨轮次比较必须用 med，而 med 若不小心写成了 max，整套稳健尺就白设。
+    def k18():
+        lg, st = _synthetic()
+        r = analyze(_read_pair(lg, st))
+        for t in r["tids"]:
+            p = r["per"][t]
+            los = [LADDER_LO[i % len(LADDER_LO)]
+                   for i in range(len(p["ladder"]))]
+            diffs = sorted(abs(los[i + 1] - los[i]) for i in range(len(los) - 1))
+            exp_med = diffs[len(diffs) // 2] if len(diffs) % 2 else \
+                0.5 * (diffs[len(diffs) // 2 - 1] + diffs[len(diffs) // 2])
+            assert abs(p["jitter_med"] - exp_med) < 1e-12, \
+                "%s jitter_med=%r 应为中位数 %r" % (t, p["jitter_med"], exp_med)
+            assert abs(p["jitter"] - max(diffs)) < 1e-12, (t, p["jitter"])
+            assert p["jitter"] >= p["jitter_med"], \
+                "max %r 必须 ≥ med %r" % (p["jitter"], p["jitter_med"])
+            # ⚖ 夹具刻意让两者不相等 ⇒ 否则「med 其实是 max」测不出来
+            assert p["jitter"] > p["jitter_med"], \
+                "夹具形状不对：max %r 与 med %r 相等，测不出区别" % (
+                    p["jitter"], p["jitter_med"])
+    ck("K18 绿：稳健尺是**中位数**不是 max（且 max ≥ med、两者不相等）", k18)
 
     npass = sum(1 for _, s, _ in T if s == "PASS")
     for name, st_, msg in T:
