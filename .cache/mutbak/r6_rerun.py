@@ -277,9 +277,42 @@ def class_gap(W, X, y):
 
 
 # ---------------------------------------------------------------- 注入执行
-def make_forward(model, tokenizer):
-    import torch
+def inject_at_r6(h, v, alpha, scope, inj):
+    """把 ``alpha * v`` 注入残差 ``h``。**纯函数**，numpy 与 torch 都能跑。
 
+    ⚠⚠⛔ **口径开关：两个值量的不是同一个东西。**
+    ⚠⚠⛔   - ``"single"``（**默认，且是 §P5 预登记写死的**）：只注入第 ``inj`` 位
+    ⚠⚠⛔     —— 也就是「注入在 t−1，读 t」。这是 P6 一直以来的读数来源。
+    ⚠⚠⛔   - ``"all"``：广播到**所有**位置 —— `run_intervention.ResidualSteerer`
+    ⚠⚠⛔     的真实流水线语义（`x + vector`，vector 形状 ``(1, 1, -1)``）。
+
+    修订 218 查明：``r6_rerun.py`` 一直用的是 ``single``，而真实流水线是 ``all``。
+    修订 209/210 实测两个口径**不是同一个量**：同一输入上中位差 0.14，
+    256 步下 token 链 19/20 分叉，P9 的 10 格判决 0/10 翻转。
+
+    ⛔⛔ **默认值必须留在 ``single``**：改了默认就等于**改写 P6 的预登记口径**，
+    ⛔⛔ 而那是要人拍板的协议变更，不是脚本能顺手做的事。
+    ⚗ 改默认会静默作废所有历史批次的可比性。
+
+    ⚠⚠⛔ **口径必须随数落盘**（见 payload 的 ``inject_scope``）：
+    ⚠⚠⛔ 两批读数的差比 resid_std 还大，不记这一列 ⇒ 混批时看不出来。
+    """
+    # ⚠⚠ 鸭子类型化：torch 用 .clone()，numpy 用 .copy()
+    h = h.clone() if hasattr(h, "clone") else h.copy()
+    if scope == "all":
+        return h + (alpha * v).reshape(1, 1, -1)
+    if scope != "single":
+        raise ValueError("未知 inject_scope: %r" % (scope,))
+    # ⚠ `inj` 按整条 prefix 算；若将来接上增量解码（chunk 长度 1），
+    # ⚠ 写死 h[:, inj, :] 会抛 IndexError ⇒ 这里取 min 夹住。
+    j = min(int(inj), int(h.shape[1]) - 1)
+    h[:, j, :] = h[:, j, :] + alpha * v
+    return h
+
+
+def make_forward(model, tokenizer, scope="single"):
+    """⚠⚠⛔ `scope` 默认 `single` = **预登记口径**，改动它就是改协议。"""
+    import torch
 
     def logits_at(ids, t, vec, alpha):
         """注入 h[P+t-1]，读 logits[-1]（正是同一位置）。"""
@@ -292,9 +325,7 @@ def make_forward(model, tokenizer):
                 # W 是 numpy（训练产物），h 是 torch —— 必须显式转换，
                 # 直接 vec.to(h.dtype) 会 AttributeError
                 v = torch.as_tensor(vec, dtype=h.dtype, device=h.device)
-                h = h.clone()
-                h[:, inj, :] = h[:, inj, :] + alpha * v
-                return (h,) + inp[1:]
+                return (inject_at_r6(h, v, alpha, scope, inj),) + inp[1:]
             return None
 
         hd = blk.register_forward_pre_hook(pre)
@@ -397,6 +428,12 @@ def main():
                          "与预登记的 `rel×class_gap` 不一致，会超量且不报错")
     ap.add_argument("--limit-traj", type=int, default=None)
     ap.add_argument("--gpu-uuid", default=None)
+    ap.add_argument("--inject-scope", default="single",
+                    choices=["single", "all"],
+                    help="⛔⛔ 口径开关。**默认 single = §P5 预登记写死的那个**（注入在 t−1，读 t）；"
+                         "all = 广播到所有位置（run_intervention.ResidualSteerer 的真实流水线语义）。"
+                         "⚠⚠ 两者量的**不是同一个东西**（修订 209/210/215），且 all 会让 token 链分叉、"
+                         "P9 判决 0/10 翻转。⛔⛔ 改这个默认值 = 改 P6 的预登记协议，须人拍板。")
     ap.add_argument("--smoke", action="store_true", help="只跑 3 条轨迹的装置符号基准")
     ap.add_argument("--train-only", action="store_true",
                     help="只训 w 并存成 .npy 后退出：**不加载模型、不需要 GPU**。"
@@ -510,7 +547,7 @@ def main():
     tok = AutoTokenizer.from_pretrained(MODEL)
     model = AutoModelForCausalLM.from_pretrained(
         MODEL, dtype=torch.bfloat16).to("cuda:0").eval()
-    fwd = make_forward(model, tok)
+    fwd = make_forward(model, tok, scope=a.inject_scope)
 
     smoke_tids = [t for t in sorted(metas) if metas[t]["markers"]][:3]
     print(f"\n[P9 装置符号基准] 用 {len(smoke_tids)} 条轨迹")
@@ -599,9 +636,22 @@ def main():
         print("⛔⛔ 产物已写出（便于排查），但 `device_validated=false`、退出码为 1。")
         print("⛔⛔ 先修装置：P9 是预登记写死的「先修装置」闸，不是建议。")
 
+    # ⚠⚠⛔ 非默认口径必须**印在汇总上**：口径差比 resid_std 还大，
+    # ⚠⚠⛔ 而产物里那列只有真去翻 json 才看得到 ⇒ 只落盘不够。
+    if a.inject_scope != "single":
+        print()
+        print("⚠⚠⚠ 本批 inject_scope=%s" % a.inject_scope)
+        print("⚠⚠⚠ **这不是 §P5 预登记的那个口径（single）**。修订 209/210 实测")
+        print("⚠⚠⚠ 两者量的不是同一个东西：同一输入上中位差 0.14，256 步下 token 链")
+        print("⚠⚠⚛ 19/20 分叉，P9 的 10 格判决 0/10 翻转。")
+        print("⚠⚠⚠ ⇒ 这批读数**不可与 single 批次混进同一个 P6 汇总**。")
+
     return finalize({"bench": bench, "bench_v": bench_v, "pos_ok": pos_ok,
                      "rows": rows,
                      "rel_ladder": REL_LADDER, "layer": LAYER,
+                     # ⚠⚠⛔ 口径必须随数落盘：single 与 all 差的量比 resid_std 还大，
+                     # ⛔⛔ 不记这一列 ⇒ 两批读数混批时**日志上完全看不出来**。
+                     "inject_scope": a.inject_scope,
                      "class_gap": gap, "w_norm": float(np.linalg.norm(W)),
                      "dose_source": ("w_meta" if a.w_meta
                                      else ("retrained" if not a.w else "FALLBACK_375")),
