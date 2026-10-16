@@ -38,6 +38,15 @@ def check(name, cond, detail=""):
         FAILS.append(name)
 
 
+def _mut_positions(n, k, seed=0):
+    """变异体：把「固定排列取前 k」换成「各 k 独立挑」——嵌套性必须破掉。"""
+    import numpy as _np
+    if k == n:
+        return list(range(n))
+    return sorted(_np.random.default_rng(int(seed)).choice(
+        n, size=k, replace=False).tolist())
+
+
 def _raises(fn):
     try:
         fn()
@@ -463,6 +472,45 @@ def main():
     exec(compile(_mut, "p204_mut.py", "exec"), _nm)
     check("K12 ⛔ 变异：去掉固定种子 ⇒ 同一 (长度,k) 会挑出不同位点 ⇒ K3 会红",
           _nm["_k_positions"](40, 7) != _nm["_k_positions"](40, 7))
+
+
+    # =======================================================================
+    # L 组（修订 226）：嵌套子集 + rand 臂
+    # =======================================================================
+    # ⛔ 修订 225 的设计缺陷：k 口径下每个 k **各挑各的**位点 ⇒
+    # ⛔ 「个数」与「挑了哪几个」同时变 ⇒ 不可分。
+    # ⚖ 嵌套（固定排列取前 k）把两者分开：k1 ⊂ k2 ⊂ … ⊂ all。
+
+    def _subset(n, k, nested):
+        return set(M._k_positions(n, k, nested=nested))
+
+    check("L1 ⛔⛔ 嵌套：k1 ⊂ k2 ⊂ … ⊂ all",
+          all(_subset(50, 2, True) < _subset(50, 4, True)
+              < _subset(50, 8, True) < _subset(50, 16, True)
+              < _subset(50, 50, True) for _ in [0]))
+    check("L2 ⛔ 非嵌套（修订 225 默认）时 k1 不是 k2 的子集 —— 这正是那个缺陷",
+          not (_subset(50, 4, False) < _subset(50, 8, False)))
+    check("L3 ⛔⛔ 嵌套位点个数必须恰好是 k（不是 ≤k）",
+          all(len(M._k_positions(37, k, nested=True)) == k for k in (1, 3, 9, 36)))
+    check("L4 ⛔ 嵌套必须仍可复现（同 k 两次同位点）",
+          M._k_positions(37, 9, nested=True) == M._k_positions(37, 9, nested=True))
+    check("L5 ⛔ 嵌套不得越界",
+          all(0 <= j < 37 for j in M._k_positions(37, 9, nested=True)))
+    check("L6 ⛔ 嵌套在 k=n 时必须等于全部位置",
+          M._k_positions(20, 20, nested=True) == list(range(20)))
+    _src2 = open(PROBE, encoding="utf-8").read()
+    check("L7 ⛔⛔ --inject-nested 默认**关闭**（否则修订 225 的读数不可复现）",
+          'ap.add_argument("--inject-nested", action="store_true"' in _src2)
+    check("L8 ⛔ 位点怎么挑的必须随数落盘（独立 vs 嵌套量的不是同一个东西）",
+          '"inject_nested"' in _src2)
+    check("L9 ⛔ arm 默认必须是 w（既有读数不变）",
+          'ap.add_argument("--arm", default="w"' in _src2)
+    check("L10 ⛔ rand 臂必须**固定种子**（否则仪器不可逐位复现）",
+          "default_rng(0)" in _src2)
+    check("L11 ⛔⛔ 变异：嵌套改成用 choice（各 k 独立挑）⇒ 嵌套性必须破掉",
+          not (set(_mut_positions(37, 4)) < set(_mut_positions(37, 8))))
+    check("L12 ⛔ rand 臂模长必须对齐 w（模长不同就没法比）",
+          "np.linalg.norm(_W0)" in _src2)
 
     print("\n=== 汇总 ===")
     if FAILS:

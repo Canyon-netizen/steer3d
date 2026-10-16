@@ -105,7 +105,7 @@ def repeat_summary(rep):
     return out
 
 
-def _k_positions(n, k, seed=0):
+def _k_positions(n, k, seed=0, nested=False):
     """确定性地挑出 `k` 个位置（0 <= k <= n），**可复现**。
 
     ⚠⚠⛔ 这里**必须**用固定种子。仪器里出现未设种子的随机，等于
@@ -123,11 +123,18 @@ def _k_positions(n, k, seed=0):
         return list(range(n))
     if k == 0:
         return []
-    return sorted(_np.random.default_rng(int(seed)).choice(n, size=k,
-                                                             replace=False).tolist())
+    _rng = _np.random.default_rng(int(seed))
+    if nested:
+        # ⚠⚠⁴ 修订 226：**嵌套**子集 —— 固定一个排列，各 k 取它的前 k 个。
+        # ⚖ 为什么必须能选嵌套：修订 225 用的是**各自独立**的一组位点，
+        # ⚖ 于是每一步同时变了「个数」与「挑了哪几个」⇒ 两者不可分，
+        # ⚖ 只能否掉「单调累积」，分不出「个数」还是「身份」。
+        # ⚖ 嵌套之后 k1 ⊂ k2 ⊂ … ⊂ all，曲线才是真正的累积曲线。
+        return sorted(int(x) for x in _rng.permutation(n)[:k])
+    return sorted(_rng.choice(n, size=k, replace=False).tolist())
 
 
-def inject_at(h, v, alpha, scope, inj, n_sites=None):
+def inject_at(h, v, alpha, scope, inj, n_sites=None, nested=False):
     """把 `alpha * v` 注入残差 `h`。**纯函数**，numpy 与 torch 都能跑。
 
     ⚠⚠⛔ `scope` 是**口径开关**，两个值量的**不是同一个东西**：
@@ -159,7 +166,7 @@ def inject_at(h, v, alpha, scope, inj, n_sites=None):
     if scope == "k":
         if n_sites is None:
             raise ValueError("inject_scope=k 但没给 n_sites")
-        pos = _k_positions(h.shape[1], n_sites)
+        pos = _k_positions(h.shape[1], n_sites, nested=nested)
         out = h.copy() if hasattr(h, "copy") else h.clone()
         for j in pos:
             out[:, j, :] = out[:, j, :] + alpha * v
@@ -271,7 +278,7 @@ def analyze(alphas, dm, dc, gap=None, band=60.0, meas=None):
 
 
 def decode_trace(vec, alpha, scope, ids, mk, lse_t, k, inj, eos_id, ctx="no_grad",
-                 use_cache=True, n_sites=None):
+                 use_cache=True, n_sites=None, nested=False):
     """prefill + k 步**贪心增量解码**，逐步回报 marker 的 logsumexp。**纯逻辑**。
 
     ⚠⚠⛔ 修订 210/211/212 建立的「`probe(all)` 与流水线**逐位一致**」只在
@@ -305,7 +312,8 @@ def decode_trace(vec, alpha, scope, ids, mk, lse_t, k, inj, eos_id, ctx="no_grad
         v = torch.as_tensor(vec, dtype=h.dtype, device=h.device)
         # ⚠⚠⚠ `k` 在本函数里是**解码步数**（修订 213），不是注入位点数。
         # ⚠⚠⚠ 同名会让「扫位点数」静默变成「扫步数」—— 故另起 `n_sites`。
-        return (inject_at(h, v, alpha, scope, inj, n_sites),) + inp[1:]
+        return (inject_at(h, v, alpha, scope, inj, n_sites,
+                           nested),) + inp[1:]
 
     hk = blk.register_forward_pre_hook(pre)
     try:
@@ -385,7 +393,19 @@ def run_cell(a):
     ids = torch.tensor([(pid + gen)[: P + t]], dtype=torch.long, device="cuda:0")
     inj = ids.shape[1] - 1
 
-    W = np.load(a.w)
+    _W0 = np.load(a.w)
+    W = _W0
+    if a.arm == "rand":
+        # ⚠⚠⁴ 修订 226：**rand 臂** —— 修订 221 发现「all 口径下随机方向也下移」，
+        # ⚖ 而修订 223/225 的 k 扫描**只有 w 臂**，答不了那一条。
+        # ⚖ 方向：**固定种子**的随机单位向量，模长对齐 W（模长不同就没法比）。
+        # ⚖⛔ 这里用 W 的元素个数作形状 —— 与 r6_rerun.py 的 rand 臂同思路，
+        # ⚖    但**向量本身不同源** ⇒ 跨脚本比读数要当两条独立测量。
+        _g = np.random.default_rng(0)
+        W = _g.standard_normal(_W0.shape).astype(np.float64)
+        W = (W / np.linalg.norm(W)) * float(np.linalg.norm(_W0))
+        print("[臂] 用固定种子随机方向（mod=%.4f，与 w 同模长）"
+              % float(np.linalg.norm(W)), flush=True)
     mk = torch.tensor(MARKER_IDS, device="cuda:0")
     ctl = torch.tensor([CONTROL_ID], device="cuda:0")
 
@@ -401,7 +421,7 @@ def run_cell(a):
             h = inp[0]
             v = torch.as_tensor(vec, dtype=h.dtype, device=h.device)
             return (inject_at(h, v, alpha, a.inject_scope, inj,
-                                a.inject_n_sites),) + inp[1:]
+                                a.inject_n_sites, a.inject_nested),) + inp[1:]
 
 
         hk = blk.register_forward_pre_hook(pre)
@@ -449,6 +469,9 @@ def run_cell(a):
     # ⚠⚠⁴ 修订 223：位点数也要落盘，否则「扫 k」的各档读数混起来
     # ⚠⚠⁴ 与 single/all 分不清 —— 与修订 220 那条同源。
     st["inject_n_sites"] = a.inject_n_sites
+    # ⚠⚠⁴ 位点怎么挑的也是**出处**：独立 vs 嵌套量的不是同一个东西。
+    st["inject_nested"] = bool(a.inject_nested)
+    st["arm"] = a.arm
     # ⚠⚠⛔ 口径必须**随数一起落盘**：`single` 与 `all` 是两个**不同的量**，
     # ⛔⛔ 而它们的差（修订 209 实测 Δ=−0.155）比 resid_std 还大。
     # ⛔   不记这一列 ⇒ 两批读数会被混进同一个汇总里，而日志上完全看不出来。
@@ -479,7 +502,8 @@ def run_cell(a):
             dec[_lab] = decode_trace(W, _al, a.inject_scope, ids, mk, lse_t,
                                      int(a.decode_steps), inj, _eos,
                                      ctx="no_grad", use_cache=True,
-                                     n_sites=a.inject_n_sites)
+                                     n_sites=a.inject_n_sites,
+                                     nested=a.inject_nested)
         # ⚠⚠⛔ 探针的 ctx 是 no_grad、use_cache=True；流水线那份是
         # ⚠⚠⛔ inference_mode + use_cache=True。修订 209 实测 A→B Δ=0，
         # ⚠⚠⛔ 但那是在**单步**上测的 ⇒ 这里逐���能不能也对上，**要靠对账验**，
@@ -533,6 +557,8 @@ def run_cell(a):
                                       "hi": 1.0 * a.gap} if dec else None),
                        "inject_scope": a.inject_scope,
                        "inject_n_sites": a.inject_n_sites,
+                       "inject_nested": bool(a.inject_nested),
+                       "arm": a.arm,
                        }, _fh)
         st["dump_raw"] = _fn
     out = {"tid": a.tid, "pos_frac": a.pos_frac, "t": t, "n_gen": n, "P": P,
@@ -637,6 +663,10 @@ def run_driver(a):
                 cmd += ["--inject-scope", a.inject_scope]
             if a.inject_n_sites is not None:
                 cmd += ["--inject-n-sites", str(a.inject_n_sites)]
+            if a.inject_nested:
+                cmd += ["--inject-nested"]
+            if a.arm != "w":
+                cmd += ["--arm", a.arm]
             if a.gpu_uuid:
                 cmd += ["--gpu-uuid", a.gpu_uuid]
             p = subprocess.run(cmd, capture_output=True, text=True)
@@ -767,6 +797,17 @@ def main():
                          "marker 的 logsumexp。⚠⚠ **必须配 --gap**，否则那格显式报 "
                          "NOT-MEASURED。⚠ 撞 EOS 会**提前停**，实跑步数会 < 预算 —— "
                          "那不是跑满了，是分母变小了。")
+    ap.add_argument("--arm", default="w", choices=["w", "rand"],
+                    help="⛔ 用哪个方向。默认 w（既有读数不变）。"
+                         "rand = 固定种子的随机单位向量，与 w 同模长。\n"
+                         "⚠⚠ 修订 226：修订 221 发现「all 口径下随机方向也下移」，"
+                         "而此前的扫描只有 w 臂 ⇒ 答不了那一条。")
+    ap.add_argument("--inject-nested", action="store_true",
+                    help="⚠⚠ 修订 226：k 口径的位点取**固定排列的前 k 个**"
+                         "（**嵌套**）而不是各自独立挑。\n"
+                         "⚖ 修订 225 用的是独立子集 ⇒「个数」与「位置身份」不可分，"
+                         "只能否掉「单调累积」。嵌套之后 k1 ⊂ k2 ⊂ … ⊂ all。\n"
+                         "⛔ 默认**关闭** ⇒ 修订 225 的读数仍可复现。")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
 
