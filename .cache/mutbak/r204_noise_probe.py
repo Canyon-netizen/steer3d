@@ -105,6 +105,35 @@ def repeat_summary(rep):
     return out
 
 
+def inject_at(h, v, alpha, scope, inj):
+    """把 `alpha * v` 注入残差 `h`。**纯函数**，numpy 与 torch 都能跑。
+
+    ⚠⚠⛔ `scope` 是**口径开关**，两个值量的**不是同一个东西**：
+      - `"single"`：只注入第 `inj` 位（prefix 的最后一位）—— 修订 205–208 用它。
+      - `"all"`：广播到**所有**位置 —— `run_intervention.ResidualSteerer`
+        的真实流水线语义（`x + vector`，vector 形状 (1,1,-1)）。
+    ⚗⇒ 修订 209 实测两者在第 0 步差 **0.155**，**大于** resid_std（0.05–0.10）
+      ⇒ 混进同一个汇总会得出错误结论。⇒ 口径必须随数落盘。
+
+    ⚠⚠⛔ 增量解码时当前 chunk 长度是 **1**，而 `inj` 是按整个 prefix 算的
+    （本例 338）⇒ 写死 `h[:, inj, :]` 会抛
+    `IndexError: index 338 is out of bounds for dimension 1 with size 1`。
+    ⚗⇒ 这里必须 `min(inj, 当前长度−1)`。
+    """
+    # ⚠⚠ 鸭子类型化：torch 用 `.clone()`，numpy 用 `.copy()`。
+    # ⚗⇒ 正因为它不碰 torch，这个函数**不需要 GPU** 就能被单测覆盖
+    #     （`inject_at` 的口径逻辑若留在 `run_cell` 里就只能靠真机验）。
+    h = h.clone() if hasattr(h, "clone") else h.copy()
+
+    if scope == "all":
+        return h + (alpha * v).reshape(1, 1, -1)
+    if scope != "single":
+        raise ValueError("未知 inject_scope: %r" % (scope,))
+    j = min(int(inj), int(h.shape[1]) - 1)
+    h[:, j, :] = h[:, j, :] + alpha * v
+    return h
+
+
 def analyze(alphas, dm, dc, gap=None, band=60.0, meas=None):
     """把一条 α 扫描折成 {slope, resid_std, n_distinct, min_adj_diff, …}。
 
@@ -245,9 +274,8 @@ def run_cell(a):
                 return None
             h = inp[0]
             v = torch.as_tensor(vec, dtype=h.dtype, device=h.device)
-            h = h.clone()
-            h[:, inj, :] = h[:, inj, :] + alpha * v
-            return (h,) + inp[1:]
+            return (inject_at(h, v, alpha, a.inject_scope, inj),) + inp[1:]
+
 
         hk = blk.register_forward_pre_hook(pre)
         try:
@@ -290,6 +318,17 @@ def run_cell(a):
         meas = (rep["lo"][0], rep["hi"][0])
 
     st = analyze(alphas, dm, dc, gap=a.gap, band=a.band, meas=meas)
+    st["inject_scope"] = a.inject_scope
+    # ⚠⚠⛔ 口径必须**随数一起落盘**：`single` 与 `all` 是两个**不同的量**，
+    # ⛔⛔ 而它们的差（修订 209 实测 Δ=−0.155）比 resid_std 还大。
+    # ⛔   不记这一列 ⇒ 两批读数会被混进同一个汇总里，而日志上完全看不出来。
+    # ⓘ 同时把**未取差**的 marker logsumexp 记下来 —— 它才是流水线
+    #    `record_logits` 那一侧的数字，跨系统比对时必须用它。
+    st["b_mark"] = float(b_mark)
+    st["b_ctl"] = float(b_ctl)
+    st["marker_raw_lo"] = float(b_mark + meas[0]) if meas else None
+    st["marker_raw_hi"] = float(b_mark + meas[1]) if meas else None
+
 
     # ---- 诊断量：单读可重复性（不进判据）--------------------------------
     if rep:
@@ -391,6 +430,8 @@ def run_driver(a):
                 cmd += ["--repeat", str(a.repeat)]
             if a.dump_raw:
                 cmd += ["--dump-raw", a.dump_raw]
+            if a.inject_scope != "single":
+                cmd += ["--inject-scope", a.inject_scope]
             if a.gpu_uuid:
                 cmd += ["--gpu-uuid", a.gpu_uuid]
             p = subprocess.run(cmd, capture_output=True, text=True)
@@ -426,6 +467,11 @@ def run_driver(a):
             print("  [%d/%d] %s pos=%.2f  resid=%.6f  slope=%+.6f%s"
                   % (len(rows), len(tids) * len(fracs), tid, fr,
                      r["resid_std"], r["slope"], extra), flush=True)
+            # ⛔ 口径必须打在**每一行**上，否则混批时看不出来
+            if r.get("inject_scope", "single") != "single":
+                print("        ⚠⚠ 本批 inject_scope=%s（**与修订 205-208 的"
+                      " single 口径不是同一个量**）"
+                      % r["inject_scope"], flush=True)
 
     # ⚠⚠⚴ 0 格成功时原来直接 `rows[0]` ⇒ **IndexError**，而真正的错误
     # ⚠⚠⚴ （10 格各自的 stderr）在上面 10 行里。⇒ 必须自己先说清楚。
@@ -492,6 +538,10 @@ def main():
     ap.add_argument("--repeat", type=int, default=1,
                     help="⚠ 在每个 P9 工作剂量上重复跑几次（默认 1 = 保持原口径）。"
                          "报给判据的**仍是第 1 次**；重复只用于量单读可重复性。")
+    ap.add_argument("--inject-scope", default="single",
+                    choices=["single", "all"],
+                    help="⛔ 口径开关：single=只注入 prefix 最后一位（探针原样，修订 205-208 用的是它）；all=广播到**所有**位置（run_intervention.ResidualSteerer 的语义）。⚠⚠ 两者量的**不是同一个东西**，差 0.155 > resid_std。"
+                         "默认值 single 保持既有读数可复现。")
     ap.add_argument("--dump-raw", default=None,
                     help="把每格的原始读数曲线（alphas/dm/dc/meas）写到该目录")
     ap.add_argument("--out", default=None)

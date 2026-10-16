@@ -361,6 +361,54 @@ def main():
     check("G11 ⛔⛔ 若 rep_std==0 ⇒ 可断言「偏差不是噪声造成」",
           (r_det["rep_std_lo"] == 0.0 and r_det["rep_exact_lo"]) is True)
 
+    print("\n=== H：⛔ `inject_scope` 是**口径开关**（两个值量的不是同一个东西）===")
+    import numpy as _np
+    v = _np.array([1.0, -2.0, 0.5])
+    h = _np.zeros((1, 5, 3))
+    r = M.inject_at(h, v, 2.0, "single", 4)
+    check("H1 single：只有第 4 位被改", abs(r[0, 4, 0] - 2.0) < 1e-12
+          and abs(r[0, 3, 0]) < 1e-12)
+    check("H2 ⛔ single：其余位必须**逐位不变**",
+          bool((r[0, :4, :] == h[0, :4, :]).all()),
+          repr(r[0, :4, 0]))
+    check("H3 ⛔ single：**不改**输入（必须 clone）", h[0, 4, 0] == 0.0)
+    ra = M.inject_at(h, v, 2.0, "all", 4)
+    check("H4 ⛔ all：**每一**位都被改", bool((ra[0, :, 0] == 2.0).all()),
+          repr(ra[0, :, 0]))
+    check("H5 ⛔⛔ all ≠ single（否则口径开关是摆设）",
+          not bool((ra == r).all()))
+    # ⛔ 回归：增量解码时长度=1，写死 inj 必崩
+    h1 = _np.zeros((1, 1, 3))
+    try:
+        r1 = M.inject_at(h1, v, 2.0, "single", 338)
+        ok1 = abs(r1[0, 0, 0] - 2.0) < 1e-12
+        msg1 = repr(r1[0, 0, 0])
+    except IndexError as e:
+        ok1, msg1 = False, repr(e)
+    check("H6 ⛔⛔ 长度=1 且 inj=338 ⇒ 必须**不崩**（修订 209 的真实崩溃）",
+          ok1, msg1)
+    # ⛔ 变异：退回写死索引，H6 必红
+    try:
+        h1b = _np.zeros((1, 1, 3))
+        h1b[:, 338, :] += 2.0 * v
+        ok2 = False
+    except IndexError:
+        ok2 = True
+    check("H7 ⛔ 变异（写死索引）确实会抛 IndexError ⇒ H6 有分辨力", ok2)
+    # ⛔ 未知口径必须报错，不能默默按 single 走
+    try:
+        M.inject_at(h, v, 1.0, "typo", 4)
+        ok3 = False
+    except ValueError:
+        ok3 = True
+    check("H8 ⛔⛔ 未知 scope 必须**抛错**，不许默默落回 single", ok3)
+    # ⛔ all 与流水线的形状语义一致：广播后每个位置增量相同
+    d = ra - h
+    check("H9 ⛔ all：各位置的增量必须**完全相同**（(1,1,-1) 广播）",
+          bool((d[0, :, 1] == -4.0).all()) and bool((d[0, :, 0] == 2.0).all()),
+          repr(d[0, :, :2]))
+
+
     print("\n=== 汇总 ===")
     if FAILS:
         print("RESULT r204_noise_selftest  FAIL  %d/%d 项红：%s"
