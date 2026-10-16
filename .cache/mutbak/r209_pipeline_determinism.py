@@ -54,7 +54,12 @@ def main():
     ap.add_argument("--pos-frac", default="0.3",
                     help="可逗号分隔多个位置；与 --tid 做**笛卡尔积**")
     ap.add_argument("--w", required=True)
-    ap.add_argument("--alpha", type=float, default=56.737)
+    ap.add_argument("--alpha", default="56.737",
+                    help="可逗号分隔多个剂量。⚠⚠ 要与探针对齐就必须传**精确值**："
+                         "探针取在 0.5·gap=56.73720169067383 与 1.0·gap="
+                         "113.47440338134766。传截断的 56.737 会让两边剂量差"
+                         "2.0e-04 —— 读数仍相同（bf16 抹掉了），但那是**另一回事**。")
+
     ap.add_argument("--repeat", type=int, default=2)
     ap.add_argument("--gpu-uuid", default=None)
     ap.add_argument("--out", default=None)
@@ -114,9 +119,12 @@ def main():
 
     tids = [x.strip() for x in a.tid.split(",") if x.strip()]
     fracs = [float(x) for x in a.pos_frac.split(",") if x.strip()]
-    print("=== 修订 211：批量产流水线锚点值 ===")
-    print("  %d 条轨迹 × %d 个位置 = %d 格；α=%.3f；每配置重复 %d 次"
-          % (len(tids), len(fracs), len(tids) * len(fracs), a.alpha, a.repeat))
+    alphas = [float(x) for x in a.alpha.split(",") if x.strip()]
+    print("=== 修订 212：批量产流水线锚点值 ===")
+    print("  %d 条轨迹 × %d 个位置 = %d 格；%d 个剂量；每配置重复 %d 次"
+          % (len(tids), len(fracs), len(tids) * len(fracs), len(alphas),
+             a.repeat))
+    print("  剂量：%s" % ["%.12f" % x for x in alphas])
     print("  ⚠⚠ 对账只用 --out 里的**原始浮点**，不要用这里的 %.6f 打印值。")
     print()
 
@@ -137,49 +145,56 @@ def main():
             inj = ids.shape[1] - 1
             cell = {"tid": tid, "pos_frac": fr, "P": P, "t": t,
                     "n_gen": n_gen, "seq_len": int(ids.shape[1]),
-                    "alpha": a.alpha, "repeat": a.repeat, "configs": []}
+                    "repeat": a.repeat, "by_alpha": {}}
             print("--- %s pos=%.2f  prefix_len=%d (P=%d, t=%d, n_gen=%d)"
                   % (tid.replace("aime__aime25__", ""), fr, ids.shape[1],
                      P, t, n_gen), flush=True)
-            for name, ctx, cache, allp in CONFIGS:
-                vals = [run(ids, inj, ctx, cache, allp)
-                        for _ in range(a.repeat)]
-                marks = [v[0] for v in vals]
-                spread = max(marks) - min(marks)
-                top1 = [v[2] for v in vals]
-                print("    %s  mark=%+.6f  散布=%.3e  逐位相同=%s"
-                      % (name, marks[0], spread, max(marks) == min(marks)),
-                      flush=True)
-                cell["configs"].append(
-                    {"name": name, "ctx": ctx, "use_cache": cache,
-                     "all_pos": allp, "mark": marks[0], "ctl": vals[0][1],
-                     "spread": spread, "exact": (max(marks) == min(marks)),
-                     "top1_stable": len(set(top1)) == 1})
-            by = {c["name"][0]: c for c in cell["configs"]}
-            cell["deltas"] = {"%s->%s" % (x, y): by[y]["mark"] - by[x]["mark"]
-                              for x, y in (("A", "B"), ("B", "C"),
-                                           ("A", "D"), ("C", "D"))}
+            for al in alphas:
+                a.alpha = al                  # hook 闭包读 a.alpha
+                cell["by_alpha"]["%.12f" % al] = {"alpha": al, "configs": []}
+                print("  剂量 α = %.12f" % al, flush=True)
+                for name, ctx, cache, allp in CONFIGS:
+                    vals = [run(ids, inj, ctx, cache, allp)
+                            for _ in range(a.repeat)]
+                    marks = [v[0] for v in vals]
+                    spread = max(marks) - min(marks)
+                    top1 = [v[2] for v in vals]
+                    print("    %s  mark=%.12f  散布=%.3e  逐位相同=%s"
+                          % (name, marks[0], spread, max(marks) == min(marks)),
+                          flush=True)
+                    cell["by_alpha"]["%.12f" % al]["configs"].append(
+                        {"name": name, "ctx": ctx, "use_cache": cache,
+                         "all_pos": allp, "mark": marks[0], "ctl": vals[0][1],
+                         "spread": spread, "exact": (max(marks) == min(marks)),
+                         "top1_stable": len(set(top1)) == 1})
+                by = {c["name"][0]: c
+                      for c in cell["by_alpha"]["%.12f" % al]["configs"]}
+                cell["by_alpha"]["%.12f" % al]["deltas"] = {
+                    "%s->%s" % (x, y): by[y]["mark"] - by[x]["mark"]
+                    for x, y in (("A", "B"), ("B", "C"), ("A", "D"), ("C", "D"))}
             cells.append(cell)
 
     print()
     print("=== 汇总 ===")
-    n_exact = sum(1 for c in cells for k in c["configs"] if k["exact"])
-    n_cfg = sum(len(c["configs"]) for c in cells)
-    print("  确定性：%d/%d 个「格×配置」逐位相同" % (n_exact, n_cfg))
-    ab = [abs(c["deltas"]["A->B"]) for c in cells]
-    bc = [abs(c["deltas"]["B->C"]) for c in cells]
-    cd = [abs(c["deltas"]["C->D"]) for c in cells]
-    print("  |A→B| max %.3e（上下文）　|B→C| max %.3e（kernel）　|C→D| max %.3e（注入范围）"
-          % (max(ab), max(bc), max(cd)))
+    n_exact = sum(1 for c in cells for al in c["by_alpha"].values()
+                  for k in al["configs"] if k["exact"])
+    n_cfg = sum(len(al["configs"]) for c in cells for al in c["by_alpha"].values())
+    print("  确定性：%d/%d 个「格×剂量×配置」逐位相同" % (n_exact, n_cfg))
+    for tag, why in (("A->B", "上下文"), ("B->C", "kernel"),
+                     ("C->D", "注入范围")):
+        mx = max(abs(al["deltas"][tag]) for c in cells
+                 for al in c["by_alpha"].values())
+        print("  |%s| max %.3e（%s）" % (tag, mx, why))
     print("  ⇒ 数值路径两类差都是 **0**；全部差异来自注入范围。")
 
     if a.out:
         with open(a.out, "w", encoding="utf-8") as fh:
-            json.dump({"alpha": a.alpha, "model": MODEL, "layer": LAYER,
+            json.dump({"alphas": alphas, "model": MODEL, "layer": LAYER,
                        "cells": cells}, fh, ensure_ascii=False, indent=1)
         print()
-        print("已写 %s（%d 格）" % (a.out, len(cells)))
+        print("已写 %s（%d 格 × %d 剂量）" % (a.out, len(cells), len(alphas)))
     return 0
+
 
 
 if __name__ == "__main__":
