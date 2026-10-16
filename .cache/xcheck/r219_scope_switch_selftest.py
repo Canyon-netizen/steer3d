@@ -158,13 +158,16 @@ def _():
         "⛔ make_forward 的默认值被改了（不看 CLI 也会走错口径）"
 
 
-@case("C3 ⛔ 口径必须随数落盘（payload 里必须有 inject_scope）")
+@case("C3 口径必须随数落盘（payload 里必须有 inject_scope）")
 def _():
     src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
     assert '"inject_scope": a.inject_scope' in src, \
         "⛔ payload 没记口径 ⇒ 两批读数混批时看不出来"
     # ⚠ 落盘不够：产物里的列只有翻 json 才看得到 ⇒ 汇总上也要印
     assert 'if a.inject_scope != "single":' in src, "⛔ 汇总上没有印非默认口径"
+    # ⚠⚠⁴ **必要不充分**。这一条是**全文件子串**查找，只问「这个串在不在文件里」，
+    # ⚠⚠⁴ 不问「**每一条**落盘路径有没有它」。修订 220 实测：smoke 分支当时漏记，
+    # ⚠⚠⁴ 而本条照样绿 ⇒ 真闸门在 C6。
 
 
 @case("C4 ⛔ CLI 只接受 single / all 两个值")
@@ -178,6 +181,76 @@ def _():
     src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
     assert "make_forward(model, tok, scope=a.inject_scope)" in src, \
         "⛔⛔ make_forward 没接上 CLI 的 scope —— 加了开关但没接进去"
+
+
+# ---------------------------------------------------------------------------
+# ⚠⚠⁴ 路径级判据的公共谓词（修订 220）
+#
+# 写成「吃 src 的纯函数」有两个理由：
+#   ① 变异台要拿**变异后的源码**跑同一条判据，才能证明这条判据能红；
+#   ② ⚠⚠⛔ 全文件子串查找分不清「这个串在文件里」与「这个串在**每条路径**里」。
+# ---------------------------------------------------------------------------
+
+
+def _payload_spans(src):
+    """每一条落盘路径所带 payload 字典的 (start, end) 区间。
+
+    ⚠ `def finalize(payload, path, pos_ok):` 不含 ``finalize({`` ⇒ 天然被排除，
+    ⚗ 所以这里列出来的**全是**真正写盘的位置。
+    ⚗⇒ 以后有人加第三条落盘路径，本函数会自动多列一项，不必改判据。
+    """
+    spans, i = [], 0
+    while True:
+        j = src.find("finalize({", i)
+        if j < 0:
+            return spans
+        k = src.find("a.out, pos_ok)", j)
+        assert k > 0, "finalize 调用点的收尾形状变了 ⇒ 区间提取器要跟着改"
+        spans.append((j, k))
+        i = k
+
+
+def pred_scope_everywhere(src):
+    """⛔ 判据：**每一条**落盘路径都必须记 inject_scope。返回 (ok, 说明)。"""
+    spans = _payload_spans(src)
+    if not spans:
+        return False, "一条落盘路径都没找到 ⇒ 区间提取器坏了，不是代码坏了"
+    bad = [i for i, (s, e) in enumerate(spans)
+           if '"inject_scope": a.inject_scope' not in src[s:e]]
+    if bad:
+        return False, "第 %s 条落盘路径没记口径" % bad
+    return True, "%d/%d 条路径都记了口径" % (len(spans), len(spans))
+
+
+def pred_warning_reachable(src):
+    """⛔ 判据：非默认口径告警必须在 smoke 早退**之前**，否则 smoke 跑 non-default 静默。"""
+    w = src.find('if a.inject_scope != "single":')
+    s = src.find("if a.smoke:")
+    if w < 0:
+        return False, "没有非默认口径的告警块"
+    if s < 0:
+        return False, "没有 smoke 早退分支"
+    if w > s:
+        return False, ("告警块落在 smoke 早退**之后**（offset %d > %d）"
+                       "⇒ --smoke --inject-scope all 会一声不吭地跑完" % (w, s))
+    return True, "告警 offset %d < smoke 早退 %d" % (w, s)
+
+
+@case("C6 ⛔⛔⛔ 每一条落盘路径都必须记 inject_scope（全文件子串查找不够）")
+def _():
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    ok, why = pred_scope_everywhere(src)
+    assert ok, why
+    # ⚠ 分母不许为 0：0 条路径时「都记了」是一句空话，不能算通过。
+    assert len(_payload_spans(src)) >= 2, \
+        "只找到 1 条落盘路径 ⇒ smoke / 全量少了一条？"
+
+
+@case("C7 ⛔⛔ 非默认口径的告警必须在 smoke 早退之前（否则 smoke 静默）")
+def _():
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    ok, why = pred_warning_reachable(src)
+    assert ok, why
 
 
 # ===========================================================================
@@ -327,6 +400,48 @@ def _():
     h2 = h1d(4); b2 = h2.copy()
     r219.inject_at_r6(h2, np.array([1.0, 1.0, 1.0]), 5.0, "single", 2)
     assert np.array_equal(h2, b2)
+
+
+@case("H6 ⛔ 变异：只从 smoke 那条路径删掉口径 ⇒ C6 必须红，而旧 C3 仍绿")
+def _():
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    spans = _payload_spans(src)
+    assert len(spans) >= 2, spans
+    s, e = spans[0]                      # 文件顺序第 0 条 = smoke 分支
+    block = src[s:e]
+    mut_block = block.replace('"inject_scope": a.inject_scope', '"_x": 1')
+    assert mut_block != block, "smoke 路径里本来就没有口径字段 ⇒ 台架无效"
+    mut = src[:s] + mut_block + src[e:]
+    assert mut != src
+    # ⚠⚠ 双向证伪：原版**必须满足**，变异体**必须不满足**。
+    assert pred_scope_everywhere(src)[0], "原版不满足 C6 ⇒ C6 本身写错了"
+    ok, why = pred_scope_everywhere(mut)
+    assert not ok, "变异后 C6 仍绿 ⇒ C6 没有分辨力"
+    # ⛔⛔ 而**旧的全文件判据 C3 在这个变异体上照样绿** ——
+    # ⛔⛔ 这就是它不够用的地方，也正是这次要写 C6 的理由（留下可复现的证据）。
+    assert '"inject_scope": a.inject_scope' in mut, "C3 前半在变异体上应当仍绿"
+    assert 'if a.inject_scope != "single":' in mut, "C3 后半在变异体上应当仍绿"
+
+
+@case("H7 ⛔ 变异：把告警块挪回 smoke 早退之后 ⇒ C7 必须红")
+def _():
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    head = "    # ⚠⚠⛔ 非默认口径必须**印在汇总上**"
+    tail = ('        print("⚠⚠⚠ ⇒ 这批读数**不可与 single 批次混进同一个 P6 '
+            '汇总**。")\n')
+    assert src.count(head) == 1, "告警块起点标记不唯一 ⇒ 变异台要跟着改"
+    start = src.find(head)
+    end = src.find(tail)
+    assert 0 <= start < end, "告警块边界标记变了 ⇒ 变异台要跟着改"
+    block = src[start:end + len(tail)]
+    rest = src[:start] + src[end + len(tail):]
+    # 挪到**最后一条**落盘路径之前（全量分支）⇒ 落在 smoke 早退之后
+    anchor = rest.rfind("\n", 0, _payload_spans(rest)[-1][0]) + 1
+    mut = rest[:anchor] + block + "\n" + rest[anchor:]
+    assert mut != src
+    assert pred_warning_reachable(src)[0], "原版不满足 C7 ⇒ C7 本身写错了"
+    ok, why = pred_warning_reachable(mut)
+    assert not ok, "变异后 C7 仍绿 ⇒ C7 没有分辨力"
 
 
 def main():

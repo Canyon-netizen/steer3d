@@ -591,9 +591,28 @@ def main():
     print(f"  合计 {sum(v['ok'] for v in bench_v.values())}/{len(bench_v)} 条通过")
     print(f"  P9 {'通过，可以继续' if pos_ok else '**未通过，先修装置**'}")
 
+    # ⚠⚠⛔ 非默认口径必须**印在汇总上**：口径差比 resid_std 还大，
+    # ⚠⚠⛔ 而产物里那列只有真去翻 json 才看得到 ⇒ 只落盘不够。
+    # ⚠⚠⁴ 修订 220：这段原先在 smoke 早退**之后**，于是 `--smoke --inject-scope all`
+    # ⚠⚠⁴ 一声不吭地跑完 —— 与「不落盘」是同一种病，只是长在**打印**这一侧：
+    # ⚠⚠⁴ 上一版只在**全量**分支记口径，于是 `--smoke --inject-scope all` 产出的
+    # ⚠⚠⁴ json 与 single **逐字同形**，光看文件根本看不出这批是哪口径。
+    # ⛔⇒ 放在两条落盘路径的分叉**之前**，而不是全量分支的末尾。
+    if a.inject_scope != "single":
+        print()
+        print("⚠⚠⚠ 本批 inject_scope=%s" % a.inject_scope)
+        print("⚠⚠⚠ **这不是 §P5 预登记的那个口径（single）**。修订 209/210 实测")
+        print("⚠⚠⚠ 两者量的不是同一个东西：同一输入上中位差 0.14，256 步下 token 链")
+        print("⚠⚠⚛ 19/20 分叉，P9 判决在 10 格上 0/10 翻转。")
+        print("⚠⚠⚠ ⇒ 这批读数**不可与 single 批次混进同一个 P6 汇总**。")
+
     if a.smoke:
         return finalize({"bench": bench, "bench_v": bench_v, "pos_ok": pos_ok,
-                         "label_coverage": coverage}, a.out, pos_ok)
+                         "label_coverage": coverage,
+                         # ⚠⚠⁴ 口径必须**每一条**落盘路径都记，否则「两批读数混批
+                         # ⚠⚠⁴ 时看不出来」这条理由在 smoke 批次上不成立。
+                         "inject_scope": a.inject_scope},
+                        a.out, pos_ok)
 
     # ---- 全量变体 ----
     rows = []
@@ -636,15 +655,8 @@ def main():
         print("⛔⛔ 产物已写出（便于排查），但 `device_validated=false`、退出码为 1。")
         print("⛔⛔ 先修装置：P9 是预登记写死的「先修装置」闸，不是建议。")
 
-    # ⚠⚠⛔ 非默认口径必须**印在汇总上**：口径差比 resid_std 还大，
-    # ⚠⚠⛔ 而产物里那列只有真去翻 json 才看得到 ⇒ 只落盘不够。
-    if a.inject_scope != "single":
-        print()
-        print("⚠⚠⚠ 本批 inject_scope=%s" % a.inject_scope)
-        print("⚠⚠⚠ **这不是 §P5 预登记的那个口径（single）**。修订 209/210 实测")
-        print("⚠⚠⚠ 两者量的不是同一个东西：同一输入上中位差 0.14，256 步下 token 链")
-        print("⚠⚠⚛ 19/20 分叉，P9 的 10 格判决 0/10 翻转。")
-        print("⚠⚠⚠ ⇒ 这批读数**不可与 single 批次混进同一个 P6 汇总**。")
+    # ⚠⚠⁴ 非默认口径的告警块**已上移**到 smoke 早退之前（修订 220）：
+    # ⚠⚠⁴ 放在这里只有全量分支够得着，`--smoke --inject-scope all` 会静默跑完。
 
     return finalize({"bench": bench, "bench_v": bench_v, "pos_ok": pos_ok,
                      "rows": rows,
