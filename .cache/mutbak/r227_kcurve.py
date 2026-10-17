@@ -210,10 +210,21 @@ def join(blocks, rows):
                     c["n_eff"] = pt_sum
                     c["n_eff_src"] = "读数P+t（未与 BEGIN 互证）"
                 else:
-                    c["n_eff_src"] = "BEGIN（已与 P+t 互证）"
+                    # ⚖ 修订 244.8：此处**第一次**名副其实 —— BEGIN 的 n_eff 来自
+                    # ⚖   跑批前的独立复算（tokenizer 重编码 P + 侧车
+                    # ⚖   n_generated_tokens 算 t），不是回填读数，故与下面
+                    # ⚖   探针自报的 P+t 是两条不同来源。
+                    c["n_eff_src"] = "BEGIN（独立来源，与读数 P+t 已互证）"
                     if b["n_eff"] != pt_sum:
+                        # ⚠⚠ 措辞收紧：旧文案只说「阶梯排错了」，把结论**唯一地**
+                        # ⚖ 归给阶梯。不符也可能是独立复算自己算错了
+                        # ⚖ （tokenizer 换了 / 侧车 n_gen 与 npz 不一致）。
+                        # ⚖⚗ 这道检查**不能区分**两者 ⇒ 如实写出来，不假装能定位。
+                        # ⚖ 触发条件逐字未改（仍是 n_eff != pt_sum）。
                         raise HardFail(
-                            "第 %d 格 n_eff=%d ≠ P+t=%d+%d=%d —— 阶梯排错了"
+                            "第 %d 格 BEGIN 的独立 n_eff=%d ≠ 读数 P+t=%d+%d=%d"
+                            " —— 阶梯排错了，或独立复算本身算错了"
+                            "（本检查不区分这两者）"
                             % (i + 1, b["n_eff"], pt, tt, pt_sum))
             else:
                 c["n_eff_src"] = "未量到（读数里没有 P/t）"
