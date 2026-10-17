@@ -136,6 +136,7 @@ export default function Page() {
           <a href="/steering-transfer" className="mr-3 text-fuchsia-300 hover:text-fuchsia-200">held-out 迁移</a>
           <a href="/steering-sweep" className="mr-3 text-emerald-300 hover:text-emerald-200">剂量/副作用</a>
           <a href="/steering-recipe" className="mr-3 text-rose-300 hover:text-rose-200">编译 recipe</a>
+          <a href="/steering-workbench.html" className="mr-3 text-teal-200 hover:text-teal-100">总工作台</a>
           <a href="/circuit-landscape" className="mr-3 text-teal-300 hover:text-teal-200">状态与原生 circuit</a>
           <span
             className={`inline-block w-2 h-2 rounded-full ${

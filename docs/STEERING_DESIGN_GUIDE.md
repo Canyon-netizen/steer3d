@@ -139,4 +139,5 @@
 - [STEERING_TRANSFER.md](STEERING_TRANSFER.md)：held-out 迁移（2 calib + 2 held-out / marker）
 - [STEERING_SWEEP.md](STEERING_SWEEP.md)：alpha / side-effect sweep（dose 0.02-0.5）
 - [STEERING_RECIPE.md](STEERING_RECIPE.md)：compiled recipe + .npy 文件
-- 页面：/readout-atlas、/steering-construction、/steering-transfer、/steering-sweep、/steering-recipe、/steering-design
+- [STEERING_WORKBENCH.md](STEERING_WORKBENCH.md)：自包含 HTML 总工作台
+- 页面：/readout-atlas、/steering-construction、/steering-transfer、/steering-sweep、/steering-recipe、/steering-design、/steering-workbench.html
