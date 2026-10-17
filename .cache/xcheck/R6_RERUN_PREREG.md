@@ -32281,3 +32281,38 @@ P+t 也全部对得上读数。所以 n_eff 的**值**是运行时真值。
 
 ⚠ 另记：这一轮输出退化 3 次（符号连击 / 工具参数损坏 / 长输出后失控）
 ⚠ ⇒ 应对有效：极短命令 + `| head -N` + 纯 ASCII 写账本 + 写完立刻验字节/行数。
+---
+
+## 修订 244.6 —— 244.5 的 Phase-0：独立复算 `P` 的前置已过
+
+⚖ 244.5.5 那条路（独立 tokenizer 对 `chat_template_input` 重编码，与侧车
+`extra.prompt_tokens` 对比）的前置实测：
+
+| 项 | 实测值 |
+|---|---|
+| 模型路径（探针 `r241_probe.py` 里取的） | `/home/zhourui/.cache/huggingface/models/Qwen--Qwen3-1.7B/snapshots/master` |
+| `tokenizer.json` / `merges.txt` / `vocab.json` | 存在 |
+| `tokenizer_class` | `Qwen2Tokenizer` |
+| `chat_template` | **在 `tokenizer_config.json` 里**（`tokenizer.json` 里没有） |
+| `special_tokens_map.json` | ⚠ 不存在（Qwen2 一般不需要） |
+
+⇒ **路可走通**：只加载 tokenizer（不加载模型）⇒ 不占显存
+⇒ 8/8 卡全占也能跑。
+
+⚠⚠⚠ **但有一个结构问题必须先读清，否则会算出错的 `P'`**：
+
+探针 `:390` 写的是 `P = (cti.get("extra") or {}).get("prompt_tokens")`
+⇒ **`cti` 是一个 dict**（不是 messages 列表，也不是纯字符串）
+⇒ 生成器把 chat template 输入存成了 `{"extra": {...}, ...}` 这种结构。
+
+⚖⇒ 下轮动手前必须先答：
+1. `cti` 除 `extra` 外还有哪些键？它装的是 **messages 列表** 还是
+   **已 apply 过 template 的字符串**？
+2. ⛔ 若已 apply 过 template ⇒ 复算必须用 `tokenizer(cti_str)`；
+   ⚠ 若误用 `apply_chat_template` 会**再加一遍特殊 token**
+   ⇒ `P'` 必然偏大 ⇒ 假红。
+3. ⚖ 探针实际喂给模型的是什么（`pid` 从哪来）—— 复算必须与它**逐 token 同源**，
+   否则比的不是同一件事（这正是本轮反复撞的那条）。
+
+⚠ **未实施、未验证**：本节只登记前置已过 + 上述三个待答问题。
+⚠ ⛔ 在第 1 问答出来之前，⛔ 不许写复算脚本。
