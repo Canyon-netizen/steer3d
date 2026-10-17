@@ -1,0 +1,48 @@
+{
+  "passed": true,
+  "model_config_sha256": "1ddb5b89ebc90dcb417a45c213d818577e65976454d29385c8f6140771d95197",
+  "execution_source_sha256": {
+    "run_neuron_mediation.py": "442f66bb5cf730cc584e3fa9de059dcb2c4905075d31b690f1a188ee734d9242",
+    "neuron_mediation.py": "bd26448dcec9dfea3d3305e23b7193ffb4466ef32d86f01964163d161c03d591",
+    "original_r6.py": "7ba96bf70f93519c02ec58452b0ff191f3829058272b9f81a223d5caadf41b0a"
+  },
+  "vector_sha256": "6ef6df33e2cb22d647594d7d9f0b371e7bec8c9a0cd25741095b7fe26a890c16",
+  "selection_statistics_sha256": "5cc29888aedc21015cddaf92e32ef17c741913c1972d2fc6122f3f4452fe210c",
+  "selection_rule_replayed": true,
+  "random_groups_and_matching_replayed": true,
+  "discovery_case_ids_verified": true,
+  "unit_statistics_shapes": {
+    "20": [
+      6144
+    ],
+    "21": [
+      6144
+    ],
+    "22": [
+      6144
+    ],
+    "23": [
+      6144
+    ],
+    "24": [
+      6144
+    ],
+    "25": [
+      6144
+    ],
+    "26": [
+      6144
+    ],
+    "27": [
+      6144
+    ]
+  },
+  "n_selected_units": 256,
+  "matching_fallbacks": 0,
+  "control_write_checks": 2688,
+  "max_relative_write_norm_error": 9.814734913795035e-07,
+  "max_control_scale": 20.37893227915749,
+  "measurement_seconds": 76.46211862564087,
+  "exit_code": 0,
+  "audit_code_sha256": "09c91093aed642f90b88d0df863dc0909b4a380e4202cb7db27034417c577166"
+}

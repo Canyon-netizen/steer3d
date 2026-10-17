@@ -4,6 +4,8 @@
 造成模型输出的变化。语义目标是判断乘法算式正确性，同时独立控制自检措辞。
 候选神经元在发现集选择，在不同数字的留出问题上阻断和恢复。
 
+本轮已完成，见[测量结果与证据边界](NEURON_MEDIATION_RESULTS.md)。
+
 实验延续 Goodfire 的原生计算单元研究思路，参考其
 [Neural Networks Are Already Clean](https://already-clean.goodfire.com/) 中的符号分支和
 电路验证方法。该文章是研究假说，本实验不以“所有神经元都容易解释”为前提。

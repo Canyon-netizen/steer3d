@@ -149,7 +149,12 @@ def summarize(data, protocol):
             result["factorial"][f"{truth}_{wording}"] = description(per_problem(subset,lambda r:delta(r,"w+",primary)))
     transfer = [r for r in data["cases"] if r["kind"] == "aime"]
     result["transfer"] = {"total":description(per_problem(transfer,lambda r:delta(r,"w+",primary))),
-        **{kind:description(per_problem(transfer,lambda r:r["mediation"]["joint_"+kind]["effect"])) for kind in ("block","restore")}}
+        "minus_total":description(per_problem(transfer,lambda r:delta(r,"w-",primary))),
+        "raw_marker_lse_delta":description(per_problem(transfer,lambda r:next(
+            arm["readout"]["marker_lse"] for arm in r["responses"] if arm["direction"] == "w+")-r["baseline"]["marker_lse"])),
+        **{kind:description(per_problem(transfer,lambda r:r["mediation"]["joint_"+kind]["effect"])) for kind in ("block","restore")},
+        **{f"random{i}_{kind}":description(per_problem(transfer,lambda r,i=i,kind=kind:r["mediation"][f"random{i}_{kind}"]["effect"]))
+           for i in range(protocol["random_groups"]) for kind in ("block","restore")}}
     return result
 
 
