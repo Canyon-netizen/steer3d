@@ -61,6 +61,15 @@ def problem_specs(protocol):
     return rows
 
 
+def equation_prefix(tokenizer, messages):
+    # Transformers 5 may otherwise return a BatchEncoding instead of token IDs.
+    ids = tokenizer.apply_chat_template(messages,tokenize=True,return_dict=False,
+        add_generation_prompt=True,enable_thinking=False)
+    if not isinstance(ids,list) or not ids or any(not isinstance(t,int) or t < 0 for t in ids):
+        raise TypeError("chat template must return a nonempty flat integer token list")
+    return ids
+
+
 def aime_specs(root,protocol,tokenizer,r6_path):
     spec = importlib.util.spec_from_file_location("neuron_original_r6",r6_path)
     r6 = importlib.util.module_from_spec(spec)
@@ -155,8 +164,7 @@ def main():
     assert set(answer_ids["A"]).isdisjoint(answer_ids["B"])
     cases = problem_specs(protocol)
     for case in cases:
-        case["prefix_ids"] = tokenizer.apply_chat_template(case.pop("messages"),tokenize=True,
-            add_generation_prompt=True,enable_thinking=False)
+        case["prefix_ids"] = equation_prefix(tokenizer,case.pop("messages"))
         case["groups"] = [answer_ids[case["answer"]],answer_ids["B" if case["answer"] == "A" else "A"]]
     transfer,excluded = aime_specs(args.aime_root,protocol,tokenizer,args.r6_source)
     columns = {i:model.model.layers[i].mlp.down_proj.weight.detach().float().norm(dim=0).cpu().numpy()

@@ -9,6 +9,24 @@ from torch import nn
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from core.neuron_mediation import native_forward, sign_regimes, select_units, matched_random_groups
+from examples.run_neuron_mediation import equation_prefix
+
+
+def test_chat_prefix_explicitly_requests_integer_list_on_new_transformers():
+    class Tokenizer:
+        def apply_chat_template(self,messages,**kwargs):
+            assert kwargs == dict(tokenize=True,return_dict=False,add_generation_prompt=True,enable_thinking=False)
+            return [17,23,19]
+    assert equation_prefix(Tokenizer(),[{"role":"user","content":"Example"}]) == [17,23,19]
+
+
+@pytest.mark.parametrize("bad",[{"input_ids":[1,2]},"123",[],[[1,2]],[1,-1]])
+def test_chat_prefix_rejects_invalid_shapes_before_forward(bad):
+    class Tokenizer:
+        def apply_chat_template(self,*args,**kwargs):
+            return bad
+    with pytest.raises(TypeError,match="flat integer token list"):
+        equation_prefix(Tokenizer(),[])
 
 
 class Gated(nn.Module):

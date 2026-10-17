@@ -1,6 +1,6 @@
 #!/bin/sh
 set -u
-TASK_ROOT=/home/zhourui/steer3d_neuron_20261017
+TASK_ROOT=${2:-/home/zhourui/steer3d_neuron_20261017}
 TASK_PY=/tmp/easysteer_env_local/bin/python
 GPU_UUID=${1:?Pass the idle GPU UUID}
 export OMP_NUM_THREADS=2
