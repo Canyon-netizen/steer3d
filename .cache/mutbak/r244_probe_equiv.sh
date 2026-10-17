@@ -22,7 +22,8 @@ export CUDA_VISIBLE_DEVICES=GPU-$GPU_UUID
 LOG=$B/r244_equiv.log
 ST=$B/r244_equiv_status.txt
 : > "$LOG"; : > "$ST"
-echo "PINNED GPU=$GPU_UUID  $(date +%T)" >> "$ST"
+# ⚠ 状态文件契约 = 「每格一行 + ALLDONE」⇒ 非格行只许进 $LOG（见 §244.1）
+echo "PINNED GPU=$GPU_UUID  $(date +%T)" >> "$LOG"
 
 C="--cell --npz-dir $B/gen_b2_max32768/aime --sidecar-dir $B/gen_b2_max32768/aime --labels $B/r182_1015_003713_label.json --w /tmp/w_p2a.npy --gap 113.47440338134766 --pos-frac 0.5 --n-steps 60 --alpha-max 120 --band 60 --gpu-uuid $GPU_UUID --arm w --inject-nested"
 
@@ -32,18 +33,18 @@ TID=aime__aime25__p00__think
 echo "=== BEGIN old  $(date +%T)" >> "$LOG"
 $PY $B/r226_probe.py $C --tid "$TID" --inject-scope k --inject-n-sites 1 --dump-raw /tmp/eqvA >> "$LOG" 2>&1
 rc_old=$?
-echo "old rc=$rc_old" >> "$ST"
+echo "old rc=$rc_old" >> "$LOG"
 echo "=== END   old  $(date +%T)  rc=$rc_old" >> "$LOG"
 
 echo "=== BEGIN new  $(date +%T)" >> "$LOG"
 $PY $B/r241_probe.py $C --tid "$TID" --inject-scope k --inject-n-sites 1 --dump-raw /tmp/eqvB >> "$LOG" 2>&1
 rc_new=$?
-echo "new rc=$rc_new" >> "$ST"
+echo "new rc=$rc_new" >> "$LOG"
 echo "=== END   new  $(date +%T)  rc=$rc_new" >> "$LOG"
 
 # ⚖⚠ **两条闸**：rc 必须是 0，且产物**非空**。
 # ⚖⚗ 少了第 2 条，本轮第一版就是拿两个空文件宣布「逐字节相同」。
-echo "old_files=$(find /tmp/eqvA -type f 2>/dev/null | wc -l) new_files=$(find /tmp/eqvB -type f 2>/dev/null | wc -l)" >> "$ST"
+echo "old_files=$(find /tmp/eqvA -type f 2>/dev/null | wc -l) new_files=$(find /tmp/eqvB -type f 2>/dev/null | wc -l)" >> "$LOG"
 diff -r /tmp/eqvA /tmp/eqvB > /tmp/eqv_diff.txt 2>&1
-echo "diff_rc=$?  diff_bytes=$(wc -c < /tmp/eqv_diff.txt)" >> "$ST"
+echo "diff_rc=$?  diff_bytes=$(wc -c < /tmp/eqv_diff.txt)" >> "$LOG"
 echo "ALLDONE $(date +%T)" >> "$ST"

@@ -22,13 +22,20 @@ export CUDA_VISIBLE_DEVICES=GPU-$GPU_UUID
 LOG=$B/r244_warm.log
 ST=$B/r244_warm_status.txt
 : > "$LOG"; : > "$ST"
-echo "PINNED GPU=$GPU_UUID  CELLS=$CELLS  $(date +%T)" >> "$ST"
+# ⚠⚠⚠ 修订 244.1：**状态文件的契约是「每格一行 + ALLDONE」**。
+# ⚖ `r227_kcurve.parse_status` 遇到读不出 rc 的行会 **HardFail**，
+# ⚖ 而那道守卫是**对的** ⇒ ⛔ **不许为了让它绿而去放宽读数器**，
+# ⚖ ⚗ 那是「事后把红改成绿」。⇒ 改**生产者**。
+# ⚖ 第一版我在 $ST 里写了 `PINNED GPU=…` 头行 ⇒ 读数器当场 HardFail。
+# ⚖⇒ PINNED / ABORT / 一切非格行，**只许进 $LOG**。
+echo "PINNED GPU=$GPU_UUID  CELLS=$CELLS  $(date +%T)" >> "$LOG"
 
 # ⛔ 格数闸：清单不是 137 行 ⇒ 中止，别跑半份。
 N=$(grep -c . "$CELLS" 2>/dev/null || echo 0)
 if [ "$N" -ne 137 ]; then
-  echo "ABORT 格数=$N ≠ 137（清单可能没传对）" >> "$ST"
-  echo "ALLDONE $(date +%T) ABORTED" >> "$ST"
+  echo "ABORT 格数=$N ≠ 137（清单可能没传对）" >> "$LOG"
+  echo "ALLDONE $(date +%T) ABORTED" >> "$LOG"
+  echo "ALLDONE $(date +%T)" >> "$ST"
   exit 9
 fi
 
@@ -45,7 +52,17 @@ while IFS=$'\t' read -r TID KIND VAL; do
   else
     SCOPE_ARGS="--inject-scope $VAL"
   fi
-  echo "### BEGIN [$i/137] $TID $SCOPE_ARGS  $(date +%T)" >> "$LOG"
+  # ⚠⚠⚠ 修订 244.1 修复：**tid 必须是 `### BEGIN` 后的第一个 token**。
+  # ⚖ `r227_kcurve.BEGIN_RE` 契约是
+  #     ^###\s+BEGIN\s+(?P<tid>\S+)(?P<rest>.*?)\s\s+(?P<time>\d\d:\d\d:\d\d)\s*$
+  # ⚖ 第一版把 `[i/n]` 印在 tid **之前** ⇒ 读数器把 `[1/137]` 当 tid，
+  # ⚖    立刻 HardFail「第 1 格 tid 对不上」。
+  # ⚖⇒ 序号移到 **rest 内**（读数器 `rest` 不解析它，无害），
+  # ⚖   同时保留「第几格」的可见性。END 行同理，读数器不解析 END。
+  # ⚖⚗ 本脚本已产出过 2026-10-17 那份日志（用了旧的错写法）；
+  # ⚖  本次只改**未来**跑批的写法，⛔ 不去改已落盘的产物
+  #    （改产物会让「脚本说的」与「产物是的」不一致）。
+  echo "### BEGIN $TID [$i/137] $SCOPE_ARGS  $(date +%T)" >> "$LOG"
   $PY $B/r241_probe.py $C --tid "$TID" $SCOPE_ARGS >> "$LOG" 2>&1
   rc=$?
   # ⚖ 状态行与 r227_status.txt 同形，便于读数器对账
@@ -56,4 +73,5 @@ while IFS=$'\t' read -r TID KIND VAL; do
   fi
   echo "### END   [$i/137] $TID rc=$rc  $(date +%T)" >> "$LOG"
 done < "$CELLS"
-echo "ALLDONE $(date +%T)  cells=$i" >> "$ST"
+echo "SWEEPDONE cells=$i  $(date +%T)" >> "$LOG"
+echo "ALLDONE $(date +%T)" >> "$ST"

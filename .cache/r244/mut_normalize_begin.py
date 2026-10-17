@@ -44,12 +44,25 @@ PY = sys.executable
 
 BASELINE_MD5 = "ac39f192fbda3afc6a484b8ee52538bd"
 
+# ⚖ 规范化后的真日志（契约格式）—— M7/M8/M9 的输入底本。
+# ⚖⚠⚠ 它是**被测体的产物**，用它当下一轮的输入会形成循环依赖 ⚠
+# ⚖  但这里只取它的**文本**当夹具（并由 bench 独立复核），⛔ 不采信它的任何结论。
+REAL_NORM_LOG = os.path.join(HERE, "r244_warm.norm.log")
+if not os.path.exists(REAL_NORM_LOG):
+    REAL_NORM_LOG = ""
+COMPLIANT_TEXT = (open(REAL_NORM_LOG, encoding="utf-8").read()
+                  if REAL_NORM_LOG else "")
+
 # ---- 台架自己的四问（⛔ 不 import 被测脚本，不复用它的正则） ----
+# ⚠⚠⚠ 两个正则**必须都用命名组**：位置组在两者间的下标不同
+#    （BAD 的 tid 是 3、GOOD 的 tid 是 1），混用位置组必然错一次。
 RC_RE = re.compile(rb"\brc=(-?\d+)")
 BAD_BEGIN_RE = re.compile(
-    rb"^###\s+BEGIN\s+\[(\d+)/(\d+)\]\s+(\S+)(.*?)\s\s+(\d\d:\d\d:\d\d)\s*$")
+    rb"^###\s+BEGIN\s+\[(?P<i>\d+)/(?P<n>\d+)\]\s+"
+    rb"(?P<tid>\S+)(?P<rest>.*?)\s\s+(?P<time>\d\d:\d\d:\d\d)\s*$")
 GOOD_BEGIN_RE = re.compile(
-    rb"^###\s+BEGIN\s+(\S+)(.*?)\s\s+(\d\d:\d\d:\d\d)\s*$")
+    rb"^###\s+BEGIN\s+(?P<tid>\S+)(?P<rest>.*?)\s\s+"
+    rb"(?P<time>\d\d:\d\d:\d\d)\s*$")
 
 
 def bench_verdict(out_path, status_path, src_log_path, expect_md5):
@@ -125,13 +138,22 @@ def bench_verdict(out_path, status_path, src_log_path, expect_md5):
         return False, "3", "BEGIN 行数变了：源 %d 出 %d" % (
             len(src_begins), len(out_begins))
     for i, (a, b) in enumerate(zip(src_begins, out_begins), start=1):
-        ma, mb = BAD_BEGIN_RE.match(a), GOOD_BEGIN_RE.match(b)
+        # ⚖⚠ 输入可能是**偏离**格式（本轮真日志）或**合规**格式（M7–M9 的夹具）
+        # ⇒ 两种都要能取出 tid，不能只认一种（否则 bench 自己会假红）。
+        # ⚖⚠⚠ **不能用 `BAD.match(x) or GOOD.match(x)`**：`re.Match` 没有
+        #    `__bool__`，永远为真 ⇒ `or` **不会**按「是否匹配」短路，
+        #    永远返回第一个结果（哪怕它是 None）⇒ 下面就会 `None.group(...)` 崩掉。
+        ma = BAD_BEGIN_RE.match(a)
+        if ma is None:
+            ma = GOOD_BEGIN_RE.match(a)
+        mb = BAD_BEGIN_RE.match(b)
+        if mb is None:
+            mb = GOOD_BEGIN_RE.match(b)
         if ma is None or mb is None:
-            return False, "3", "第 %d 个 BEGIN 行有一侧无法解析" % i
-        # 联合键（tid + 序号锚）必须对得上，且 token 集合只许重排
-        if ma.group(3) != mb.group(1):
+            return False, "3", "第 %d 个 BEGIN 行有一侧两种格式都不匹配" % i
+        if ma.group("tid") != mb.group("tid"):
             return False, "3", "第 %d 格 tid 变了：%r -> %r" % (
-                i, ma.group(3), mb.group(1))
+                i, ma.group("tid"), mb.group("tid"))
         if sorted(a.split()) != sorted(b.split()):
             return False, "3", "第 %d 行 token 集合变了（不只是重排）" % i
     src_pass = [l for l in src if not l.startswith(b"### BEGIN")]
@@ -173,12 +195,14 @@ def mut_denom(text):
 
 
 def mut_drop_rest(td):
-    """M4：转换时丢掉 rest 段。期望闸 3（token 集合变了）。"""
-    old = ('new = "%s %s [%s/%s]%s  %s" % (\n'
-           '                    BEGIN_PREFIX, g["tid"], g["i"], g["n"], '
-           'g["rest"], g["time"])')
-    new = ('new = "%s %s [%s/%s]  %s" % (\n'
-           '                    BEGIN_PREFIX, g["tid"], g["i"], g["n"], g["time"])')
+    """M4：偏离格式分支里丢掉 rest 段。期望闸 3（token 集合变了）。
+
+    ⚠⚠ 锚点必须跟着被测代码的**形状**走：这条变异在 244.1.2b 修幂等时
+    失效过一次（那段构造式被重写）。⚗ 锚点失配要当**台架的失效**查，不是当变异不适用。
+    """
+    old = ('new = "%s %s [%d/%d]%s  %s" % (BEGIN_PREFIX, tid, i_val,\n'
+           '                                                   n_val, rest, time)')
+    new = 'new = "%s %s [%d/%d]  %s" % (BEGIN_PREFIX, tid, i_val, n_val, time)'
     assert td.count(old) == 1, "M4 锚点没命中"
     return td.replace(old, new)
 
@@ -209,6 +233,30 @@ def mut_gut_gate3(td):
     return td[:start] + td[end:]
 
 
+def mut_compliant_seq_skip(text):
+    """M7：合规格式日志里第 5 格序号错。期望闸 1（**合规路径也要红**）。"""
+    old = "### BEGIN aime__aime25__p00__think [5/137] "
+    new = "### BEGIN aime__aime25__p00__think [6/137] "
+    assert text.count(old) == 1, "M7 锚点没命中"
+    return text.replace(old, new)
+
+
+def mut_compliant_tid(text):
+    """M8：合规格式日志里第 5 格 tid 换掉。期望闸 2。"""
+    old = "### BEGIN aime__aime25__p00__think [5/137] "
+    new = "### BEGIN aime__aime25__p99__think [5/137] "
+    assert text.count(old) == 1, "M8 锚点没命中"
+    return text.replace(old, new)
+
+
+def mut_mixed_format(text):
+    """M9：把第 5 行改成**偏离**格式，与其余合规行混合。期望 HardFail（混合格式）。"""
+    old = "### BEGIN aime__aime25__p00__think [5/137] "
+    new = "### BEGIN [5/137] aime__aime25__p00__think "
+    assert text.count(old) == 1, "M9 锚点没命中"
+    return text.replace(old, new)
+
+
 MUTS = [
     ("M1 序号跳号", "输入", mut_seq_skip, "1", "序号不连续"),
     ("M2 tid 错位一格", "输入", mut_tid_swap, "2", "tid 对不上"),
@@ -216,6 +264,9 @@ MUTS = [
     ("M4 转换丢 rest 段", "实现", mut_drop_rest, "3", "token 集合变了"),
     ("M5 转换改非 BEGIN 行", "实现", mut_touch_passthrough, "3", "字节"),
     ("M6 输入读法退化文本模式", "实现", mut_text_mode_read, "3", "字节"),
+    ("M7 合规格式序号错", "合规", mut_compliant_seq_skip, "1", "序号不连续"),
+    ("M8 合规格式 tid 换掉", "合规", mut_compliant_tid, "2", "tid 对不上"),
+    ("M9 混合格式", "合规", mut_mixed_format, "混", "混合格式"),
 ]
 
 # ---- G 系列：台架独立性（⛔ 不能只测被测脚本，要测「台架 vs 脚本」） ----
@@ -291,6 +342,11 @@ def main():
             if kind == "输入":
                 shutil.copy(TARGET, src_t)
                 open(log_t, "w", encoding="utf-8").write(fn(log0))
+            elif kind == "合规":
+                # ⚖ 用**已规范化**的真日志当输入 ⇒ 走 compliant 分支。
+                # ⚠ 若误用偏离格式的 log0，M7/M8 的锚点根本不存在 ⇒ 台架自己会报错。
+                shutil.copy(TARGET, src_t)
+                open(log_t, "w", encoding="utf-8").write(fn(COMPLIANT_TEXT))
             else:
                 open(src_t, "w", encoding="utf-8").write(fn(td0))
                 shutil.copy(REAL_LOG, log_t)

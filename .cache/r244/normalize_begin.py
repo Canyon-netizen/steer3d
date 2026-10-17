@@ -62,6 +62,12 @@ BAD_BEGIN_RE = re.compile(
     r"^###\s+BEGIN\s+\[(?P<i>\d+)/(?P<n>\d+)\]\s+"
     r"(?P<tid>\S+)(?P<rest>.*?)\s\s+(?P<time>\d\d:\d\d:\d\d)\s*$")
 
+# ⚖ 已合规格式：tid 紧跟 BEGIN，序号在 rest 内（读数器的契约格式）。
+# ⚖ 这条让本脚本**幂等**：对已合规输入，「转换」是恒等操作。
+GOOD_BEGIN_RE = re.compile(
+    r"^###\s+BEGIN\s+(?P<tid>\S+)(?P<rest>.*?)\s\s+"
+    r"(?P<time>\d\d:\d\d:\d\d)\s*$")
+
 RC_RE = re.compile(r"\brc=(-?\d+)")
 BEGIN_PREFIX = "### BEGIN"
 END_PREFIX = "### END"
@@ -137,37 +143,68 @@ def main(argv=None):
         return 3
 
     # ---- 扫一遍，分出 BEGIN / 非 BEGIN ----
-    bad = []          # (行号, 解析出的结构)
-    passthrough = []  # 非 BEGIN 行原文
-    n_begins = 0
-    n_unmatched_begin = 0
+    # ⚠⚠⚠ 修订 244.1.2b：**已合规的输入也必须能用**（幂等）。
+    # ⚖ 修好跑批脚本后，下一轮产出的日志**本来就是契约格式**
+    # ⇒ 若本脚本只认偏离格式，它会对「不需要转换」的日志 HardFail，
+    # ⚖   等于「修好了生产者，反被消费者挡住」。
+    # ⚖⚠ 但**绝不能**因为「不需要转换」就跳过校验 —— 那正是恒绿的产地。
+    # ⚖⇒ 两条路径共用闸 1/2/3；合规路径的「转换」是**恒等**
+    #    （tid 本来就在首位，`rest` 的前导空格正好当分隔符）⇒ 闸 3 自然通过。
+    # ⚖⛔ **混合格式**（既有 GOOD 又有 BAD）⇒ HardFail：
+    #    那说明日志被两次不同的写坏过，无法证明「只动了 token 顺序」。
+    good = []
+    bad = []
+    n_mixed = 0
     for lineno, line in enumerate(log_text.split("\n")):
-        if line.startswith(BEGIN_PREFIX):
-            m = BAD_BEGIN_RE.match(line)
-            if m is None:
-                n_unmatched_begin += 1
-                bad.append((lineno, None))
-                continue
-            n_begins += 1
-            bad.append((lineno, m.groupdict()))
-        else:
-            passthrough.append((lineno, line))
+        if not line.startswith(BEGIN_PREFIX):
+            continue
+        mb = BAD_BEGIN_RE.match(line)
+        if mb is None:
+            mg = GOOD_BEGIN_RE.match(line)
+            if mg is None:
+                return_fail = ("契约", "第 %d 行以 `### BEGIN` 开头但两种格式都不匹配"
+                               % (lineno + 1))
+                print("⛔ 读到：%s" % return_fail[1])
+                return 2
+            if bad:
+                n_mixed += 1
+            good.append((lineno, mg.groupdict()))
+            continue
+        if good:
+            n_mixed += 1
+        bad.append((lineno, mb.groupdict()))
+    if n_mixed:
+        print("⛔ 读到：混合格式日志（%d 行契约格式 + %d 行偏离格式）"
+              "⇒ 无法证明只动了 token 顺序，拒绝转换" % (len(good), len(bad)))
+        return 2
+
+    MODE = "compliant" if good else "deviating"
+    # `begins` 统一成 (tid, i, n, rest, time)：两条路径的下游检查共用
+    if MODE == "compliant":
+        begins = []
+        for _lineno, g in good:
+            sm = re.search(r"\[(\d+)/(\d+)\]", g["rest"])
+            if sm is None:
+                print("⛔ 读到：契约格式的第 BEGIN 行里没有 [i/n] ⇒ "
+                      "无法做序号闸，拒绝转换")
+                return 2
+            begins.append((g["tid"], int(sm.group(1)), int(sm.group(2)),
+                           g["rest"], g["time"]))
+    else:
+        begins = [(g["tid"], int(g["i"]), int(g["n"]), g["rest"], g["time"])
+                  for _lineno, g in bad]
+    n_begins = len(begins)
 
     # ================= 闸 1：序号闸 =================
     try:
-        if n_unmatched_begin:
-            raise HardFail("有 %d 行以 `### BEGIN` 开头但不符合偏离格式，"
-                           "无法证明只动了 token 顺序" % n_unmatched_begin)
         if n_begins == 0:
             raise HardFail("一个 BEGIN 行都没有 —— 日志读不出分块，拒绝转换")
         ns = set()
-        for idx, (_lineno, g) in enumerate(bad, start=1):
-            if g is None:
-                raise HardFail("第 %d 个 BEGIN 行没解析出来" % idx)
-            if int(g["i"]) != idx:
-                raise HardFail("序号不连续：第 %d 个 BEGIN 印的是 [%s/%s]"
-                               % (idx, g["i"], g["n"]))
-            ns.add(int(g["n"]))
+        for idx, (_tid, i_val, n_val, _rest, _time) in enumerate(begins, start=1):
+            if i_val != idx:
+                raise HardFail("序号不连续：第 %d 个 BEGIN 印的是 [%d/%d]"
+                               % (idx, i_val, n_val))
+            ns.add(n_val)
         if len(ns) != 1:
             raise HardFail("分母不一致：%s" % sorted(ns))
         n = ns.pop()
@@ -183,10 +220,10 @@ def main(argv=None):
 
     # ================= 闸 2：tid 闸 =================
     try:
-        for idx, (_lineno, g) in enumerate(bad):
-            if g["tid"] != status_tids[idx]:
+        for idx, (tid, _i, _n, _rest, _t) in enumerate(begins):
+            if tid != status_tids[idx]:
                 raise HardFail("第 %d 格 tid 对不上：日志 %r vs 状态 %r"
-                               % (idx + 1, g["tid"], status_tids[idx]))
+                               % (idx + 1, tid, status_tids[idx]))
     except HardFail as e:
         print("⛔ 闸 2（tid 对齐）不过：%s" % e)
         return 2
@@ -200,20 +237,36 @@ def main(argv=None):
     #    从**文件字节**重新切一遍，与输出字节的非 BEGIN 行逐条相等。
     # ⚗ 该复核能抓住「读法退化」这类变异（M6 证明）。
     out_lines = []
-    pi = 0
     n_reordered = 0
     try:
         for lineno, line in enumerate(log_text.split("\n")):
             if line.startswith(BEGIN_PREFIX):
-                g = bad[n_reordered][1]
-                new = "%s %s [%s/%s]%s  %s" % (
-                    BEGIN_PREFIX, g["tid"], g["i"], g["n"], g["rest"], g["time"])
+                tid, i_val, n_val, rest, time = begins[n_reordered]
+                # ⚠⚠⚠ **两条路径的构造不能合并**（合并过一次，是 bug）：
+                # ⚖ 偏离格式的 `rest` **不含** `[i/n]` ⇒ 构造时必须补上；
+                # ⚖ 合规格式的 `rest` **已经含** `[i/n]` ⇒ 再补就多了一个 token。
+                # ⚖⇒ 按 MODE 分支。⚗ 合并代码路径前必须验证不变量在**两条路径下都成立**。
+                if MODE == "compliant":
+                    # 合规路径**不改任何东西** ⇒ 天然恒等，不靠构造式证明。
+                    new = line
+                    if "[%d/%d]" % (i_val, n_val) not in line:
+                        raise HardFail("第 %d 行是合规格式却找不到 [%d/%d] ⇒ "
+                                       "序号闸的来源不可靠"
+                                       % (lineno + 1, i_val, n_val))
+                else:
+                    new = "%s %s [%d/%d]%s  %s" % (BEGIN_PREFIX, tid, i_val,
+                                                   n_val, rest, time)
                 # 自查：除 `[i/n]` 的位置外，两行的 token 集合必须完全相同
                 old_toks = line.split()
                 new_toks = new.split()
                 if sorted(old_toks) != sorted(new_toks):
                     raise HardFail("第 %d 行 token 集合变了（不只是重排）：\n  旧 %s\n  新 %s"
                                    % (lineno + 1, old_toks, new_toks))
+                if MODE == "compliant" and new != line:
+                    # ⚖⚠ 这一条是「幂等」的定义：合规输入下构造结果必须**逐字节等于**原文。
+                    # ⚗ 没有它，一个「顺手改了点别的东西」的合规分支就会被放过。
+                    raise HardFail("第 %d 行是合规格式，构造结果却与原文不同：\n"
+                                   "  原 %r\n  新 %r" % (lineno + 1, line, new))
                 out_lines.append(new)
                 n_reordered += 1
             else:
