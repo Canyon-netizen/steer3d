@@ -41,8 +41,57 @@ import sys
 # ⚠⚠⁴ 它们决定**覆盖面**（比了几条轨迹），不是读数本身。
 # ⚖ 但覆盖面差异**不许被静默**：compare_bench 的 only_in_a/only_in_b 会
 # ⚖ 把格数不同这件事报出来，且报告【1】会印比较点数。
-PROVENANCE_KEYS = ("inject_scope", "pos_ok", "device_validated", "dose_source",
+PROVENANCE_KEYS = ("inject_scope", "pos_ok", "device_validated",
                    "smoke_traj", "smoke_traj_arg")
+
+# ⚠⚠⚠⚠ 修订 239：**`dose_source` 从 PROVENANCE_KEYS 里拿出来了**。
+# ⚖ 它记的**不是出处，是「用的是哪个方向向量」**：
+# ⚖   `w_meta`（从 meta 文件读的 w）／`retrained`（现重训）／
+# ⚖⚠ **`FALLBACK_375`（向量没拿到时的硬编码兜底）**
+# ⚖⚠⚠ 把它当「允许不同的出处字段」⇒ ⛔ **拿 w_meta 的一批去比 FALLBACK_375
+# ⚖ 的一批，「一次只改一个变量」会判 PASS，⚖ 而那是**两个完全不同的方向向量**。
+# ⚖ ⚗ 而 `report` 从头到尾**没印过 dose_source** ⇒ ⚖ 报告上一个字的提示都没有。
+# ⚖⇒ 现在它必须**两边相同**；不同 ⇒ 「不是一次对照」。
+# ⛔ 「出处不同」**从不**是「可以忽略的差别」。
+DOSE_KEY = "dose_source"
+
+# ⚠⚠⚠⚠ 修订 239.1：**三态，不是 bool。**
+# ⚖⚠ 原来只有「相同 / 不同」两种。⚖ 但两边**都没记**时 `da == db` 成立
+# ⚖ ⇒ 旧写法判成「同向量」⇒ 照样签发「一次对照 ⇒ 差可以归给口径」。
+# ⚖ ⚗ 而**没法确认两臂用的是同一个向量**时，口径差**根本不可归因** ——
+# ⚖ 「不知道」比「不同」还弱，⛔ 不能和「一样」共用一个说法。
+DOSE_STATE_UNKNOWN = "unknown"
+DOSE_STATE_SAME = "same"
+DOSE_STATE_DIFFERENT = "different"
+
+DOSE_STATE_NOTE = {
+    DOSE_STATE_SAME: "",
+    DOSE_STATE_DIFFERENT: "   ⛔⛔ **两边不是同一个方向向量**",
+    DOSE_STATE_UNKNOWN: "   ⚠⚠ **未记录 ⇒ 无法确认是同一个方向向量**",
+}
+
+# ⚖⚠⚴ 修订 239.1：**守卫的措辞与报告头的措辞必须同源**。
+# ⚖ 两处各写一句话，迟早写岔 ⇒ 出现「报告头说不一样、单变量守卫却放行」。
+# ⚖⇒ 一张表按状态索引，⛔ 不许在别处另起一份措辞。
+DOSE_STATE_REASON = {
+    DOSE_STATE_DIFFERENT:
+        "⛔⛔ **方向向量来源不同**（{k}：A={a!r} / B={b!r}）⇒ "
+        "**不是一次对照**，差不能归给口径",
+    DOSE_STATE_UNKNOWN:
+        "⛔⛔ **{k} 未记录**（A={a!r} / B={b!r}）⇒ ⛔ 无法确认两边用的是"
+        "**同一个方向向量**，差不能归给口径",
+}
+
+
+def dose_state(da, db):
+    """`dose_source` 的三态。
+
+    ⚖⚠⁴ 为什么不是 bool：⛔ 「没量到」是事实，「无差异」是结论，
+    ⚖ 合成一个布尔值就等于把前者印成后者。
+    """
+    if da is None or db is None:
+        return DOSE_STATE_UNKNOWN
+    return DOSE_STATE_SAME if da == db else DOSE_STATE_DIFFERENT
 
 
 def _sign_test(n_pos, n_neg):
@@ -191,6 +240,19 @@ def compare_verdicts(a_v, b_v):
 def check_single_variable(a, b):
     """⛔ 除口径外必须逐字段相同，否则差**不能**归给口径。"""
     reasons = []
+    # ⚠⚠⚠⚠ 方向向量来源**必须一致** —— 它不是「出处」，是「治疗本身」。
+    # ⛔ 两边来源不同 ⇒ ⛔ **不是一次对照**，⛔ 差**不能**归给口径。
+    da, db = a.get(DOSE_KEY), b.get(DOSE_KEY)
+    dst = dose_state(da, db)
+    # ⚠⚠⚠⚠ **「没记」不等于「一样」**（修订 239.1 实测出来的）。
+    # ⚖⚖ 两边都没记时 `da == db` 成立 ⇒ 只判 `da != db` 会判成「同向量」，
+    # ⚖ 而单变量守卫照样签发「✅ 只有口径不同 ⇒ 差可以归给口径」。
+    # ⚖⚗ 实测：`reasons == []`、`single_variable_ok == True`、判决照常往下走。
+    # ⚖⇒ 「没法确认」时**拒绝归因**，⛔ 不是降级成一句脚注。
+    # ⚖ 单个条件（非 if/elif）—— ⛔ 否则 F4 变异把 `if` 改成 `if False`
+    # ⚖ 时 `elif` 那一支**仍然会跑**，变异体就变成半复原的。
+    if dst != DOSE_STATE_SAME:
+        reasons.append(DOSE_STATE_REASON[dst].format(k=DOSE_KEY, a=da, b=db))
     for k in sorted(set(a) | set(b)):
         if k in PROVENANCE_KEYS:
             continue
@@ -210,6 +272,8 @@ def analyze(pa, pb, label_a="A", label_b="B"):
     bench = compare_bench(pa.get("bench"), pb.get("bench"))
     verd = compare_verdicts(pa.get("bench_v"), pb.get("bench_v"))
     single_ok, reasons = check_single_variable(pa, pb)
+    # ⚖ 三态算一次，报告头与守卫共用同一个判据（⛔ 不许两处各判一次）
+    dst = dose_state(pa.get(DOSE_KEY), pb.get(DOSE_KEY))
 
     # ⛔ 分母为 0 **不许**报「一致」
     if bench["n_compared"] == 0:
@@ -225,6 +289,12 @@ def analyze(pa, pb, label_a="A", label_b="B"):
         "label_a": label_a, "label_b": label_b,
         "scope_a": pa.get("inject_scope", "（未记录）"),
         "scope_b": pb.get("inject_scope", "（未记录）"),
+        # ⚠⚠⚠ 方向向量来源必须**印在报告头上**（修订 239）
+        "dose_a": pa.get(DOSE_KEY, "（未记录）"),
+        "dose_b": pb.get(DOSE_KEY, "（未记录）"),
+        "dose_state": dst,
+        # ⚖⚠ `dose_same` 只在**真的确认相同**时为 True —— 「没记」不是「一样」
+        "dose_same": dst == DOSE_STATE_SAME,
         "bench": bench, "verdicts": verd,
         "single_variable_ok": single_ok, "single_variable_reasons": reasons,
         "verdict": verdict,
@@ -238,12 +308,24 @@ def _fmt(v, spec="%.6f"):
     return "None" if v is None else (spec % v)
 
 
+def _dose_head(a, r):
+    """报告头里那一行 `dose_source`。⚖⚠ 三态分别说。
+
+    ⚠ 抽成独立一行是为了让 F4 变异能**只**动这一处（⛔ 锚点落在
+    ⚖ NAME token 上，不落在 STRING 或前导空白上）。
+    """
+    a("  %s：A = %s ｜ B = %s%s"
+      % (DOSE_KEY, r["dose_a"], r["dose_b"], DOSE_STATE_NOTE[r["dose_state"]]))
+
+
 def report(r):
     L = []
     a = L.append
     a("=" * 78)
     a("口径差对账：%s  →  %s" % (r["label_a"], r["label_b"]))
     a("  inject_scope：A = %s ｜ B = %s" % (r["scope_a"], r["scope_b"]))
+    # ⚠⚠⚠ 方向向量来源 —— 以前**一个字都没印**，⚖ 而它是治疗本身
+    _dose_head(a, r)
     a("=" * 78)
 
     a("")

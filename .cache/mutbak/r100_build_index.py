@@ -102,6 +102,37 @@ def main():
             multi_sub[n] = subs
     gaps = [i for i in range(1, max(nums) + 1) if i not in by_rev]
 
+    # ⚠⚠⚠⚴ 修订 239.8：**标题错层的守卫**。
+    # ⚖⚖ 本收集器只认 `## ` 开头的行。⚖⚗ 而修订 237/238 的标题被写成了
+    # ⚖   `### 237.0 …` / `### 238 …`（**多一级 `#`，且标题里没有「修订」二字**）
+    # ⚖⇒ 两条都**没被收录**，⚖⚠ 而它们的正文被**并进上一笔修订的行范围**：
+    # ⚖⚠⚠ 索引里「修订 236 = 30431–30648」实际**含 237/238 的 143 行**。
+    # ⚖⚠⚠ 危害不是「多两个缺口」，是 **点 236 会读到 237+238 的内容**，
+    # ⚖⚗ 而缺口列表 [41,171,237,238] 看起来像「本来就没这两笔」⇒ 无人察觉。
+    # ⚖ ⇒ 凡是 `#{3,}` 开头、正文里带一个**尚未收录**的修订号的行，
+    # ⚖⚠⚠ 都必须**大声报出来**：⛔ 这类行既不是小节（没有归属修订），
+    # ⚖⚗ 也让 grep「修订 23x」找不到它们 —— 两条导航路径同时失效。
+    strays = []
+    for i, ln in enumerate(lines):
+        m = re.match(r"^#{3,}\s+(\d{1,3})\b", ln)
+        if not m:
+            continue
+        n = int(m.group(1))
+        if n in by_rev and n in multi_sub.get(n, []):
+            continue                      # 合法的小节（`### 13.1` 那种）
+        if n in by_rev:
+            continue                      # 该修订本身已被收录
+        strays.append((i + 1, n, ln.strip()))
+    # ⚖ 每个修订只报**第一行**（那才是根因的标题行），⚖ 其余小节是它的后果
+    stray_first = {}
+    for ln_no, n, body in strays:
+        if n in stray_first:
+            ln0, b0, c0 = stray_first[n]
+            stray_first[n] = (ln0, b0, c0 + 1)
+        else:
+            stray_first[n] = (ln_no, body, 1)
+    strays = [(v[0], n, v[1], v[2]) for n, v in sorted(stray_first.items())]
+
     fmt_count = {}
     for _i, kind, _r, _s, _b in rev_heads:
         fmt_count[kind] = fmt_count.get(kind, 0) + 1
@@ -118,6 +149,18 @@ def main():
     w(f"- 预登记 **{nlines:,} 行**、**{raw.count(chr(0xfffd))} 个坏字**（`U+FFFD`）")
     w(f"- 修订 **{len(nums)} 条**，编号 1–{max(nums)}，"
       f"**缺口 {gaps if gaps else '无'}**")
+    if strays:
+        w(f"- ⛔⛔⛔ **另有 {len(strays)} 个修订的标题错层**"
+          f"（`###`/`####` 开头且带未收录的修订号）"
+          f"—— 这些修订**既不在上面这条索引里**，⚖ 正文还被**并进上一笔的行范围**")
+        w(f"  ⇒ 修订号 {[s[1] for s in strays]}，根因行号 {[s[0] for s in strays]}"
+          f"（每个修订其余的小节行是后果，不另列）。⚠ **不要**把它们读成"
+          f"「本来就没这两笔」：")
+        for ln_no, n, body, cnt in strays[:10]:
+            w(f"  - 修订 {n}：第 {ln_no} 行 `{body[:56]}`"
+              f"（连带 {cnt} 行小节）")
+    else:
+        w("- ✅ 标题层级检查：没有 `###` 错层、无归属的修订标题")
     w(f"- 其中 **{len(multi_sub)} 个修订**用 `## N.M` 小节式展开"
       f"（{sorted(multi_sub) if multi_sub else '无'}）")
     w(f"- **⚠ 与上面完全是两回事**：另有 **{len(multi_seg)} 个修订**"
@@ -202,6 +245,14 @@ def main():
     print(f"  修订 {len(nums)} 条 / 缺口 {gaps or '无'}")
     print(f"  小节式 {len(multi_sub)} 个 / 两笔 commit {sorted(multi_seg)}")
     print(f"  坏字 {txt.count(chr(0xfffd))} / 以换行结尾 {ends_nl}")
+    if strays:
+        # ⚠⚠⚠⚠ 大声报，⛔ 不吞。⚖ 这一段实测**抓到过两个真实修订**（237/238）
+        # ⚖⚗ 它们的标题写成 `###`，正文被并进 236 的行范围，⚖ 而缺口列表
+        # ⚖ 「看起来正常」⇒ 连续两笔提交都没人发现。
+        print("⛔⛔⛔ 标题错层 %d 个修订（不在索引里，正文被并进上一笔）：" % len(strays))
+        for ln_no, n, body, cnt in strays:
+            print("   修订 %-4d 第 %d 行  %s（连带 %d 行）"
+                  % (n, ln_no, body[:52], cnt))
     if txt.count(chr(0xfffd)) or not ends_nl:
         print("[错误] 生成物有问题")
         sys.exit(2)
