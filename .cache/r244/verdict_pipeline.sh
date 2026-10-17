@@ -38,11 +38,27 @@ echo "--- 启动日志 ---"
 cat "$HERE/r244_run274_launch.log"
 
 step "1 两臂是否都跑完（ALLDONE）"
+# ⚠⚠⚠ 修订 244.17：这一段原来**读了 ALLDONE 却从不拿它做判定** ——
+# ⚖ 算出来的 n 只被 printf 打印，后面所有的 if 都没用它。
+# ⚖ ⇒ 一份**没跑完**的状态文件（没有 ALLDONE）会一路穿过后面的闸，
+# ⚖   直到读数器才拒 ⇒ 闸 1 的名字与它实际做的事**对不上**。
+# ⚖⇒ 改成真判定：轮数必须恰为 1。⛔ 多于 1 同样拒 ——
+# ⚖   多轮并集意味着「那一轮的戳被当成了整体」（244.16 记的那个错基准）。
 for arm in w rand; do
-  n=$(grep -c ALLDONE "$HERE/r244_run244_warm_${arm}_status.txt" 2>/dev/null || \
-      grep -c ALLDONE "$HERE/r244_warm_${arm}_status.txt" 2>/dev/null || echo 0)
-  printf '  arm %-5s ALLDONE=%s  格数=%s\n' "$arm" "$n" \
-    "$(grep -c 'rc=' "$HERE/r244_warm_${arm}_status.txt")"
+  ST="$HERE/r244_warm_${arm}_status.txt"
+  n=$(grep -c '^ALLDONE' "$ST" 2>/dev/null || true)
+  n=${n:-0}
+  cells=$(grep -c 'rc=' "$ST" 2>/dev/null || true)
+  printf '  arm %-5s ALLDONE=%s  格数=%s\n' "$arm" "$n" "${cells:-0}"
+  if [ "$n" -ne 1 ]; then
+    echo "  ⛔ arm=$arm 的 ALLDONE 计数=$n，要求恰为 1"
+    if [ "$n" -eq 0 ]; then
+      echo "     ⇒ 该轮**没跑完**，或状态文件被截断"
+    else
+      echo "     ⇒ 多轮并集：那一轮的戳不能描述整体（见修订 244.16）"
+    fi
+    FAIL=1
+  fi
 done
 W_N=$(grep -c "rc=" "$HERE/r244_warm_w_status.txt")
 R_N=$(grep -c "rc=" "$HERE/r244_warm_rand_status.txt")
