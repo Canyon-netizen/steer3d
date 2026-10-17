@@ -1,0 +1,129 @@
+#!/bin/bash
+# 修订 244.11 —— 跑批完成后的判决流水线（一条命令，每道闸可见）。
+#
+# ⚖⚖ 为什么固化成脚本而不是手工串五步：
+# ⚖   ① **配对错误是最容易犯、且最难发现的错**。两臂各有两个文件
+# ⚖      （日志 + 状态），配错一对**不会报错**，只会安静地给出一个
+# ⚖      看起来正常的判决 —— 这正是 244.9.4 那个「拿同一份比自己还给出答案」的洞。
+# ⚖   ② 五步里有三道闸，漏跑任何一道就等于把结论建在一个未验证的前提上。
+# ⚖   ③ 判决要可复现：别人拿到同一批文件应当得到逐字节相同的报告。
+#
+# ⚠ 本脚本⛔ 不做任何判定，只负责「按顺序跑完并把每道闸的结果打出来」。
+# ⚠ 判读仍由人做；脚本的输出末尾明写了它不能替你回答什么。
+set -u
+R=${1:?用法: verdict_pipeline.sh <远端主机> <远端基目录>}
+HERE=$(cd "$(dirname "$0")" && pwd)
+READER=$HERE/../mutbak/r227_kcurve.py
+CELL_COUNT=${2:-137}
+FAIL=0
+
+step() { echo; echo "=== $1 ==="; }
+
+step "0 前置：文件在不在"
+if [ ! -f "$READER" ]; then
+  echo "PRECOND_FAIL 读数器不在: $READER"; exit 2
+fi
+
+for f in r244_warm_w.log r244_warm_w_status.txt \
+         r244_warm_rand.log r244_warm_rand_status.txt \
+         r244_run274_launch.log; do
+  if ! scp -q "$R:/home/zhourui/steer3d_bpath/$f" "$HERE/$f"; then
+    echo "PRECOND_FAIL 拉不到 $f ⇒ 跑批可能还没完，或臂 2 没接上"
+    echo "              ⛔ 不用旧日志顶替（那是 242.2 明令不许的「不回填既有日志」）"
+    exit 2
+  fi
+done
+echo "四个产物 + 启动日志已就位"
+echo "--- 启动日志 ---"
+cat "$HERE/r244_run274_launch.log"
+
+step "1 两臂是否都跑完（ALLDONE）"
+for arm in w rand; do
+  n=$(grep -c ALLDONE "$HERE/r244_run244_warm_${arm}_status.txt" 2>/dev/null || \
+      grep -c ALLDONE "$HERE/r244_warm_${arm}_status.txt" 2>/dev/null || echo 0)
+  printf '  arm %-5s ALLDONE=%s  格数=%s\n' "$arm" "$n" \
+    "$(grep -c 'rc=' "$HERE/r244_warm_${arm}_status.txt")"
+done
+W_N=$(grep -c "rc=" "$HERE/r244_warm_w_status.txt")
+R_N=$(grep -c "rc=" "$HERE/r244_warm_rand_status.txt")
+W_BAD=$(grep "rc=" "$HERE/r244_warm_w_status.txt" | grep -vc "rc=0")
+R_BAD=$(grep "rc=" "$HERE/r244_warm_rand_status.txt" | grep -vc "rc=0")
+echo "  非零 rc：w=$W_BAD rand=$R_BAD"
+if [ "$W_N" -ne "$CELL_COUNT" ] || [ "$R_N" -ne "$CELL_COUNT" ]; then
+  echo "ABORT 格数 w=$W_N rand=$R_N ≠ $CELL_COUNT"; FAIL=1
+fi
+if [ "$W_BAD" -ne 0 ] || [ "$R_BAD" -ne 0 ]; then
+  echo "ABORT 有非零 rc"; FAIL=1
+fi
+
+step "2 BEGIN 行的 n_eff 覆盖率（新生产者是否真的写了独立来源）"
+for arm in w rand; do
+  tot=$(grep -c "### BEGIN" "$HERE/r244_warm_${arm}.log")
+  witheff=$(grep -c "### BEGIN.*n_eff=" "$HERE/r244_warm_${arm}.log")
+  printf '  arm %-5s BEGIN=%s  带 n_eff=%s\n' "$arm" "$tot" "$witheff"
+  if [ "$witheff" -ne "$tot" ]; then
+    echo "  ⛔ 有 BEGIN 缺 n_eff ⇒ 读数器会走同源回退分支（244.5 记的缺陷）"
+    FAIL=1
+  fi
+done
+
+step "3 规范化（闸：合规输入必须是恒等）"
+for arm in w rand; do
+  M=$(md5 -q "$HERE/r244_warm_${arm}.log")
+  if python3 "$HERE/normalize_begin.py" --log "$HERE/r244_warm_${arm}.log" \
+       --status "$HERE/r244_warm_${arm}_status.txt" \
+       --out "$HERE/r244_warm_${arm}.norm.log" --expect-md5 "$M" \
+       > "$HERE/norm_${arm}.txt" 2>&1; then
+    if cmp -s "$HERE/r244_warm_${arm}.log" "$HERE/r244_warm_${arm}.norm.log"; then
+      echo "  arm $arm: 闸全过，且转换是恒等（合规）"
+    else
+      echo "  arm $arm: ⚠ 闸过了但产物变了 ⇒ 生产者写的不是契约格式，查 norm_${arm}.txt"
+      FAIL=1
+    fi
+  else
+    echo "  arm $arm: ⛔ 规范化闸未过"; sed -n '1,6p' "$HERE/norm_${arm}.txt"
+    FAIL=1
+  fi
+done
+
+step "4 两臂各读各的（⛔ 不交叉配对）"
+for arm in w rand; do
+  echo "--- $arm ---"
+  python3 "$READER" --log "$HERE/r244_warm_${arm}.norm.log" \
+    --status "$HERE/r244_warm_${arm}_status.txt" \
+    > "$HERE/read_${arm}.txt" 2>&1
+  rc=$?
+  echo "  读数器 rc=$rc"
+  if [ "$rc" -ne 0 ]; then
+    echo "  ⛔ 拒读："; tail -3 "$HERE/read_${arm}.txt"
+    FAIL=1
+  else
+    grep -E "n_eff=|无崩格|低于地板|贴地板" "$HERE/read_${arm}.txt" | head -4
+  fi
+done
+
+step "5 跨臂判决"
+python3 "$HERE/arm_verdict.py" --reader "$READER" \
+  --w-log "$HERE/r244_warm_w.norm.log" --w-status "$HERE/r244_warm_w_status.txt" \
+  --rand-log "$HERE/r244_warm_rand.norm.log" \
+  --rand-status "$HERE/r244_warm_rand_status.txt" \
+  --expect-cells "$CELL_COUNT"
+rc=$?
+[ "$rc" -ne 0 ] && { echo "  ⛔ 判决层拒绝出结论（rc=$rc）"; FAIL=1; }
+
+step "6 两臂算力条件可比性"
+python3 "$HERE/compute_conditions.py" --w-log "$HERE/r244_warm_w.norm.log" \
+  --rand-log "$HERE/r244_warm_rand.norm.log"
+rc=$?
+[ "$rc" -ne 0 ] && FAIL=1
+
+echo
+echo "=== 汇总 ==="
+if [ "$FAIL" -ne 0 ]; then
+  echo "⛔ 至少一道闸未过 ⛔ 上面的数字**不要**当判决读。"
+  echo "   逐条处理：先修生产者/补数据，⛔ 不要为了让它变绿去放宽读数器。"
+  exit 1
+fi
+echo "六道闸全过。下面是读数，不是判决："
+echo "⚠ 它不回答：剂量响应对不对 / 阶梯排对了没有 / 共卡有没有改变读数。"
+echo "⚖ 判读前先看 below_floor 与 knife_edge 两列 —— 它们决定有多少结论被噪声主导。"
