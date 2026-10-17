@@ -120,6 +120,27 @@ MUTATIONS = [
     # ⚗⚠ 它**不是假想**：修订 238 之前 `gap` 真的**一直没被查**过。
     ("G17", 'for key in ("pos_frac", "n_steps", "gap"):',
      'for key in ("pos_frac", "n_steps"):', "K23"),
+    # ---- 修订 244.24：n_eff 的来源戳与「独立来源」标签 ----
+    # G18 把「有戳才准说独立」的条件抹平 ⇒ 无戳的日志也打「独立来源」
+    # ⚠⚠⚠ 症状：旧 rand 日志（账本 244.11.4 明判「来源不可分辨」）的 137 格
+    # ⚖ 全部被标成「BEGIN（独立来源，与读数 P+t 已互证）」⇒ 仪器在**没有证据
+    # ⚖ 的地方断言独立**，且断言方向与账本结论相反。这就是本次实测抓到的那条。
+    ("G18", 'if b.get("nmap"):', 'if True:', "K1b"),
+    # G19 拿掉「两个不同来源戳 ⇒ 硬失败」⇒ 两轮追加的日志照读
+    # ⚠⚠ 症状：两轮各写一行 NMAP，BEGIN 里那些 n_eff 来自哪张表已不可分辨，
+    # ⚖ 而读数器会挑其中**一个**（排序后第一个）当作全篇的来源 ⇒ 半数格的
+    # ⚖ 来源被**贴错标签**，且看不出来。与 K0c「排版混用即拒读」同族。
+    ("G19", "if len(uniq) > 1:", "if False:", "K1c"),
+    # G20 把统计口径退回 `c["n_eff"]` ⇒ 恒等于格数
+    # ⚠⚠⚠ 症状：w_old 的 BEGIN 实测 0 格带 n_eff，页眉却印「137/137 格带
+    # ⚖ n_eff」，而逐轨迹标签写着「未与 BEGIN 互证」⇒ 报告**自相矛盾**。
+    # ⚖ 这条变异复现的就是本轮实测抓到的那次真 bug。
+    ("G20", 'if c.get("n_eff_from_begin")', 'if c.get("n_eff") is not None', "K1e"),
+    # G21 让来源戳**永远认不出来** ⇒ 有戳的日志也被降级
+    # ⚖ 这条测的是「戳这条路径真的承重」：认不出戳 ⇒ 新跑批的两份日志
+    # ⚖ 会从「独立来源」掉到「来源未标注」⇒ 判据会被 K1a 抓住。
+    ("G21", 'NMAP_STAMP_RE = re.compile(r"^NMAP rows=(\\d+) md5=([0-9a-f]{32})(?:\\s|$)")',
+     'NMAP_STAMP_RE = re.compile(r"^NEVER_MATCH$")', "K1a"),
 ]
 
 
@@ -227,22 +248,31 @@ def run_selftest(src):
 
 
 def failed_tests(text):
-    """从自检输出里抽出 FAIL 的判据编号。"""
+    """从自检输出里抽出 FAIL 的判据编号。
+
+    ⚠⚠⚠ 修订 244.24：编号匹配必须是 `K` + **字母数字**（`K1a`/`K0b` 也算），
+    ⚖⛔ 原来的 `tok[1:].isdigit()` 只认 `K1`/`K23` 这种纯数字 ⇒ **所有带字母的
+    ⚖ 判据对本台架完全不可见**：它们既不会计入基线，也不会被算作「被抓住」。
+    ⚖ 那不是显示瑕疵，是**真盲区** —— 指向带字母判据的变异会永远「存活」，
+    ⚖ 而台架会把这当成「判据恒绿」。实测：K0a/K0b/K0c 三条一直不在计数里。
+    """
     out = set()
     for line in text.split("\n"):
         if line.startswith("[FAIL]"):
             tok = line.split()[1] if len(line.split()) > 1 else ""
-            if tok and tok[0] == "K" and tok[1:].isdigit():
+            if tok and tok[0] == "K" and tok[1:].isalnum():
                 out.add(tok)
     return out
 
 
 def passed_tests(text):
+    """⚠⚠ 修订 244.24：与 `failed_tests` 同一条纪律 —— 必须 `isalnum()`，
+    ⛔ 不可用 `isdigit()`（那会让带字母的判据从基线计数里消失）。"""
     out = set()
     for line in text.split("\n"):
         if line.startswith("[PASS]"):
             tok = line.split()[1] if len(line.split()) > 1 else ""
-            if tok and tok[0] == "K" and tok[1:].isdigit():
+            if tok and tok[0] == "K" and tok[1:].isalnum():
                 out.add(tok)
     return out
 

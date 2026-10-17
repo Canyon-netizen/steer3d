@@ -71,6 +71,20 @@ def _begin_index(m):
 
 
 N_EFF_RE = re.compile(r"n_eff=(\d+)")
+
+# ⚠⚠⚠ 修订 244.24：`n_eff` 的**来源戳**。生产者 `r244_warm_sweep.sh:58`
+# 每次开批写一行 `NMAP rows=<N> md5=<32hex>  <钟面>`。
+# ⚖ 为什么必须有它：账本 244.11.4 已经定死「旧 rand 臂 BEGIN 的 n_eff 是
+# ⚖   **预先算**还是**回填**，**不可分辨**」—— 因为「预先算且对得上」与
+# ⚖   「回填读数」预测的是同一个观测，两者都能让检查变绿。
+# ⚖⚗ 而读数器原来只要 BEGIN 里有 `n_eff=` 就打「独立来源」⇒ 那是在
+# ⚖   **没有证据的地方断言独立**，而且断言的方向与账本的结论相反。
+# ⚖⇒ 判据：**有戳才准说独立**；无戳只能说「来源未标注」。
+# ⚖ 顺带一处实测支撑：`grep -cE 'n_eff=|NMAP rows='` 对四份日志给出
+# ⚖   w_old 0/0、rand_old 137/0、w_new 137/137、rand_new 137/137
+# ⚖   ⇒ 旧两轮**确实没有**戳，新两轮**确实有**戳，且两臂同一张表
+# ⚖   （rows=60 md5=c0d30d22…）⇒ 跨臂 n_eff 同源。
+NMAP_STAMP_RE = re.compile(r"^NMAP rows=(\d+) md5=([0-9a-f]{32})(?:\s|$)")
 RC_RE = re.compile(r"\brc=(-?\d+)")
 K_RE = re.compile(r"\bk=(\d+)")
 SCOPES = ("single", "all")
@@ -137,7 +151,13 @@ def parse_blocks(text):
     blocks = []
     cur = None
     n_new = n_old = 0
+    stamps = []
     for line in text.split("\n"):
+        # ⚖⚠ 修订 244.24：来源戳**全程扫**，不能只在块内找 —— 它写在第 1 个
+        # BEGIN **之前**（PINNED 那行下面），那时 cur 还是 None。
+        ms = NMAP_STAMP_RE.match(line)
+        if ms:
+            stamps.append((int(ms.group(1)), ms.group(2)))
         m = BEGIN_RE.match(line)
         if m:
             if cur is not None:
@@ -167,6 +187,18 @@ def parse_blocks(text):
             "BEGIN 排版混用：新格式 %d 条 / 旧格式 %d 条 —— "
             "⚠ 两轮拼进同一份日志的形态，位置配对不可信，拒绝读"
             % (n_new, n_old))
+    # ⚖⚠⚠ 修订 244.24：**两个不同的来源戳** = 两轮追加进同一份日志（每轮开批
+    # 各写一行）⇒ BEGIN 里那些 n_eff 来自哪张映射表已不可分辨。
+    # ⚖ 这与「排版混用」同族：都是位置/来源配对不可信 ⇒ 同样拒读。
+    uniq = sorted(set(stamps))
+    if len(uniq) > 1:
+        raise HardFail(
+            "日志里有 %d 个**不同**的 NMAP 来源戳：%s —— ⚠ 两轮追加进同一份"
+            "日志，BEGIN 的 n_eff 来源不可分辨，拒绝读"
+            % (len(uniq), " / ".join("rows=%d md5=%s" % s for s in uniq)))
+    stamp = {"rows": uniq[0][0], "md5": uniq[0][1]} if uniq else None
+    for b in blocks:
+        b["nmap"] = stamp
     return blocks
 
 
@@ -236,6 +268,13 @@ def join(blocks, rows):
         reading, err = _extract_reading(b["lines"])
         c = {"idx": i + 1, "tid": b["tid"], "n_eff": b["n_eff"], "time": b["time"],
              "rc": r["rc"], "scope": None, "k": None, "reading": reading, "err": err,
+             "nmap": b.get("nmap"),
+             # ⚖⚠⚠ 修订 244.24：**必须单独记一个「BEGIN 里本来有没有 n_eff」**。
+             # ⚖ `c["n_eff"]` 在回退分支里会被赋成 `pt_sum`，于是它**恒非 None**
+             # ⚖ ⇒ 拿它统计「几格带 BEGIN n_eff」会恒等于格数，页眉会印出
+             # ⚖   「w_old 137/137 格 BEGIN 带 n_eff」这种与标签自相矛盾的数。
+             # ⚖ 一次真实的自证：w_old 的 BEGIN 实测 `grep -c 'n_eff='` = 0。
+             "n_eff_from_begin": b["n_eff"] is not None,
              "n_eff_src": ("BEGIN" if b["n_eff"] is not None else "未量到")}
 
         if reading is not None:
@@ -261,22 +300,34 @@ def join(blocks, rows):
                     c["n_eff"] = pt_sum
                     c["n_eff_src"] = "读数P+t（未与 BEGIN 互证）"
                 else:
-                    # ⚖ 修订 244.8：此处**第一次**名副其实 —— BEGIN 的 n_eff 来自
-                    # ⚖   跑批前的独立复算（tokenizer 重编码 P + 侧车
-                    # ⚖   n_generated_tokens 算 t），不是回填读数，故与下面
-                    # ⚖   探针自报的 P+t 是两条不同来源。
-                    c["n_eff_src"] = "BEGIN（独立来源，与读数 P+t 已互证）"
+                    # ⚖⚠⚠ 修订 244.24：**「独立来源」这个断言必须有戳才准下。**
+                    # ⚖ 有 NMAP 戳 ⇒ BEGIN 的 n_eff 来自跑批前那张映射表
+                    # ⚖   （244.8：tokenizer 重编码 P + 侧车 n_generated_tokens 算 t），
+                    # ⚖   与探针自报的 P+t 确是两条不同来源 ⇒ 下面那道相等性
+                    # ⚖   检查**能红**，是「阶梯排对了」的运行时证据。
+                    # ⚖ 无戳 ⇒ 账本 244.11.4 已定死「不可分辨是预先算还是回填」，
+                    # ⚖   此时下面那道检查**可能是恒等式**（若那值本就是从读数
+                    # ⚖   抄来的），相等不构成证据 ⛔ 不得标成「独立来源」。
+                    if b.get("nmap"):
+                        c["n_eff_src"] = "BEGIN-映射表（独立来源，与读数 P+t 已互证）"
+                    else:
+                        c["n_eff_src"] = ("BEGIN（来源未标注 ⛔ 不能断言独立；"
+                                          "与读数 P+t 已互证）")
                     if b["n_eff"] != pt_sum:
                         # ⚠⚠ 措辞收紧：旧文案只说「阶梯排错了」，把结论**唯一地**
                         # ⚖ 归给阶梯。不符也可能是独立复算自己算错了
                         # ⚖ （tokenizer 换了 / 侧车 n_gen 与 npz 不一致）。
                         # ⚖⚗ 这道检查**不能区分**两者 ⇒ 如实写出来，不假装能定位。
                         # ⚖ 触发条件逐字未改（仍是 n_eff != pt_sum）。
+                        extra = ("" if b.get("nmap") else
+                                 "；⚠ 本日志无 NMAP 来源戳 ⇒ 这道检查本身可能"
+                                 "是恒等式（若 BEGIN 的 n_eff 就是从读数抄来的），"
+                                 "不符**未必**说明阶梯错了")
                         raise HardFail(
-                            "第 %d 格 BEGIN 的独立 n_eff=%d ≠ 读数 P+t=%d+%d=%d"
+                            "第 %d 格 BEGIN 的 n_eff=%d ≠ 读数 P+t=%d+%d=%d"
                             " —— 阶梯排错了，或独立复算本身算错了"
-                            "（本检查不区分这两者）"
-                            % (i + 1, b["n_eff"], pt, tt, pt_sum))
+                            "（本检查不区分这两者）%s"
+                            % (i + 1, b["n_eff"], pt, tt, pt_sum, extra))
             else:
                 c["n_eff_src"] = "未量到（读数里没有 P/t）"
         elif r["rc"] == 0:
@@ -536,7 +587,22 @@ def analyze(cells, verbose=True):
         if n is not None:
             k_n_hist[n] = k_n_hist.get(n, 0) + 1
 
+    # ⚖⚠⚠ 修订 244.24：`n_eff` 交叉校验**能不能红**，与它**过没过**同报。
+    # ⚖ 过没过只说明「两份数相等」；能不能红才说明「相等这件事有信息」。
+    nmap = next((c.get("nmap") for c in cells if c.get("nmap")), None)
+    n_begin_neff = sum(1 for c in cells if c.get("n_eff_from_begin"))
+    if n_begin_neff == 0:
+        xcheck = "未做此检查（BEGIN 没有 n_eff，全部走同源回退）"
+    elif nmap:
+        xcheck = ("能红（%d/%d 格 BEGIN 带 n_eff，来源戳 rows=%d md5=%s）"
+                  % (n_begin_neff, len(cells), nmap["rows"], nmap["md5"][:8]))
+    else:
+        xcheck = ("⚠ 可能是恒等式（%d/%d 格 BEGIN 带 n_eff，但日志里**没有**"
+                  "NMAP 来源戳 ⇒ 那个值可能是从读数抄来的，相等不构成证据）"
+                  % (n_begin_neff, len(cells)))
+
     return {"arm": arms[0] if arms else None,
+            "nmap": nmap, "n_begin_neff": n_begin_neff, "xcheck": xcheck,
             "nested": nested[0] if nested else None,
             "sweep_params": {k: (v[0] if len(v) == 1 else v)
                              for k, v in sweep_params.items()},
@@ -605,6 +671,11 @@ def report(r, verbose=True):
              % (r["sweep_params"].get("pos_frac"),
                 r["sweep_params"].get("n_steps"),
                 r["sweep_params"].get("gap")))
+    # ⚖⚠⚠ 修订 244.24：这道 `n_eff` 交叉校验**能不能红**，必须印在页眉上。
+    # ⚖ 它过没过只说明两份数相等；能不能红才说明相等这件事带不带信息
+    # ⚖（账本 244.11.4：没有来源戳时，「预先算且对得上」与「回填读数」
+    # ⚖   预测同一个观测 ⇒ 相等是恒等式的表现，不是证据）。
+    L.append("    ⚖ n_eff 交叉校验能否红：%s" % r.get("xcheck", "未量到"))
     L.append("=" * 78)
 
     # 【0】分母与缺口 —— 崩的格单独报，绝不当 0
@@ -934,6 +1005,105 @@ def selftest():
             return
         raise AssertionError("排版混用没有硬失败")
     ck("K0c 红：两种排版混在一份日志 ⇒ 硬失败「混用」", k0c_mixed)
+
+    # ---- K1x（修订 244.24）：n_eff 的来源戳 ----
+    # ⚖⚠ 这三条测的是**标签的措辞强度**，不是数值。`_synthetic()` 造的日志
+    # ⚖ **故意不带** NMAP 戳（它模拟的是 244.8 之前那批旧排版），所以默认
+    # ⚖ 应当拿到降级标签；K1a 再补上戳，标签才准升级成「独立来源」。
+    # ⚖ 夹具须先自证造出了目标条件：K1a 先断言戳确实被认出来了。
+    def k1a_stamp_upgrades():
+        lg, st = _synthetic()
+        stamped = "NMAP rows=2 md5=" + "a" * 32 + "  09:00:00\n" + lg
+        cs = _read_pair(stamped, st)
+        # ⚖ 先自证夹具造出了目标条件（戳真的被认出来了），再去判标签
+        assert cs[0]["nmap"] is not None, "夹具没造出戳：NMAP 行没被认出来"
+        assert cs[0]["nmap"]["rows"] == 2, cs[0]["nmap"]
+        for c in cs:
+            assert "独立来源" in c["n_eff_src"], c["n_eff_src"]
+            assert "不能断言独立" not in c["n_eff_src"], c["n_eff_src"]
+        r = analyze(cs)
+        assert r["xcheck"].startswith("能红"), r["xcheck"]
+    ck("K1a 绿：有 NMAP 来源戳 ⇒ 标签才准写「独立来源」，交叉校验报「能红」", k1a_stamp_upgrades)
+
+    # K1b 红：无戳但 BEGIN 带 n_eff ⇒ ⛔ 必须降级，绝不许打「独立来源」
+    # ⚖ 这是本条修订的核心：244.4.2 已判 r232 那种 BEGIN 的 n_eff 是回填，
+    # ⚖ 244.11.4 已判旧 rand 臂的来源**不可分辨** ⇒ 标签原先却写「独立来源」。
+    def k1b_nostamp_downgrades():
+        lg, st = _synthetic()
+        cs = _read_pair(lg, st)
+        # ⚖ 先自证夹具**没有**戳，且 BEGIN 确实带 n_eff（否则这条测的是别的条件）
+        assert cs[0]["nmap"] is None, "夹具竟有戳"
+        assert cs[0]["n_eff"] is not None, "夹具竟没有 BEGIN n_eff"
+        for c in cs:
+            assert "独立来源" not in c["n_eff_src"], c["n_eff_src"]
+            assert "不能断言独立" in c["n_eff_src"], c["n_eff_src"]
+            assert "已互证" in c["n_eff_src"], c["n_eff_src"]
+        r = analyze(cs)
+        assert "恒等式" in r["xcheck"], r["xcheck"]
+        assert not r["xcheck"].startswith("能红"), r["xcheck"]
+    ck("K1b 红：无来源戳但 BEGIN 带 n_eff ⇒ 标签降级、判「可能是恒等式」", k1b_nostamp_downgrades)
+
+    # K1c 红：两个**不同**的来源戳 = 两轮追加进同一份日志 ⇒ 硬失败
+    def k1c_two_stamps():
+        lg, st = _synthetic()
+        two = ("NMAP rows=2 md5=" + "a" * 32 + "  09:00:00\n"
+               + lg + "NMAP rows=2 md5=" + "b" * 32 + "  23:00:00\n")
+        try:
+            _read_pair(two, st)
+        except HardFail as e:
+            assert "来源戳" in str(e), str(e)
+            return
+        raise AssertionError("两个不同来源戳竟然读过去了")
+    ck("K1c 红：两个不同 NMAP 来源戳 ⇒ 硬失败「来源不可分辨」", k1c_two_stamps)
+
+    # K1d 红：mismatch 的 HardFail **文案必须跟着来源戳走** —— 有戳时不该说
+    # 「可能是恒等式」（有戳 ⇒ 这道检查能红），无戳时必须说（那才是真风险）。
+    # ⚖⚠⚠ 这条**原来**是「读自己的源码、找三个字符串的行号顺序」。那在变异台
+    # ⚖ 的 exec 环境里没有 `__file__` ⇒ 一次就把基线打成红的（变异台报 23/23
+    # ⚖ 且 rc≠0）。⇒ 改成**行为测**：同一份不符的数据，有戳/无戳两种文案。
+    # ⚖ 教训与 244.22 同源：**判据不该依赖它自己所在的文件怎么被加载。**
+    def k1d_msg_follows_stamp():
+        def bump(log, s):
+            return ([re.sub(r"n_eff=\d+", "n_eff=999999", ln)
+                     if ln.startswith("### BEGIN") else ln for ln in log], s)
+
+        lg2, st2 = _synthetic(mutate=bump)
+        stamped = "NMAP rows=2 md5=" + "a" * 32 + "  09:00:00\n" + lg2
+        try:
+            _read_pair(stamped, st2)
+        except HardFail as e:
+            assert "恒等式" not in str(e), ("有戳时不该说「可能是恒等式」：%s" % e)
+        else:
+            raise AssertionError("n_eff 不符却没有硬失败（有戳那侧）")
+        try:
+            _read_pair(lg2, st2)
+        except HardFail as e:
+            assert "恒等式" in str(e), ("无戳时必须说「可能是恒等式」：%s" % e)
+        else:
+            raise AssertionError("n_eff 不符却没有硬失败（无戳那侧）")
+    ck("K1d 红：不符的 HardFail 文案随来源戳变（有戳⇒能红／无戳⇒可能是恒等式）",
+       k1d_msg_follows_stamp)
+
+    # K1e 红：`c["n_eff"]` 在回退分支里被赋成 `pt_sum` ⇒ 它**恒非 None**。
+    # ⚖⚠ 拿它统计「几格 BEGIN 带 n_eff」会恒等于格数，页眉印出
+    # ⚖   「137/137 格 BEGIN 带 n_eff」而逐轨迹标签却写着「未与 BEGIN 互证」
+    # ⚖   —— 自相矛盾。w_old 的 BEGIN 实测 `grep -c 'n_eff='` = 0 就是反例。
+    def k1e_count_uses_begin_flag():
+        lg, st = _synthetic()
+        stripped = re.sub(r"^(### BEGIN \S+(?: \S+)?) n_eff=\d+",
+                          r"\1", lg, flags=re.M)
+        # ⚖ 先自证夹具真的造出了「BEGIN 里没有 n_eff」这个条件
+        assert "n_eff=" not in stripped, "夹具没造出无 n_eff 的 BEGIN"
+        cs = _read_pair(stripped, st)
+        for c in cs:
+            assert c["n_eff_from_begin"] is False, c
+            assert c["n_eff"] is not None, "回退后 n_eff 应当被填上"
+        r = analyze(cs)
+        assert r["n_begin_neff"] == 0, ("n_begin_neff 应为 0，却印成 %d"
+                                        % r["n_begin_neff"])
+        assert r["xcheck"].startswith("未做此检查"), r["xcheck"]
+    ck("K1e 红：回退后 n_eff 恒非 None ⇒ 统计必须用 n_eff_from_begin（否则恒等于格数）",
+       k1e_count_uses_begin_flag)
 
     def k1():
         lg, st = _synthetic()
