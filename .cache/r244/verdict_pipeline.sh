@@ -175,6 +175,28 @@ if [ "$rc" -ne 0 ]; then
   FAIL=1
 fi
 
+step "9 按**机制**分层的敏感性分析（244.27.2 的直接后果）"
+# ⚠⚠⚠ 修订 244.28 新增。为什么要一道闸：
+# ⚖   244.27.2 查出读出在**最后一位**，而位点由种子 0 置换均匀挑出
+# ⚖   ⇒ 某些档**直接**扰动读出位置、某些只经**传播**
+# ⚖   ⇒ 「剂量—响应」曲线上不同点**不是同一个机制的两个剂量**。
+# ⚖⚗ 实测：主判决的方向在两层一致（都是 w 侧高），**但幅度差 4.5 倍**
+# ⚖   （直接 +64.3pp / 传播 +14.3pp），两层 Fisher p 差 1210 倍
+# ⚖   ⇒ **效应几乎全部由「直接」层承载** ⇒ 引用通过率差时必须同报分层。
+# ⚖⚠ 这是一条**事后**分析：⛔ 它不替换预登记主统计量（那是闸 7），
+# ⚖   ⛔ 也⛔ 不得只报对自己有利的那一层。
+# ⚖⇒ 只有「两层方向相反」才让流水线停（rc=1）；幅度差只报告不拦。
+python3 "$HERE/mechanism_strat.py" --reader "$READER" \
+  --w-log "$HERE/r244_warm_w.norm.log" --w-status "$HERE/r244_warm_w_status.txt" \
+  --rand-log "$HERE/r244_warm_rand.norm.log" \
+  --rand-status "$HERE/r244_warm_rand_status.txt" \
+  --map "$HERE/n_eff_map.tsv" --expect-cells "$CELL_COUNT"
+rc=$?
+if [ "$rc" -ne 0 ]; then
+  echo "  ⛔ 两层机制给出的方向相反（或某层未量到）⇒ 跨臂通过率差**对机制分层敏感**，⛔ 不得单独引用"
+  FAIL=1
+fi
+
 echo
 echo "=== 汇总 ==="
 if [ "$FAIL" -ne 0 ]; then
