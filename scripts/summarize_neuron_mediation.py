@@ -196,10 +196,15 @@ def unit_atlas(data):
     atlas = []
     for layer,indices in data["selection"]["groups"].items():
         for offset,unit in enumerate(indices):
-            observations = []
+            observations, paired = [], []
             for case in data["cases"]:
                 native = case["selected_native_units"][layer]
                 assert native["indices"][offset] == unit
+                g0,g1,u0,u1,a0,a1 = [native[key][offset] for key in (
+                    "baseline_effective_gate","steered_effective_gate","baseline_value","steered_value",
+                    "baseline_product","steered_product")]
+                paired.append({"case_id":case["id"],"problem_id":case["problem_id"],"split":case["split"],
+                    **product_change(g0,g1,u0,u1,a0,a1)})
                 for world in ("baseline","steered"):
                     observations.append({"case_id":case["id"],"split":case["split"],"kind":case["kind"],"world":world,
                         "gate":native[world+"_gate"][offset],"effective_gate":native[world+"_effective_gate"][offset],
@@ -207,8 +212,25 @@ def unit_atlas(data):
                         "prefix_tail":case["prefix_tail"]})
             ordered = sorted(observations,key=lambda x:x["product"])
             atlas.append({"layer":int(layer),"unit":unit,"n_measured_worlds":len(observations),
-                          "smallest_measured_products":ordered[:2],"largest_measured_products":ordered[-2:][::-1]})
-    return {"scope":"Extremes among this fixed finite corpus and two worlds; not whole-corpus semantic labels. Causal tests target groups, not each individual unit.","units":atlas}
+                "smallest_measured_products":ordered[:2],"largest_measured_products":ordered[-2:][::-1],
+                "product_change_by_split":{split:{key:description(per_problem(
+                    [row for row in paired if row["split"] == split],lambda row:row[key]))
+                    for key in ("delta_product","gate_term","value_term","interaction_term","roundoff")}
+                    for split in sorted({row["split"] for row in paired})},
+                "largest_observed_product_changes":sorted(paired,key=lambda row:abs(row["delta_product"]),reverse=True)[:2]})
+    return {"scope":"Extremes among this fixed finite corpus and two worlds; not whole-corpus semantic labels. Causal tests target groups, not each individual unit. Product-change terms are an algebraic decomposition of the actual MLP inputs, not separate causal mediation effects.",
+            "product_identity":"delta_a = delta_s*u0 + s0*delta_u + delta_s*delta_u + float32_product_roundoff; s=SiLU(g)","units":atlas}
+
+
+def product_change(g0,g1,u0,u1,a0,a1):
+    """Exact two-factor expansion, with stored-product rounding kept explicit."""
+    g0,g1,u0,u1,a0,a1 = map(float,(g0,g1,u0,u1,a0,a1))
+    gate, value, interaction = (g1-g0)*u0,g0*(u1-u0),(g1-g0)*(u1-u0)
+    delta = a1-a0
+    def route(g,u):
+        return "zero" if g == 0 or u == 0 else ("+" if g > 0 else "-")+("+" if u > 0 else "-")
+    return {"delta_product":delta,"gate_term":gate,"value_term":value,"interaction_term":interaction,
+            "roundoff":delta-gate-value-interaction,"baseline_route":route(g0,u0),"steered_route":route(g1,u1)}
 
 
 def main():

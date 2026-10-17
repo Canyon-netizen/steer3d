@@ -1,0 +1,23 @@
+{
+  "schema": "steer3d.neuron_mediation_receipt/1",
+  "phase": "failed_before_measurement",
+  "host": "zju-57",
+  "remote_root": "/home/zhourui/steer3d_neuron_20261017",
+  "launcher_pid": 1538549,
+  "gpu_uuid": "GPU-f546797f-634d-ebcd-f281-e09186043928",
+  "log": "results/run.log",
+  "exit": "results/run.exit",
+  "result": "results/native_mediation_v1.json",
+  "protocol_sha256": "e6bce37fa0774852e502982d69c6f3c0c462c9384dbca0d69935d3a41dcd9f1e",
+  "preregistration_commit": "279d509671c22c1aa7d5b15bc88ed0ce5d684502",
+  "completion_claimed": false,
+  "python_pid": 1538743,
+  "last_verified_phase": "Python exited; exit=1; no NATIVE progress record; GPU returned to 3 MiB / 0 percent",
+  "exit_code": 1,
+  "measurement_started": false,
+  "failure": "Transformers 5.10.4 apply_chat_template returned BatchEncoding; missing explicit return_dict=False caused torch.tensor to receive string keys.",
+  "failure_fix_commit": "ccad2b6bb16c7591efee457f4633df6edd4177fe",
+  "log_sha256": "ed5a12f14861cf9749da3ebc581f9710d493deb0fb2998a426150ab3595047f2",
+  "execution_source_commit": "279d509671c22c1aa7d5b15bc88ed0ce5d684502",
+  "retrieved_at_utc": "2026-10-17T05:04:50.743511+00:00"
+}

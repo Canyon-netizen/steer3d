@@ -106,3 +106,27 @@ def test_transfer_source_corruption_is_rejected(mutation):
         data["protocol_sha256"] = "changed"
     with pytest.raises(AssertionError):
         audit.audit_transfer_sources(data,manifest)
+
+
+def test_product_expansion_preserves_negative_poles_and_reports_roundoff():
+    actual = audit.product_change(-2.,-1.,-3.,2.,6.,-2.+1e-7)
+    assert actual["baseline_route"] == "--" and actual["steered_route"] == "-+"
+    assert [actual[k] for k in ("gate_term","value_term","interaction_term")] == [-3.,-10.,5.]
+    assert actual["roundoff"] == pytest.approx(1e-7)
+    assert sum(actual[k] for k in ("gate_term","value_term","interaction_term","roundoff")) == actual["delta_product"]
+
+
+def test_unit_atlas_equal_weights_problems_with_different_numbers_of_contexts():
+    rows = []
+    for i,(problem,steered) in enumerate((("p0",2.),("p0",2.),("p1",5.))):
+        native = {"indices":[7]}
+        for world,gate in (("baseline",1.),("steered",steered)):
+            native.update({world+"_"+key:[value] for key,value in (
+                ("gate",gate),("effective_gate",gate),("value",1.),("product",gate))})
+        rows.append({"id":str(i),"problem_id":problem,"split":"evaluation","kind":"equation",
+                     "prefix_tail":"example","selected_native_units":{"20":native}})
+    result = audit.unit_atlas({"selection":{"groups":{"20":[7]}},"cases":rows})
+    unit = result["units"][0]
+    delta = unit["product_change_by_split"]["evaluation"]["delta_product"]
+    assert delta["n_problems"] == 2 and delta["mean"] == 2.5
+    assert unit["largest_observed_product_changes"][0]["case_id"] == "2"

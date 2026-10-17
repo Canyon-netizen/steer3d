@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "n_prefixes": 48,
+  "first_prefix_type": "list",
+  "first_token_type": "int",
+  "min_tokens": 73,
+  "max_tokens": 75,
+  "answer_ids": {
+    "A": [
+      [
+        32
+      ],
+      [
+        362
+      ]
+    ],
+    "B": [
+      [
+        33
+      ],
+      [
+        425
+      ]
+    ]
+  },
+  "host": "zju-57",
+  "runtime": "/tmp/easysteer_env_local/bin/python",
+  "source_commit": "ccad2b6bb16c7591efee457f4633df6edd4177fe",
+  "observed_at_utc": "2026-10-17T05:06:44.160666+00:00"
+}
