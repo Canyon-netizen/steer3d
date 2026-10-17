@@ -1,0 +1,387 @@
+{
+  "schema": "steer3d.neuron_transfer_source_manifest/1",
+  "scope": "Expected sites derived from the frozen protocol and original sidecars, before model measurements. Does not claim completed transfer measurements.",
+  "protocol_sha256": "e6bce37fa0774852e502982d69c6f3c0c462c9384dbca0d69935d3a41dcd9f1e",
+  "r6_source_sha256": "7ba96bf70f93519c02ec58452b0ff191f3829058272b9f81a223d5caadf41b0a",
+  "n_trajectories": 12,
+  "n_expected_sites": 18,
+  "n_missing_slots": 6,
+  "trajectories": [
+    {
+      "trajectory": "aime__aime25__p06__think",
+      "problem_id": "aime25_p06",
+      "mode": "think",
+      "sidecar_sha256": "0f15fc5fe37e05425c2b8ac493b53dbc27600e824a3ead1eed651c4d8521d9fd",
+      "prompt_tokens": 222,
+      "n_generated_tokens": 8192,
+      "original_sampled_markers": [
+        528,
+        2090,
+        3762,
+        4348,
+        6448,
+        7834
+      ],
+      "eligible_markers": [
+        528
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p06__think_t528",
+          "t": 528,
+          "marker_id": 13824,
+          "n_prefix_tokens": 750
+        }
+      ],
+      "missing_slots": 1
+    },
+    {
+      "trajectory": "aime__aime25__p06__no_think",
+      "problem_id": "aime25_p06",
+      "mode": "no_think",
+      "sidecar_sha256": "697e0fbcf79a9c87adffdb8d1a2a27c2ad57fa75931111256874e1020fe83135",
+      "prompt_tokens": 226,
+      "n_generated_tokens": 2033,
+      "original_sampled_markers": [
+        372,
+        532,
+        691,
+        910,
+        1054,
+        1323
+      ],
+      "eligible_markers": [
+        372,
+        532,
+        691,
+        910,
+        1054,
+        1323
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p06__no_think_t372",
+          "t": 372,
+          "marker_id": 10061,
+          "n_prefix_tokens": 598
+        },
+        {
+          "id": "aime__aime25__p06__no_think_t532",
+          "t": 532,
+          "marker_id": 10061,
+          "n_prefix_tokens": 758
+        }
+      ],
+      "missing_slots": 0
+    },
+    {
+      "trajectory": "aime__aime25__p07__think",
+      "problem_id": "aime25_p07",
+      "mode": "think",
+      "sidecar_sha256": "17c460a5b175e9639d0a033b7b8c3fda70dfc945b30f37ce0703d6d4c05ba9f2",
+      "prompt_tokens": 199,
+      "n_generated_tokens": 6003,
+      "original_sampled_markers": [
+        212,
+        1612,
+        2336,
+        3390,
+        3841,
+        5179
+      ],
+      "eligible_markers": [
+        212,
+        1612
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p07__think_t212",
+          "t": 212,
+          "marker_id": 6771,
+          "n_prefix_tokens": 411
+        },
+        {
+          "id": "aime__aime25__p07__think_t1612",
+          "t": 1612,
+          "marker_id": 6771,
+          "n_prefix_tokens": 1811
+        }
+      ],
+      "missing_slots": 0
+    },
+    {
+      "trajectory": "aime__aime25__p07__no_think",
+      "problem_id": "aime25_p07",
+      "mode": "no_think",
+      "sidecar_sha256": "cf4b932df850b5852817df17036d848451b103f44dd0c17ff661dd810adf3ab7",
+      "prompt_tokens": 203,
+      "n_generated_tokens": 4014,
+      "original_sampled_markers": [
+        322,
+        404,
+        946,
+        2069,
+        2743,
+        3676
+      ],
+      "eligible_markers": [
+        322,
+        404,
+        946
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p07__no_think_t322",
+          "t": 322,
+          "marker_id": 10061,
+          "n_prefix_tokens": 525
+        },
+        {
+          "id": "aime__aime25__p07__no_think_t404",
+          "t": 404,
+          "marker_id": 10061,
+          "n_prefix_tokens": 607
+        }
+      ],
+      "missing_slots": 0
+    },
+    {
+      "trajectory": "aime__aime25__p08__think",
+      "problem_id": "aime25_p08",
+      "mode": "think",
+      "sidecar_sha256": "850a182955fcbfc24b70a1e3f778aa38a20621a9b7a4f1e4495cf2c2946f3388",
+      "prompt_tokens": 184,
+      "n_generated_tokens": 8192,
+      "original_sampled_markers": [
+        662,
+        1153,
+        3842,
+        5290,
+        7272,
+        7697
+      ],
+      "eligible_markers": [
+        662,
+        1153
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p08__think_t662",
+          "t": 662,
+          "marker_id": 10061,
+          "n_prefix_tokens": 846
+        },
+        {
+          "id": "aime__aime25__p08__think_t1153",
+          "t": 1153,
+          "marker_id": 13824,
+          "n_prefix_tokens": 1337
+        }
+      ],
+      "missing_slots": 0
+    },
+    {
+      "trajectory": "aime__aime25__p08__no_think",
+      "problem_id": "aime25_p08",
+      "mode": "no_think",
+      "sidecar_sha256": "dc6505e829b09f31b91b0c6d6279540f933f972d6b0f9321632bb53a13b2019a",
+      "prompt_tokens": 188,
+      "n_generated_tokens": 1998,
+      "original_sampled_markers": [
+        318,
+        410,
+        664,
+        1285
+      ],
+      "eligible_markers": [
+        318,
+        410,
+        664,
+        1285
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p08__no_think_t318",
+          "t": 318,
+          "marker_id": 10061,
+          "n_prefix_tokens": 506
+        },
+        {
+          "id": "aime__aime25__p08__no_think_t410",
+          "t": 410,
+          "marker_id": 10061,
+          "n_prefix_tokens": 598
+        }
+      ],
+      "missing_slots": 0
+    },
+    {
+      "trajectory": "aime__aime25__p09__think",
+      "problem_id": "aime25_p09",
+      "mode": "think",
+      "sidecar_sha256": "165a0f609105f109d303f30f0a6f37f73443f1db4f2df43773a65abaf52be3b5",
+      "prompt_tokens": 588,
+      "n_generated_tokens": 8192,
+      "original_sampled_markers": [
+        319,
+        2043,
+        4035,
+        4599,
+        6123,
+        7986
+      ],
+      "eligible_markers": [
+        319
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p09__think_t319",
+          "t": 319,
+          "marker_id": 13824,
+          "n_prefix_tokens": 907
+        }
+      ],
+      "missing_slots": 1
+    },
+    {
+      "trajectory": "aime__aime25__p09__no_think",
+      "problem_id": "aime25_p09",
+      "mode": "no_think",
+      "sidecar_sha256": "61b834be5db07d748247f643bff857ce5a70ca7e8519106176bf79a581578e70",
+      "prompt_tokens": 592,
+      "n_generated_tokens": 764,
+      "original_sampled_markers": [
+        410,
+        542
+      ],
+      "eligible_markers": [
+        410,
+        542
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p09__no_think_t410",
+          "t": 410,
+          "marker_id": 10061,
+          "n_prefix_tokens": 1002
+        },
+        {
+          "id": "aime__aime25__p09__no_think_t542",
+          "t": 542,
+          "marker_id": 10061,
+          "n_prefix_tokens": 1134
+        }
+      ],
+      "missing_slots": 0
+    },
+    {
+      "trajectory": "aime__aime25__p10__think",
+      "problem_id": "aime25_p10",
+      "mode": "think",
+      "sidecar_sha256": "d65bc624c90f3778675811a0d816e089ccfe64c53bcaeedea0e251974c5ae695",
+      "prompt_tokens": 910,
+      "n_generated_tokens": 8192,
+      "original_sampled_markers": [
+        750,
+        2170,
+        3749,
+        4484,
+        6279,
+        7676
+      ],
+      "eligible_markers": [
+        750
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p10__think_t750",
+          "t": 750,
+          "marker_id": 7196,
+          "n_prefix_tokens": 1660
+        }
+      ],
+      "missing_slots": 1
+    },
+    {
+      "trajectory": "aime__aime25__p10__no_think",
+      "problem_id": "aime25_p10",
+      "mode": "no_think",
+      "sidecar_sha256": "4d61fa52e7b8ada915b5c94a88a33bf5eec3f99949b65ed8d24865405e6810a6",
+      "prompt_tokens": 914,
+      "n_generated_tokens": 2357,
+      "original_sampled_markers": [
+        794,
+        1407,
+        1633
+      ],
+      "eligible_markers": [
+        794
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p10__no_think_t794",
+          "t": 794,
+          "marker_id": 10061,
+          "n_prefix_tokens": 1708
+        }
+      ],
+      "missing_slots": 1
+    },
+    {
+      "trajectory": "aime__aime25__p11__think",
+      "problem_id": "aime25_p11",
+      "mode": "think",
+      "sidecar_sha256": "035e8b9421a6a741eb72d5e5312fb50e07604a05d848347b67abad14bafc8d1a",
+      "prompt_tokens": 189,
+      "n_generated_tokens": 8192,
+      "original_sampled_markers": [
+        458,
+        2069,
+        3752,
+        4696,
+        6372,
+        7544
+      ],
+      "eligible_markers": [
+        458
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p11__think_t458",
+          "t": 458,
+          "marker_id": 6771,
+          "n_prefix_tokens": 647
+        }
+      ],
+      "missing_slots": 1
+    },
+    {
+      "trajectory": "aime__aime25__p11__no_think",
+      "problem_id": "aime25_p11",
+      "mode": "no_think",
+      "sidecar_sha256": "83748c14aa91c70a34863bff1a1e815f1c5dae7646e55250722a5be8a5a13a28",
+      "prompt_tokens": 193,
+      "n_generated_tokens": 8192,
+      "original_sampled_markers": [
+        528,
+        2109,
+        3741,
+        4557,
+        6189,
+        7821
+      ],
+      "eligible_markers": [
+        528
+      ],
+      "selected_sites": [
+        {
+          "id": "aime__aime25__p11__no_think_t528",
+          "t": 528,
+          "marker_id": 10061,
+          "n_prefix_tokens": 721
+        }
+      ],
+      "missing_slots": 1
+    }
+  ]
+}

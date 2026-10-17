@@ -67,3 +67,42 @@ def test_corrupted_evidence_is_rejected(mutation):
         del row["mediation"]["random3_block"]
     with pytest.raises((AssertionError,ValueError)):
         audit.summarize(data,protocol)
+
+
+def transfer_fixture():
+    manifest = json.loads((ROOT/"experiments/neuron_mediation_v1/source_manifest.json").read_text())
+    rows = []
+    for trajectory in manifest["trajectories"]:
+        for site in trajectory["selected_sites"]:
+            rows.append({**site,"kind":"aime","split":"transfer",**{
+                key:trajectory[key] for key in ("problem_id","mode","sidecar_sha256")}})
+    return {"protocol":protocol,"protocol_sha256":manifest["protocol_sha256"],
+            "source_sha256":{"original_r6.py":manifest["r6_source_sha256"]},
+            "cases":rows,"excluded_aime":[]},manifest
+
+
+def test_transfer_grid_reports_partial_missing_slots_without_replacement():
+    data,manifest = transfer_fixture()
+    result = audit.audit_transfer_sources(data,manifest)
+    assert result["n_measured_sites"] == 18
+    assert result["n_missing_slots"] == 6
+    assert len(result["missing_by_trajectory"]) == 6
+
+
+@pytest.mark.parametrize("mutation",["missing_site","duplicate_site","changed_marker","changed_source","changed_sampler","changed_protocol"])
+def test_transfer_source_corruption_is_rejected(mutation):
+    data,manifest = transfer_fixture()
+    if mutation == "missing_site":
+        data["cases"].pop()
+    elif mutation == "duplicate_site":
+        data["cases"][-1] = copy.deepcopy(data["cases"][0])
+    elif mutation == "changed_marker":
+        data["cases"][0]["marker_id"] += 1
+    elif mutation == "changed_source":
+        data["cases"][0]["sidecar_sha256"] = "changed"
+    elif mutation == "changed_sampler":
+        manifest["trajectories"][0]["original_sampled_markers"].insert(0,1)
+    else:
+        data["protocol_sha256"] = "changed"
+    with pytest.raises(AssertionError):
+        audit.audit_transfer_sources(data,manifest)

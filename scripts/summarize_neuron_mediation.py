@@ -21,6 +21,48 @@ def description(values):
             "min":min(v) if v else None,"max":max(v) if v else None,"per_problem":values}
 
 
+def audit_transfer_sources(data, manifest):
+    """Check the complete transfer grid against an independently derived source list."""
+    assert manifest["schema"] == "steer3d.neuron_transfer_source_manifest/1"
+    assert manifest["protocol_sha256"] == data["protocol_sha256"]
+    assert manifest["r6_source_sha256"] == data["source_sha256"]["original_r6.py"]
+    rules = data["protocol"]["aime_transfer"]
+    expected_trajectories = {f"aime__aime25__p{i:02d}__{mode}"
+                            for i in rules["problem_indices"] for mode in rules["modes"]}
+    trajectories = manifest["trajectories"]
+    assert len(trajectories) == len(expected_trajectories)
+    assert {r["trajectory"] for r in trajectories} == expected_trajectories
+    expected = {}
+    for trajectory in trajectories:
+        valid = [t for t in trajectory["original_sampled_markers"]
+                 if 0 < t and trajectory["prompt_tokens"]+t <= rules["max_prefix_tokens"]]
+        assert trajectory["eligible_markers"] == valid
+        assert [r["t"] for r in trajectory["selected_sites"]] == valid[:2]
+        assert trajectory["missing_slots"] == 2-len(valid[:2])
+        for site in trajectory["selected_sites"]:
+            assert site["id"] == f"{trajectory['trajectory']}_t{site['t']}"
+            expected[site["id"]] = (trajectory,site)
+    actual = [r for r in data["cases"] if r["kind"] == "aime"]
+    assert len(actual) == len(expected) == manifest["n_expected_sites"]
+    assert {r["id"] for r in actual} == set(expected)
+    for row in actual:
+        trajectory,site = expected[row["id"]]
+        assert row["split"] == "transfer"
+        assert row["problem_id"] == trajectory["problem_id"] and row["mode"] == trajectory["mode"]
+        assert row["sidecar_sha256"] == trajectory["sidecar_sha256"]
+        for key in ("t","marker_id","n_prefix_tokens"):
+            assert row[key] == site[key]
+        assert row["n_prefix_tokens"] == trajectory["prompt_tokens"]+row["t"]
+    excluded = data["excluded_aime"]
+    empty = {r["trajectory"] for r in trajectories if not r["selected_sites"]}
+    assert len(excluded) == len(empty) and {r["trajectory"] for r in excluded} == empty
+    missing = sum(r["missing_slots"] for r in trajectories)
+    assert missing == manifest["n_missing_slots"]
+    return {"n_trajectories":len(trajectories),"n_expected_sites":len(expected),
+            "n_measured_sites":len(actual),"n_missing_slots":missing,
+            "missing_by_trajectory":{r["trajectory"]:r["missing_slots"] for r in trajectories if r["missing_slots"]}}
+
+
 def summarize(data, protocol):
     if data.get("schema") != "steer3d.neuron_mediation/1" or not data.get("complete"):
         raise ValueError("only a completed native experiment can be summarized")
@@ -173,6 +215,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input",type=Path,required=True)
     parser.add_argument("--protocol",type=Path,default=Path("experiments/neuron_mediation_v1/protocol.json"))
+    parser.add_argument("--source-manifest",type=Path,default=Path("experiments/neuron_mediation_v1/source_manifest.json"))
     parser.add_argument("--out-dir",type=Path,required=True)
     args = parser.parse_args()
     raw = args.input.read_bytes()
@@ -180,6 +223,8 @@ def main():
     protocol_raw = args.protocol.read_bytes()
     assert hashlib.sha256(protocol_raw).hexdigest() == data["protocol_sha256"]
     summary = summarize(data,json.loads(protocol_raw))
+    summary["transfer_source_audit"] = audit_transfer_sources(data,json.loads(args.source_manifest.read_bytes()))
+    summary["source_manifest_sha256"] = hashlib.sha256(args.source_manifest.read_bytes()).hexdigest()
     summary["result_sha256"] = hashlib.sha256(raw).hexdigest()
     args.out_dir.mkdir(parents=True,exist_ok=True)
     (args.out_dir/"summary.json").write_text(json.dumps(summary,ensure_ascii=False,indent=2,allow_nan=False),encoding="utf-8")
