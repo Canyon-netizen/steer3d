@@ -773,10 +773,15 @@ def main():
     ap.add_argument("--repeat", type=int, default=1,
                     help="⚠ 在每个 P9 工作剂量上重复跑几次（默认 1 = 保持原口径）。"
                          "报给判据的**仍是第 1 次**；重复只用于量单读可重复性。")
-    ap.add_argument("--inject-scope", default="single",
+    ap.add_argument("--inject-scope", default="all",
                     choices=["single", "all", "k"],
-                    help="⛔ 口径开关：single=只注入 prefix 最后一位（探针原样，修订 205-208 用的是它）；all=广播到**所有**位置（run_intervention.ResidualSteerer 的语义）。⚠⚠ 两者量的**不是同一个东西**，差 0.155 > resid_std。"
-                         "默认值 single 保持既有读数可复现。")
+                    help="⛔ 口径开关：single=只注入 prefix 最后一位（探针原样；**修订 205-208 的实测读数是在它上面取的**）；all=广播到**所有**位置（run_intervention.ResidualSteerer 的语义）。⚠⚠ 两者量的**不是同一个东西**，差 0.155 > resid_std。"
+                         "⚠⚠⚠ 修订 241：默认已由 single 改成 all。"
+                         "⚖ 改动是**向后**的 —— 205-208 的读数仍按 single 记录，⛔ 没有被改写。"
+                         "⚖⚠ 现有三支跑批（r232/r234/r235）**每一处调用都显式传 --inject-scope**（已逐处核过），"
+                         "⚖ 所以它们的基准**不受影响**。"
+                         "⚠⚠ 但**今后任何漏传这个开关的跑批会静默换基准**（差 0.155 > resid_std）"
+                         "⇒ ⚖ 跑批脚本一律显式传，⛔ 不要依赖默认值。")
     ap.add_argument("--inject-n-sites", type=int, default=None,
                     help="⛔ 注入位点数。**只有** --inject-scope k 时才被读；"
                          "不给就用 none。\n"

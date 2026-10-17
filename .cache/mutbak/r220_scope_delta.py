@@ -283,7 +283,16 @@ def analyze(pa, pb, label_a="A", label_b="B"):
     elif bench["n_exact"] == bench["n_compared"]:
         verdict = "逐位相同 %d/%d" % (bench["n_exact"], bench["n_compared"])
     else:
-        verdict = "不逐位相同 %d/%d 恰为 0" % (bench["n_exact"], bench["n_compared"])
+        # ⚠⚠⚠⚠ 修订 241：这里原来印的是 `不逐位相同 %d/%d` % (n_exact, n_compared)
+        # ⚖⚖ 而 `n_exact` 是**逐位相同**的格数，不是不同的格数！
+        # ⚖⚠ 真实载荷（r240_single vs r240_all，10 条轨迹）上量到：
+        # ⚖   n_exact=8 / n_compared=60 ⇒ 实际 **52** 格不逐位相同，
+        # ⚖⚠⚠ 而句子印「不逐位相同 8/60」⇒ 读者读成「8 格不同」—— 与事实相反。
+        # ⚖⚗ B2/B3 验的是**字段**，⛔ 从没验**句子**，⚖ 所以它一路活到最常被引用的一行。
+        # ⚖ ⚗ 原来还带一句常量尾巴「恰为 0」：它后面没有任何计算支撑，
+        # ⚖⚗ 只是让这句话更难读。⛔ 一并去掉。
+        verdict = "不逐位相同 %d/%d" % (bench["n_compared"] - bench["n_exact"],
+                                       bench["n_compared"])
 
     return {
         "label_a": label_a, "label_b": label_b,

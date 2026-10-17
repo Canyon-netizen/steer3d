@@ -146,6 +146,36 @@ def _():
     assert r["bench"]["n_pos"] == 1 and r["bench"]["n_neg"] == 0, r["bench"]
 
 
+@case("B4 ⚠⚠⚠⛔ 判决句里的计数必须与句子方向一致（修订 241 在真实载荷上抓到反转）")
+def _():
+    # ⚠⚠⚠ **这是真实载荷量出来的，不是构造的**：
+    # ⚖   r240_single vs r240_all（10 条轨迹）⇒ n_exact=8 / n_compared=60
+    # ⚖   实际 **52** 格不逐位相同，
+    # ⚖⚠ 而原句印的是「不逐位相同 8/60」⇒ 读者读成「8 格不同」，**与事实相反**。
+    # ⚖⚗ B2/B3 验的是**字段**（n_exact / n_compared），⛔ 从没验**句子**
+    # ⚖⚠ ⇒ 「字段是对的、句子反了」这件事没有任何判据能抓到。
+    b2 = {"t1": dict(B1["t1"]), "t2": dict(B1["t2"])}
+    b2["t1"]["w+@0.5"] = B1["t1"]["w+@0.5"] + 0.5
+    r = r220.analyze(_payload(B1, "single"), _payload(b2, "all"))
+    n_diff = r["bench"]["n_compared"] - r["bench"]["n_exact"]
+    assert n_diff == 1 and r["bench"]["n_compared"] == 8, r["bench"]
+    # ⚖⛔ 句子里出现的必须是**不同**的格数，且**不能**是 n_exact
+    assert r["verdict"] == "不逐位相同 1/8", r["verdict"]
+    assert "恰为 0" not in r["verdict"], \
+        "⛔⛔ 那句常量尾巴还在（后面没有任何计算支撑）"
+    # ⚖ 逐位相同时句子另一头也要对
+    rs = r220.analyze(_payload(B1, "single"), _payload(B1, "single"))
+    assert rs["verdict"] == "逐位相同 8/8", rs["verdict"]
+    # ⚖⚠ 双向证伪：把句子改回印 n_exact ⇒ B4 必须红
+    mod = _load_mutant('verdict = "不逐位相同 %d/%d" % (bench["n_compared"] '
+                       '- bench["n_exact"],\n                                       '
+                       'bench["n_compared"])',
+                       'verdict = "不逐位相同 %d/%d 恰为 0" % (bench["n_exact"], '
+                       'bench["n_compared"])')
+    bad = mod.analyze(_payload(B1, "single"), _payload(b2, "all"))["verdict"]
+    assert bad != "不逐位相同 1/8", "变异没生效：句子没有被改回错误写法"
+
+
 @case("B3 一格 -0.5 ⇒ 符号必须为负（不能被绝对值吃掉）")
 def _():
     b2 = {"t1": dict(B1["t1"]), "t2": dict(B1["t2"])}

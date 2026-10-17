@@ -473,6 +473,25 @@ def main():
     check("K12 ⛔ 变异：去掉固定种子 ⇒ 同一 (长度,k) 会挑出不同位点 ⇒ K3 会红",
           _nm["_k_positions"](40, 7) != _nm["_k_positions"](40, 7))
 
+    # ⚠⚠⚠ 修订 241：探针默认口径 **single → all**。
+    # ⚖ 改动是**向后**的：修订 205-208 的实测读数仍按 single 记录，⛔ 没有被改写。
+    # ⚖⚠ 现有三支跑批（r232/r234/r235）**每一处调用都显式传 --inject-scope**
+    # ⚖（逐处核过；⚗ 「有 4 处探针」是**误读**——第 4 处是注释里提到文件名），
+    # ⚖ 所以它们的基准不受影响。
+    check("K13 ⛔ 默认口径必须是 all（修订 241 钉死；⛔ 不许被无声改回）",
+          'ap.add_argument("--inject-scope", default="all"' in _src)
+    # ⚠⚠ 这一条比 K13 更容易被忽略：默认改了而**风险没写进 help**，
+    # ⚖ 后人写新跑批时看不到「漏传会静默换基准」，⚗ 于是真换了一次基准都不知道。
+    check("K14 ⚠⚠ 默认口径变更必须把风险写在 help 里"
+          "（漏传的跑批会静默换基准，差 0.155 > resid_std）",
+          "漏传这个开关的跑批会静默换基准" in _src)
+    # ⚖ 双向证伪：把默认改回 single，上面两条必须同时抓住。
+    _mut2 = _src.replace('ap.add_argument("--inject-scope", default="all"',
+                         'ap.add_argument("--inject-scope", default="single"')
+    check("K15 ⛔ 变异：把默认改回 single ⇒ K13 必须红（否则「钉死默认」是假的）",
+          _mut2 != _src
+          and 'ap.add_argument("--inject-scope", default="all"' not in _mut2)
+
 
     # =======================================================================
     # L 组（修订 226）：嵌套子集 + rand 臂
