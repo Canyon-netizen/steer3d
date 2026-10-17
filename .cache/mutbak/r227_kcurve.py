@@ -254,6 +254,26 @@ def analyze(cells, verbose=True):
     if len(nested) > 1:
         raise HardFail("曲线里混了嵌套设置 %s ⇒ 不能连成一条曲线" % nested)
 
+    # ⚠⚠⚴ 扫描参数也必须一致 —— `arm`/`nested` 之外的三个：
+    # ⚖ 探针每格读数里**都带** `pos_frac` / `n_steps` / `gap`，
+    # ⚖⚖ 而混进不同值的格子**量的不是同一个东西**：
+    # ⚖   `pos_frac`  注入位置不同 ⇒ 序列前缀长度不同
+    # ⚖   `n_steps`   α 网格点数不同 ⇒ 拟合的取样点不同
+    # ⚖⚠ `gap`        **剂量尺度**（P9 的 class_gap）不同 ⇒ ⛔ 最严重，
+    # ⚖               Δ 的量纲都不一样，却会被静默合进同一个符号检验。
+    # ⚖⇒ 与 `arm` 同等对待：**混了直接 HardFail**，不许只印一句警告。
+    sweep_params = {}
+    for key in ("pos_frac", "n_steps", "gap"):
+        vals = sorted(set(c["reading"][key] for c in ok if key in c["reading"]))
+        sweep_params[key] = vals
+        if len(vals) > 1:
+            raise HardFail("曲线里混了多个 %s %s ⇒ 量的不是同一个东西，"
+                           "拒绝合池" % (key, vals))
+        # ⚖⚠ 字段**缺失**也要说：⛔ 别把「没记」当「都一样」。
+        if ok and not vals:
+            raise HardFail("读数里**没有** %s 字段 ⇒ 无法证明各格参数一致"
+                           % key)
+
     # ---- 按 tid 分组
     tids = []
     for c in cells:
@@ -456,6 +476,8 @@ def analyze(cells, verbose=True):
 
     return {"arm": arms[0] if arms else None,
             "nested": nested[0] if nested else None,
+            "sweep_params": {k: (v[0] if len(v) == 1 else v)
+                             for k, v in sweep_params.items()},
             "n_cells": len(cells), "n_ok": len(ok), "n_bad": len(bad),
             "bad": bad, "tids": tids, "per": per,
             "traj": sign_test(tr), "prob": sign_test(pd_),
@@ -515,6 +537,12 @@ def report(r, verbose=True):
     L = []
     L.append("=" * 78)
     L.append("r227 k 曲线读数器    臂=%s  嵌套=%s" % (r["arm"], r["nested"]))
+    # ⚖⚠ 扫描参数必须**印出来** —— 「一致」这件事本身也要可核
+    L.append("    ⚖ 扫描参数（各格一致才合池）：pos_frac=%s  n_steps(α网格)=%s  "
+             "gap(剂量尺度)=%s"
+             % (r["sweep_params"].get("pos_frac"),
+                r["sweep_params"].get("n_steps"),
+                r["sweep_params"].get("gap")))
     L.append("=" * 78)
 
     # 【0】分母与缺口 —— 崩的格单独报，绝不当 0
@@ -758,7 +786,7 @@ def _synthetic(mutate=None, ks=None):
             log.append("### BEGIN %s n_eff=%d  %s" % (tid, n_eff, _ts(i)))
             log.append('{"tid": "%s", "p9_lo_meas": %.6f, "p9_hi_meas": -0.01, '
                        '"inject_scope": "k", "inject_n_sites": %s, '
-                       '"inject_nested": true, "arm": "rand", "P": 108, "t": %d}'
+                       '"inject_nested": true, "arm": "rand", "pos_frac": 0.5, "n_steps": 60, "gap": 113.4744, "P": 108, "t": %d}'
                        % (tid, LADDER_LO[j % len(LADDER_LO)], k, n_eff - 108))
             st.append("%s k=%s rc=0" % (tid, k))
         for sc, lo in (("single", SINGLE_LO), ("all", ALL_LO)):
@@ -766,6 +794,7 @@ def _synthetic(mutate=None, ks=None):
             log.append("### BEGIN %s %s n_eff=%d  %s" % (tid, sc, n_eff, _ts(i)))
             log.append('{"tid": "%s", "p9_lo_meas": %.6f, "p9_hi_meas": -0.01, '
                        '"inject_scope": "%s", "inject_nested": true, "arm": "rand", '
+                       '"pos_frac": 0.5, "n_steps": 60, "gap": 113.4744, '
                        '"P": 108, "t": %d}' % (tid, lo, sc, n_eff - 108))
             st.append("%s %s rc=0" % (tid, sc))
     if mutate:
@@ -1114,7 +1143,7 @@ def selftest():
                                % (tid, n_eff, _ts(i)))
                     log.append('{"tid": "%s", "p9_lo_meas": %.6f, "p9_hi_meas": -0.01, '
                                '"inject_scope": "k", "inject_n_sites": %s, '
-                               '"inject_nested": true, "arm": "rand", "P": 108, '
+                               '"inject_nested": true, "arm": "rand", "pos_frac": 0.5, "n_steps": 60, "gap": 113.4744, "P": 108, '
                                '"t": %d}' % (tid, LADDER_LO[i % len(LADDER_LO)], k,
                                               n_eff - 108))
                     st.append("%s k=%s rc=0" % (tid, k))
@@ -1124,7 +1153,8 @@ def selftest():
                                % (tid, sc, n_eff, _ts(i)))
                     log.append('{"tid": "%s", "p9_lo_meas": %.6f, "p9_hi_meas": -0.01, '
                                '"inject_scope": "%s", "inject_nested": true, '
-                               '"arm": "rand", "P": 108, "t": %d}'
+                               '"arm": "rand", "pos_frac": 0.5, "n_steps": 60, '
+                               '"gap": 113.4744, "P": 108, "t": %d}'
                                % (tid, lo, sc, n_eff - 108))
                     st.append("%s %s rc=0" % (tid, sc))
         return "\n".join(log) + "\n", "\n".join(st) + "\n"
@@ -1286,6 +1316,55 @@ def selftest():
         assert "每条都超过自己的地板" in out2, out2[-700:]
         assert "至少有一条漂移超过自己的地板" in out2, out2[-700:]
     ck("K22 绿：符号检验同报「输入有多少条低于地板」+ 全部超过时印 ✅", k22)
+
+    # K23 红：扫描参数（pos_frac / n_steps / **gap**）混了 ⇒ 必须 HardFail
+    # ⚠⚠ 修订 238 查到：`arm` 与 `inject_nested` 一直在查，
+    # ⚖ 而**剂量尺度 `gap`**、α 网格 `n_steps`、位置 `pos_frac` **一直没查**。
+    # ⚖⚠ 混了 `gap` ⇒ Δ 的量纲都不一样，⚖ 却会被静默合进同一个符号检验。
+    def k23():
+        lg, st = _synthetic()
+        r = analyze(_read_pair(lg, st))
+        assert r["sweep_params"]["pos_frac"] == 0.5, r["sweep_params"]
+        assert r["sweep_params"]["n_steps"] == 60, r["sweep_params"]
+        assert "113.4744" in str(r["sweep_params"]["gap"]), r["sweep_params"]
+        out = report(r)
+        assert "扫描参数（各格一致才合池）" in out, out[:400]
+        # ⚖⚠ 三个参数逐个验「混了必须红」
+        for key, old, new, why in (
+                ("pos_frac", '"pos_frac": 0.5', '"pos_frac": 0.25',
+                 "位置不同 ⇒ 前缀长度不同"),
+                ("n_steps", '"n_steps": 60', '"n_steps": 40',
+                 "α 网格点数不同 ⇒ 拟合取样点不同"),
+                ("gap", '"gap": 113.4744', '"gap": 50.0',
+                 "⚠ 剂量尺度不同 ⇒ Δ 的量纲都不同")):
+            def mv(log, stt, o=old, n=new):
+                # ⚗⚠ 只改**第二块** ⇒ 制造「混了」的形状（第一块保持原值）
+                out2, hit = [], [0]
+                for ln in log:
+                    if o in ln:
+                        hit[0] += 1
+                        if hit[0] == 2:
+                            ln = ln.replace(o, n)
+                    out2.append(ln)
+                return out2, stt
+            lg2, st2 = _synthetic(mutate=mv)
+            try:
+                analyze(_read_pair(lg2, st2))
+                raise AssertionError("%s 混了却没报错（%s）" % (key, why))
+            except HardFail as e:
+                assert key in str(e), "报错里该点名 %s，实际：%s" % (key, e)
+                assert "量的不是同一个东西" in str(e), str(e)
+        # ⚖⚠ 字段**缺失**也要红：⛔ 别把「没记」当「都一样」
+        def mvd(log, stt):
+            return [ln.replace(', "pos_frac": 0.5', "")
+                    for ln in log], stt
+        lg3, st3 = _synthetic(mutate=mvd)
+        try:
+            analyze(_read_pair(lg3, st3))
+            raise AssertionError("pos_frac 字段缺失却没报错")
+        except HardFail as e:
+            assert "没有" in str(e) and "pos_frac" in str(e), str(e)
+    ck("K23 红：pos_frac / n_steps / gap 混了或缺失 ⇒ 一律 HardFail", k23)
 
     npass = sum(1 for _, s, _ in T if s == "PASS")
     for name, st_, msg in T:
