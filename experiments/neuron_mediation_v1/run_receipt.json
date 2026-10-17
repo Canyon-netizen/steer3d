@@ -1,0 +1,16 @@
+{
+  "schema": "steer3d.neuron_mediation_receipt/1",
+  "phase": "submitted_not_a_result",
+  "host": "zju-57",
+  "remote_root": "/home/zhourui/steer3d_neuron_20261017",
+  "launcher_pid": 1538549,
+  "gpu_uuid": "GPU-f546797f-634d-ebcd-f281-e09186043928",
+  "log": "results/run.log",
+  "exit": "results/run.exit",
+  "result": "results/native_mediation_v1.json",
+  "protocol_sha256": "e6bce37fa0774852e502982d69c6f3c0c462c9384dbca0d69935d3a41dcd9f1e",
+  "preregistration_commit": "279d509671c22c1aa7d5b15bc88ed0ce5d684502",
+  "completion_claimed": false,
+  "python_pid": 1538743,
+  "last_verified_phase": "model weight loading; Python process alive; no terminal exit observed"
+}
