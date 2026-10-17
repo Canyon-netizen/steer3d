@@ -127,11 +127,32 @@ python3 "$HERE/arm_verdict.py" --reader "$READER" \
 rc=$?
 [ "$rc" -ne 0 ] && { echo "  ⛔ 判决层拒绝出结论（rc=$rc）"; FAIL=1; }
 
-step "6 两臂算力条件可比性"
-python3 "$HERE/compute_conditions.py" --w-log "$HERE/r244_warm_w.norm.log" \
-  --rand-log "$HERE/r244_warm_rand.norm.log"
+step "6 两臂算力条件可比性（244.16 起为**必需**，不是可选补充）"
+CC_OUT=$(python3 "$HERE/compute_conditions.py" --w-log "$HERE/r244_warm_w.norm.log" \
+  --rand-log "$HERE/r244_warm_rand.norm.log")
 rc=$?
+echo "$CC_OUT"
 [ "$rc" -ne 0 ] && FAIL=1
+if ! grep -q "两臂算力条件" <<<"$CC_OUT"; then
+  echo "  ⛔ 算力条件未量到 ⇒ 244.16.5 登记要求它必须与主统计量同报"
+  FAIL=1
+fi
+
+step "7 ✅ 预登记的**主统计量**（修订 244.14.5 / 244.15）"
+# ⚠⚠⚠ 这一步**必须在这里、必须自动跑**。它是**看到数据之前**定死的统计量。
+# ⚖⚗ 第一版流水线**漏了它** ⇒ 跑完只能临时补算，而临时补算正是预登记要防的事：
+# ⚖⚗   时间压力下最可能发生的不是「忘了跑」，而是「先看了别的数字再决定跑哪个」。
+# ⚖⇒ 所以它不是可选的一步，而是**失败即中止**的一步。
+python3 "$HERE/upmono_verdict.py" --reader "$READER" \
+  --w-log "$HERE/r244_warm_w.norm.log" --w-status "$HERE/r244_warm_w_status.txt" \
+  --rand-log "$HERE/r244_warm_rand.norm.log" \
+  --rand-status "$HERE/r244_warm_rand_status.txt" \
+  --expect-cells "$CELL_COUNT"
+rc=$?
+if [ "$rc" -ne 0 ]; then
+  echo "  ⛔ 主统计量未产出（rc=$rc）⇒ 预登记的判据没跑出来，⛔ 不要用别的统计量顶替"
+  FAIL=1
+fi
 
 echo
 echo "=== 汇总 ==="
@@ -140,6 +161,6 @@ if [ "$FAIL" -ne 0 ]; then
   echo "   逐条处理：先修生产者/补数据，⛔ 不要为了让它变绿去放宽读数器。"
   exit 1
 fi
-echo "六道闸全过。下面是读数，不是判决："
+echo "七道闸全过。下面是读数，不是判决："
 echo "⚠ 它不回答：剂量响应对不对 / 阶梯排对了没有 / 共卡有没有改变读数。"
 echo "⚖ 判读前先看 below_floor 与 knife_edge 两列 —— 它们决定有多少结论被噪声主导。"
