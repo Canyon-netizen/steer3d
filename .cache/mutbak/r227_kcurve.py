@@ -40,8 +40,36 @@ import math
 import re
 import sys
 
+# ⚠⚠⁴ 分支顺序是全部要害，不是风格问题。
+# ⚖ 修订 244.8 把 BEGIN 改成 `### BEGIN <tid> [i/n] n_eff=N ...`，
+# ⚖ 旧真机日志是 `### BEGIN [i/n] <tid> <args> ...`（修订 244.22 补回兼容）。
+# ⚖ 若把旧格式分支放在**后面**，新分支的 `\S+` 会先吃掉 `[1/137]`，
+# ⚖ 于是 tid 又变回 `[1/137]`，join 的交叉校验会报「第 1 格 tid 对不上」。
+# ⚖ 那条报错是真的，但它把「格式不兼容」说成了「数据错位」，两者的修法完全不同。
+# ⚖ ⇒ K0 用源码里的命名组位置把顺序钉死，不靠「跑跑看它对不对」。
 BEGIN_RE = re.compile(
-    r"^###\s+BEGIN\s+(?P<tid>\S+)(?P<rest>.*?)\s\s+(?P<time>\d\d:\d\d:\d\d)\s*$")
+    r"^###\s+BEGIN\s+"
+    r"(?:"
+    r"\[(?P<idxold>\d+)/(?P<totold>\d+)\]\s+(?P<tidold>\S+)"   # 旧格式
+    r"|"
+    r"(?P<tidnew>\S+)"                                          # 新格式 / 自测夹具
+    r")"
+    r"(?P<rest>.*?)\s\s+(?P<time>\d\d:\d\d:\d\d)\s*$")
+
+
+def _begin_tid(m):
+    """两种格式的 tid 在不同组。取到 None 就是格式没认出来，⛔ 不许猜。"""
+    return m.group("tidnew") or m.group("tidold")
+
+
+def _begin_index(m):
+    """块序号 `i/n`（旧格式有、新格式在 rest 里、自测夹具没有）。"""
+    if m.group("idxold") is not None:
+        return m.group("idxold"), m.group("totold")
+    m2 = re.search(r"\[(\d+)/(\d+)\]", m.group("rest"))
+    return (m2.group(1), m2.group(2)) if m2 else (None, None)
+
+
 N_EFF_RE = re.compile(r"n_eff=(\d+)")
 RC_RE = re.compile(r"\brc=(-?\d+)")
 K_RE = re.compile(r"\bk=(\d+)")
@@ -99,16 +127,34 @@ def sign_test(deltas):
 
 
 def parse_blocks(text):
-    """按 `### BEGIN` 把日志切成块。⚠ 返回的块数必须与状态文件行数对得上。"""
+    """按 `### BEGIN` 把日志切成块。⚠ 返回的块数必须与状态文件行数对得上。
+
+    ⚖ 修订 244.22：同时认两种 BEGIN 排版（见 BEGIN_RE 处的注释）。
+    ⚖ 格式混用（同一份日志里两种都有）**拒读**：那说明有人手工拼过日志，
+    ⚖ 而 244.16 已经定过「追加式产物必须配重复档守卫」——格式混用正是
+    ⚖ 「两轮拼成一份」的形态之一，此时位置配对不可信。
+    """
     blocks = []
     cur = None
+    n_new = n_old = 0
     for line in text.split("\n"):
         m = BEGIN_RE.match(line)
         if m:
             if cur is not None:
                 blocks.append(cur)
+            tid = _begin_tid(m)
+            idx, tot = _begin_index(m)
+            if tid is None:
+                raise HardFail(
+                    "BEGIN 行两种排版都没认出 tid：%r —— "
+                    "⛔ 不猜它是哪一格" % line[:120])
+            if m.group("tidold") is not None:
+                n_old += 1
+            else:
+                n_new += 1
             ne = N_EFF_RE.search(m.group("rest"))
-            cur = {"tid": m.group("tid"),
+            cur = {"tid": tid, "idx": idx, "tot": tot,
+                   "fmt": "old" if m.group("tidold") is not None else "new",
                    "n_eff": int(ne.group(1)) if ne else None,
                    "time": m.group("time"),
                    "lines": []}
@@ -116,6 +162,11 @@ def parse_blocks(text):
             cur["lines"].append(line)
     if cur is not None:
         blocks.append(cur)
+    if n_new and n_old:
+        raise HardFail(
+            "BEGIN 排版混用：新格式 %d 条 / 旧格式 %d 条 —— "
+            "⚠ 两轮拼进同一份日志的形态，位置配对不可信，拒绝读"
+            % (n_new, n_old))
     return blocks
 
 
@@ -829,7 +880,61 @@ def selftest():
         except Exception as e:
             T.append((name, "FAIL", "%s: %s" % (type(e).__name__, e)))
 
-    # K1 绿：格式真实的一轮全部读出
+    # ---- K0（修订 244.22）：BEGIN 两种排版 ----
+    # K0a 结构性：旧格式分支必须在正则源串里排在前面。这是 BEGIN_RE 注释
+    # ⚖ 里那条「顺序是全部要害」的自动化钉子 —— 顺序错了，下面 K0b 会红。
+    def k0a_order():
+        p = BEGIN_RE.pattern
+        assert p.index("idxold") < p.index("tidnew"), (
+            "旧格式分支跑到了新格式后面：新分支的 \\S+ 会先吃掉 [i/n]")
+    ck("K0a BEGIN 正则：旧格式分支排在前面（结构性）", k0a_order)
+
+    # K0b 语义等价：同一份数据两种排版，读出的 cells 必须一致。
+    # ⚠⚠ 但**不能断言逐位相同** —— 旧排版没有 n_eff 字段，会走同源回退。
+    # ⚖ 那个差异是真实的、也是应该被看见的：旧数据本来就没经过 BEGIN↔P+t
+    # ⚖ 互证。⇒ 断言「除 n_eff 两字段外全同」+ 两边的来源标签各自正确。
+    def k0b_equiv():
+        lg, st = _synthetic()
+        cs_new = _read_pair(lg, st)
+        old = []
+        i = 0
+        for ln in lg.split("\n"):
+            if ln.startswith("### BEGIN "):
+                i += 1
+                m = re.match(r"^### BEGIN (\S+)\s+(?:n_eff=\d+\s+)?"
+                             r".*?\s\s+(\d\d:\d\d:\d\d)\s*$", ln)
+                assert m, ln
+                old.append("### BEGIN [%d/137] %s  %s" % (i, m.group(1), m.group(2)))
+            else:
+                old.append(ln)
+        cs_old = _read_pair("\n".join(old), st)
+        assert len(cs_old) == len(cs_new), (len(cs_old), len(cs_new))
+        for a, b in zip(cs_new, cs_old):
+            for k in ("idx", "tid", "rc", "scope", "k", "err"):
+                assert a[k] == b[k], (k, a[k], b[k])
+            assert a["reading"] == b["reading"], a["idx"]
+            # 新排版有 BEGIN 的 n_eff ⇒ 必须标成「已互证」；旧排版没有 ⇒ 回退
+            assert "未与 BEGIN 互证" not in a["n_eff_src"], a["n_eff_src"]
+            assert "未与 BEGIN 互证" in b["n_eff_src"], b["n_eff_src"]
+    ck("K0b 同一数据两种排版 ⇒ 除 n_eff 两字段外一致，且来源标签各自正确", k0b_equiv)
+
+    # K0c 红：两种排版混在同一份日志里 ⇒ 必须硬失败（两轮拼接的形态）
+    def k0c_mixed():
+        lg, st = _synthetic()
+        lines = lg.split("\n")
+        for j, ln in enumerate(lines):
+            if ln.startswith("### BEGIN "):
+                lines[j] = re.sub(r"^### BEGIN (\S+)",
+                                  r"### BEGIN [1/12] \1", ln)
+                break
+        try:
+            _read_pair("\n".join(lines), st)
+        except HardFail as e:
+            assert "混用" in str(e), str(e)
+            return
+        raise AssertionError("排版混用没有硬失败")
+    ck("K0c 红：两种排版混在一份日志 ⇒ 硬失败「混用」", k0c_mixed)
+
     def k1():
         lg, st = _synthetic()
         cs = _read_pair(lg, st)
