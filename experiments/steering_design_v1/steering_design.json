@@ -1,0 +1,3145 @@
+{
+ "schema": "steer3d.steering_design/1",
+ "complete": true,
+ "scope": "descriptive design guide from existing Qwen3-1.7B artifacts; no new model forward passes",
+ "source_paths": {
+  "summary": "experiments/neuron_mediation_v1/results/summary.json",
+  "mediation": "experiments/neuron_mediation_v1/results/native_mediation_v1.json",
+  "bpath": "frontend/public/latent/data/bpath_marker_steering.json",
+  "axis": "frontend/public/latent/data/axis_readouts.json",
+  "lens": "frontend/public/latent/data/logit_lens.json",
+  "atlas": "experiments/readout_atlas_v1/readout_atlas.json",
+  "construction": "experiments/steering_construction_v1/steering_construction.json",
+  "steering_transfer": "experiments/steering_transfer_v1/steering_transfer.json",
+  "steering_sweep": "experiments/steering_sweep_v1/steering_sweep.json",
+  "steering_recipe": "experiments/steering_recipe_v1/steering_recipe.json"
+ },
+ "source_hashes": {
+  "summary": "5f1f4ed124ed555b830ce5429aa31b14bd60128e351773abfd1b764b9f73c173",
+  "mediation": "cc32ba87e6a3b9fa3d39b2bc02a317f2dc36e3fbb17c697b8909e0aaf12aba26",
+  "bpath": "dbcd6f8f709b095228fa5a67fe42850d6923e3fc33a0abd869399228a71faa46",
+  "axis": "a815f94a66c910f29a9f0570aaa6dcf18c416f4f1e9c57dcff2ad5c5c701a5da",
+  "lens": "53583ee8071427b7d37075409f79876e3328390b46fa8f473d4898790658bb7e",
+  "atlas": "86c12c8279c4530747b0130d3ac0f2adc6a55b14423b68f6cbe0057ec4fd0223",
+  "construction": "206ff0f46a2491985141a7173c2012fbdafeb71ef7d248c4577cf68350df47b7",
+  "steering_transfer": "735ad794d12fc435c6a1ca636faf21a799eb2d9df70aee22c4096c4e2fdc73b1",
+  "steering_sweep": "2c696560172def08ab622a11d54d915bc78a228e4b986777d6e6a0e9f977b484",
+  "steering_recipe": "2d545eee5e983ed3eb9d584d068da7468fd6cdac2f787c094cde49ebb92ec1ae"
+ },
+ "vector": {
+  "arm": "B_L19_m0(H[t])",
+  "injection_block": 20,
+  "doses": [
+   0.02,
+   0.1,
+   0.25
+  ],
+  "primary_strength": 0.1,
+  "baseline": {
+   "p_correct": 0.6688727003230067,
+   "argmax_correct": 16,
+   "argmax_outside": 0,
+   "mean_answer_set_coverage": 0.9999382760133321
+  }
+ },
+ "layers": [
+  {
+   "layer": 20,
+   "block_mean": -0.04966926574671238,
+   "restore_mean": -0.04533481597799168,
+   "compensation": -0.04750204086235203,
+   "support": 0.04750204086235203,
+   "action": "supporting",
+   "same_sign": true,
+   "beyond_random_median": true,
+   "random_rank": 2,
+   "random_compensations": [
+    -0.14676864941862638,
+    -0.010789791743668935,
+    -0.023093382517680748,
+    -0.006087621051587
+   ],
+   "random_median_abs": 0.01694158713067484,
+   "n_random_groups": 4,
+   "block_per_problem": {
+    "math06": -0.017431259154966128,
+    "math07": 0.026093482971310422,
+    "math08": -0.10640907287527313,
+    "math09": -0.12430953979447068,
+    "math10": -0.0036716461179988613,
+    "math11": -0.07228755950887589
+   },
+   "restore_per_problem": {
+    "math06": -0.013604164122645201,
+    "math07": 0.040524482727239075,
+    "math08": -0.10490798949964386,
+    "math09": -0.11896610259843143,
+    "math10": -0.0034723281857864663,
+    "math11": -0.07158279418868219
+   },
+   "n_problems": 6,
+   "net_effect_primary": -0.06641451517810726
+  },
+  {
+   "layer": 21,
+   "block_mean": 0.0346515973411942,
+   "restore_mean": 0.03722731272452121,
+   "compensation": 0.035939455032857705,
+   "support": -0.035939455032857705,
+   "action": "compensating",
+   "same_sign": true,
+   "beyond_random_median": true,
+   "random_rank": 2,
+   "random_compensations": [
+    -0.14676864941862638,
+    -0.010789791743668935,
+    -0.023093382517680748,
+    -0.006087621051587
+   ],
+   "random_median_abs": 0.01694158713067484,
+   "n_random_groups": 4,
+   "block_per_problem": {
+    "math06": 0.04007625579848906,
+    "math07": -0.022619247436562517,
+    "math08": 0.062455177307626286,
+    "math09": 0.09609794616770273,
+    "math10": -0.003303527832121844,
+    "math11": 0.035202980042031484
+   },
+   "restore_per_problem": {
+    "math06": 0.045823097229623855,
+    "math07": -0.02702903747576535,
+    "math08": 0.06368446350237811,
+    "math09": 0.10112476349052635,
+    "math10": 0.0022249221800372254,
+    "math11": 0.0375356674203271
+   },
+   "n_problems": 6,
+   "net_effect_primary": -0.06641451517810726
+  },
+  {
+   "layer": 22,
+   "block_mean": -0.0078428586325933,
+   "restore_mean": -0.007226149241462032,
+   "compensation": -0.007534503937027666,
+   "support": 0.007534503937027666,
+   "action": "weak",
+   "same_sign": true,
+   "beyond_random_median": false,
+   "random_rank": 4,
+   "random_compensations": [
+    -0.14676864941862638,
+    -0.010789791743668935,
+    -0.023093382517680748,
+    -0.006087621051587
+   ],
+   "random_median_abs": 0.01694158713067484,
+   "n_random_groups": 4,
+   "block_per_problem": {
+    "math06": -0.01521110534695147,
+    "math07": -0.034678459167507114,
+    "math08": 0.010024070739374835,
+    "math09": 0.0026388168332207584,
+    "math10": -0.00789833068857071,
+    "math11": -0.001932144165126104
+   },
+   "restore_per_problem": {
+    "math06": -0.010328292847061604,
+    "math07": -0.037247657775909104,
+    "math08": 0.013922691344541605,
+    "math09": 0.00562858581478487,
+    "math10": -0.009101867675871844,
+    "math11": -0.006230354309256114
+   },
+   "n_problems": 6,
+   "net_effect_primary": -0.06641451517810726
+  },
+  {
+   "layer": 23,
+   "block_mean": 0.006293614705193444,
+   "restore_mean": 0.009621938069328095,
+   "compensation": 0.00795777638726077,
+   "support": -0.00795777638726077,
+   "action": "weak",
+   "same_sign": true,
+   "beyond_random_median": false,
+   "random_rank": 4,
+   "random_compensations": [
+    -0.14676864941862638,
+    -0.010789791743668935,
+    -0.023093382517680748,
+    -0.006087621051587
+   ],
+   "random_median_abs": 0.01694158713067484,
+   "n_random_groups": 4,
+   "block_per_problem": {
+    "math06": -0.005683898925925135,
+    "math07": -0.0062780380247620116,
+    "math08": 0.024784088134389037,
+    "math09": 0.02066898345895396,
+    "math10": -0.011429786682169762,
+    "math11": 0.015700340270674573
+   },
+   "restore_per_problem": {
+    "math06": -0.009662628174080368,
+    "math07": -0.007349967956411518,
+    "math08": 0.03048706054623551,
+    "math09": 0.027236938475716954,
+    "math10": -0.010665893554756778,
+    "math11": 0.02768611907926477
+   },
+   "n_problems": 6,
+   "net_effect_primary": -0.06641451517810726
+  },
+  {
+   "layer": 24,
+   "block_mean": 0.026345252990795782,
+   "restore_mean": 0.027737140655512544,
+   "compensation": 0.027041196823154163,
+   "support": -0.027041196823154163,
+   "action": "compensating",
+   "same_sign": true,
+   "beyond_random_median": true,
+   "random_rank": 2,
+   "random_compensations": [
+    -0.14676864941862638,
+    -0.010789791743668935,
+    -0.023093382517680748,
+    -0.006087621051587
+   ],
+   "random_median_abs": 0.01694158713067484,
+   "n_random_groups": 4,
+   "block_per_problem": {
+    "math06": 0.038018226623472984,
+    "math07": 0.0031881332396164197,
+    "math08": 0.000347137451171875,
+    "math09": 0.0075473785403925575,
+    "math10": 0.047560691833353985,
+    "math11": 0.061409950256766876
+   },
+   "restore_per_problem": {
+    "math06": 0.04197311401355641,
+    "math07": 0.0032882690427982197,
+    "math08": 0.0005350112912925198,
+    "math09": 0.00546455383321387,
+    "math10": 0.051190376281571304,
+    "math11": 0.06397151947064295
+   },
+   "n_problems": 6,
+   "net_effect_primary": -0.06641451517810726
+  },
+  {
+   "layer": 25,
+   "block_mean": 0.08236471811939161,
+   "restore_mean": 0.08938821156831533,
+   "compensation": 0.08587646484385347,
+   "support": -0.08587646484385347,
+   "action": "compensating",
+   "same_sign": true,
+   "beyond_random_median": true,
+   "random_rank": 2,
+   "random_compensations": [
+    -0.14676864941862638,
+    -0.010789791743668935,
+    -0.023093382517680748,
+    -0.006087621051587
+   ],
+   "random_median_abs": 0.01694158713067484,
+   "n_random_groups": 4,
+   "block_per_problem": {
+    "math06": 0.015095710754467362,
+    "math07": 0.0054445266724840735,
+    "math08": 0.16849899292016524,
+    "math09": 0.17440414428715556,
+    "math10": 0.03542709350588957,
+    "math11": 0.09531784057618786
+   },
+   "restore_per_problem": {
+    "math06": 0.018715858459556145,
+    "math07": 0.0053834915162536134,
+    "math08": 0.18134117126501614,
+    "math09": 0.19099807739269714,
+    "math10": 0.0368633270263814,
+    "math11": 0.10302734374998757
+   },
+   "n_problems": 6,
+   "net_effect_primary": -0.06641451517810726
+  },
+  {
+   "layer": 26,
+   "block_mean": -0.008519013723254254,
+   "restore_mean": -0.012174288432375372,
+   "compensation": -0.010346651077814812,
+   "support": 0.010346651077814812,
+   "action": "weak",
+   "same_sign": true,
+   "beyond_random_median": false,
+   "random_rank": 4,
+   "random_compensations": [
+    -0.14676864941862638,
+    -0.010789791743668935,
+    -0.023093382517680748,
+    -0.006087621051587
+   ],
+   "random_median_abs": 0.01694158713067484,
+   "n_random_groups": 4,
+   "block_per_problem": {
+    "math06": 0.0005874633784497263,
+    "math07": 0.018758773803396522,
+    "math08": -0.009252548218709578,
+    "math09": -0.031494140625689226,
+    "math10": -0.00240230560350696,
+    "math11": -0.02731132507346601
+   },
+   "restore_per_problem": {
+    "math06": 0.0007190704340853671,
+    "math07": 0.019311904907107547,
+    "math08": -0.014905929566648268,
+    "math09": -0.04145431518676901,
+    "math10": -0.0027217864991815333,
+    "math11": -0.03399467468284634
+   },
+   "n_problems": 6,
+   "net_effect_primary": -0.06641451517810726
+  },
+  {
+   "layer": 27,
+   "block_mean": -0.006731986999406321,
+   "restore_mean": -0.008160114288059184,
+   "compensation": -0.007446050643732752,
+   "support": 0.007446050643732752,
+   "action": "weak",
+   "same_sign": true,
+   "beyond_random_median": false,
+   "random_rank": 4,
+   "random_compensations": [
+    -0.14676864941862638,
+    -0.010789791743668935,
+    -0.023093382517680748,
+    -0.006087621051587
+   ],
+   "random_median_abs": 0.01694158713067484,
+   "n_random_groups": 4,
+   "block_per_problem": {
+    "math06": -0.005072593688637994,
+    "math07": 0.006821632385577203,
+    "math08": -0.007291793822915338,
+    "math09": -0.014832496643247595,
+    "math10": -0.0019912719723294003,
+    "math11": -0.018025398254884806
+   },
+   "restore_per_problem": {
+    "math06": -0.00603294372494112,
+    "math07": 0.007090568542965414,
+    "math08": -0.009126663207096541,
+    "math09": -0.01879501342767398,
+    "math10": -0.0011005401607135923,
+    "math11": -0.020996093750895284
+   },
+   "n_problems": 6,
+   "net_effect_primary": -0.06641451517810726
+  }
+ ],
+ "dose": {
+  "w+": [
+   {
+    "dose": 0.02,
+    "mean": -0.015996297200805348,
+    "min": -0.05667495727612071,
+    "max": 0.019887924194351925,
+    "n_problems": 6
+   },
+   {
+    "dose": 0.1,
+    "mean": -0.06641451517810726,
+    "min": -0.22917747497770868,
+    "max": 0.07499027252221246,
+    "n_problems": 6
+   },
+   {
+    "dose": 0.25,
+    "mean": -0.1629451115926089,
+    "min": -0.5457372665443412,
+    "max": 0.12045860290826838,
+    "n_problems": 6
+   }
+  ],
+  "w-": [
+   {
+    "dose": 0.02,
+    "mean": 0.01767603556357737,
+    "min": -0.022422790527327763,
+    "max": 0.06286334991560238,
+    "n_problems": 6
+   },
+   {
+    "dose": 0.1,
+    "mean": 0.10387277603792189,
+    "min": -0.1343507766709422,
+    "max": 0.3661718368682614,
+    "n_problems": 6
+   },
+   {
+    "dose": 0.25,
+    "mean": 0.30336825420672575,
+    "min": -0.3726339332903539,
+    "max": 1.0202922901994622,
+    "n_problems": 6
+   }
+  ],
+  "random_primary": -0.020050684610644593,
+  "note": "dose is a fraction of the measured block-input L2 norm at the injection position"
+ },
+ "factorial": {
+  "True_neutral": {
+   "mean": 0.1060969034833595,
+   "min": -0.1393241882312921,
+   "max": 0.5943679809598947,
+   "n_problems": 6
+  },
+  "True_self_check_phrase": {
+   "mean": -0.2597115834550377,
+   "min": -0.7009658813480897,
+   "max": 0.27849197387762814,
+   "n_problems": 6
+  },
+  "False_neutral": {
+   "mean": -0.13528442383060715,
+   "min": -0.4568748474142197,
+   "max": 0.1393127441421953,
+   "n_problems": 6
+  },
+  "False_self_check_phrase": {
+   "mean": 0.023241043089856344,
+   "min": -0.21764755249136414,
+   "max": 0.44503021240235086,
+   "n_problems": 6
+  }
+ },
+ "transfer": {
+  "total": {
+   "mean": 0.12197936296670209,
+   "min": 0.05663390697409909,
+   "max": 0.19457536742915474,
+   "n_problems": 6
+  },
+  "minus_total": {
+   "mean": -0.21718092712382844,
+   "min": -0.30912889188511156,
+   "max": -0.10272871129192396,
+   "n_problems": 6
+  },
+  "raw_marker_lse_delta": {
+   "mean": 0.38811709139077416,
+   "min": 0.25136046956627034,
+   "max": 0.45822112554999883,
+   "n_problems": 6
+  },
+  "block": {
+   "mean": 0.011023182129871856,
+   "min": -0.0031876379602095994,
+   "max": 0.032175541722871515,
+   "n_problems": 6
+  },
+  "restore": {
+   "mean": 0.01851073324088685,
+   "min": -0.0026775327402823734,
+   "max": 0.044574186120276714,
+   "n_problems": 6
+  },
+  "random0_block": {
+   "mean": -0.004596727867690337,
+   "min": -0.02035503825867835,
+   "max": 0.0037947834913509837,
+   "n_problems": 6
+  },
+  "random0_restore": {
+   "mean": -0.007735592013333243,
+   "min": -0.027421203812524553,
+   "max": 0.004810325894073486,
+   "n_problems": 6
+  },
+  "random1_block": {
+   "mean": 0.002682777629915447,
+   "min": -0.008901378467772503,
+   "max": 0.017595405218295685,
+   "n_problems": 6
+  },
+  "random1_restore": {
+   "mean": 0.00032151445960012143,
+   "min": -0.010347511714790869,
+   "max": 0.01979398028418089,
+   "n_problems": 6
+  },
+  "random2_block": {
+   "mean": -0.01394607977161503,
+   "min": -0.02688347355200804,
+   "max": -0.002586716366952402,
+   "n_problems": 6
+  },
+  "random2_restore": {
+   "mean": -0.021700797210231704,
+   "min": -0.03634957924678517,
+   "max": -0.006200422051097831,
+   "n_problems": 6
+  },
+  "random3_block": {
+   "mean": 0.011813157643513872,
+   "min": -0.014635299818795744,
+   "max": 0.03452636863792158,
+   "n_problems": 6
+  },
+  "random3_restore": {
+   "mean": 0.009856671721559252,
+   "min": -0.023368400574497628,
+   "max": 0.03764546857278894,
+   "n_problems": 6
+  }
+ },
+ "readout": {
+  "marker": {
+   "arith_mean": 0.1802,
+   "freq_weighted": 0.18424,
+   "n_ids_positive": 7,
+   "n_ids": 7,
+   "freq_total": 5853,
+   "per_id": [
+    {
+     "id": 7196,
+     "dot": 0.1792,
+     "freq": 1467,
+     "share": 0.2506
+    },
+    {
+     "id": 13824,
+     "dot": 0.18392,
+     "freq": 1234,
+     "share": 0.2108
+    },
+    {
+     "id": 10061,
+     "dot": 0.17768,
+     "freq": 1213,
+     "share": 0.2072
+    },
+    {
+     "id": 6771,
+     "dot": 0.20097,
+     "freq": 1182,
+     "share": 0.2019
+    },
+    {
+     "id": 14190,
+     "dot": 0.18009,
+     "freq": 691,
+     "share": 0.1181
+    },
+    {
+     "id": 80022,
+     "dot": 0.15315,
+     "freq": 39,
+     "share": 0.0067
+    },
+    {
+     "id": 88190,
+     "dot": 0.18639,
+     "freq": 27,
+     "share": 0.0046
+    }
+   ]
+  },
+  "axes": {
+   "confidence": {
+    "label": "高置信 / 低熵",
+    "status": "tautological",
+    "n_layers_beating_control": 3,
+    "n_layers": 3,
+    "per_layer": {
+     "12": {
+      "cos": 0.417,
+      "control_cos": 0.0037,
+      "beats_control": true
+     },
+     "14": {
+      "cos": 0.4125,
+      "control_cos": 0.0114,
+      "beats_control": true
+     },
+     "20": {
+      "cos": 0.3187,
+      "control_cos": 0.0121,
+      "beats_control": true
+     }
+    }
+   },
+   "caution": {
+    "label": "谨慎",
+    "status": "shared_readout",
+    "n_layers_beating_control": 3,
+    "n_layers": 3,
+    "per_layer": {
+     "12": {
+      "cos": 0.3168,
+      "control_cos": 0.0182,
+      "beats_control": true
+     },
+     "14": {
+      "cos": 0.3077,
+      "control_cos": 0.0016,
+      "beats_control": true
+     },
+     "20": {
+      "cos": 0.2092,
+      "control_cos": 0.0141,
+      "beats_control": true
+     }
+    }
+   },
+   "creativity": {
+    "label": "思维块状态",
+    "status": "not_measured",
+    "n_layers_beating_control": 1,
+    "n_layers": 3,
+    "per_layer": {
+     "12": {
+      "cos": 0.0713,
+      "control_cos": 0.0806,
+      "beats_control": false
+     },
+     "14": {
+      "cos": 0.0395,
+      "control_cos": 0.0573,
+      "beats_control": false
+     },
+     "20": {
+      "cos": 0.1418,
+      "control_cos": 0.0536,
+      "beats_control": true
+     }
+    }
+   },
+   "reasoning": {
+    "label": "深推理 / 后期位置",
+    "status": "position_axis",
+    "n_layers_beating_control": 0,
+    "n_layers": 3,
+    "per_layer": {
+     "12": {
+      "cos": 0.3714,
+      "control_cos": 0.6507,
+      "beats_control": false
+     },
+     "14": {
+      "cos": 0.3387,
+      "control_cos": 0.6279,
+      "beats_control": false
+     },
+     "20": {
+      "cos": 0.3266,
+      "control_cos": 0.5786,
+      "beats_control": false
+     }
+    }
+   }
+  },
+  "logit_lens": {
+   "per_layer_mean_p_final": [
+    0.00019,
+    0.0001,
+    0.00013,
+    8e-05,
+    0.00018,
+    0.00023,
+    0.00085,
+    0.00116,
+    0.00214,
+    0.00287,
+    0.00437,
+    0.00838,
+    0.0076,
+    0.01223,
+    0.02292,
+    0.03424,
+    0.03725,
+    0.05845,
+    0.12629,
+    0.22279,
+    0.35454,
+    0.57202,
+    0.69544,
+    0.73377,
+    0.80194,
+    0.86893,
+    0.8904,
+    0.93604
+   ],
+   "n_steps": 1536
+  },
+  "layer_scan": {
+   "headline": "**注入点处一阶预测精确成立，移出注入点即掉进噪声**：L=0…10 的 |实测/预测| 落在 0.0000–0.0939，且 think **逐层变号 4/8 次**、L=20 处与 no_think **异号**。⇒ **不存在「一个衰减倍数」**（硬取单点得 10.65（no_think L=8） / 41.80（think L=27） / 167.21（no_think L=27），极差 15.7 倍）。　⚠ 修订 65：这里原来写的是「17.9 / 29.9 / 228.5」，**前两个是 |实测/预测| 的比值乘了 1000**，而 228.5 复现不出来 ⇒ 已按定义重算并点出各自来自哪一档。`w·U[marker]` 应**在校准点读**：它给出方向在 unembedding 空间里指向什么；在中间层注入后读到的量**与它没有可预测的定量关系**。",
+   "calibration": "L=-1 挂在 model.model.norm 的 **forward hook**（改输出），那里下游是恒等映射，Δlogit = α·(w·lm_head[token]) **精确成立**：预测 +41.8022，实测 think +41.2500（ratio 0.9868）、no_think +41.0000（ratio 0.9808）⇒ 钩子与公式都没错。　⚠ 修订 63：这几个数此前是**手打的**，而源产物里的 `pred_marker_lse` / `calibration_ratio` **没被带进产物** ⇒ 散文里的数在产物里查不到出处。现已把两个字段带进 `rows`，散文改为从它们派生。",
+   "retracted": "「一阶预测被下游 8 层高估约 43 倍」——已撤回。该数把校准点自己的残差与 L=20 的残差混着比，且跳过了符号为负。详见预登记修订 14。",
+   "rows": [
+    {
+     "traj": "aime__aime25__p00__think",
+     "mode": "think",
+     "t": 204,
+     "alpha": 231.97767639160156,
+     "w_dot_hhat": -0.009332,
+     "pred_marker_lse": 41.8022,
+     "calibration_ratio": 0.9868,
+     "by_layer": {
+      "-1": 41.25,
+      "0": 1.0001,
+      "4": -1.4858,
+      "8": 0.5373,
+      "12": 3.5025,
+      "16": 1.2682,
+      "20": -0.75,
+      "24": 0.0,
+      "26": 0.75,
+      "27": 1.0
+     }
+    },
+    {
+     "traj": "aime__aime25__p00__no_think",
+     "mode": "no_think",
+     "t": 252,
+     "alpha": 231.97767639160156,
+     "w_dot_hhat": -0.050668,
+     "pred_marker_lse": 41.8022,
+     "calibration_ratio": 0.9808,
+     "by_layer": {
+      "-1": 41.0,
+      "0": 0.0,
+      "4": -2.5952,
+      "8": -3.9239,
+      "12": 0.0,
+      "16": 0.25,
+      "20": 1.25,
+      "24": 0.5,
+      "26": 0.5,
+      "27": -0.25
+     }
+    }
+   ]
+  }
+ },
+ "readout_atlas": {
+  "best_layer": 21,
+  "best_layer_mean_auc_cos": 0.19912112655790368,
+  "best_layer_mean_auc_cos_oriented": 0.8008788734420964,
+  "best_layer_mean_auc_norm": 0.56317136220015,
+  "best_layer_mean_auc_proj_resid": 0.19273340746704973,
+  "best_layer_orientation": -1,
+  "n_trajectories": 30,
+  "n_marker_total": 384,
+  "n_trajectories_with_orientation": 24,
+  "n_trajectories_negative_orientation": 24,
+  "chance_level": 0.5,
+  "layers": [
+   {
+    "layer": 0,
+    "mean_auc_cos": 0.3408096707080482,
+    "mean_auc_cos_oriented": 0.6929575948366923,
+    "mean_auc_norm": 0.5605613031451789,
+    "mean_auc_proj_resid": 0.32712524455217645,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 1,
+    "mean_auc_cos": 0.384887547964819,
+    "mean_auc_cos_oriented": 0.7226745798538357,
+    "mean_auc_norm": 0.5810413395231175,
+    "mean_auc_proj_resid": 0.4036276304812141,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 2,
+    "mean_auc_cos": 0.3672313113993426,
+    "mean_auc_cos_oriented": 0.72604245065325,
+    "mean_auc_norm": 0.5588230669503065,
+    "mean_auc_proj_resid": 0.36009947201191994,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 3,
+    "mean_auc_cos": 0.3363816609728463,
+    "mean_auc_cos_oriented": 0.6991923669614059,
+    "mean_auc_norm": 0.4750850271307674,
+    "mean_auc_proj_resid": 0.32657022359790083,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 4,
+    "mean_auc_cos": 0.3316548533636227,
+    "mean_auc_cos_oriented": 0.6985870012817491,
+    "mean_auc_norm": 0.5422553373258555,
+    "mean_auc_proj_resid": 0.33172937156868065,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 5,
+    "mean_auc_cos": 0.2976612004846721,
+    "mean_auc_cos_oriented": 0.7204758629683177,
+    "mean_auc_norm": 0.520961932489698,
+    "mean_auc_proj_resid": 0.3122774317740881,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 6,
+    "mean_auc_cos": 0.2602328786783579,
+    "mean_auc_cos_oriented": 0.7480030185247699,
+    "mean_auc_norm": 0.5034649188738346,
+    "mean_auc_proj_resid": 0.2567141174713559,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 7,
+    "mean_auc_cos": 0.26350915661493607,
+    "mean_auc_cos_oriented": 0.7407786176049632,
+    "mean_auc_norm": 0.5486318325777574,
+    "mean_auc_proj_resid": 0.2621763219276269,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 8,
+    "mean_auc_cos": 0.2721572549076556,
+    "mean_auc_cos_oriented": 0.7302198426565734,
+    "mean_auc_norm": 0.5197747371999336,
+    "mean_auc_proj_resid": 0.26937490037877665,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 9,
+    "mean_auc_cos": 0.26236519735438807,
+    "mean_auc_cos_oriented": 0.7430706675557892,
+    "mean_auc_norm": 0.49352970104036437,
+    "mean_auc_proj_resid": 0.26056788393992264,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 10,
+    "mean_auc_cos": 0.2778775100951938,
+    "mean_auc_cos_oriented": 0.730615956787806,
+    "mean_auc_norm": 0.4965475008352609,
+    "mean_auc_proj_resid": 0.2778771967263916,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 11,
+    "mean_auc_cos": 0.27810357714211287,
+    "mean_auc_cos_oriented": 0.7347821343142336,
+    "mean_auc_norm": 0.515060654422813,
+    "mean_auc_proj_resid": 0.2789091342198392,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 12,
+    "mean_auc_cos": 0.27668197544667267,
+    "mean_auc_cos_oriented": 0.7325991272737952,
+    "mean_auc_norm": 0.5135057903198054,
+    "mean_auc_proj_resid": 0.27957715963885194,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 13,
+    "mean_auc_cos": 0.26359071425891206,
+    "mean_auc_cos_oriented": 0.7424619392266463,
+    "mean_auc_norm": 0.5017918126807742,
+    "mean_auc_proj_resid": 0.26542061315979537,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 14,
+    "mean_auc_cos": 0.24408175157687953,
+    "mean_auc_cos_oriented": 0.7601733275580144,
+    "mean_auc_norm": 0.47419844149690465,
+    "mean_auc_proj_resid": 0.2298663249427996,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 15,
+    "mean_auc_cos": 0.2629527259296673,
+    "mean_auc_cos_oriented": 0.7421667308202351,
+    "mean_auc_norm": 0.5834211781692747,
+    "mean_auc_proj_resid": 0.27284091424251056,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 16,
+    "mean_auc_cos": 0.226398670825024,
+    "mean_auc_cos_oriented": 0.773601329174976,
+    "mean_auc_norm": 0.5242964676353522,
+    "mean_auc_proj_resid": 0.24069809502667164,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 17,
+    "mean_auc_cos": 0.27055405634408153,
+    "mean_auc_cos_oriented": 0.7346212967309066,
+    "mean_auc_norm": 0.7113231309995833,
+    "mean_auc_proj_resid": 0.25845470519581326,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 18,
+    "mean_auc_cos": 0.2696147464017726,
+    "mean_auc_cos_oriented": 0.7354115766858701,
+    "mean_auc_norm": 0.6263344730883024,
+    "mean_auc_proj_resid": 0.24107748740765086,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 19,
+    "mean_auc_cos": 0.2517826382614331,
+    "mean_auc_cos_oriented": 0.7531233816344635,
+    "mean_auc_norm": 0.597162863450252,
+    "mean_auc_proj_resid": 0.21296948068177765,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 20,
+    "mean_auc_cos": 0.21373269600824707,
+    "mean_auc_cos_oriented": 0.7868425703524938,
+    "mean_auc_norm": 0.5962332821643158,
+    "mean_auc_proj_resid": 0.1976027505735615,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 21,
+    "mean_auc_cos": 0.19912112655790368,
+    "mean_auc_cos_oriented": 0.8008788734420964,
+    "mean_auc_norm": 0.56317136220015,
+    "mean_auc_proj_resid": 0.19273340746704973,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 22,
+    "mean_auc_cos": 0.20713828596985917,
+    "mean_auc_cos_oriented": 0.7928617140301407,
+    "mean_auc_norm": 0.460200253914173,
+    "mean_auc_proj_resid": 0.22001876403430018,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 23,
+    "mean_auc_cos": 0.21944845743554833,
+    "mean_auc_cos_oriented": 0.7805515425644516,
+    "mean_auc_norm": 0.4166493451996893,
+    "mean_auc_proj_resid": 0.24624231941091498,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 24,
+    "mean_auc_cos": 0.23075376557522487,
+    "mean_auc_cos_oriented": 0.7692462344247751,
+    "mean_auc_norm": 0.3571773224801141,
+    "mean_auc_proj_resid": 0.26188806385131724,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 25,
+    "mean_auc_cos": 0.24136100555650541,
+    "mean_auc_cos_oriented": 0.7586389944434946,
+    "mean_auc_norm": 0.3825755854528478,
+    "mean_auc_proj_resid": 0.2581828554969357,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 26,
+    "mean_auc_cos": 0.23972015998703192,
+    "mean_auc_cos_oriented": 0.7602798400129679,
+    "mean_auc_norm": 0.32532419842647153,
+    "mean_auc_proj_resid": 0.24798589171207383,
+    "n_trajectories_with_both_classes": 24
+   },
+   {
+    "layer": 27,
+    "mean_auc_cos": 0.26262039271964965,
+    "mean_auc_cos_oriented": 0.7610080284139645,
+    "mean_auc_norm": 0.41939688590402363,
+    "mean_auc_proj_resid": 0.29695527180294085,
+    "n_trajectories_with_both_classes": 24
+   }
+  ],
+  "per_marker": {
+   "13824": {
+    "n_occurrences": 34,
+    "n_trajectories": 9,
+    "best_layer": 27,
+    "best_layer_mean_auc_cos": 0.07249584401180463,
+    "best_layer_mean_auc_cos_oriented": 0.9275041559881954,
+    "best_layer_orientation": -1
+   },
+   "14190": {
+    "n_occurrences": 46,
+    "n_trajectories": 12,
+    "best_layer": 19,
+    "best_layer_mean_auc_cos": 0.3690146030448573,
+    "best_layer_mean_auc_cos_oriented": 0.8481399909796742,
+    "best_layer_orientation": -1
+   },
+   "6771": {
+    "n_occurrences": 119,
+    "n_trajectories": 13,
+    "best_layer": 27,
+    "best_layer_mean_auc_cos": 0.1453034586376038,
+    "best_layer_mean_auc_cos_oriented": 0.9284910050772842,
+    "best_layer_orientation": -1
+   },
+   "10061": {
+    "n_occurrences": 70,
+    "n_trajectories": 20,
+    "best_layer": 21,
+    "best_layer_mean_auc_cos": 0.1620198379514877,
+    "best_layer_mean_auc_cos_oriented": 0.855877331144498,
+    "best_layer_orientation": -1
+   },
+   "7196": {
+    "n_occurrences": 105,
+    "n_trajectories": 9,
+    "best_layer": 17,
+    "best_layer_mean_auc_cos": 0.7304946285537465,
+    "best_layer_mean_auc_cos_oriented": 0.7304946285537465,
+    "best_layer_orientation": 1
+   },
+   "88190": {
+    "n_occurrences": 6,
+    "n_trajectories": 5,
+    "best_layer": 18,
+    "best_layer_mean_auc_cos": 0.029650973601501356,
+    "best_layer_mean_auc_cos_oriented": 0.9703490263984987,
+    "best_layer_orientation": -1
+   },
+   "80022": {
+    "n_occurrences": 4,
+    "n_trajectories": 2,
+    "best_layer": 9,
+    "best_layer_mean_auc_cos": 0.019694271751236076,
+    "best_layer_mean_auc_cos_oriented": 0.9803057282487639,
+    "best_layer_orientation": -1
+   }
+  },
+  "scope": "stored float32 hidden states; primary score = cos(h,w) (scale-free), secondary = w.h; label = next generated token is one of 7 marker ids; rank AUC is descriptive, not causal; norm AUC is a confound control"
+ },
+ "construction": {
+  "n_sites": 6,
+  "by_marker": {
+   "7196": {
+    "n_sites": 2,
+    "best_candidate": "gradient",
+    "candidates": {
+     "w": {
+      "mean_delta_logp": -0.008283897947805485,
+      "improved_fraction": 0.5
+     },
+     "minus_w": {
+      "mean_delta_logp": 0.002227254130833245,
+      "improved_fraction": 0.5
+     },
+     "gradient": {
+      "mean_delta_logp": 0.015887083120400547,
+      "improved_fraction": 1.0
+     },
+     "w_plus_gradient": {
+      "mean_delta_logp": 0.015793084400694823,
+      "improved_fraction": 1.0
+     },
+     "w_minus_gradient": {
+      "mean_delta_logp": -3.435514032346763,
+      "improved_fraction": 0.0
+     },
+     "random": {
+      "mean_delta_logp": 0.0010678080589627825,
+      "improved_fraction": 0.5
+     }
+    }
+   },
+   "10061": {
+    "n_sites": 2,
+    "best_candidate": "gradient",
+    "candidates": {
+     "w": {
+      "mean_delta_logp": 0.12540876205800444,
+      "improved_fraction": 1.0
+     },
+     "minus_w": {
+      "mean_delta_logp": -0.3247550097042087,
+      "improved_fraction": 0.0
+     },
+     "gradient": {
+      "mean_delta_logp": 0.3642653563204341,
+      "improved_fraction": 1.0
+     },
+     "w_plus_gradient": {
+      "mean_delta_logp": 0.3526887643698515,
+      "improved_fraction": 1.0
+     },
+     "w_minus_gradient": {
+      "mean_delta_logp": -4.6302484440527145,
+      "improved_fraction": 0.0
+     },
+     "random": {
+      "mean_delta_logp": 0.025194260246543365,
+      "improved_fraction": 1.0
+     }
+    }
+   },
+   "6771": {
+    "n_sites": 2,
+    "best_candidate": "gradient",
+    "candidates": {
+     "w": {
+      "mean_delta_logp": 0.12153565957505563,
+      "improved_fraction": 1.0
+     },
+     "minus_w": {
+      "mean_delta_logp": -0.18218784749718608,
+      "improved_fraction": 0.0
+     },
+     "gradient": {
+      "mean_delta_logp": 0.34194062055393104,
+      "improved_fraction": 1.0
+     },
+     "w_plus_gradient": {
+      "mean_delta_logp": 0.3418334114746173,
+      "improved_fraction": 1.0
+     },
+     "w_minus_gradient": {
+      "mean_delta_logp": -4.289510279858238,
+      "improved_fraction": 0.0
+     },
+     "random": {
+      "mean_delta_logp": 0.0019719828764905856,
+      "improved_fraction": 0.5
+     }
+    }
+   }
+  },
+  "per_site": [
+   {
+    "trajectory": "aime__1989__1989_I_1__think",
+    "marker": 7196,
+    "n_prefix": 140,
+    "baseline_logp": -0.019071501588051376,
+    "candidates": {
+     "w": -0.01780112268006917,
+     "minus_w": 0.010427251738143184,
+     "gradient": 0.019057145229766093,
+     "w_plus_gradient": 0.019055598847238286,
+     "w_minus_gradient": -5.624558792500274,
+     "random": 0.003053623770462366
+    }
+   },
+   {
+    "trajectory": "aime__2022__2022_I_1__think",
+    "marker": 7196,
+    "n_prefix": 189,
+    "baseline_logp": -0.012862696495197667,
+    "candidates": {
+     "w": 0.0012333267844581997,
+     "minus_w": -0.005972743476476694,
+     "gradient": 0.012717021011035001,
+     "w_plus_gradient": 0.01253056995415136,
+     "w_minus_gradient": -1.2464692721932522,
+     "random": -0.0009180076525368008
+    }
+   },
+   {
+    "trajectory": "aime__1989__1989_I_1__no_think",
+    "marker": 10061,
+    "n_prefix": 176,
+    "baseline_logp": -0.6106826508043781,
+    "candidates": {
+     "w": 0.17903563815915646,
+     "minus_w": -0.2985175989348505,
+     "gradient": 0.6037230740017279,
+     "w_plus_gradient": 0.5846412759150823,
+     "w_minus_gradient": -2.345014110387943,
+     "random": 0.01397600806316035
+    }
+   },
+   {
+    "trajectory": "aime__2002__2002_I_1__think",
+    "marker": 10061,
+    "n_prefix": 234,
+    "baseline_logp": -0.12576194598965174,
+    "candidates": {
+     "w": 0.07178188595685242,
+     "minus_w": -0.3509924204735668,
+     "gradient": 0.12480763863914035,
+     "w_plus_gradient": 0.12073625282462075,
+     "w_minus_gradient": -6.915482777717486,
+     "random": 0.03641251242992638
+    }
+   },
+   {
+    "trajectory": "aime__1986__1986_I_1__think",
+    "marker": 6771,
+    "n_prefix": 132,
+    "baseline_logp": -0.6838870699542525,
+    "candidates": {
+     "w": 0.24306843420411894,
+     "minus_w": -0.36435258307872687,
+     "gradient": 0.6838777888978598,
+     "w_plus_gradient": 0.6836633859238859,
+     "w_minus_gradient": -8.537234286265523,
+     "random": 0.0039448025233213
+    }
+   },
+   {
+    "trajectory": "aime__1989__1989_I_1__think",
+    "marker": 6771,
+    "n_prefix": 153,
+    "baseline_logp": -3.517432610067317e-06,
+    "candidates": {
+     "w": 2.8849459923208087e-06,
+     "minus_w": -2.3111915645301906e-05,
+     "gradient": 3.4522100023082203e-06,
+     "w_plus_gradient": 3.437025348773659e-06,
+     "w_minus_gradient": -0.04178627345095265,
+     "random": -8.367703401290782e-07
+    }
+   }
+  ],
+  "alpha_rule": "0.1 * measured block-20 input L2 norm at the last prefix position",
+  "scope": "local white-box probe on short AIME prefixes; f = log p(marker next-token); candidate directions are evaluated at the same alpha = 0.1 * block-20 input norm"
+ },
+ "steering_transfer": {
+  "n_sites": 6,
+  "by_marker": {
+   "7196": {
+    "w": {
+     "mean_delta_logp": 0.10258783211886424,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "minus_w": {
+     "mean_delta_logp": -0.240613084501625,
+     "improved_fraction": 0.0,
+     "n_sites": 2
+    },
+    "g_mean": {
+     "mean_delta_logp": 0.6514368152677186,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "g_sparse": {
+     "mean_delta_logp": 0.6113264315143034,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "random": {
+     "mean_delta_logp": 0.02957283703371516,
+     "improved_fraction": 0.5,
+     "n_sites": 2
+    },
+    "oracle_per_site_gradient": {
+     "mean_delta_logp": 0.6685815391965555,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    }
+   },
+   "10061": {
+    "w": {
+     "mean_delta_logp": 0.019217301436508905,
+     "improved_fraction": 0.5,
+     "n_sites": 2
+    },
+    "minus_w": {
+     "mean_delta_logp": -0.12162077399540294,
+     "improved_fraction": 0.0,
+     "n_sites": 2
+    },
+    "g_mean": {
+     "mean_delta_logp": 0.43629341961218415,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "g_sparse": {
+     "mean_delta_logp": 0.3800734794972769,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "random": {
+     "mean_delta_logp": -0.02789701590100435,
+     "improved_fraction": 0.0,
+     "n_sites": 2
+    },
+    "oracle_per_site_gradient": {
+     "mean_delta_logp": 0.4728574561429788,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    }
+   },
+   "6771": {
+    "w": {
+     "mean_delta_logp": 0.1313587823846767,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "minus_w": {
+     "mean_delta_logp": -0.49544294529987454,
+     "improved_fraction": 0.0,
+     "n_sites": 2
+    },
+    "g_mean": {
+     "mean_delta_logp": 0.19575209990508924,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "g_sparse": {
+     "mean_delta_logp": 0.19417413545007278,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "random": {
+     "mean_delta_logp": 0.04588690467909018,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "oracle_per_site_gradient": {
+     "mean_delta_logp": 0.19594052958552766,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    }
+   }
+  },
+  "cross": {
+   "7196": {
+    "10061": {
+     "mean_delta_logp": -0.45743456430204077,
+     "improved_fraction": 0.5,
+     "n_sites": 2
+    },
+    "6771": {
+     "mean_delta_logp": -5.710840197924448,
+     "improved_fraction": 0.0,
+     "n_sites": 2
+    }
+   },
+   "10061": {
+    "7196": {
+     "mean_delta_logp": 0.3171929260584392,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "6771": {
+     "mean_delta_logp": 0.1952410279195398,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    }
+   },
+   "6771": {
+    "7196": {
+     "mean_delta_logp": 0.25761550768039854,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    },
+    "10061": {
+     "mean_delta_logp": 0.30849202717065793,
+     "improved_fraction": 1.0,
+     "n_sites": 2
+    }
+   }
+  },
+  "alpha_rule": "0.1 * measured block-20 input L2 norm at the last prefix position",
+  "scope": "held-out transfer of gradient-derived directions on short AIME prefixes; calibration and held-out sites are disjoint per marker; cross cells evaluate a source marker's mean gradient on a target marker's held-out site"
+ },
+ "steering_sweep": {
+  "n_sites": 6,
+  "by_marker": {
+   "7196": {
+    "directions": {
+     "w": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.02917027326443089,
+       "mean_kl": 0.0019554519102580616,
+       "mean_delta_entropy": -0.03410212444985644,
+       "mean_delta_other_marker_mass": 1.0216865730032674e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.06402903133103205,
+       "mean_kl": 0.011364562028488828,
+       "mean_delta_entropy": -0.08389198766777145,
+       "mean_delta_other_marker_mass": 3.640490607615131e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.10258801994681754,
+       "mean_kl": 0.040128036865571544,
+       "mean_delta_entropy": -0.1602431772330279,
+       "mean_delta_other_marker_mass": 1.3842744756573236e-10,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.1308479706579331,
+       "mean_kl": 0.12700968105932764,
+       "mean_delta_entropy": -0.2864656442418733,
+       "mean_delta_other_marker_mass": 1.3823649352344566e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": 0.1243011642302136,
+       "mean_kl": 0.23909827710253911,
+       "mean_delta_entropy": -0.3880342322017185,
+       "mean_delta_other_marker_mass": 1.204730285260681e-07,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": -0.08698998004098268,
+       "mean_kl": 0.708178159361285,
+       "mean_delta_entropy": -0.08112862678592214,
+       "mean_delta_other_marker_mass": 0.004140442239139244,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      }
+     ],
+     "minus_w": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": -0.03451647450355713,
+       "mean_kl": 0.002146154079795748,
+       "mean_delta_entropy": 0.03411722946386503,
+       "mean_delta_other_marker_mass": -6.639303598717132e-12,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": -0.09773867243285408,
+       "mean_kl": 0.014395918529803415,
+       "mean_delta_entropy": 0.08371130533576088,
+       "mean_delta_other_marker_mass": -1.2453532687760244e-11,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": -0.24061289667295813,
+       "mean_kl": 0.06513217867314189,
+       "mean_delta_entropy": 0.15408019184974825,
+       "mean_delta_other_marker_mass": -1.6600776688792047e-11,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": -0.7325304996906146,
+       "mean_kl": 0.3391879033368917,
+       "mean_delta_entropy": 0.17667518337860572,
+       "mean_delta_other_marker_mass": -1.8584512971569056e-11,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": -2.0481568946075885,
+       "mean_kl": 1.3916568184915872,
+       "mean_delta_entropy": 0.03737008168615058,
+       "mean_delta_other_marker_mass": -1.890161915013517e-11,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": -12.564326690643096,
+       "mean_kl": 11.352905471174914,
+       "mean_delta_entropy": -0.700832456081911,
+       "mean_delta_other_marker_mass": -1.8971858387272272e-11,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      }
+     ],
+     "mean_g": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.34952251705004883,
+       "mean_kl": 0.14661324312369012,
+       "mean_delta_entropy": -0.3871187638110196,
+       "mean_delta_other_marker_mass": -1.3145829649361384e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.5633006849992852,
+       "mean_kl": 0.6719495984904252,
+       "mean_delta_entropy": -0.8008827530022427,
+       "mean_delta_other_marker_mass": -1.8190704614314235e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.6514370031044979,
+       "mean_kl": 1.7780566557067226,
+       "mean_delta_entropy": -1.0968297160294587,
+       "mean_delta_other_marker_mass": -1.8947215894864134e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.6633167258012758,
+       "mean_kl": 4.07500118832256,
+       "mean_delta_entropy": -1.1660637723564338,
+       "mean_delta_other_marker_mass": -1.8973732679362968e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": 0.6386626810020428,
+       "mean_kl": 6.347674076376037,
+       "mean_delta_entropy": -1.0893046563766573,
+       "mean_delta_other_marker_mass": -1.8973849301970447e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": 0.5285361189302731,
+       "mean_kl": 9.566468033602284,
+       "mean_delta_entropy": -0.9027054182451258,
+       "mean_delta_other_marker_mass": -1.8973852242717062e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      }
+     ],
+     "sparse_g": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.2639160135103816,
+       "mean_kl": 0.0733791164139169,
+       "mean_delta_entropy": -0.2675638387499889,
+       "mean_delta_other_marker_mass": -1.1485036600336362e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.47570704639639605,
+       "mean_kl": 0.3661012626456574,
+       "mean_delta_entropy": -0.6023854884485577,
+       "mean_delta_other_marker_mass": -1.7277850830689497e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.6113266193495287,
+       "mean_kl": 1.056728204323123,
+       "mean_delta_entropy": -0.9424664436175476,
+       "mean_delta_other_marker_mass": -1.8835845155803445e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.6616481785559959,
+       "mean_kl": 2.566619320069469,
+       "mean_delta_entropy": -1.148882440457146,
+       "mean_delta_other_marker_mass": -1.8971945972769785e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": 0.6624859162189197,
+       "mean_kl": 4.022852807570145,
+       "mean_delta_entropy": -1.1614549281743365,
+       "mean_delta_other_marker_mass": -1.8973763935623055e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": 0.6417708548067448,
+       "mean_kl": 6.5315117737857875,
+       "mean_delta_entropy": -1.097574375832327,
+       "mean_delta_other_marker_mass": -1.897384909880018e-11,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      }
+     ],
+     "random": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.007840317599296487,
+       "mean_kl": 0.000424247397134709,
+       "mean_delta_entropy": -0.018080182152812374,
+       "mean_delta_other_marker_mass": -1.3769160129188303e-12,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.017664768226300726,
+       "mean_kl": 0.0025402916941424697,
+       "mean_delta_entropy": -0.044631516384182335,
+       "mean_delta_other_marker_mass": -3.27129852707225e-12,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.02957302486252275,
+       "mean_kl": 0.009507003270007338,
+       "mean_delta_entropy": -0.08688953488834367,
+       "mean_delta_other_marker_mass": -5.975468675051339e-12,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.04072749387191636,
+       "mean_kl": 0.034190986486401315,
+       "mean_delta_entropy": -0.16232369222515458,
+       "mean_delta_other_marker_mass": -9.794259306291984e-12,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": 0.042371551652208406,
+       "mean_kl": 0.07152968165854454,
+       "mean_delta_entropy": -0.2243602484940777,
+       "mean_delta_other_marker_mass": -1.1941274324092375e-11,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": 0.050489220357470915,
+       "mean_kl": 0.18251072112494618,
+       "mean_delta_entropy": -0.30945521138530796,
+       "mean_delta_other_marker_mass": -1.3467466879849843e-11,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      }
+     ]
+    },
+    "useful_window": {
+     "direction": "sparse_g",
+     "dose": 0.02,
+     "mean_delta_logp": 0.2639160135103816,
+     "mean_kl": 0.0733791164139169,
+     "kl_threshold": 0.1
+    }
+   },
+   "10061": {
+    "directions": {
+     "w": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.008714999830507136,
+       "mean_kl": 0.0016718593472042258,
+       "mean_delta_entropy": -0.01460723122959423,
+       "mean_delta_other_marker_mass": -6.629712388117071e-10,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.016511236667306167,
+       "mean_kl": 0.009592857898173178,
+       "mean_delta_entropy": -0.02951565800003153,
+       "mean_delta_other_marker_mass": -1.569320684849989e-09,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.019217507746315587,
+       "mean_kl": 0.0337384134663799,
+       "mean_delta_entropy": -0.04054514058983155,
+       "mean_delta_other_marker_mass": -2.5640064481899847e-09,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.0019439321985032232,
+       "mean_kl": 0.10871595636706283,
+       "mean_delta_entropy": -0.02317737540183029,
+       "mean_delta_other_marker_mass": -1.8574598829474495e-09,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": -0.030676595362244485,
+       "mean_kl": 0.20738571888059623,
+       "mean_delta_entropy": 0.04016610928596159,
+       "mean_delta_other_marker_mass": 3.5126552264109078e-09,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": -0.1559405353623974,
+       "mean_kl": 0.49492390965889926,
+       "mean_delta_entropy": 0.16275661709124034,
+       "mean_delta_other_marker_mass": 3.189223284380715e-08,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      }
+     ],
+     "minus_w": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": -0.012262429820262821,
+       "mean_kl": 0.001903985409381709,
+       "mean_delta_entropy": 0.019266559620076118,
+       "mean_delta_other_marker_mass": 6.337970055988806e-10,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": -0.03947613996417501,
+       "mean_kl": 0.013337804339495078,
+       "mean_delta_entropy": 0.05896238905958612,
+       "mean_delta_other_marker_mass": 1.3171616202582547e-09,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": -0.12162056768939938,
+       "mean_kl": 0.06757666380061435,
+       "mean_delta_entropy": 0.15881027751517568,
+       "mean_delta_other_marker_mass": 3.7996344661688244e-10,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": -0.6604599923163623,
+       "mean_kl": 0.5252811397177279,
+       "mean_delta_entropy": 0.2970445833777292,
+       "mean_delta_other_marker_mass": -2.0515464913934565e-08,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": -2.395401365652635,
+       "mean_kl": 2.0490047154674964,
+       "mean_delta_entropy": -0.14373869510998066,
+       "mean_delta_other_marker_mass": -3.174127382210681e-08,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": -11.92966660048222,
+       "mean_kl": 11.321601932204592,
+       "mean_delta_entropy": -0.027002405655487283,
+       "mean_delta_other_marker_mass": 2.2083808755177244e-07,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      }
+     ],
+     "mean_g": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.20047669594214093,
+       "mean_kl": 0.08508488689581722,
+       "mean_delta_entropy": -0.277531532799136,
+       "mean_delta_other_marker_mass": 1.065603550545182e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.33910892569514695,
+       "mean_kl": 0.3719491226999784,
+       "mean_delta_entropy": -0.49975584334908757,
+       "mean_delta_other_marker_mass": 1.4172243844959818e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.4362936259265928,
+       "mean_kl": 1.0283104261525282,
+       "mean_delta_entropy": -0.6951810643759377,
+       "mean_delta_other_marker_mass": 1.4275111877301967e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.4726382897426912,
+       "mean_kl": 2.669217178640097,
+       "mean_delta_entropy": -0.8287445968469778,
+       "mean_delta_other_marker_mass": 2.673313907236168e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": 0.47369633636014824,
+       "mean_kl": 4.156736010875749,
+       "mean_delta_entropy": -0.8367407422074138,
+       "mean_delta_other_marker_mass": 1.0266312394899215e-07,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": 0.4737019921549312,
+       "mean_kl": 5.881369702408732,
+       "mean_delta_entropy": -0.8368171555245446,
+       "mean_delta_other_marker_mass": 1.6520261764783603e-06,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      }
+     ],
+     "sparse_g": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.14856582717719943,
+       "mean_kl": 0.042345697791222395,
+       "mean_delta_entropy": -0.20126085130498664,
+       "mean_delta_other_marker_mass": 9.667778226223763e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.27315518591311855,
+       "mean_kl": 0.20372184210626593,
+       "mean_delta_entropy": -0.3999012127753736,
+       "mean_delta_other_marker_mass": 1.7145125658095468e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.3800736858107855,
+       "mean_kl": 0.5875185770187803,
+       "mean_delta_entropy": -0.5759966254734554,
+       "mean_delta_other_marker_mass": 2.330130969409481e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.45862092135387855,
+       "mean_kl": 1.5970727720776212,
+       "mean_delta_entropy": -0.7661594943105741,
+       "mean_delta_other_marker_mass": 4.142013164803601e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": 0.47230983665864734,
+       "mean_kl": 2.6847970375717276,
+       "mean_delta_entropy": -0.8268515798560911,
+       "mean_delta_other_marker_mass": 1.0634018617776609e-07,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": 0.47369475564711105,
+       "mean_kl": 4.651170169645021,
+       "mean_delta_entropy": -0.8367429641094282,
+       "mean_delta_other_marker_mass": 8.795464110770202e-07,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      }
+     ],
+     "random": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": -0.004992625670858092,
+       "mean_kl": 7.843061638848585e-05,
+       "mean_delta_entropy": 0.00023918762151831086,
+       "mean_delta_other_marker_mass": 5.415436364886698e-10,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": -0.013049864493236168,
+       "mean_kl": 0.000510098109431888,
+       "mean_delta_entropy": 0.0010764582309800708,
+       "mean_delta_other_marker_mass": 1.5041133728174132e-09,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": -0.02789680959322713,
+       "mean_kl": 0.0022178551641951075,
+       "mean_delta_entropy": 0.0036007797474151837,
+       "mean_delta_other_marker_mass": 3.619833492470705e-09,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": -0.06357506862570791,
+       "mean_kl": 0.010999230967782773,
+       "mean_delta_entropy": 0.013254313891266745,
+       "mean_delta_other_marker_mass": 1.0562249784879723e-08,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": -0.10993521802547446,
+       "mean_kl": 0.03143895964740548,
+       "mean_delta_entropy": 0.031058795184024046,
+       "mean_delta_other_marker_mass": 2.235376583987973e-08,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": -0.25010627636132765,
+       "mean_kl": 0.12794054512095213,
+       "mean_delta_entropy": 0.09785720222764777,
+       "mean_delta_other_marker_mass": 6.439509013093615e-08,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      }
+     ]
+    },
+    "useful_window": {
+     "direction": "mean_g",
+     "dose": 0.02,
+     "mean_delta_logp": 0.20047669594214093,
+     "mean_kl": 0.08508488689581722,
+     "kl_threshold": 0.1
+    }
+   },
+   "6771": {
+    "directions": {
+     "w": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.04221179375306357,
+       "mean_kl": 0.005016981249887568,
+       "mean_delta_entropy": -0.04719307401469419,
+       "mean_delta_other_marker_mass": 9.88639705165886e-10,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.08713768211646601,
+       "mean_kl": 0.026957630030564714,
+       "mean_delta_entropy": -0.1164898297836579,
+       "mean_delta_other_marker_mass": 2.4393420245747065e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.13135887575103516,
+       "mean_kl": 0.08500759119687026,
+       "mean_delta_entropy": -0.21274994727848062,
+       "mean_delta_other_marker_mass": 5.3729222870971e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.16832301939828612,
+       "mean_kl": 0.22623497472439608,
+       "mean_delta_entropy": -0.32862352900459635,
+       "mean_delta_other_marker_mass": 1.582815672526963e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": 0.18136320927724103,
+       "mean_kl": 0.36741758149919035,
+       "mean_delta_entropy": -0.3834588690233074,
+       "mean_delta_other_marker_mass": 3.705973759355298e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": 0.18947226075120957,
+       "mean_kl": 0.6214969687542504,
+       "mean_delta_entropy": -0.42483946446196863,
+       "mean_delta_other_marker_mass": 1.6371874297610277e-07,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      }
+     ],
+     "minus_w": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": -0.05572913009908238,
+       "mean_kl": 0.006151701037553922,
+       "mean_delta_entropy": 0.043252276239099746,
+       "mean_delta_other_marker_mass": -1.1076709910399036e-09,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": -0.17336492313022125,
+       "mean_kl": 0.044521039178739126,
+       "mean_delta_entropy": 0.08775718035832641,
+       "mean_delta_other_marker_mass": -3.164753631344947e-09,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": -0.4954428519349755,
+       "mean_kl": 0.21916674048343052,
+       "mean_delta_entropy": 0.06503785132764137,
+       "mean_delta_other_marker_mass": -7.70566505992386e-09,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": -1.7512392920518436,
+       "mean_kl": 1.0980235700372218,
+       "mean_delta_entropy": -0.13388212864581825,
+       "mean_delta_other_marker_mass": -1.2979075146900409e-08,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": -3.4730570621082135,
+       "mean_kl": 2.3862701186154975,
+       "mean_delta_entropy": -0.04365630823498301,
+       "mean_delta_other_marker_mass": 6.483367061155217e-10,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": -23.0537111060339,
+       "mean_kl": 21.930899854689898,
+       "mean_delta_entropy": -0.2736394260485152,
+       "mean_delta_other_marker_mass": -3.056212891237552e-08,
+       "improved_fraction": 0.0,
+       "n_sites": 2
+      }
+     ],
+     "mean_g": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.14859587058129414,
+       "mean_kl": 0.11335729597249602,
+       "mean_delta_entropy": -0.2776558055038102,
+       "mean_delta_other_marker_mass": -8.420675388830983e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.19045160417200102,
+       "mean_kl": 0.45035326791619623,
+       "mean_delta_entropy": -0.43171760920001534,
+       "mean_delta_other_marker_mass": -1.4619963775530879e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.19575219327482538,
+       "mean_kl": 1.054256636512344,
+       "mean_delta_entropy": -0.46424357740570354,
+       "mean_delta_other_marker_mass": -1.7919014046355537e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.19594024804818228,
+       "mean_kl": 2.10074787341123,
+       "mean_delta_entropy": -0.4660441096730143,
+       "mean_delta_other_marker_mass": -2.9481322216686315e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": 0.19594085567303152,
+       "mean_kl": 2.416138429594718,
+       "mean_delta_entropy": -0.4660518463626834,
+       "mean_delta_other_marker_mass": 1.2157728674723323e-07,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": 0.19575651705280284,
+       "mean_kl": 2.5905145608354934,
+       "mean_delta_entropy": -0.46438866415418667,
+       "mean_delta_other_marker_mass": 4.040442085799106e-06,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      }
+     ],
+     "sparse_g": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.11802466269285887,
+       "mean_kl": 0.054671767652150025,
+       "mean_delta_entropy": -0.20099827258244748,
+       "mean_delta_other_marker_mass": -6.407928656427918e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.17733454286599734,
+       "mean_kl": 0.24795525243379996,
+       "mean_delta_entropy": -0.3740541743982315,
+       "mean_delta_other_marker_mass": -1.2074986682619317e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.19417422881917812,
+       "mean_kl": 0.638855279588711,
+       "mean_delta_entropy": -0.4530380620853129,
+       "mean_delta_other_marker_mass": -1.6316803760322184e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.19591954991379476,
+       "mean_kl": 1.4060900787171653,
+       "mean_delta_entropy": -0.46580130314142176,
+       "mean_delta_other_marker_mass": -1.7955716664708372e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": 0.1959407900217341,
+       "mean_kl": 2.0675726164584116,
+       "mean_delta_entropy": -0.46605107644115873,
+       "mean_delta_other_marker_mass": -1.3463445127536997e-08,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": 0.19594134707414762,
+       "mean_kl": 2.64382826519976,
+       "mean_delta_entropy": -0.4660593874014236,
+       "mean_delta_other_marker_mass": -7.455474054814619e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      }
+     ],
+     "random": [
+      {
+       "dose": 0.02,
+       "mean_delta_logp": 0.011198849982729497,
+       "mean_kl": 0.0006020151052260812,
+       "mean_delta_entropy": -0.008369255920635976,
+       "mean_delta_other_marker_mass": 4.933524824715148e-10,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.05,
+       "mean_delta_logp": 0.025915134269039374,
+       "mean_kl": 0.0035592558963817075,
+       "mean_delta_entropy": -0.021390459206238596,
+       "mean_delta_other_marker_mass": 1.4128183611017084e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.1,
+       "mean_delta_logp": 0.045886998045324104,
+       "mean_kl": 0.012967238180568764,
+       "mean_delta_entropy": -0.0435677935576593,
+       "mean_delta_other_marker_mass": 3.421751217829631e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.2,
+       "mean_delta_logp": 0.0733072916866068,
+       "mean_kl": 0.04273423861737759,
+       "mean_delta_entropy": -0.0846521753185905,
+       "mean_delta_other_marker_mass": 9.263684711483935e-09,
+       "improved_fraction": 1.0,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.3,
+       "mean_delta_logp": 0.08891128525266802,
+       "mean_kl": 0.07854696532318028,
+       "mean_delta_entropy": -0.11434241740740254,
+       "mean_delta_other_marker_mass": 1.7829522799106855e-08,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      },
+      {
+       "dose": 0.5,
+       "mean_delta_logp": 0.09492017684447526,
+       "mean_kl": 0.14548224626485018,
+       "mean_delta_entropy": -0.12745452070548755,
+       "mean_delta_other_marker_mass": 5.1236229886331934e-08,
+       "improved_fraction": 0.5,
+       "n_sites": 2
+      }
+     ]
+    },
+    "useful_window": {
+     "direction": "w",
+     "dose": 0.1,
+     "mean_delta_logp": 0.13135887575103516,
+     "mean_kl": 0.08500759119687026,
+     "kl_threshold": 0.1
+    }
+   }
+  },
+  "doses": [
+   0.02,
+   0.05,
+   0.1,
+   0.2,
+   0.3,
+   0.5
+  ],
+  "kl_threshold": 0.1,
+  "scope": "alpha sweep and KL/entropy/other-marker side effects on held-out marker sites; calibration sites build mean g; doses are fractions of block-20 input norm"
+ },
+ "steering_recipe": {
+  "n_markers": 3,
+  "markers": {
+   "7196": {
+    "readout": {
+     "best_layer": 17,
+     "raw_cos_auc": 0.7304946285537465,
+     "orientation": 1
+    },
+    "heldout_transfer": {
+     "w": 0.10258783211886424,
+     "mean_g": 0.6514368152677186,
+     "sparse_g": 0.6113264315143034,
+     "oracle": 0.6685815391965555,
+     "n_sites": 2
+    },
+    "compiled": {
+     "direction": "sparse_g",
+     "dose": 0.02,
+     "file": "experiments/steering_recipe_v1/vectors/7196_sparse_g.npy",
+     "public_url": "/latent/data/steering_recipes/7196_sparse_g.npy",
+     "expected_delta_logp": 0.2639160135103816,
+     "expected_kl": 0.0733791164139169
+    },
+    "verification": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.2639160135103816,
+     "mean_kl": 0.0733791164139169,
+     "sites": [
+      {
+       "trajectory": "aime__1989__1989_I_1__think",
+       "t": 112,
+       "n_prefix": 212,
+       "dose": 0.02,
+       "alpha": 14.620576171875001,
+       "delta_logp": 0.2003912542955237,
+       "kl": 0.10558997341292277,
+       "target_probability": 0.8955989814463129,
+       "other_marker_mass": 1.3984118114399978e-13
+      },
+      {
+       "trajectory": "aime__1989__1989_I_1__think",
+       "t": 241,
+       "n_prefix": 341,
+       "dose": 0.02,
+       "alpha": 14.143546142578126,
+       "delta_logp": 0.3274407727252394,
+       "kl": 0.04116825941491101,
+       "target_probability": 0.49288482691081253,
+       "other_marker_mass": 1.4837790467813302e-11
+      }
+     ]
+    },
+    "caveats": [
+     "local white-box recipe on short AIME prefixes; single model, layer 20, one alpha grid",
+     "held-out verification uses the same two held-out sites per marker as the transfer; it is not an independent third split",
+     "mean g / sparse g are numerical directions, not semantic vectors; high doses can be off-manifold",
+     "the useful window is chosen by a mean-KL budget, not by correctness on a downstream task"
+    ]
+   },
+   "10061": {
+    "readout": {
+     "best_layer": 21,
+     "raw_cos_auc": 0.1620198379514877,
+     "orientation": -1
+    },
+    "heldout_transfer": {
+     "w": 0.019217301436508905,
+     "mean_g": 0.43629341961218415,
+     "sparse_g": 0.3800734794972769,
+     "oracle": 0.4728574561429788,
+     "n_sites": 2
+    },
+    "compiled": {
+     "direction": "mean_g",
+     "dose": 0.02,
+     "file": "experiments/steering_recipe_v1/vectors/10061_mean_g.npy",
+     "public_url": "/latent/data/steering_recipes/10061_mean_g.npy",
+     "expected_delta_logp": 0.20047669594214093,
+     "expected_kl": 0.08508488689581722
+    },
+    "verification": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.20047669594214093,
+     "mean_kl": 0.08508488689581722,
+     "sites": [
+      {
+       "trajectory": "aime__1989__1989_I_1__think",
+       "t": 143,
+       "n_prefix": 243,
+       "dose": 0.02,
+       "alpha": 16.721409912109376,
+       "delta_logp": 0.21425780113965637,
+       "kl": 0.14599457949689426,
+       "target_probability": 0.9190279089754432,
+       "other_marker_mass": 1.0724423052700581e-07
+      },
+      {
+       "trajectory": "aime__2020__2020_I_1__no_think",
+       "t": 150,
+       "n_prefix": 263,
+       "dose": 0.02,
+       "alpha": 15.30716796875,
+       "delta_logp": 0.1866955907446255,
+       "kl": 0.02417519429474018,
+       "target_probability": 0.6299902831347387,
+       "other_marker_mass": 6.019772157780269e-09
+      }
+     ]
+    },
+    "caveats": [
+     "local white-box recipe on short AIME prefixes; single model, layer 20, one alpha grid",
+     "held-out verification uses the same two held-out sites per marker as the transfer; it is not an independent third split",
+     "mean g / sparse g are numerical directions, not semantic vectors; high doses can be off-manifold",
+     "the useful window is chosen by a mean-KL budget, not by correctness on a downstream task"
+    ]
+   },
+   "6771": {
+    "readout": {
+     "best_layer": 27,
+     "raw_cos_auc": 0.1453034586376038,
+     "orientation": -1
+    },
+    "heldout_transfer": {
+     "w": 0.1313587823846767,
+     "mean_g": 0.19575209990508924,
+     "sparse_g": 0.19417413545007278,
+     "oracle": 0.19594052958552766,
+     "n_sites": 2
+    },
+    "compiled": {
+     "direction": "w",
+     "dose": 0.1,
+     "file": "experiments/steering_recipe_v1/vectors/6771_w.npy",
+     "public_url": "/latent/data/steering_recipes/6771_w.npy",
+     "expected_delta_logp": 0.13135887575103516,
+     "expected_kl": 0.08500759119687026
+    },
+    "verification": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.13135887575103516,
+     "mean_kl": 0.08500759119687026,
+     "sites": [
+      {
+       "trajectory": "aime__2002__2002_I_1__think",
+       "t": 35,
+       "n_prefix": 156,
+       "dose": 0.1,
+       "alpha": 72.24703979492188,
+       "delta_logp": 0.01047326660220494,
+       "kl": 0.003987813651599638,
+       "target_probability": 0.9832186511379157,
+       "other_marker_mass": 2.9502390190180334e-08
+      },
+      {
+       "trajectory": "aime__2020__2020_I_1__think",
+       "t": 68,
+       "n_prefix": 177,
+       "dose": 0.1,
+       "alpha": 74.41024169921876,
+       "delta_logp": 0.2522444848998654,
+       "kl": 0.16602736874214089,
+       "target_probability": 0.8938283431410041,
+       "other_marker_mass": 4.236772103025281e-08
+      }
+     ]
+    },
+    "caveats": [
+     "local white-box recipe on short AIME prefixes; single model, layer 20, one alpha grid",
+     "held-out verification uses the same two held-out sites per marker as the transfer; it is not an independent third split",
+     "mean g / sparse g are numerical directions, not semantic vectors; high doses can be off-manifold",
+     "the useful window is chosen by a mean-KL budget, not by correctness on a downstream task"
+    ]
+   }
+  },
+  "source_hashes": {
+   "atlas": "86c12c8279c4530747b0130d3ac0f2adc6a55b14423b68f6cbe0057ec4fd0223",
+   "transfer": "735ad794d12fc435c6a1ca636faf21a799eb2d9df70aee22c4096c4e2fdc73b1",
+   "sweep": "2c696560172def08ab622a11d54d915bc78a228e4b986777d6e6a0e9f977b484",
+   "vector": "6ef6df33e2cb22d647594d7d9f0b371e7bec8c9a0cd25741095b7fe26a890c16"
+  },
+  "scope": "compiled per-marker recipes combining readout atlas, held-out transfer, alpha/KL sweep, and one held-out verification run"
+ },
+ "units": {
+  "n_selected": 256,
+  "per_layer": [
+   {
+    "layer": 20,
+    "n": 32,
+    "score_mean": 4.5746211579540965,
+    "score_min": 3.1482769991254713,
+    "score_max": 8.604093555227337,
+    "baseline_magnitude_mean": 5.199240283109248,
+    "column_norm_mean": 1.6252271197736263,
+    "top_units": [
+     {
+      "unit": 1850,
+      "score": 8.604093555227337,
+      "baseline_magnitude": 5.2086286544799805,
+      "column_norm": 1.8925867080688477
+     },
+     {
+      "unit": 4701,
+      "score": 7.297217780208712,
+      "baseline_magnitude": 7.664567947387695,
+      "column_norm": 1.1948819160461426
+     },
+     {
+      "unit": 5239,
+      "score": 7.242329715114863,
+      "baseline_magnitude": 0.4127185046672821,
+      "column_norm": 1.4888345003128052
+     },
+     {
+      "unit": 2226,
+      "score": 6.751568887099495,
+      "baseline_magnitude": 3.273038625717163,
+      "column_norm": 2.5167429447174072
+     },
+     {
+      "unit": 4675,
+      "score": 6.223276417341367,
+      "baseline_magnitude": 6.620254993438721,
+      "column_norm": 1.7425873279571533
+     },
+     {
+      "unit": 5746,
+      "score": 5.506866078197675,
+      "baseline_magnitude": 9.165594100952148,
+      "column_norm": 1.9799487590789795
+     },
+     {
+      "unit": 4528,
+      "score": 5.419718436337007,
+      "baseline_magnitude": 6.015590667724609,
+      "column_norm": 1.3943724632263184
+     },
+     {
+      "unit": 3211,
+      "score": 5.103283252541161,
+      "baseline_magnitude": 2.918861150741577,
+      "column_norm": 1.7885793447494507
+     }
+    ]
+   },
+   {
+    "layer": 21,
+    "n": 32,
+    "score_mean": 4.526968437371067,
+    "score_min": 3.122344467369402,
+    "score_max": 12.77617259257795,
+    "baseline_magnitude_mean": 10.837728580459952,
+    "column_norm_mean": 1.5299613513052464,
+    "top_units": [
+     {
+      "unit": 58,
+      "score": 12.77617259257795,
+      "baseline_magnitude": 11.889976501464844,
+      "column_norm": 1.3069987297058105
+     },
+     {
+      "unit": 2537,
+      "score": 8.73282883224607,
+      "baseline_magnitude": 20.600839614868164,
+      "column_norm": 1.7419778108596802
+     },
+     {
+      "unit": 1585,
+      "score": 6.630663231158337,
+      "baseline_magnitude": 33.15828323364258,
+      "column_norm": 1.6827435493469238
+     },
+     {
+      "unit": 3397,
+      "score": 6.347851764040797,
+      "baseline_magnitude": 13.36569595336914,
+      "column_norm": 1.4524073600769043
+     },
+     {
+      "unit": 5267,
+      "score": 5.857328805447622,
+      "baseline_magnitude": 6.711757183074951,
+      "column_norm": 1.816329836845398
+     },
+     {
+      "unit": 2169,
+      "score": 5.7171891136544275,
+      "baseline_magnitude": 29.806381225585938,
+      "column_norm": 1.6621538400650024
+     },
+     {
+      "unit": 1268,
+      "score": 5.3349088519683505,
+      "baseline_magnitude": 5.132866382598877,
+      "column_norm": 2.029405355453491
+     },
+     {
+      "unit": 2123,
+      "score": 4.876922757290686,
+      "baseline_magnitude": 6.9146342277526855,
+      "column_norm": 2.048708438873291
+     }
+    ]
+   },
+   {
+    "layer": 22,
+    "n": 32,
+    "score_mean": 4.852603619961449,
+    "score_min": 3.644848233712935,
+    "score_max": 8.222736852188916,
+    "baseline_magnitude_mean": 9.080503785982728,
+    "column_norm_mean": 1.6491925660520792,
+    "top_units": [
+     {
+      "unit": 4691,
+      "score": 8.222736852188916,
+      "baseline_magnitude": 7.800984859466553,
+      "column_norm": 1.781866192817688
+     },
+     {
+      "unit": 1272,
+      "score": 8.06729064428714,
+      "baseline_magnitude": 9.655800819396973,
+      "column_norm": 1.6952271461486816
+     },
+     {
+      "unit": 5528,
+      "score": 7.5637120805506015,
+      "baseline_magnitude": 5.644434452056885,
+      "column_norm": 1.7909513711929321
+     },
+     {
+      "unit": 1415,
+      "score": 5.792625886957126,
+      "baseline_magnitude": 14.03555965423584,
+      "column_norm": 1.6786128282546997
+     },
+     {
+      "unit": 3119,
+      "score": 5.744677331568909,
+      "baseline_magnitude": 11.009963035583496,
+      "column_norm": 1.7507790327072144
+     },
+     {
+      "unit": 2125,
+      "score": 5.607985233179306,
+      "baseline_magnitude": 22.164121627807617,
+      "column_norm": 1.477309226989746
+     },
+     {
+      "unit": 2115,
+      "score": 5.589972712448912,
+      "baseline_magnitude": 5.498788833618164,
+      "column_norm": 1.7826899290084839
+     },
+     {
+      "unit": 2684,
+      "score": 5.570923340505203,
+      "baseline_magnitude": 11.268139839172363,
+      "column_norm": 1.6693551540374756
+     }
+    ]
+   },
+   {
+    "layer": 23,
+    "n": 32,
+    "score_mean": 5.062391523081783,
+    "score_min": 3.8300652900242937,
+    "score_max": 10.865115979573602,
+    "baseline_magnitude_mean": 9.601679478771985,
+    "column_norm_mean": 1.5071076732128859,
+    "top_units": [
+     {
+      "unit": 4115,
+      "score": 10.865115979573602,
+      "baseline_magnitude": 12.159489631652832,
+      "column_norm": 1.4670629501342773
+     },
+     {
+      "unit": 4703,
+      "score": 8.481831663681533,
+      "baseline_magnitude": 4.9878668785095215,
+      "column_norm": 1.5876882076263428
+     },
+     {
+      "unit": 6080,
+      "score": 6.572929899039536,
+      "baseline_magnitude": 2.74176025390625,
+      "column_norm": 1.907643437385559
+     },
+     {
+      "unit": 2205,
+      "score": 6.044982000888979,
+      "baseline_magnitude": 28.649322509765625,
+      "column_norm": 1.007729172706604
+     },
+     {
+      "unit": 5485,
+      "score": 5.797234086527908,
+      "baseline_magnitude": 13.010608673095703,
+      "column_norm": 1.8463585376739502
+     },
+     {
+      "unit": 4678,
+      "score": 5.67617085603203,
+      "baseline_magnitude": 1.6416910886764526,
+      "column_norm": 1.5930672883987427
+     },
+     {
+      "unit": 28,
+      "score": 5.570628303723311,
+      "baseline_magnitude": 4.654321670532227,
+      "column_norm": 1.3250926733016968
+     },
+     {
+      "unit": 451,
+      "score": 5.493877406673505,
+      "baseline_magnitude": 12.893877983093262,
+      "column_norm": 1.5346665382385254
+     }
+    ]
+   },
+   {
+    "layer": 24,
+    "n": 32,
+    "score_mean": 5.166176811310442,
+    "score_min": 3.5614432266073663,
+    "score_max": 10.794970441820965,
+    "baseline_magnitude_mean": 17.261960308998823,
+    "column_norm_mean": 1.4578642025589943,
+    "top_units": [
+     {
+      "unit": 2716,
+      "score": 10.794970441820965,
+      "baseline_magnitude": 37.72135543823242,
+      "column_norm": 1.2729991674423218
+     },
+     {
+      "unit": 1213,
+      "score": 8.838061713300704,
+      "baseline_magnitude": 73.80242156982422,
+      "column_norm": 1.5243563652038574
+     },
+     {
+      "unit": 5249,
+      "score": 7.93974386628372,
+      "baseline_magnitude": 9.676278114318848,
+      "column_norm": 1.180454969406128
+     },
+     {
+      "unit": 1166,
+      "score": 7.5058359008457955,
+      "baseline_magnitude": 25.486610412597656,
+      "column_norm": 1.5269322395324707
+     },
+     {
+      "unit": 5568,
+      "score": 6.2881784541743,
+      "baseline_magnitude": 5.208028316497803,
+      "column_norm": 1.754085898399353
+     },
+     {
+      "unit": 4778,
+      "score": 5.894793220225097,
+      "baseline_magnitude": 25.81339454650879,
+      "column_norm": 1.1607239246368408
+     },
+     {
+      "unit": 4168,
+      "score": 5.816189586020073,
+      "baseline_magnitude": 35.633445739746094,
+      "column_norm": 1.3481205701828003
+     },
+     {
+      "unit": 2039,
+      "score": 5.687299885339712,
+      "baseline_magnitude": 19.265291213989258,
+      "column_norm": 1.50333833694458
+     }
+    ]
+   },
+   {
+    "layer": 25,
+    "n": 32,
+    "score_mean": 5.371716460964237,
+    "score_min": 3.7274537623746937,
+    "score_max": 14.245970606070841,
+    "baseline_magnitude_mean": 22.667054813355207,
+    "column_norm_mean": 1.4225057121366262,
+    "top_units": [
+     {
+      "unit": 361,
+      "score": 14.245970606070841,
+      "baseline_magnitude": 86.25101470947266,
+      "column_norm": 1.403341293334961
+     },
+     {
+      "unit": 6043,
+      "score": 12.273220441978197,
+      "baseline_magnitude": 91.3816146850586,
+      "column_norm": 1.2074497938156128
+     },
+     {
+      "unit": 1418,
+      "score": 8.484531038199407,
+      "baseline_magnitude": 13.381675720214844,
+      "column_norm": 1.631284475326538
+     },
+     {
+      "unit": 1649,
+      "score": 7.108086147335655,
+      "baseline_magnitude": 81.41031646728516,
+      "column_norm": 1.3549858331680298
+     },
+     {
+      "unit": 4072,
+      "score": 5.949870044024635,
+      "baseline_magnitude": 8.679948806762695,
+      "column_norm": 1.8907315731048584
+     },
+     {
+      "unit": 1882,
+      "score": 5.909810706946246,
+      "baseline_magnitude": 15.091937065124512,
+      "column_norm": 1.522467851638794
+     },
+     {
+      "unit": 2192,
+      "score": 5.892371568425858,
+      "baseline_magnitude": 26.830307006835938,
+      "column_norm": 0.8857873678207397
+     },
+     {
+      "unit": 4520,
+      "score": 5.533959878778944,
+      "baseline_magnitude": 7.123807907104492,
+      "column_norm": 1.1657930612564087
+     }
+    ]
+   },
+   {
+    "layer": 26,
+    "n": 32,
+    "score_mean": 5.54275503192731,
+    "score_min": 3.6265142936755694,
+    "score_max": 12.67965774520735,
+    "baseline_magnitude_mean": 24.893330866470933,
+    "column_norm_mean": 1.362212521955371,
+    "top_units": [
+     {
+      "unit": 293,
+      "score": 12.67965774520735,
+      "baseline_magnitude": 69.86519622802734,
+      "column_norm": 1.0453696250915527
+     },
+     {
+      "unit": 5255,
+      "score": 10.48347386163232,
+      "baseline_magnitude": 32.99996566772461,
+      "column_norm": 1.0300192832946777
+     },
+     {
+      "unit": 3449,
+      "score": 9.62998340147351,
+      "baseline_magnitude": 126.97027587890625,
+      "column_norm": 0.9198086261749268
+     },
+     {
+      "unit": 3783,
+      "score": 7.461916586736663,
+      "baseline_magnitude": 44.289703369140625,
+      "column_norm": 1.394203782081604
+     },
+     {
+      "unit": 1523,
+      "score": 7.256894022268341,
+      "baseline_magnitude": 23.6214599609375,
+      "column_norm": 1.433233618736267
+     },
+     {
+      "unit": 3723,
+      "score": 7.200513388042509,
+      "baseline_magnitude": 0.6304852366447449,
+      "column_norm": 1.475407600402832
+     },
+     {
+      "unit": 6135,
+      "score": 6.701541408920207,
+      "baseline_magnitude": 41.39978790283203,
+      "column_norm": 1.4329283237457275
+     },
+     {
+      "unit": 5144,
+      "score": 6.214503203600543,
+      "baseline_magnitude": 12.587752342224121,
+      "column_norm": 1.1821198463439941
+     }
+    ]
+   },
+   {
+    "layer": 27,
+    "n": 32,
+    "score_mean": 9.738353762348927,
+    "score_min": 6.176028336078332,
+    "score_max": 29.096353279002642,
+    "baseline_magnitude_mean": 115.70440753921866,
+    "column_norm_mean": 0.9458983177319169,
+    "top_units": [
+     {
+      "unit": 677,
+      "score": 29.096353279002642,
+      "baseline_magnitude": 189.80189514160156,
+      "column_norm": 0.8557481169700623
+     },
+     {
+      "unit": 4151,
+      "score": 22.69169579622576,
+      "baseline_magnitude": 290.6632080078125,
+      "column_norm": 0.8292818665504456
+     },
+     {
+      "unit": 4922,
+      "score": 16.952287399473335,
+      "baseline_magnitude": 151.87327575683594,
+      "column_norm": 0.9357789754867554
+     },
+     {
+      "unit": 2826,
+      "score": 14.245600159275455,
+      "baseline_magnitude": 12.050277709960938,
+      "column_norm": 0.6098417043685913
+     },
+     {
+      "unit": 1340,
+      "score": 12.505731408040447,
+      "baseline_magnitude": 282.7073669433594,
+      "column_norm": 0.6685676574707031
+     },
+     {
+      "unit": 5834,
+      "score": 12.435126716245577,
+      "baseline_magnitude": 287.5670471191406,
+      "column_norm": 1.0292553901672363
+     },
+     {
+      "unit": 1888,
+      "score": 12.122217304802803,
+      "baseline_magnitude": 214.5505828857422,
+      "column_norm": 0.8250933885574341
+     },
+     {
+      "unit": 1569,
+      "score": 10.42417568455221,
+      "baseline_magnitude": 107.99890899658203,
+      "column_norm": 0.46881285309791565
+     }
+    ]
+   }
+  ],
+  "caveat": "selection ranks units by measured response times write norm. Per-unit causal effect is NOT measured; block/restore is a group-level test. Do not label an individual unit as a mechanism from this table."
+ },
+ "recommendations": [
+  {
+   "priority": "high",
+   "action": "define_target",
+   "layer": null,
+   "reason": "The vector is readable for the marker set but its measured causal effect is on multiplication correctness, and that effect is negative at the primary dose. Designing from w·U alone would optimise the wrong readout.",
+   "evidence": [
+    "freq-weighted w·U = +0.18424, 7/7 marker ids positive",
+    "+v primary effect on correctness score = -0.06641"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "high",
+   "action": "avoid_positive_injection",
+   "layer": 20,
+   "reason": "Block-20 units move with the vector's net (negative) effect: restoring them during +v lowers the score further, and restoring them into baseline lowers it too. Injecting +v at this layer pushes the measured readout the wrong way for a correctness target.",
+   "evidence": [
+    "block -0.04967, restore -0.04533, support +0.04750",
+    "net +v effect at dose 0.1 = -0.06641"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "high",
+   "action": "test_compensator_removal",
+   "layer": 25,
+   "reason": "Block-25 units oppose the vector's net effect: restoring them during +v raises the score, and restoring them into baseline also raises it. This is the first layer to test for removal / sign flip before building a new direction.",
+   "evidence": [
+    "block +0.08236, restore +0.08939, compensation +0.08588",
+    "same-sign block/restore = True; random rank 2/5"
+   ],
+   "confidence": "descriptive"
+  },
+  {
+   "priority": "low",
+   "action": "do_not_use_as_lever",
+   "layer": null,
+   "reason": "These layers have no layer-specific block/restore effect above the floor; do not present them as a mechanism without new measurements.",
+   "evidence": [
+    "weak layers: 22, 23, 26, 27"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "high",
+   "action": "choose_direction_by_sign",
+   "layer": null,
+   "reason": "The effect reverses with the sign of the injected direction and grows with dose. For a correctness target the current +v is the wrong sign at the primary dose; -v is positive at every tested dose.",
+   "evidence": [
+    "w+ primary -0.06641; w- primary +0.10387; random primary -0.02005",
+    "w+ at dose 0.02: -0.01600; w- at dose 0.02: +0.01768"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "medium",
+   "action": "condition_on_wording",
+   "layer": null,
+   "reason": "The sign of the effect depends on wording and equation truth. Fix the target wording before comparing vectors or doses.",
+   "evidence": [
+    "correct/neutral +0.10610; correct/self-check -0.25971; incorrect/neutral -0.13528; incorrect/self-check +0.02324"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "high",
+   "action": "do_not_treat_marker_set_as_one_concept",
+   "layer": null,
+   "reason": "Readout is positive for all markers, but the injection effect depends on which marker token is present. The dominant marker is suppressed by +w in the original marker-steering report, so the set average is not a single control target.",
+   "evidence": [
+    "dominant marker id 7196: w·U +0.17920, share 0.251",
+    "marker-steering report: +w suppresses the dominant marker while raising the others"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "high",
+   "action": "do_not_use_cos_h_w_as_positive_readout",
+   "layer": 21,
+   "reason": "The hidden-state atlas finds its best marker separation at layer 21, but the orientation is negative: marker next-token positions have LOWER cos(h,w) (raw AUC 0.1991; oriented AUC 0.8009). This holds in 24/24 trajectories with both classes. The static w·U readout therefore does not transfer to a positive state-space projection; do not select layers or units by w·h.",
+   "evidence": [
+    "best layer 21: raw cos AUC 0.1991, oriented cos AUC 0.8009, orientation -1",
+    "norm control AUC 0.5632; residualised raw AUC 0.1927",
+    "n_marker=384, n_trajectories=30"
+   ],
+   "confidence": "descriptive"
+  },
+  {
+   "priority": "high",
+   "action": "split_marker_directions_by_sign",
+   "layer": null,
+   "reason": "Per-marker readout resolves the set-level anti-alignment: marker 7196 (n=105) is positively oriented at layer 17 (raw cos AUC 0.7305), while marker 13824 is the strongest negative (n=34, layer 27, raw cos AUC 0.0725). The set-level AUC hides this sign split. A single direction/sign cannot positively read all seven; pick the target marker and build its own direction and layer.",
+   "evidence": [
+    "marker 6771: n=119, best layer 27, raw cos AUC 0.1453, orientation -1",
+    "marker 7196: n=105, best layer 17, raw cos AUC 0.7305, orientation 1",
+    "marker 10061: n=70, best layer 21, raw cos AUC 0.1620, orientation -1",
+    "marker 14190: n=46, best layer 19, raw cos AUC 0.3690, orientation -1",
+    "marker 13824: n=34, best layer 27, raw cos AUC 0.0725, orientation -1",
+    "marker 88190: n=6, best layer 18, raw cos AUC 0.0297, orientation -1",
+    "marker 80022: n=4, best layer 9, raw cos AUC 0.0197, orientation -1"
+   ],
+   "confidence": "descriptive"
+  },
+  {
+   "priority": "low",
+   "action": "do_not_adjudicate_small_n_markers",
+   "layer": null,
+   "reason": "These markers have fewer than 10 occurrences in the 30-trajectory atlas; their per-marker AUC is not adjudicable and must not be used to choose a direction.",
+   "evidence": [
+    "small-n markers: 88190, 80022"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "high",
+   "action": "use_gradient_direction_as_constructive_baseline",
+   "layer": 20,
+   "reason": "On 6 short AIME prefixes, the normalized local gradient g = d log p(marker) / d h at layer 20 improved the target on every site and was the best candidate for all tested markers; w was negative for 7196 and weaker for 10061/6771, and w+g matched g. Use g as the constructive baseline, then audit native units.",
+   "evidence": [
+    "marker 10061: mean delta w +0.12541 (improved 1.00), gradient +0.36427 (improved 1.00), n=2",
+    "marker 6771: mean delta w +0.12154 (improved 1.00), gradient +0.34194 (improved 1.00), n=2",
+    "marker 7196: mean delta w -0.00828 (improved 0.50), gradient +0.01589 (improved 1.00), n=2"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "medium",
+   "action": "treat_unit_decomposition_as_diagnostic",
+   "layer": null,
+   "reason": "The per-unit decomposition is first-order and its sum-to-measured ratio varies across sites; the quadrants are useful for diagnosing carriers vs compensators, but they are not a validated mediation percentage, and naive removal of write-direction components failed in the prototype.",
+   "evidence": [
+    "see experiments/steering_construction_v1/steering_construction.json decomposition.ratio",
+    "gradient is a white-box local direction; it is not a semantically named steering vector"
+   ],
+   "confidence": "descriptive"
+  },
+  {
+   "priority": "high",
+   "action": "use_per_marker_mean_gradient_on_heldout",
+   "layer": 20,
+   "reason": "A mean gradient built on calibration sites per marker improved held-out f on all tested markers and retained most of the per-site oracle effect; w was much weaker (and negative for 7196). The cross matrix shows the 7196 direction is negative for other markers while 10061/6771 directions are positive for all, so at least 7196 needs its own direction. Use per-marker mean g as the construct, with sparse g as the interpretable variant.",
+   "evidence": [
+    "marker 10061: w +0.01922, mean g +0.43629, sparse g +0.38007, oracle +0.47286 (held-out n=2)",
+    "marker 6771: w +0.13136, mean g +0.19575, sparse g +0.19417, oracle +0.19594 (held-out n=2)",
+    "marker 7196: w +0.10259, mean g +0.65144, sparse g +0.61133, oracle +0.66858 (held-out n=2)",
+    "cross: 7196 mean g on 10061 -0.45743, on 6771 -5.71084; 10061 mean g on 7196 +0.31719"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "medium",
+   "action": "sparse_direction_retains_effect",
+   "layer": null,
+   "reason": "Keeping only the top 10% of mean-gradient coordinates (sparse g) retained 78-100% of the held-out effect in this probe. It is a candidate for a more interpretable direction, but it is still a white-box local average, not a semantic vector.",
+   "evidence": [
+    "see experiments/steering_transfer_v1/steering_transfer.json same_marker.*.g_sparse"
+   ],
+   "confidence": "descriptive"
+  },
+  {
+   "priority": "high",
+   "action": "choose_direction_and_dose_by_kl_frontier",
+   "layer": 20,
+   "reason": "The sweep makes the effect/side-effect tradeoff explicit: mean g reaches the largest delta log p but with large KL and entropy drop; sparse g has lower KL at the same dose; w is safest but weaker. Under a mean-KL budget of 0.1 the useful windows differ by marker, so do not use one direction/dose for all markers. Pick the window per marker, then verify side effects on more sites.",
+   "evidence": [
+    "marker 10061: useful mean_g @ 0.02 (df +0.2005, KL 0.0851); at dose 0.05 mean g KL 0.3719 vs sparse g KL 0.2037",
+    "marker 6771: useful w @ 0.1 (df +0.1314, KL 0.0850); at dose 0.05 mean g KL 0.4504 vs sparse g KL 0.2480",
+    "marker 7196: useful sparse_g @ 0.02 (df +0.2639, KL 0.0734); at dose 0.05 mean g KL 0.6719 vs sparse g KL 0.3661"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "medium",
+   "action": "sparse_g_reduces_side_effect",
+   "layer": null,
+   "reason": "At the same dose, sparse g (top 10% of mean-gradient coordinates) gives a lower global KL than dense mean g while retaining most of the target effect. It is a candidate for a more interpretable, lower-side-effect direction, but still a local white-box average.",
+   "evidence": [
+    "see experiments/steering_sweep_v1/steering_sweep.json aggregate.*.directions.mean_g / sparse_g"
+   ],
+   "confidence": "descriptive"
+  },
+  {
+   "priority": "high",
+   "action": "compiled_recipe_available",
+   "layer": 20,
+   "reason": "One compiled .npy vector per marker is available, with the direction/dose chosen from the KL-budgeted sweep and a held-out verification. Treat it as a reproducible starting point: the verification reuses the transfer/sweep held-out sites, not a third independent split, and the files are local white-box directions rather than semantic production vectors.",
+   "evidence": [
+    "marker 10061: mean_g @ dose 0.02 -> experiments/steering_recipe_v1/vectors/10061_mean_g.npy; verified mean delta +0.2005, mean KL 0.0851 (n=2)",
+    "marker 6771: w @ dose 0.1 -> experiments/steering_recipe_v1/vectors/6771_w.npy; verified mean delta +0.1314, mean KL 0.0850 (n=2)",
+    "marker 7196: sparse_g @ dose 0.02 -> experiments/steering_recipe_v1/vectors/7196_sparse_g.npy; verified mean delta +0.2639, mean KL 0.0734 (n=2)"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "medium",
+   "action": "do_not_use_readout_axis_blindly",
+   "layer": null,
+   "reason": "The only readout axis that beats the position control is confidence, and it is marked tautological (its target is a restatement of top-1 probability). There is no specific, non-circular readout axis to steer by yet.",
+   "evidence": [
+    "confidence axis: status=tautological, layers beating control 3/3"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "medium",
+   "action": "prefer_late_layers_for_answer",
+   "layer": null,
+   "reason": "The final token only becomes linearly decodable late: mean p_final is near zero through the early layers and rises sharply after block 18. Early-layer injections must be verified with the readout atlas before being called answer-steering.",
+   "evidence": [
+    "mean p_final layer 0 0.00019 -> layer 18 0.12629 -> layer 27 0.93604",
+    "logit-lens steps = 1536"
+   ],
+   "confidence": "measured"
+  },
+  {
+   "priority": "high",
+   "action": "replicate_before_building",
+   "layer": null,
+   "reason": "All layer/unit effects above are from six held-out multiplication problems, one model, one vector, and are descriptive. Treat them as hypotheses for the next measurement, not as a construction recipe.",
+   "evidence": [
+    "n_evaluation_problems = 6; single model; single vector; per-unit causal alignment not measured"
+   ],
+   "confidence": "measured"
+  }
+ ],
+ "unmeasured": [
+  "per-unit causal alignment: gradient of the target readout with respect to each unit product, dotted with its write direction",
+  "control direction: solve C v = a for a requested high-level effect instead of reusing a readout direction",
+  "token-composition-matched control: swap the marker token at a fixed position and re-measure",
+  "second model and second vector: external validity of the layer/compensation pattern",
+  "closed-loop controller: recompute the direction per generated token instead of one fixed injection",
+  "marker-specific steering vector: one direction per marker instead of a frequency-weighted set average"
+ ],
+ "warnings": [
+  "This report is descriptive, not a validated construction recipe. The measured label means the number exists in the source artifact, not that the effect is statistically significant.",
+  "Readout (w·U on the marker set) and causal effect (correctness score on held-out multiplication problems) are different targets; do not treat one as evidence for the other.",
+  "Block/restore effects are group-level. The unit table is a response ranking, not a causal ranking.",
+  "The marker-steering artifact reports selfcheck_passed=false (one Q3 check had no criterion); its readout numbers are usable but its verdict block is not a clean pass.",
+  "The readout atlas keeps per-marker rows: best layers and orientations differ across markers (see readout_atlas.per_marker). The set-level AUC must not be used to choose one layer/sign, and small-n markers are not adjudicable.",
+  "The construction probe is a local white-box measurement on short AIME prefixes: it compares candidate directions at one alpha, not a general recipe. The first-order unit decomposition is a diagnostic, not a validated mediation percentage.",
+  "The held-out transfer has two calibration and two held-out sites per marker; the split is by prefix length, so length/position confounding is possible. Treat the transfer numbers as descriptive, not as a validated recipe.",
+  "The alpha sweep has six held-out sites and a single model; KL/entropy are global side effects. High doses can be off-manifold, and the useful window is a descriptive choice under a chosen KL budget.",
+  "The compiled recipe verifies on the same held-out sites used by the transfer/sweep, not on a third independent split. The .npy files are local candidate directions, not a validated production steering vector."
+ ],
+ "headline": "Readout is positive for all 7 marker ids, but the measured +v effect on correctness is -0.06641 at the primary dose. Block 20 supports that negative effect; block 25 compensates it. The current vector is a readout direction, not a validated control direction. Hidden-state atlas: best layer 21, raw cos AUC 0.1991, orientation -1 (w·h is anti-aligned with marker positions)."
+}

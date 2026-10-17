@@ -1,0 +1,211 @@
+{
+ "schema": "steer3d.steering_recipe/1",
+ "complete": true,
+ "scope": "compiled per-marker recipes combining readout atlas, held-out transfer, alpha/KL sweep, and one held-out verification run",
+ "model": {
+  "name": "Qwen3-1.7B",
+  "injection_layer": 20,
+  "dtype": "float32",
+  "attention": "eager"
+ },
+ "vector": {
+  "path": ".cache/bpath/results_B/w_L19_m0.npy",
+  "sha256": "6ef6df33e2cb22d647594d7d9f0b371e7bec8c9a0cd25741095b7fe26a890c16"
+ },
+ "alpha_rule": "dose * measured block-20 input L2 norm at the last prefix position",
+ "markers": {
+  "7196": {
+   "target_marker": 7196,
+   "readout": {
+    "best_layer": 17,
+    "raw_cos_auc": 0.7304946285537465,
+    "orientation": 1
+   },
+   "heldout_transfer": {
+    "w": 0.10258783211886424,
+    "mean_g": 0.6514368152677186,
+    "sparse_g": 0.6113264315143034,
+    "oracle": 0.6685815391965555,
+    "n_sites": 2
+   },
+   "compiled": {
+    "direction": "sparse_g",
+    "dose": 0.02,
+    "file": "experiments/steering_recipe_v1/vectors/7196_sparse_g.npy",
+    "expected_delta_logp": 0.2639160135103816,
+    "expected_kl": 0.0733791164139169,
+    "public_url": "/latent/data/steering_recipes/7196_sparse_g.npy",
+    "file_sha256": "6410dd312a6bfd12620cf3491bdfd43cbb811c25eb0217a459f2066fd51a2a10",
+    "norm": 1.0
+   },
+   "verification": {
+    "n_sites": 2,
+    "mean_delta_logp": 0.2639160135103816,
+    "mean_kl": 0.0733791164139169,
+    "sites": [
+     {
+      "trajectory": "aime__1989__1989_I_1__think",
+      "t": 112,
+      "n_prefix": 212,
+      "dose": 0.02,
+      "alpha": 14.620576171875001,
+      "delta_logp": 0.2003912542955237,
+      "kl": 0.10558997341292277,
+      "target_probability": 0.8955989814463129,
+      "other_marker_mass": 1.3984118114399978e-13
+     },
+     {
+      "trajectory": "aime__1989__1989_I_1__think",
+      "t": 241,
+      "n_prefix": 341,
+      "dose": 0.02,
+      "alpha": 14.143546142578126,
+      "delta_logp": 0.3274407727252394,
+      "kl": 0.04116825941491101,
+      "target_probability": 0.49288482691081253,
+      "other_marker_mass": 1.4837790467813302e-11
+     }
+    ]
+   },
+   "caveats": [
+    "local white-box recipe on short AIME prefixes; single model, layer 20, one alpha grid",
+    "held-out verification uses the same two held-out sites per marker as the transfer; it is not an independent third split",
+    "mean g / sparse g are numerical directions, not semantic vectors; high doses can be off-manifold",
+    "the useful window is chosen by a mean-KL budget, not by correctness on a downstream task"
+   ]
+  },
+  "10061": {
+   "target_marker": 10061,
+   "readout": {
+    "best_layer": 21,
+    "raw_cos_auc": 0.1620198379514877,
+    "orientation": -1
+   },
+   "heldout_transfer": {
+    "w": 0.019217301436508905,
+    "mean_g": 0.43629341961218415,
+    "sparse_g": 0.3800734794972769,
+    "oracle": 0.4728574561429788,
+    "n_sites": 2
+   },
+   "compiled": {
+    "direction": "mean_g",
+    "dose": 0.02,
+    "file": "experiments/steering_recipe_v1/vectors/10061_mean_g.npy",
+    "expected_delta_logp": 0.20047669594214093,
+    "expected_kl": 0.08508488689581722,
+    "public_url": "/latent/data/steering_recipes/10061_mean_g.npy",
+    "file_sha256": "3096e6650d9965936d6232b7b73d09bb73aa8de648b9c5a67aca152605b09698",
+    "norm": 1.0
+   },
+   "verification": {
+    "n_sites": 2,
+    "mean_delta_logp": 0.20047669594214093,
+    "mean_kl": 0.08508488689581722,
+    "sites": [
+     {
+      "trajectory": "aime__1989__1989_I_1__think",
+      "t": 143,
+      "n_prefix": 243,
+      "dose": 0.02,
+      "alpha": 16.721409912109376,
+      "delta_logp": 0.21425780113965637,
+      "kl": 0.14599457949689426,
+      "target_probability": 0.9190279089754432,
+      "other_marker_mass": 1.0724423052700581e-07
+     },
+     {
+      "trajectory": "aime__2020__2020_I_1__no_think",
+      "t": 150,
+      "n_prefix": 263,
+      "dose": 0.02,
+      "alpha": 15.30716796875,
+      "delta_logp": 0.1866955907446255,
+      "kl": 0.02417519429474018,
+      "target_probability": 0.6299902831347387,
+      "other_marker_mass": 6.019772157780269e-09
+     }
+    ]
+   },
+   "caveats": [
+    "local white-box recipe on short AIME prefixes; single model, layer 20, one alpha grid",
+    "held-out verification uses the same two held-out sites per marker as the transfer; it is not an independent third split",
+    "mean g / sparse g are numerical directions, not semantic vectors; high doses can be off-manifold",
+    "the useful window is chosen by a mean-KL budget, not by correctness on a downstream task"
+   ]
+  },
+  "6771": {
+   "target_marker": 6771,
+   "readout": {
+    "best_layer": 27,
+    "raw_cos_auc": 0.1453034586376038,
+    "orientation": -1
+   },
+   "heldout_transfer": {
+    "w": 0.1313587823846767,
+    "mean_g": 0.19575209990508924,
+    "sparse_g": 0.19417413545007278,
+    "oracle": 0.19594052958552766,
+    "n_sites": 2
+   },
+   "compiled": {
+    "direction": "w",
+    "dose": 0.1,
+    "file": "experiments/steering_recipe_v1/vectors/6771_w.npy",
+    "expected_delta_logp": 0.13135887575103516,
+    "expected_kl": 0.08500759119687026,
+    "public_url": "/latent/data/steering_recipes/6771_w.npy",
+    "file_sha256": "6ef6df33e2cb22d647594d7d9f0b371e7bec8c9a0cd25741095b7fe26a890c16",
+    "norm": 1.0
+   },
+   "verification": {
+    "n_sites": 2,
+    "mean_delta_logp": 0.13135887575103516,
+    "mean_kl": 0.08500759119687026,
+    "sites": [
+     {
+      "trajectory": "aime__2002__2002_I_1__think",
+      "t": 35,
+      "n_prefix": 156,
+      "dose": 0.1,
+      "alpha": 72.24703979492188,
+      "delta_logp": 0.01047326660220494,
+      "kl": 0.003987813651599638,
+      "target_probability": 0.9832186511379157,
+      "other_marker_mass": 2.9502390190180334e-08
+     },
+     {
+      "trajectory": "aime__2020__2020_I_1__think",
+      "t": 68,
+      "n_prefix": 177,
+      "dose": 0.1,
+      "alpha": 74.41024169921876,
+      "delta_logp": 0.2522444848998654,
+      "kl": 0.16602736874214089,
+      "target_probability": 0.8938283431410041,
+      "other_marker_mass": 4.236772103025281e-08
+     }
+    ]
+   },
+   "caveats": [
+    "local white-box recipe on short AIME prefixes; single model, layer 20, one alpha grid",
+    "held-out verification uses the same two held-out sites per marker as the transfer; it is not an independent third split",
+    "mean g / sparse g are numerical directions, not semantic vectors; high doses can be off-manifold",
+    "the useful window is chosen by a mean-KL budget, not by correctness on a downstream task"
+   ]
+  }
+ },
+ "source_hashes": {
+  "atlas": "86c12c8279c4530747b0130d3ac0f2adc6a55b14423b68f6cbe0057ec4fd0223",
+  "transfer": "735ad794d12fc435c6a1ca636faf21a799eb2d9df70aee22c4096c4e2fdc73b1",
+  "sweep": "2c696560172def08ab622a11d54d915bc78a228e4b986777d6e6a0e9f977b484",
+  "vector": "6ef6df33e2cb22d647594d7d9f0b371e7bec8c9a0cd25741095b7fe26a890c16"
+ },
+ "guards": {
+  "n_markers": 3,
+  "vector_sha_ok": true,
+  "all_files_exist": true,
+  "verification_finite": true
+ },
+ "generated_by": "backend/examples/compile_steering_recipe.py"
+}

@@ -130,6 +130,13 @@ export default function Page() {
           </span>
         </div>
         <div className="text-xs flex items-center gap-2 py-3">
+          <a href="/steering-design" className="mr-3 text-sky-300 hover:text-sky-200">向量设计指南</a>
+          <a href="/readout-atlas" className="mr-3 text-blue-300 hover:text-blue-200">hidden-state 读出</a>
+          <a href="/steering-construction" className="mr-3 text-amber-300 hover:text-amber-200">构造 probe</a>
+          <a href="/steering-transfer" className="mr-3 text-fuchsia-300 hover:text-fuchsia-200">held-out 迁移</a>
+          <a href="/steering-sweep" className="mr-3 text-emerald-300 hover:text-emerald-200">剂量/副作用</a>
+          <a href="/steering-recipe" className="mr-3 text-rose-300 hover:text-rose-200">编译 recipe</a>
+          <a href="/circuit-landscape" className="mr-3 text-teal-300 hover:text-teal-200">状态与原生 circuit</a>
           <span
             className={`inline-block w-2 h-2 rounded-full ${
               connected ? "bg-green-400" : "bg-red-500"

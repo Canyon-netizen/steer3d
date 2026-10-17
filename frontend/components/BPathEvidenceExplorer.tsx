@@ -163,7 +163,7 @@ export default function BPathEvidenceExplorer() {
   const selectClass = "mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100";
   return <main className="min-h-screen bg-slate-950 px-5 py-7 text-slate-100 md:px-10" data-testid="bpath-explorer" data-trajectory={trajectory.id} data-position={site.t} data-rel={rel} data-target={target}>
     <header className="mx-auto max-w-7xl">
-      <nav className="mb-5 flex gap-5 text-sm text-sky-300"><a href="/">3D 推理轨迹</a><a href="/latent/index.html">2D 隐空间观察台</a></nav>
+      <nav className="mb-5 flex gap-5 text-sm text-sky-300"><a href="/">3D 推理轨迹</a><a href="/circuit-landscape">状态与原生 circuit</a><a href="/steering-design">向量设计指南</a><a href="/readout-atlas">hidden-state 读出</a><a href="/steering-construction">构造 probe</a><a href="/latent/index.html">2D 隐空间观察台</a></nav>
       <p className="text-xs tracking-widest text-emerald-300">QWEN3 · AIME · 臂 B</p>
       <h1 className="mt-2 text-3xl font-semibold">向量如何改变下一步 token</h1>
       <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-400">固定相同前缀，在 block {data.layer} 输入的最后一个 token 加入向量，重新运行模型。这里展示局部响应，帮助区分方向、剂量、位置与下游传播。</p>
