@@ -210,16 +210,24 @@ def _payload_spans(src):
         i = k
 
 
-def pred_scope_everywhere(src):
-    """⛔ 判据：**每一条**落盘路径都必须记 inject_scope。返回 (ok, 说明)。"""
+def pred_field_everywhere(src, needle, what):
+    """⛔ 判据：**每一条**落盘路径都必须记 `needle` 这个字段。返回 (ok, 说明)。
+
+    ⚖⚠⁴ 修订 240：`inject_scope` 与 `dose_source` 都走这一条。
+    ⚖ ⚗ 两份判据各写一遍 ⇒ 迟早只改一份；⛔ 「补过一次」防不住下一个字段。
+    """
     spans = _payload_spans(src)
     if not spans:
         return False, "一条落盘路径都没找到 ⇒ 区间提取器坏了，不是代码坏了"
-    bad = [i for i, (s, e) in enumerate(spans)
-           if '"inject_scope": a.inject_scope' not in src[s:e]]
+    bad = [i for i, (s, e) in enumerate(spans) if needle not in src[s:e]]
     if bad:
-        return False, "第 %s 条落盘路径没记口径" % bad
-    return True, "%d/%d 条路径都记了口径" % (len(spans), len(spans))
+        return False, "第 %s 条落盘路径没记%s" % (bad, what)
+    return True, "%d/%d 条路径都记了%s" % (len(spans), len(spans), what)
+
+
+def pred_scope_everywhere(src):
+    """⛔ 判据：**每一条**落盘路径都必须记 inject_scope。返回 (ok, 说明)。"""
+    return pred_field_everywhere(src, '"inject_scope": a.inject_scope', "口径")
 
 
 def pred_warning_reachable(src):
@@ -244,6 +252,27 @@ def _():
     # ⚠ 分母不许为 0：0 条路径时「都记了」是一句空话，不能算通过。
     assert len(_payload_spans(src)) >= 2, \
         "只找到 1 条落盘路径 ⇒ smoke / 全量少了一条？"
+
+
+@case("C10 ⚠⚠⚠⛔ 每一条落盘路径都必须记 dose_source（方向向量来源）")
+def _():
+    # ⚠⚠⚠ 这条**不是假想**：修订 239 把 dose_source 搬进读数器的三态守卫，
+    # ⚖⚗ 只改了**全量**那条落盘路径 ⇒ smoke 那条漏记。
+    # ⚖⚖ 而**修订 220/221 的全部口径差跑批都是 smoke 批次**
+    # ⚖（实测 16 个历史载荷 dose_source 全为 None）
+    # ⚖ ⇒ 三态守卫会把每一个真实历史对照判成 `unknown`（拒绝归因）。
+    # ⚖⚗ 与 §220.2 的 inject_scope 是**同一个形状**：当年为它补过一次，
+    # ⚖⚠ 于是「补过一次」被当成了「这类问题已经解决过」——⛔ 它没有。
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    ok, why = pred_field_everywhere(src, '"dose_source": _dose_src',
+                                    "方向向量来源")
+    assert ok, why
+    assert len(_payload_spans(src)) >= 2, \
+        "只找到 1 条落盘路径 ⇒ smoke / 全量少了一条？"
+    # ⚖⚠ **必须是一条共享变量**：⛔ 两条路径各写一遍三元式，
+    # ⚖⚗ 改了判据忘了改另一条，就是修订 239 那个坑的翻版。
+    assert src.count('"dose_source": _dose_src') == len(_payload_spans(src)), \
+        "两条路径没有共用同一个 dose_source 表达式"
 
 
 @case("C7 ⛔⛔ 非默认口径的告警必须在 smoke 早退之前（否则 smoke 静默）")
@@ -442,6 +471,32 @@ def _():
     assert pred_warning_reachable(src)[0], "原版不满足 C7 ⇒ C7 本身写错了"
     ok, why = pred_warning_reachable(mut)
     assert not ok, "变异后 C7 仍绿 ⇒ C7 没有分辨力"
+
+
+@case("H11 ⚠⚠⚠⛔ 变异：只从 smoke 那条路径删掉 dose_source ⇒ C10 必须红，"
+      "而全文件子串查找仍绿")
+def _():
+    # ⚖⚠⚠ 这条变异**就是修订 239 的真实缺陷**，不是假想。
+    # ⚖⚠⚠ 它的危险在于：**全文件子串查找照样绿**（全量路径里还有那个串），
+    # ⚖⚗ 于是读数器的三态守卫在最需要的 smoke 批次上永远拿不到输入。
+    src = open(os.path.join(MUT, "r6_rerun.py"), encoding="utf-8").read()
+    spans = _payload_spans(src)
+    assert len(spans) >= 2, spans
+    s, e = spans[0]                      # 文件顺序第 0 条 = smoke 分支
+    block = src[s:e]
+    mut_block = block.replace('"dose_source": _dose_src,', "")
+    assert mut_block != block, "smoke 路径里本来就没有 dose_source ⇒ 台架无效"
+    mut = src[:s] + mut_block + src[e:]
+    assert mut != src
+    # ⚠⚠ 双向证伪：原版**必须满足**，变异体**必须不满足**。
+    ok0, _ = pred_field_everywhere(src, '"dose_source": _dose_src', "方向向量来源")
+    assert ok0, "原版不满足 C10 ⇒ C10 本身写错了"
+    ok, why = pred_field_everywhere(mut, '"dose_source": _dose_src', "方向向量来源")
+    assert not ok, "变异后 C10 仍绿 ⇒ C10 没有分辨力（%s）" % why
+    # ⛔⛔ 而**全文件子串查找在这个变异体上照样绿** ——
+    # ⛔⛔ 这正是它不够用的地方，也是这条判据存在的理由（留下可复现的证据）。
+    assert '"dose_source": _dose_src' in mut, \
+        "全量路径里的那个串应当仍在 ⇒ 变异把两条都删了，不是单点变异"
 
 
 @case("C8 ⛔⛔⛔ --smoke-traj 默认必须是 3（= 改之前的硬编码 [:3]）")

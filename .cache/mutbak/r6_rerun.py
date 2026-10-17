@@ -526,6 +526,18 @@ def main():
         print(f"[方向] |w|={np.linalg.norm(W):.4f}  正负打分差={sgn:.3f}  类间间距={gap:.3f}")
         del X, y
 
+    # ⚠⚠⚠⚠ 修订 240：`dose_source` **算一次**，⛔ 不许两条落盘路径各判一次。
+    # ⚖⚖ 修订 239 把这个字段搬进了全量那条 payload，⚖⚗ 忘了 smoke 那条 ——
+    # ⚖⚠ 而**修订 220/221 的全部口径差跑批都是 smoke 批次**
+    # ⚖（实测 16 个历史载荷 `dose_source` 全为 None）。
+    # ⚖⇒ 后果：`r220_scope_delta.py` 的三态守卫会把**每一个真实历史对照**
+    # ⚖   判成 `unknown` ⇒ 拒绝归因。⛔ 守卫是对的，但它在**最需要的那条路上**
+    # ⚖   永远拿不到输入。
+    # ⚖ ⚗ 与修订 220 §220.2 是**同一个形状**：`inject_scope` 当年为两条路径
+    # ⚖⚠ 补过（判据 C6），⚖⚗ `dose_source` 没人补 ⇒ 不能再靠「补过一次」防住。
+    _dose_src = ("w_meta" if a.w_meta
+                 else ("retrained" if not a.w else "FALLBACK_375"))
+
     # 分词器与模型都**不是训练 w 所需** —— 训练只吃 npz 的 hidden_states。
     # 所以 train-only 必须在加载它们之前返回，否则本机（无该模型缓存）会直接报
     # HFValidationError（远端模型路径在本机不存在）。
@@ -629,6 +641,11 @@ def main():
                          # ⚠⚠⁴ 口径必须**每一条**落盘路径都记，否则「两批读数混批
                          # ⚠⚠⁴ 时看不出来」这条理由在 smoke 批次上不成立。
                          "inject_scope": a.inject_scope,
+                         # ⚠⚠⚴ 修订 240：**方向向量来源必须每条路径都记**。
+                         # ⚖⚠ 漏掉 smoke 这条的代价不是「少一个字段」：
+                         # ⚖⚖ 口径差跑批**全是 smoke** ⇒ 读数器的三态守卫
+                         # ⚖⚖ 会把每一个真实对照判成 `unknown`（拒绝归因）。
+                         "dose_source": _dose_src,
                          # ⚠⚠⁴ 覆盖面也必须落盘：`--smoke-traj 3` 与
                          # ⚠⚠⁴ `--smoke-traj 10` 是**两份不可比的读数**，
                          # ⚠⚠⁴ 而它们的 bench 格子数不同这一点要靠数格子才知道。
@@ -687,8 +704,7 @@ def main():
                      # ⛔⛔ 不记这一列 ⇒ 两批读数混批时**日志上完全看不出来**。
                      "inject_scope": a.inject_scope,
                      "class_gap": gap, "w_norm": float(np.linalg.norm(W)),
-                     "dose_source": ("w_meta" if a.w_meta
-                                     else ("retrained" if not a.w else "FALLBACK_375")),
+                     "dose_source": _dose_src,
                      "label_coverage": coverage},
                     a.out, pos_ok)
 
