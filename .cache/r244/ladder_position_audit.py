@@ -261,7 +261,53 @@ def audit(probe_path=PROBE, cells_path=CELLS, map_path=NMAP,
                 sum(1 for r in rows if r["frac"] == 1.0)))
     L.append("     这在 k 小时是均匀采样的**必然结果**（k=1 落在 prompt 的概率 = P/n_eff），")
     L.append("     ⛔ 不是缺陷；第一版判据正是把它误当成缺陷。")
-    L.append("\n【5】本审计**依赖**的另一条（不在本工具内验）")
+    L.append("\n【5】读出位置在不在被注入的位点里（机制配比，修订 244.27 新增）")
+    # ⚖⚠⚠ 读出发生在**最后一个位置**：`r204_noise_probe.py:431` 的 forward 返回
+    # ⚖   `o.logits[0, -1]`，`b_mark = lse_t(base[mk])` —— `mk` 是**词表 id**，
+    # ⚖   ⛔ **不是**序列里的位置（244.27 更正了「marker 位置是否被扫到」这个问法）。
+    # ⚖⇒ 注入位点若**含** `n_eff-1`，marker logsumexp 是被**直接**扰动的；
+    # ⚖   若不含，那是经残差流**传播**过去的影响。⇒ 两支机制，k 档之间配比在变。
+    hit = []
+    hit_keys = set()
+    for tid, k in kcells:
+        if tid not in mp:
+            continue
+        P, ne = int(mp[tid]["P"]), int(mp[tid]["n_eff"])
+        pos = kp(ne, k, 0, True)
+        if (ne - 1) in pos:
+            hit.append({"tid": tid, "k": k, "frac_k": k / float(ne)})
+            # ⚖⚠⚠ 逐行那列必须按 **(tid, k)** 查，⛔ 不能拿整个字典去比：
+            # ⚖   `hit` 里的字典只有 3 个键、`rows` 里有 7 个 ⇒ 永不相等
+            # ⚖   ⇒ 那一列会**全部印成「否」**，而总数仍是对的（自相矛盾）。
+            # ⚖   本轮第一次跑就是这样错的，靠「最大几档全是『否』」才看出来。
+            hit_keys.add((tid, k))
+    L.append("  ⚖ 读出位置 = 序列最后一位（index n_eff-1），P %d 条轨迹"
+             % len(mp))
+    L.append("  ⚖ 直接扰动读出位置的档数：%d / %d（%.1f%%）"
+             % (len(hit), len(rows), 100.0 * len(hit) / max(1, len(rows))))
+    # 均匀采样下 P(读出位置被选中) = k/n_eff ⇒ 逐档期望 = k/n_eff
+    exp_tot = sum(r["k"] / float(r["n_eff"]) for r in rows)
+    L.append("  ⚖ 均匀采样下的期望命中数：%.1f ⇒ 实测 %d %s"
+             % (exp_tot, len(hit),
+                "（与期望相符）" if abs(len(hit) - exp_tot) <= 3 * (exp_tot ** 0.5 + 1)
+                else "⚠ 与期望偏离"))
+    fk = [r["frac_k"] for r in rows]
+    L.append("  ⚖⚠ 这**不是**缺陷，但它是「阶梯在量什么」的关键事实：")
+    L.append("     覆盖率 k/n_eff 实测范围 %.4f .. %.4f" % (min(fk), max(fk)))
+    L.append("     ⇒ 小 k 档几乎只经**传播**影响读出；覆盖率高的档有 %.0f%% 概率"
+             % (100 * max(fk)))
+    L.append("       **直接**扰动读出位置 ⇒ **k 档之间混着两种机制**，")
+    L.append("       ⛔ 因此「k = 注入位点数」不是唯一的剂量自由度。")
+    L.append("     ⚖⚠ 措辞纪律：上面这个数一律从 rows **算出来**再印，")
+    L.append("       ⛔ 不写死「一半」「接近 0.5」之类 —— 那是**我以为**的，实测不是。")
+    top = sorted(rows, key=lambda x: -x["frac_k"])[:6]
+    L.append("     最大几档（k/n_eff 最大的）：")
+    for r in top:
+        L.append("       %-34s k=%-6d k/n_eff=%.4f 直接扰动=%s"
+                 % (r["tid"], r["k"], r["frac_k"],
+                    "是" if (r["tid"], r["k"]) in hit_keys else "否"))
+
+    L.append("\n【6】本审计**依赖**的另一条（不在本工具内验）")
     L.append("  ⚖ 位点的总体取 `n_eff = P + t`，前提是 `P == len(pid)`：")
     L.append("     生产者 `r204_noise_probe.py:393` 的切片是 `(pid + gen)[: P + t]`")
     L.append("     —— 用的是**侧车**的 `P`，不是 tokenizer 的 `len(pid)`。")
@@ -404,6 +450,22 @@ def selftest():
         assert rc == 0, ("真实数据被判成 rc=%d" % rc)
         assert "不可区分" in txt, txt[-500:]
     ck("A7 绿：门槛是 Bonferroni，且真实数据判「与均匀采样不可区分」", a7)
+
+    # A8 绿：逐行那列「直接扰动」**不得全是「否」**
+    # ⚖⚠⚠ 修订 244.27：第一次跑出来那列全是「否」—— `r in hit` 拿整个字典比，
+    # ⚖ 而 `hit` 的字典只有 3 个键、`rows` 有 7 个 ⇒ 永不相等。
+    # ⚖ 而**总数 38 是对的**（用 `(ne-1) in pos` 算的）⇒ 报告内部自相矛盾。
+    # ⚖⚗ 抓住它靠的是「覆盖率最高的几档却全印『否』」这个形状 ——
+    # ⚖   均匀采样下 p=0.875 却一个都没命中，本身就不该发生。
+    def a8():
+        txt, rc = audit()
+        n_yes = txt.count("直接扰动=是")
+        n_no = txt.count("直接扰动=否")
+        assert n_yes > 0, "逐行那列全是「否」⇒ 键集比较写错了"
+        assert n_yes + n_no > 0, "逐行那列根本没印"
+        # ⚖ 最高覆盖率的几档在均匀采样下 p≈0.875 ⇒ 至少该有几个「是」
+        assert n_yes >= 3, "最高几档全印「否」⇒ 与均匀采样矛盾，键集比较可疑"
+    ck("A8 绿：逐行「直接扰动」列不得全为「否」（键集比较不是字典比较）", a8)
 
     npass = sum(1 for _, s, _ in T if s == "PASS")
     for name, s, msg in T:
