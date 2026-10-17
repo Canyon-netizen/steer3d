@@ -372,13 +372,32 @@ def analyze(cells, verbose=True):
         per[t] = row
 
     # ---- 判决：差值 vs 抖动
+    # ⚖⚠⚠ 判决**必须同报余量**：修订 235 实测有判决**完全由第 4 位小数决定**
+    # ⚖（`p24__think` 的 k_hi 0.1251 与 single 0.1249 分落地板 0.1250 两侧）。
+    # ⚖ 光印「超过 / 噪声」看不出这件事 ⇒ 必须把 margin / ratio 存下来。
+    knife = []
     for t, r in per.items():
         r["verdict_khi"] = _verdict(r["drift_khi_all"], r["jitter"])
         r["verdict_single"] = _verdict(r["drift_single_all"], r["jitter"])
-        r["verdict_posid"] = _verdict(r["drift_single_k1"], r["jitter"])
+        # ⚖⚠ 汇总必须覆盖**两把尺子** —— 只收 max 尺会出现
+        # ⚖「逐行报了 med 尺的贴边、汇总却漏掉」的不一致。
+        for lab, dkey, jkey, ruler in (
+                ("k_hi", "drift_khi_all", "jitter", "max"),
+                ("single", "drift_single_all", "jitter", "max"),
+                ("k_hi", "drift_khi_all", "jitter_med", "med"),
+                ("single", "drift_single_all", "jitter_med", "med")):
+            mg, ratio = _margin(r[dkey], r[jkey])
+            if ruler == "max":
+                r["margin_%s" % lab] = mg
+                r["ratio_%s" % lab] = ratio
+            if ratio is not None and abs(ratio - 1.0) < KNIFE_EDGE:
+                knife.append((t, "%s/%s尺" % (lab, ruler), mg, ratio,
+                              "超过" if mg >= 0 else "噪声"))
         # ⚖ 稳健尺的同一批判决（跨轮次可比用这一组）
         r["verdict_khi_med"] = _verdict(r["drift_khi_all"], r["jitter_med"])
         r["verdict_single_med"] = _verdict(r["drift_single_all"], r["jitter_med"])
+        # ⚖ 位置身份那一列（`single − k=1`）的判决，⚗ 别漏（【4】段要用）
+        r["verdict_posid"] = _verdict(r["drift_single_k1"], r["jitter"])
         r["verdict_posid_med"] = _verdict(r["drift_single_k1"], r["jitter_med"])
 
     # ---- 分层符号检验：轨迹级 vs 问题级
@@ -421,18 +440,46 @@ def analyze(cells, verbose=True):
             "n_pid": len(pid),
             "k_n_hist": k_n_hist,
             "k_n_uniform": len(k_n_hist) <= 1,
+            "knife_edge": knife,
+            "n_knife": len(knife),
             "n_problems": len(prob)}
 
 
+# ⚠⚠⚠ **贴地板判定的显示阈值**（**显示约定**，⛔ 不是统计判据）。
+# ⚖ 修订 235 实测：`p24__think` 的 `k_hi`（0.1251 vs 地板 0.1250）与
+# ⚖ `single`（0.1249 vs 0.1250）**落在地板两侧**，⚖ 判决**完全由第 4 位小数决定**。
+# ⚖⚠ 光印「超过抖动 / 噪声主导」**看不出这件事** ⇒ 读的人会把噪声当信号。
+# ⚖⇒ 判决必须**同报余量**（|Δ| − 地板）与**比值**（|Δ| / 地板）。
+KNIFE_EDGE = 0.05     # ⚖ |比值 − 1| < 0.05 ⇒ 判决由 5% 以内的余量决定
+
+
+def _margin(diff, jitter):
+    """⚖ 判决的**余量**与**比值**。⚠ 任一为 None 时返回 (None, None)。"""
+    if diff is None or not jitter:
+        return None, None
+    a, j = abs(diff), abs(jitter)
+    return a - j, (a / j if j else None)
+
+
 def _verdict(diff, jitter):
-    """⚠⚠⁴ 差值 ≪ 抖动 ⇒ 只能写「噪声主导」。"""
+    """⚠⚠⁴ 差值 ≪ 抖动 ⇒ 只能写「噪声主导」。⚖⚠⚠ **必须同报余量**。"""
     if diff is None:
         return "未量到（缺比较所需的格子）"
     if jitter is None or jitter == 0.0:
         return "未量到（阶梯只有 1 档，没有抖动可比）"
-    if abs(diff) < jitter:
-        return "噪声主导（|Δ|=%.4f < 同曲线抖动 %.4f）" % (abs(diff), jitter)
-    return "超过抖动（|Δ|=%.4f ≥ 抖动 %.4f）" % (abs(diff), jitter)
+    mg, ratio = _margin(diff, jitter)
+    head = ("噪声主导（|Δ|=%.4f < 同曲线抖动 %.4f）"
+            if abs(diff) < jitter else
+            "超过抖动（|Δ|=%.4f ≥ 抖动 %.4f）") % (abs(diff), jitter)
+    # ⚖⚠ 余量与比值 —— 没有它们，「超过」与「噪声」看不出差多少
+    tail = "  余量 %+.4f（比值 %.3f）" % (mg, ratio)
+    if ratio is not None and abs(ratio - 1.0) < KNIFE_EDGE:
+        # ⚗ 这是**已真实发生过**的情形（p18__think +0.0002 / p24__think ±0.0001）
+        # ⚗⚠ 百分比印 **2 位小数**：比值 1.0013 用 `%.0f%%` 会印成「0%」，
+        # ⚖ 那读起来像「余量就是零」，⚖ 而它是 0.13% —— ⛔ 误导。
+        tail += "  ⚠⚠⚠ **贴地板：\\|Δ\\|/地板 与 1 差 %.2f%%**" % (
+            abs(ratio - 1.0) * 100.0)
+    return head + tail
 
 
 # ---------------------------------------------------------------- 报告
@@ -523,6 +570,24 @@ def report(r, verbose=True):
         L.append("     %-28s             med尺: %s" % (t, p["verdict_khi_med"]))
         L.append("     %-28s single(口径) max尺: %s" % (t, p["verdict_single"]))
         L.append("     %-28s             med尺: %s" % (t, p["verdict_single_med"]))
+    # ⚖⚠⚠ **贴地板的判决必须单独列出来** —— 埋在 14 行里等于没报。
+    # ⚖ 修订 235 实测：`p24__think` 的 k_hi(0.1251) 与 single(0.1249)
+    # ⚖ **分落地板 0.1250 两侧**，⚖ 光看「超过 / 噪声」看不出差了一个符号。
+    L.append("")
+    if r["n_knife"]:
+        L.append("    ⚠⚠⚠ **贴地板的判决 %d 条**（\\|Δ\\|/地板 距 1 在 %.0f%% 以内 ⇒ "
+                 "判决由这点余量决定，⛔ 不许当实质结论引用）："
+                 % (r["n_knife"], KNIFE_EDGE * 100))
+        for t, lab, mg, ratio, vd in r["knife_edge"]:
+            base = lab.split("/")[0]
+            # ⚗⚠ 余量印 **5 位**：4 位会把 −0.00004 印成 `-0.0000`，
+            # ⚖ 那看着像 bug（负零），⚖ 而它其实是「刚刚落在地板下侧」。
+            L.append("       %-28s %-11s 余量=%+.5f 比值=%.4f ⇒ %s"
+                     % (t, lab, mg, ratio, vd))
+        L.append("       ⚖ 这类条目的判决**方向**是实的，⚖ 但**强度**不可引用。")
+    else:
+        L.append("    ✅ 没有判决贴地板（\\|Δ\\|/地板 与 1 的距离都 ≥ %.0f%%）"
+                 % (KNIFE_EDGE * 100))
 
     # 【3】分层符号检验（**精确**二项，⛔ 不用正态近似）
     L.append("\n【3】符号检验（k_hi→all 的漂移，剂量问题）—— ⚠ 轨迹 ≠ 独立问题")
@@ -1094,6 +1159,56 @@ def selftest():
             "没有 ≤50%% 的档时 drift 必须未量到，实际 %r" % p3["drift_khi_all"]
         assert "未量到" in report(r3), "报告里该写未量到"
     ck("K20 绿：k_hi 按覆盖率钉在 ≤50% 档（>50% 的档不许顶掉它）", k20)
+
+    # K21 绿：判决必须**同报余量与比值**，且贴地板的条目要被单独列出来
+    # ⚠⚠ 修订 235 实测：`p24__think` 的 k_hi(0.1251) 与 single(0.1249)
+    # ⚖ **分落地板 0.1250 两侧**，⚖ 光印「超过 / 噪声」看不出差了一个符号。
+    def k21():
+        # ① 判决必须带余量 + 比值
+        v = _verdict(0.1251, 0.1250)
+        assert "余量 +0.0001" in v, v
+        assert "比值 1.001" in v, v
+        # ② 贴着地板 ⇒ 必须标记（这是**已真实发生过**的情形）
+        assert "贴地板" in v, v
+        # ③ 远离地板 ⇒ 不许标记
+        v2 = _verdict(0.3000, 0.1500)
+        assert "贴地板" not in v2, v2
+        assert "余量 +0.1500" in v2, v2
+        # ④ 地板**另一侧**的贴边也要标（方向相反）
+        v3 = _verdict(0.1249, 0.1250)
+        assert "贴地板" in v3, v3
+        assert "噪声主导" in v3, v3
+        # ⑤ 边界：无地板 / 无漂移 ⇒ 不许算比值（⛔ 别除零）
+        assert "未量到" in _verdict(0.1, 0.0), _verdict(0.1, 0.0)
+        assert "未量到" in _verdict(None, 0.2), _verdict(None, 0.2)
+        assert _margin(None, 0.2) == (None, None)
+        assert _margin(0.1, 0.0) == (None, None)
+        # ⚖ ⑥ analyze 必须把贴地板的收进 knife_edge 并打进报告
+        def mv(log, stt):
+            # ⚖ 合成夹具：ladder 的 lo 是 [0, 0.40, 0.05, 0.42] ⇒ jitter=max=0.40，
+            # ⚖ ladder[-1]=0.42。⚖ 把 all 的 lo 改成 0.0196 ⇒ |drift|=0.4004
+            # ⚖ = 地板的 1.001 倍 ⇒ 正好落在 KNIFE_EDGE 里。
+            # ⚗⚠ mutate 必须返回**列表**（_synthetic 内部还会 "\n".join）——
+            # ⚖ 第一版返回字符串 ⇒ join 把每个**字符**当一行 ⇒ 块数 0。
+            out = []
+            for ln in log:
+                if '"inject_scope": "all"' in ln:
+                    ln = ln.replace('"p9_lo_meas": 0.200000',
+                                    '"p9_lo_meas": 0.019600')
+                out.append(ln)
+            return out, stt
+        lg, st = _synthetic(mutate=mv)
+        r = analyze(_read_pair(lg, st))
+        assert r["n_knife"] >= 1, r["n_knife"]
+        assert all(abs(abs(k[3]) - 1.0) < KNIFE_EDGE for k in r["knife_edge"])
+        out = report(r)
+        assert "贴地板的判决" in out, out[-900:]
+        assert "贴地板" in out
+        # ⚖ ⑦ 没贴地板时必须印「✅ 没有判决贴地板」，⛔ 不许静默不报
+        lg2, st2 = _synthetic()
+        out2 = report(analyze(_read_pair(lg2, st2)))
+        assert "没有判决贴地板" in out2 or "贴地板的判决" in out2, out2[-600:]
+    ck("K21 绿：判决同报余量/比值，贴地板的条目被单独列出", k21)
 
     npass = sum(1 for _, s, _ in T if s == "PASS")
     for name, st_, msg in T:
