@@ -411,6 +411,29 @@ def analyze(cells, verbose=True):
         prob.setdefault(p, []).append(d)
     pd_ = [_median(v) for v in prob.values()]
 
+    # ⚠⚠⚴ 符号检验**自己的输入**有多少条低于它们自己的地板？
+    # ⚖ 2026-10-17 实测：14 条漂移里 **10 条** |Δ| < 同曲线 max 地板，
+    # ⚖⚠ 而**两个正的问题（p02/p05）完全靠低于地板的轨迹撑着**。
+    # ⚖ ⇒ 只印 p=0.4531 会让人以为 14 个输入都是实的，
+    # ⚖⚗ 而实际上多数输入**单独看与噪声不可分**。
+    # ⚖⇒ 符号检验问的是「符号是否系统性」，
+    # ⚖ ⚗ 而「单条是否可分辨」是**另一个问题** ⇒ 必须同报，不能混。
+    below_floor, prob_all_below = [], []
+    for t in tids:
+        pr = per[t]
+        d, j = pr["drift_khi_all"], pr["jitter"]
+        pr["drift_below_floor"] = (d is not None and j is not None
+                                   and abs(d) < j)
+        if pr["drift_below_floor"]:
+            below_floor.append(t)
+    for p, ds in prob.items():
+        # ⚖ 只看**进了中位数的那几条**（本轮每问题 2 条）⇒ 逐条查
+        contrib = [t for t in tids
+                   if (re.sub(r"__(?:no_)?think$", "", t) or t) == p
+                   and per[t]["drift_khi_all"] is not None]
+        if contrib and all(per[t]["drift_below_floor"] for t in contrib):
+            prob_all_below.append(p)
+
     # ---- 位置身份：single − k=1（位点数相同，只有位置不同）
     pid = [per[t]["drift_single_k1"] for t in tids
            if per[t]["drift_single_k1"] is not None]
@@ -442,6 +465,9 @@ def analyze(cells, verbose=True):
             "k_n_uniform": len(k_n_hist) <= 1,
             "knife_edge": knife,
             "n_knife": len(knife),
+            "drift_below_floor": below_floor,
+            "n_below": len(below_floor),
+            "prob_all_below": sorted(prob_all_below),
             "n_problems": len(prob)}
 
 
@@ -608,6 +634,22 @@ def report(r, verbose=True):
             L.append("            ⛔⛔ p < 下界 —— 内部矛盾，检验本身坏了")
     L.append("     ⚖ %d 条轨迹只来自 %d 个问题（think / no_think 同属一个问题）"
              % (len(r["tids"]), r["n_problems"]))
+    # ⚠⚠⚴ **符号检验自己的输入**有多少条低于自己的地板 —— 必须同报。
+    # ⚖ 符号检验问「符号是否系统性」；⚖ 「单条是否可分辨」是**另一个问题**。
+    # ⚖⚗ 只印 p 而不印这个，会让人以为每个输入都是实的。
+    L.append("")
+    L.append("     ⚠⚠⚴ **这些漂移自己的可分辨性**（与「符号是否系统性」是**两个问题**）：")
+    L.append("        |Δ| < 同曲线 max 地板的：%d / %d 条%s"
+             % (r["n_below"], len(r["tids"]),
+                "" if r["n_below"] else "   ✅ 每条都超过自己的地板"))
+    if r["prob_all_below"]:
+        L.append("        ⚠⚠⚠ **中位漂移完全靠低于地板的轨迹撑着的问题**（%d 个）：%s"
+                 % (len(r["prob_all_below"]),
+                    ", ".join(x.replace("aime__aime25__", "")
+                              for x in r["prob_all_below"])))
+        L.append("           ⚖ 这些问题**本身**就在噪声里，⚖ 它们的符号**不可引用**。")
+    else:
+        L.append("        ✅ 每个问题里都至少有一条漂移超过自己的地板。")
 
     # 【4】位置身份：single − k=1（**位点数相同，只有位置不同**）
     L.append("\n【4】位置身份效应 = `single` − `k=1`")
@@ -1209,6 +1251,41 @@ def selftest():
         out2 = report(analyze(_read_pair(lg2, st2)))
         assert "没有判决贴地板" in out2 or "贴地板的判决" in out2, out2[-600:]
     ck("K21 绿：判决同报余量/比值，贴地板的条目被单独列出", k21)
+
+    # K22 绿：符号检验必须同报「它自己的输入有多少条低于地板」
+    # ⚠⚴ 修订 237 实测：14 条漂移里 10 条 |Δ| < 同曲线 max 地板，
+    # ⚖ 而 p02/p05/p07 三个问题的中位漂移**完全靠低于地板的轨迹撑着**。
+    # ⚖⇒ 只印 p 会让人以为每个输入都是实的。
+    def k22():
+        # ⚖ 默认合成夹具：ladder lo=[0,0.40,0.05,0.42] ⇒ jitter=0.40，
+        # ⚖ k_hi 档 lo=0.42、all lo=0.20 ⇒ |Δ|=0.22 < 0.40 ⇒ **低于地板**
+        lg, st = _synthetic()
+        r = analyze(_read_pair(lg, st))
+        assert r["n_below"] == len(r["tids"]), \
+            "夹具里每条都应低于地板，实测 %r / %d" % (r["n_below"], len(r["tids"]))
+        assert r["prob_all_below"], r["prob_all_below"]
+        out = report(r)
+        assert "这些漂移自己的可分辨性" in out, out[-900:]
+        assert "同曲线 max 地板的：" in out, "报告里没有那行计数：%s" % out[-900:]
+        assert "完全靠低于地板的轨迹撑着的问题" in out, out[-900:]
+        # ⚖ ② 全部超过地板时 ⇒ 印 ✅，⛔ 不许还印「⚠⚠⚠ …不可引用」
+        def mv2(log, stt):
+            out2 = []
+            for ln in log:
+                if '"inject_scope": "all"' in ln:
+                    # ⚖ all 的 lo 改成 0.90 ⇒ |Δ| = 0.48 > 地板 0.40 ⇒ 超过
+                    ln = ln.replace('"p9_lo_meas": 0.200000',
+                                    '"p9_lo_meas": 0.900000')
+                out2.append(ln)
+            return out2, stt
+        lg2, st2 = _synthetic(mutate=mv2)
+        r2 = analyze(_read_pair(lg2, st2))
+        assert r2["n_below"] == 0, r2["n_below"]
+        assert r2["prob_all_below"] == [], r2["prob_all_below"]
+        out2 = report(r2)
+        assert "每条都超过自己的地板" in out2, out2[-700:]
+        assert "至少有一条漂移超过自己的地板" in out2, out2[-700:]
+    ck("K22 绿：符号检验同报「输入有多少条低于地板」+ 全部超过时印 ✅", k22)
 
     npass = sum(1 for _, s, _ in T if s == "PASS")
     for name, st_, msg in T:
