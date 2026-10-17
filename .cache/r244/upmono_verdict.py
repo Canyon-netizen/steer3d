@@ -91,8 +91,14 @@ def read_arm(rc, log, status, expect_cells, label):
     arms = sorted({c["arm"] for c in cells})
     if len(arms) != 1:
         raise SystemExit("PRECOND_FAIL: %s 臂名混了 %r" % (log, arms))
-    print("[%s] arm=%s  cells=%d  ALLDONE=%s" % (label, arms[0], len(cells),
-                                                 alldone))
+    n_alldone = sum(1 for ln in st_text.split("\n") if ln.strip().startswith("ALLDONE"))
+    print("[%s] arm=%s  cells=%d  ALLDONE_last=%s" % (label, arms[0], len(cells),
+                                                     alldone))
+    # ⚠⚠ 修订 244.16.4：多轮并集的产物里 ALLDONE 有多个，每一个都不能描述整体。
+    # ⛔ 印成「这一臂跑完了的时刻」会继承「拿某一轮的戳当整体」的错基准。
+    if n_alldone > 1:
+        print("     ⛔ ALLDONE_count=%d ⇒ 这是最后一轮的戳，不描述该臂的时间跨度"
+              % n_alldone)
     return cells, arms[0]
 
 

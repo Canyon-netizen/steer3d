@@ -155,7 +155,17 @@ def main():
         print("HARD_FAIL 扫描参数在同臂内逐格不一致: %r" % mixed)
         return 2
 
-    print("ALLDONE stamps: w=%s  rand=%s" % (w_done, r_done))
+    n_w = sum(1 for ln in open(args.w_status, encoding="utf-8",
+                              errors="replace").read().split("\n")
+              if ln.strip().startswith("ALLDONE"))
+    n_r = sum(1 for ln in open(args.rand_status, encoding="utf-8",
+                               errors="replace").read().split("\n")
+              if ln.strip().startswith("ALLDONE"))
+    print("ALLDONE_last stamps: w=%s  rand=%s" % (w_done, r_done))
+    # ⚠⚠ 修订 244.16.4：轮数 >1 的臂，那个戳只代表最后一轮。
+    if n_w > 1 or n_r > 1:
+        print("  ⛔ ALLDONE_count: w=%d rand=%d ⇒ 多轮并集，"
+              "该戳不描述该臂的时间跨度" % (n_w, n_r))
     print("")
     print("scan_params (identical across arms AND across cells):")
     for k, v in sorted(w_sig.items()):
