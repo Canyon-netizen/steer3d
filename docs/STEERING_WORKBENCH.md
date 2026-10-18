@@ -28,10 +28,11 @@
    top carriers / compensators。
 4. **Transfer**：同 marker held-out 迁移表、cross-marker 热图、逐 site 读数。
 5. **Dose / side effects**：有用窗口、Δlogp vs dose、log KL vs dose、逐 direction×dose 表。
-6. **Recipe**：每个 marker 的 .npy 下载、expected/verified Δlogp/KL、verification sites、caveats。
-7. **Algorithm guide**：把证据映射到 one-shot / per-token controller / unit-level /
+6. **Unit design**：mean g 在 native unit basis 中的 OMP 稀疏重建；k 的设计曲线。
+7. **Recipe**：每个 marker 的 .npy 下载、expected/verified Δlogp/KL、verification sites、caveats。
+8. **Algorithm guide**：把证据映射到 one-shot / per-token controller / unit-level /
    sparse 四种干预算法的选择与下一步实验。
-8. **Design guide**：layer strategy、20 条推荐、warnings。
+9. **Design guide**：layer strategy、20 条推荐、warnings。
 
 ## 当前展示的核心结论
 

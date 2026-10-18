@@ -39,6 +39,7 @@ def test_build_html_has_all_sections_and_downloads():
         'data-tab="construction"',
         'data-tab="transfer"',
         'data-tab="sweep"',
+        'data-tab="unit"',
         'data-tab="recipe"',
         'data-tab="algorithm"',
         'data-tab="design"',
@@ -47,6 +48,8 @@ def test_build_html_has_all_sections_and_downloads():
         "6771_w.npy",
         "data:application/octet-stream;base64,",
         "Intervention algorithm guide",
+        "Unit design",
+        "OMP",
     ]:
         assert needle in text, needle
     assert "NaN" not in text

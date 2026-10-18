@@ -24,6 +24,7 @@ TRANSFER = ROOT / "experiments/steering_transfer_v1/steering_transfer.json"
 SWEEP = ROOT / "experiments/steering_sweep_v1/steering_sweep.json"
 RECIPE = ROOT / "experiments/steering_recipe_v1/steering_recipe.json"
 DESIGN = ROOT / "experiments/steering_design_v1/steering_design.json"
+UNIT_DESIGN = ROOT / "experiments/unit_design_v1/unit_design.json"
 OUT = ROOT / "experiments/steering_workbench_v1/steering_workbench.html"
 PUBLIC = ROOT / "frontend/public/steering-workbench.html"
 
@@ -312,6 +313,50 @@ def overview_section(recipe, design) -> str:
     return section("Overview：从 hidden states 到可执行向量", "目标：把 hidden-state 可解释性变成可复现的 steering vector 与干预算法设计。", intro + flow + stats + '<h3>当前 marker 的 recipe</h3><div class="cards">' + "".join(cards) + '</div>', "overview")
 
 
+
+
+def unit_design_section(unit) -> str:
+    markers = [marker for marker in MARKER_ORDER if marker in unit.get("markers", {})]
+    k_grid = unit.get("k_grid", [])
+    blocks = []
+    for marker in markers:
+        entry = unit["markers"][marker]
+        recon = [{"name": "reconstruction cos", "color": "#2dd4bf", "points": [(index, entry["reconstruction_cos"][str(k)]) for index, k in enumerate(k_grid)]}]
+        recon_chart = svg_line(recon, y_label="cos(recon, mean g)", x_labels=[str(k) for k in k_grid], y_min=0.0, y_max=1.0)
+        delta = [{"name": "unit_k", "color": "#fb7185", "points": [(index, next(row for row in entry["curve"] if row["k"] == k)["rows"]["0.02"]["mean_delta_logp"]) for index, k in enumerate(k_grid)]},
+                 {"name": "mean g", "color": "#94a3b8", "points": [(index, entry["baselines"]["mean_g"]["0.02"]["mean_delta_logp"]) for index, k in enumerate(k_grid)]}]
+        delta_chart = svg_line(delta, y_label="held-out delta log p @ 0.02", x_labels=[str(k) for k in k_grid])
+        kl = [{"name": "unit_k", "color": "#fbbf24", "points": [(index, next(row for row in entry["curve"] if row["k"] == k)["rows"]["0.02"]["mean_kl"]) for index, k in enumerate(k_grid)]},
+              {"name": "mean g", "color": "#94a3b8", "points": [(index, entry["baselines"]["mean_g"]["0.02"]["mean_kl"]) for index, k in enumerate(k_grid)]}]
+        kl_chart = svg_line(kl, y_label="held-out KL @ 0.02", x_labels=[str(k) for k in k_grid])
+        units_rows = "".join('<tr><td class="mono">' + esc(item["layer"]) + '</td><td class="mono">' + esc(item["unit"]) + '</td><td class="mono">' + signed(item["coefficient"], 4) + '</td></tr>' for item in entry.get("top_units", [])[:10])
+        units_table = ('<table class="compact"><thead><tr><th>layer</th><th>unit</th><th>coefficient</th></tr></thead><tbody>' + units_rows + '</tbody></table>')
+        selected = entry["selected"]
+        blocks.append(
+            '<div data-marker="' + marker + '"><h3>marker ' + marker + '</h3>'
+            '<div class="cards">'
+            '<div class="card"><div class="eyebrow">selected k</div><div class="big">' + str(selected["k"]) + ' units</div><div class="small">reconstruction cos ' + fmt(selected["reconstruction_cos"], 3) + '</div></div>'
+            '<div class="card"><div class="eyebrow">dose</div><div class="big">' + str(selected["dose"]) + '</div><div class="small">held-out Δ ' + signed(selected["heldout"]["mean_delta_logp"]) + ' / KL ' + fmt(selected["heldout"]["mean_kl"]) + '</div></div>'
+            '<div class="card"><div class="eyebrow">dense mean g</div><div class="big">baseline</div><div class="small">Δ ' + signed(entry["baselines"]["mean_g"]["0.02"]["mean_delta_logp"]) + ' / KL ' + fmt(entry["baselines"]["mean_g"]["0.02"]["mean_kl"]) + '</div></div>'
+            '</div>'
+            '<div class="grid2"><div>' + recon_chart + '</div><div>' + delta_chart + '</div></div>'
+            '<div class="grid2"><div>' + kl_chart + '</div><div><h4>top selected units</h4>' + units_table + '</div></div>'
+            '</div>'
+        )
+    rule = ('<div class="flow">'
+            '<div class="step"><b>1. mean g</b><span>calibration gradients</span></div><div class="arrow">→</div>'
+            '<div class="step"><b>2. unit basis</b><span>U_i = ∂a_i/∂h at layer 20</span></div><div class="arrow">→</div>'
+            '<div class="step"><b>3. OMP</b><span>greedy units + least squares</span></div><div class="arrow">→</div>'
+            '<div class="step"><b>4. choose k</b><span>reconstruction / effect</span></div><div class="arrow">→</div>'
+            '<div class="step"><b>5. dose</b><span>KL budget on calibration</span></div><div class="arrow">→</div>'
+            '<div class="step"><b>6. verify</b><span>held-out sites</span></div>'
+            '</div>')
+    note = ('<p class="note">结论：mean gradient 在 native unit basis 里是<b>分布式</b>的——1 个单位只重建 '
+            '15-36%，约 200 个单位才到 80%，500 个单位到 92-94%。所以“用几个 unit 组成一个可解释向量”'
+            '在当前模型/层上不成立；设计要么接受 dense mean g，要么接受 k≈200-500 的 unit-k 近似。'
+            'calibration 与 held-out 的效应仍有差异，选 k 的规则需要独立 split 再验证。</p>')
+    return section("Unit design：向量到底由多少 native units 组成？", "在 block-20 input 上把 mean gradient 投影到 SwiGLU 单元输入方向，用 OMP 选 unit、最小二乘定系数；k 是显式的设计变量。", rule + "".join(blocks) + note, "unit-design")
+
 def build_html() -> str:
     atlas = load(ATLAS)
     construction = load(CONSTRUCTION)
@@ -319,6 +364,7 @@ def build_html() -> str:
     sweep = load(SWEEP)
     recipe = load(RECIPE)
     design = load(DESIGN)
+    unit = load(UNIT_DESIGN)
     marker_options = "".join('<option value="' + marker + '">marker ' + marker + '</option>' for marker in MARKER_ORDER)
     css = '''
 :root{color-scheme:dark}
@@ -398,6 +444,7 @@ showTab('overview');
         '<button data-tab="construction">Construction</button>'
         '<button data-tab="transfer">Transfer</button>'
         '<button data-tab="sweep">Dose / side effects</button>'
+        '<button data-tab="unit">Unit design</button>'
         '<button data-tab="recipe">Recipe</button>'
         '<button data-tab="algorithm">Algorithm guide</button>'
         '<button data-tab="design">Design guide</button>'
@@ -411,6 +458,7 @@ showTab('overview');
         '<div data-panel="construction" hidden>' + construction_section(construction) + '</div>'
         '<div data-panel="transfer" hidden>' + transfer_section(transfer) + '</div>'
         '<div data-panel="sweep" hidden>' + sweep_section(sweep) + '</div>'
+        '<div data-panel="unit" hidden>' + unit_design_section(unit) + '</div>'
         '<div data-panel="recipe" hidden>' + recipe_section(recipe) + '</div>'
         '<div data-panel="algorithm" hidden>' + algorithm_section() + '</div>'
         '<div data-panel="design" hidden>' + design_section(design) + '</div>'

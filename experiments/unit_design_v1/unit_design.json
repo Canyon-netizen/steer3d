@@ -1,0 +1,1916 @@
+{
+ "schema": "steer3d.unit_design/1",
+ "complete": true,
+ "scope": "local first-order unit-basis construction at the block-20 input; calibration-only selection; held-out verification; no semantic/causal claim",
+ "model": {
+  "name": "Qwen3-1.7B",
+  "injection_layer": 20,
+  "dtype": "float32",
+  "attention": "eager"
+ },
+ "vector": {
+  "path": ".cache/bpath/results_B/w_L19_m0.npy",
+  "sha256": "6ef6df33e2cb22d647594d7d9f0b371e7bec8c9a0cd25741095b7fe26a890c16"
+ },
+ "k_grid": [
+  1,
+  2,
+  5,
+  10,
+  20,
+  50,
+  100,
+  200,
+  500
+ ],
+ "doses": [
+  0.02,
+  0.05,
+  0.1
+ ],
+ "split_mode": "interleave",
+ "kl_budget": 0.1,
+ "effect_fraction": 0.9,
+ "markers": {
+  "7196": {
+   "target_marker": 7196,
+   "layer": 20,
+   "n_calibration": 2,
+   "n_heldout": 2,
+   "cos_to_mean_g": {
+    "1": 0.36240018233970017,
+    "2": 0.4181257792743684,
+    "5": 0.4822830524044327,
+    "10": 0.5166593168630663,
+    "20": 0.5571079397188172,
+    "50": 0.6327967869929431,
+    "100": 0.7107156634070361,
+    "200": 0.8105361387077289,
+    "500": 0.934835726576854
+   },
+   "reconstruction_cos": {
+    "1": 0.3624001823397002,
+    "2": 0.41812577927436834,
+    "5": 0.48228305240443264,
+    "10": 0.5166593168630664,
+    "20": 0.5571079397188172,
+    "50": 0.6327967869929432,
+    "100": 0.7107156634070361,
+    "200": 0.8105361387077288,
+    "500": 0.934835726576854
+   },
+   "calibration_low": {
+    "1": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.09279709733926668,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.03863901242908705,
+     "mean_delta_entropy": -0.1770155640532735,
+     "mean_delta_other_marker_mass": -4.000503607384601e-09
+    },
+    "2": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.0975150914828964,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.04459801691684186,
+     "mean_delta_entropy": -0.19018786455645015,
+     "mean_delta_other_marker_mass": -4.4479228347492625e-09
+    },
+    "5": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.10453823859300103,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.055807272325515606,
+     "mean_delta_entropy": -0.21207279348987332,
+     "mean_delta_other_marker_mass": -4.776199555409531e-09
+    },
+    "10": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.11130276670744774,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.06584858789719567,
+     "mean_delta_entropy": -0.22710094492308763,
+     "mean_delta_other_marker_mass": -4.851112898445295e-09
+    },
+    "20": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.1142201427831335,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.07164866451433653,
+     "mean_delta_entropy": -0.2355212896909455,
+     "mean_delta_other_marker_mass": -5.0365191792414025e-09
+    },
+    "50": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.12535638199032353,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.09773288644013242,
+     "mean_delta_entropy": -0.267937516842117,
+     "mean_delta_other_marker_mass": -5.1465170232022834e-09
+    },
+    "100": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.13243273922455318,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.12043175233846282,
+     "mean_delta_entropy": -0.29122779012068273,
+     "mean_delta_other_marker_mass": -5.390359895509634e-09
+    },
+    "200": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.13924278742797194,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.14919091961776915,
+     "mean_delta_entropy": -0.3160592198146128,
+     "mean_delta_other_marker_mass": -5.661323573703282e-09
+    },
+    "500": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.14518565769146793,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.18347178377584614,
+     "mean_delta_entropy": -0.33933593295350073,
+     "mean_delta_other_marker_mass": -5.966757610921139e-09
+    }
+   },
+   "curve": [
+    {
+     "k": 1,
+     "cos_to_mean_g": 0.36240018233970017,
+     "reconstruction_cos": 0.3624001823397002,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.14418804056943188,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.015889816679853355,
+       "mean_delta_entropy": -0.06946435145371384,
+       "mean_delta_other_marker_mass": -2.0012553435788074e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.4827009771353362,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.5855055087281411,
+       "mean_delta_entropy": -0.6575063860158737,
+       "mean_delta_other_marker_mass": -6.3604980750487945e-09
+      }
+     }
+    },
+    {
+     "k": 2,
+     "cos_to_mean_g": 0.4181257792743684,
+     "reconstruction_cos": 0.41812577927436834,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.14697095997316095,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.016536073113788644,
+       "mean_delta_entropy": -0.0720616016528722,
+       "mean_delta_other_marker_mass": -2.5630738531661164e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.47677363001296164,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.536027366628161,
+       "mean_delta_entropy": -0.6336390791964386,
+       "mean_delta_other_marker_mass": -6.4666247547474935e-09
+      }
+     }
+    },
+    {
+     "k": 5,
+     "cos_to_mean_g": 0.4822830524044327,
+     "reconstruction_cos": 0.48228305240443264,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.184720716528853,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.029055305293983966,
+       "mean_delta_entropy": -0.10061973037391461,
+       "mean_delta_other_marker_mass": -2.656613993047942e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.4770230202935015,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.5818991690635824,
+       "mean_delta_entropy": -0.6363997619979176,
+       "mean_delta_other_marker_mass": -6.445059528078385e-09
+      }
+     }
+    },
+    {
+     "k": 10,
+     "cos_to_mean_g": 0.5166593168630663,
+     "reconstruction_cos": 0.5166593168630664,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.18159832620615687,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.027564747368397712,
+       "mean_delta_entropy": -0.10003087357663039,
+       "mean_delta_other_marker_mass": -2.7974021112310288e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.47689026274127483,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.5678437061468059,
+       "mean_delta_entropy": -0.6368922378390205,
+       "mean_delta_other_marker_mass": -6.4851570613587435e-09
+      }
+     }
+    },
+    {
+     "k": 20,
+     "cos_to_mean_g": 0.5571079397188172,
+     "reconstruction_cos": 0.5571079397188172,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.18136968863067493,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.026802100997688122,
+       "mean_delta_entropy": -0.10225301308297924,
+       "mean_delta_other_marker_mass": -3.0391976851975708e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.47838386284183654,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.5607242941110512,
+       "mean_delta_entropy": -0.6423993777365834,
+       "mean_delta_other_marker_mass": -6.535041677868014e-09
+      }
+     }
+    },
+    {
+     "k": 50,
+     "cos_to_mean_g": 0.6327967869929431,
+     "reconstruction_cos": 0.6327967869929432,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.18428114269046098,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.027466890922523808,
+       "mean_delta_entropy": -0.10706842966632062,
+       "mean_delta_other_marker_mass": -3.2144988328099263e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.4795168198525527,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.5578876960438384,
+       "mean_delta_entropy": -0.6480168881353487,
+       "mean_delta_other_marker_mass": -6.5659482484281806e-09
+      }
+     }
+    },
+    {
+     "k": 100,
+     "cos_to_mean_g": 0.7107156634070361,
+     "reconstruction_cos": 0.7107156634070361,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.18796995099554056,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.029153617754671735,
+       "mean_delta_entropy": -0.11409283158797856,
+       "mean_delta_other_marker_mass": -3.5601741282688277e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.4785805746615208,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.5558665329036907,
+       "mean_delta_entropy": -0.6474346831958662,
+       "mean_delta_other_marker_mass": -6.619831118436707e-09
+      }
+     }
+    },
+    {
+     "k": 200,
+     "cos_to_mean_g": 0.8105361387077289,
+     "reconstruction_cos": 0.8105361387077288,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.20065754119821658,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.03487644022868355,
+       "mean_delta_entropy": -0.12442175553577141,
+       "mean_delta_other_marker_mass": -3.8546232106323276e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.481891775959187,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.6039659902449052,
+       "mean_delta_entropy": -0.6605238503031655,
+       "mean_delta_other_marker_mass": -6.649699860776843e-09
+      }
+     }
+    },
+    {
+     "k": 500,
+     "cos_to_mean_g": 0.934835726576854,
+     "reconstruction_cos": 0.934835726576854,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.21470266918210676,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.04032778403084764,
+       "mean_delta_entropy": -0.14176530911838645,
+       "mean_delta_other_marker_mass": -4.35510949957163e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.4906162889649293,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.6675998672442154,
+       "mean_delta_entropy": -0.6948187638701141,
+       "mean_delta_other_marker_mass": -6.688132494642243e-09
+      }
+     }
+    }
+   ],
+   "baselines": {
+    "w": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.011934791319963096,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.0010360784516213627,
+      "mean_delta_entropy": -0.012504599580947691,
+      "mean_delta_other_marker_mass": 1.2572604505244542e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.03507887437628096,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.021755043500353774,
+      "mean_delta_entropy": -0.05482468303374749,
+      "mean_delta_other_marker_mass": 1.0080178869280667e-08
+     }
+    },
+    "mean_g": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.2256545380329981,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.045151595455125385,
+      "mean_delta_entropy": -0.15541237008942885,
+      "mean_delta_other_marker_mass": -4.567425570471662e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.4958291229640474,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.7204378566333087,
+      "mean_delta_entropy": -0.7171761429663276,
+      "mean_delta_other_marker_mass": -6.697159910617688e-09
+     }
+    },
+    "sparse_g": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.1596886168147296,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.020420969449742542,
+      "mean_delta_entropy": -0.09560629986091056,
+      "mean_delta_other_marker_mass": -3.6884327301331726e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.45019222188179503,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.40019322245023287,
+      "mean_delta_entropy": -0.5584250094119405,
+      "mean_delta_other_marker_mass": -6.6105870735253114e-09
+     }
+    }
+   },
+   "top_units": [
+    {
+     "layer": 20,
+     "unit": 594,
+     "coefficient": 0.39213921086246967
+    },
+    {
+     "layer": 20,
+     "unit": 4502,
+     "coefficient": -0.1733914784976199
+    },
+    {
+     "layer": 20,
+     "unit": 3154,
+     "coefficient": -0.17036670899450002
+    },
+    {
+     "layer": 20,
+     "unit": 2191,
+     "coefficient": 0.06933923056767355
+    },
+    {
+     "layer": 20,
+     "unit": 537,
+     "coefficient": 0.15722115482911891
+    },
+    {
+     "layer": 20,
+     "unit": 5642,
+     "coefficient": -0.055138527600580814
+    },
+    {
+     "layer": 20,
+     "unit": 3806,
+     "coefficient": -0.10379789032230723
+    },
+    {
+     "layer": 20,
+     "unit": 1922,
+     "coefficient": -0.1181686196820893
+    },
+    {
+     "layer": 20,
+     "unit": 5572,
+     "coefficient": 0.06943147584200815
+    },
+    {
+     "layer": 20,
+     "unit": 4681,
+     "coefficient": 0.09939637868007653
+    },
+    {
+     "layer": 20,
+     "unit": 1403,
+     "coefficient": 0.06679658219247905
+    },
+    {
+     "layer": 20,
+     "unit": 3173,
+     "coefficient": 0.0917034110827415
+    }
+   ],
+   "selected": {
+    "k": 500,
+    "dose": 0.02,
+    "cos_to_mean_g": 0.934835726576854,
+    "reconstruction_cos": 0.934835726576854,
+    "rule": "calibration: 90% of best delta at dose 0.02, KL<=0.10; then largest dose with calibration KL<=0.10",
+    "selection_status": "calibration 90%% effect saturation",
+    "calibration": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.14518565769146793,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.18347178377584614,
+      "mean_delta_entropy": -0.33933593295350073,
+      "mean_delta_other_marker_mass": -5.966757610921139e-09
+     },
+     "0.05": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.16319428734807892,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.6567318435583478,
+      "mean_delta_entropy": -0.43010784019523707,
+      "mean_delta_other_marker_mass": -6.781326846587368e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.1632959148517666,
+      "improved_fraction": 1.0,
+      "mean_kl": 1.488479239145943,
+      "mean_delta_entropy": -0.4325234840757586,
+      "mean_delta_other_marker_mass": -6.8116292953867916e-09
+     }
+    },
+    "heldout": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.21470266918210676,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.04032778403084764,
+     "mean_delta_entropy": -0.14176530911838645,
+     "mean_delta_other_marker_mass": -4.35510949957163e-09
+    }
+   },
+   "hybrid": {
+    "lambda_grid": [
+     0.0,
+     0.25,
+     0.5,
+     0.75,
+     1.0
+    ],
+    "selected_lambda": 1.0,
+    "selected_dose": 0.02,
+    "rule": "calibration: smallest lambda reaching 90% of mean-g delta at dose 0.02, KL<=0.10; then largest dose with calibration KL<=0.10",
+    "calibration_low": {
+     "0.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.14518565769146793,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.18347178377584614,
+      "mean_delta_entropy": -0.33933593295350073,
+      "mean_delta_other_marker_mass": -5.966757610921139e-09
+     },
+     "0.25": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.14644689008158376,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.19229440309908077,
+      "mean_delta_entropy": -0.34451083421018325,
+      "mean_delta_other_marker_mass": -6.015910376466319e-09
+     },
+     "0.5": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.14732647192501622,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.198857632808855,
+      "mean_delta_entropy": -0.34817766991972665,
+      "mean_delta_other_marker_mass": -6.049289854979109e-09
+     },
+     "0.75": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.14784692469262412,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.202895296969608,
+      "mean_delta_entropy": -0.35036657604850585,
+      "mean_delta_other_marker_mass": -6.067404380145796e-09
+     },
+     "1.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.14803448262764574,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.20434048076151423,
+      "mean_delta_entropy": -0.35115168392107954,
+      "mean_delta_other_marker_mass": -6.07127901391322e-09
+     }
+    },
+    "calibration": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.14803448262764574,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.20434048076151423,
+      "mean_delta_entropy": -0.35115168392107954,
+      "mean_delta_other_marker_mass": -6.07127901391322e-09
+     },
+     "0.05": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.1634884889455846,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.7139767170946671,
+      "mean_delta_entropy": -0.43228694379712107,
+      "mean_delta_other_marker_mass": -6.790166707700373e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.16353438432380404,
+      "improved_fraction": 1.0,
+      "mean_kl": 1.5986567024157536,
+      "mean_delta_entropy": -0.43394595544450515,
+      "mean_delta_other_marker_mass": -6.8116572204869336e-09
+     }
+    },
+    "heldout_curve_at_0.02": {
+     "0.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.21470266918210676,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.04032778403084764,
+      "mean_delta_entropy": -0.14176530911838645,
+      "mean_delta_other_marker_mass": -4.35510949957163e-09
+     },
+     "0.25": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.21964423794196655,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.042521282176845955,
+      "mean_delta_entropy": -0.14736162649384346,
+      "mean_delta_other_marker_mass": -4.441252752305688e-09
+     },
+     "0.5": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.223146849171418,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.04410229707955,
+      "mean_delta_entropy": -0.15157569150423617,
+      "mean_delta_other_marker_mass": -4.505376714633226e-09
+     },
+     "0.75": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.22515108931270122,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.04498961914929997,
+      "mean_delta_entropy": -0.15427016664048898,
+      "mean_delta_other_marker_mass": -4.547187243818897e-09
+     },
+     "1.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.2256545380329981,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.045151595455125385,
+      "mean_delta_entropy": -0.15541237008942885,
+      "mean_delta_other_marker_mass": -4.567425570471662e-09
+     }
+    },
+    "heldout": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.2256545380329981,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.045151595455125385,
+     "mean_delta_entropy": -0.15541237008942885,
+     "mean_delta_other_marker_mass": -4.567425570471662e-09
+    }
+   },
+   "selected_sites": [
+    {
+     "trajectory": "aime__2022__2022_I_1__think",
+     "t": 75,
+     "n_prefix": 189,
+     "dose": 0.02,
+     "delta_logp": 0.0075021449678795435,
+     "kl": 0.004156611513091611,
+     "delta_entropy": -0.04569104611436885,
+     "delta_other_marker_mass": -8.689846499122328e-09
+    },
+    {
+     "trajectory": "aime__1989__1989_I_1__think",
+     "t": 241,
+     "n_prefix": 341,
+     "dose": 0.02,
+     "delta_logp": 0.421903193396334,
+     "kl": 0.07649895654860367,
+     "delta_entropy": -0.23783957212240403,
+     "delta_other_marker_mass": -2.0372500020931445e-11
+    }
+   ]
+  },
+  "10061": {
+   "target_marker": 10061,
+   "layer": 20,
+   "n_calibration": 2,
+   "n_heldout": 2,
+   "cos_to_mean_g": {
+    "1": 0.2078456469397961,
+    "2": 0.25926261342763746,
+    "5": 0.35179011329528864,
+    "10": 0.42520011927526546,
+    "20": 0.49398557831204315,
+    "50": 0.6023971426525471,
+    "100": 0.6947900832381539,
+    "200": 0.8002936454084904,
+    "500": 0.932609237403634
+   },
+   "reconstruction_cos": {
+    "1": 0.20784564693979607,
+    "2": 0.25926261342763746,
+    "5": 0.35179011329528864,
+    "10": 0.42520011927526546,
+    "20": 0.4939855783120432,
+    "50": 0.6023971426525472,
+    "100": 0.6947900832381539,
+    "200": 0.8002936454084905,
+    "500": 0.932609237403634
+   },
+   "calibration_low": {
+    "1": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.09732124945010415,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.01783003903403999,
+     "mean_delta_entropy": -0.14759424731511722,
+     "mean_delta_other_marker_mass": 2.164771374930096e-09
+    },
+    "2": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.10750853150472314,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.04099032510567217,
+     "mean_delta_entropy": -0.1720186636487625,
+     "mean_delta_other_marker_mass": 4.293856060380917e-09
+    },
+    "5": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.13936093073281594,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.06507660844730026,
+     "mean_delta_entropy": -0.23409707711465785,
+     "mean_delta_other_marker_mass": 9.170991553957543e-09
+    },
+    "10": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.15990186524928743,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.08207964337676014,
+     "mean_delta_entropy": -0.2777538991574,
+     "mean_delta_other_marker_mass": 1.0276834302589057e-08
+    },
+    "20": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.17786576015400446,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.0945347677192125,
+     "mean_delta_entropy": -0.30552383541778483,
+     "mean_delta_other_marker_mass": 1.143942063438054e-08
+    },
+    "50": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.2038832598128709,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.12004707633039138,
+     "mean_delta_entropy": -0.34901500575971434,
+     "mean_delta_other_marker_mass": 9.793292814173658e-09
+    },
+    "100": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.22565830841279827,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.1376653557651969,
+     "mean_delta_entropy": -0.38278708013097534,
+     "mean_delta_other_marker_mass": 1.0300200397632813e-08
+    },
+    "200": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.24663786906948976,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.1667637506425799,
+     "mean_delta_entropy": -0.4229855108158241,
+     "mean_delta_other_marker_mass": 1.1946978028747224e-08
+    },
+    "500": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.2695200029417798,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.20828937158125316,
+     "mean_delta_entropy": -0.46872718130359947,
+     "mean_delta_other_marker_mass": 1.258800971669148e-08
+    }
+   },
+   "curve": [
+    {
+     "k": 1,
+     "cos_to_mean_g": 0.2078456469397961,
+     "reconstruction_cos": 0.20784564693979607,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.08777646357350821,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.012593459101728552,
+       "mean_delta_entropy": -0.08610004522178877,
+       "mean_delta_other_marker_mass": -8.860976129399976e-10
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.2861570560051559,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.33451557770496954,
+       "mean_delta_entropy": -0.3168580424109678,
+       "mean_delta_other_marker_mass": -6.03397446023731e-09
+      }
+     }
+    },
+    {
+     "k": 2,
+     "cos_to_mean_g": 0.25926261342763746,
+     "reconstruction_cos": 0.25926261342763746,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.07350850805771536,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.00904897385203249,
+       "mean_delta_entropy": -0.07447815770393337,
+       "mean_delta_other_marker_mass": -7.475883668686948e-10
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.2634164974208747,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.21989039663846546,
+       "mean_delta_entropy": -0.28832700301532815,
+       "mean_delta_other_marker_mass": -5.244388209031658e-09
+      }
+     }
+    },
+    {
+     "k": 5,
+     "cos_to_mean_g": 0.35179011329528864,
+     "reconstruction_cos": 0.35179011329528864,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.103740653196422,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.014036153282134322,
+       "mean_delta_entropy": -0.08700794280759888,
+       "mean_delta_other_marker_mass": 6.334193536447107e-10
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.3316617806033962,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.35334767269463313,
+       "mean_delta_entropy": -0.43240458043702723,
+       "mean_delta_other_marker_mass": 3.4901969011090565e-10
+      }
+     }
+    },
+    {
+     "k": 10,
+     "cos_to_mean_g": 0.42520011927526546,
+     "reconstruction_cos": 0.42520011927526546,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.08938261103568801,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.013265927599954954,
+       "mean_delta_entropy": -0.0887183378498499,
+       "mean_delta_other_marker_mass": 1.3848599638134163e-10
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.29823671936331636,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.2735136472192812,
+       "mean_delta_entropy": -0.3628112793151426,
+       "mean_delta_other_marker_mass": -1.8250319508748374e-09
+      }
+     }
+    },
+    {
+     "k": 20,
+     "cos_to_mean_g": 0.49398557831204315,
+     "reconstruction_cos": 0.4939855783120432,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.08022464179959204,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.012338569444613104,
+       "mean_delta_entropy": -0.07550588675831399,
+       "mean_delta_other_marker_mass": 3.0640516279948683e-10
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.27917301566176156,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.23427370636906447,
+       "mean_delta_entropy": -0.30863483259274244,
+       "mean_delta_other_marker_mass": -8.525806208582973e-10
+      }
+     }
+    },
+    {
+     "k": 50,
+     "cos_to_mean_g": 0.6023971426525471,
+     "reconstruction_cos": 0.6023971426525472,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.09092646913286523,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.016523301012287665,
+       "mean_delta_entropy": -0.0943217322128895,
+       "mean_delta_other_marker_mass": -3.99752945625941e-10
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.29262609064923717,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.2773258694907128,
+       "mean_delta_entropy": -0.3467501167189977,
+       "mean_delta_other_marker_mass": -3.759358858647206e-09
+      }
+     }
+    },
+    {
+     "k": 100,
+     "cos_to_mean_g": 0.6947900832381539,
+     "reconstruction_cos": 0.6947900832381539,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.10221358163930869,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.01993309062676811,
+       "mean_delta_entropy": -0.10662225022552571,
+       "mean_delta_other_marker_mass": 1.8713306741120446e-10
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.3124521427664506,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.3323477780409373,
+       "mean_delta_entropy": -0.3899032325255162,
+       "mean_delta_other_marker_mass": -1.7015771500527193e-09
+      }
+     }
+    },
+    {
+     "k": 200,
+     "cos_to_mean_g": 0.8002936454084904,
+     "reconstruction_cos": 0.8002936454084905,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.11266080656072308,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.025798490923506077,
+       "mean_delta_entropy": -0.1234816121328833,
+       "mean_delta_other_marker_mass": 1.0381474370934999e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.3274592649944082,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.4062572444679847,
+       "mean_delta_entropy": -0.4287161838477424,
+       "mean_delta_other_marker_mass": 1.7769185163732412e-09
+      }
+     }
+    },
+    {
+     "k": 500,
+     "cos_to_mean_g": 0.932609237403634,
+     "reconstruction_cos": 0.932609237403634,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.1293241828997698,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.03509564897365497,
+       "mean_delta_entropy": -0.14763846048527512,
+       "mean_delta_other_marker_mass": 1.740553703635975e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.3453824416595161,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.5234908264187147,
+       "mean_delta_entropy": -0.48007227043979234,
+       "mean_delta_other_marker_mass": 3.708921466869258e-09
+      }
+     }
+    }
+   ],
+   "baselines": {
+    "w": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.02239910023951803,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.002410132080409293,
+      "mean_delta_entropy": -0.031069209592718416,
+      "mean_delta_other_marker_mass": 3.63237043617677e-10
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.07753797762347592,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.04649713108246619,
+      "mean_delta_entropy": -0.10206219768999722,
+      "mean_delta_other_marker_mass": 1.5813881397803228e-09
+     }
+    },
+    "mean_g": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.13776242894159652,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.04032661504485588,
+      "mean_delta_entropy": -0.1572631931259446,
+      "mean_delta_other_marker_mass": 1.8997881772362405e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.3551082308578396,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.604899353648622,
+      "mean_delta_entropy": -0.507835104817487,
+      "mean_delta_other_marker_mass": 3.6689609590938806e-09
+     }
+    },
+    "sparse_g": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.096709314931727,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.017145899472780737,
+      "mean_delta_entropy": -0.10872605145808581,
+      "mean_delta_other_marker_mass": 2.4797476658177587e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.3042201650437478,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.2902456086781197,
+      "mean_delta_entropy": -0.38832468115752583,
+      "mean_delta_other_marker_mass": 9.688130529552755e-09
+     }
+    }
+   },
+   "top_units": [
+    {
+     "layer": 20,
+     "unit": 2746,
+     "coefficient": 0.17157102084864134
+    },
+    {
+     "layer": 20,
+     "unit": 4646,
+     "coefficient": 0.2351913449174854
+    },
+    {
+     "layer": 20,
+     "unit": 2176,
+     "coefficient": 0.1281463374059485
+    },
+    {
+     "layer": 20,
+     "unit": 5513,
+     "coefficient": -0.16306274522714226
+    },
+    {
+     "layer": 20,
+     "unit": 5134,
+     "coefficient": -0.056765725688515956
+    },
+    {
+     "layer": 20,
+     "unit": 1185,
+     "coefficient": 0.04907180680185527
+    },
+    {
+     "layer": 20,
+     "unit": 860,
+     "coefficient": -0.14310548527148792
+    },
+    {
+     "layer": 20,
+     "unit": 3732,
+     "coefficient": 0.09683282416614564
+    },
+    {
+     "layer": 20,
+     "unit": 3806,
+     "coefficient": 0.08039897998427195
+    },
+    {
+     "layer": 20,
+     "unit": 3557,
+     "coefficient": 0.1139210107797392
+    },
+    {
+     "layer": 20,
+     "unit": 3552,
+     "coefficient": 0.0920327084545749
+    },
+    {
+     "layer": 20,
+     "unit": 1284,
+     "coefficient": 0.08850212495883483
+    }
+   ],
+   "selected": {
+    "k": 500,
+    "dose": 0.02,
+    "cos_to_mean_g": 0.932609237403634,
+    "reconstruction_cos": 0.932609237403634,
+    "rule": "calibration: 90% of best delta at dose 0.02, KL<=0.10; then largest dose with calibration KL<=0.10",
+    "selection_status": "calibration 90%% effect saturation",
+    "calibration": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.2695200029417798,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.20828937158125316,
+      "mean_delta_entropy": -0.46872718130359947,
+      "mean_delta_other_marker_mass": 1.258800971669148e-08
+     },
+     "0.05": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.39349784401581245,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.8190052089476767,
+      "mean_delta_entropy": -0.7779916336670091,
+      "mean_delta_other_marker_mass": 1.1098918317101567e-08
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.4455317164643331,
+      "improved_fraction": 1.0,
+      "mean_kl": 2.0506300257481014,
+      "mean_delta_entropy": -0.9804463313904759,
+      "mean_delta_other_marker_mass": 5.927886198853723e-09
+     }
+    },
+    "heldout": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.1293241828997698,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.03509564897365497,
+     "mean_delta_entropy": -0.14763846048527512,
+     "mean_delta_other_marker_mass": 1.740553703635975e-09
+    }
+   },
+   "hybrid": {
+    "lambda_grid": [
+     0.0,
+     0.25,
+     0.5,
+     0.75,
+     1.0
+    ],
+    "selected_lambda": 1.0,
+    "selected_dose": 0.02,
+    "rule": "calibration: smallest lambda reaching 90% of mean-g delta at dose 0.02, KL<=0.10; then largest dose with calibration KL<=0.10",
+    "calibration_low": {
+     "0.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.2695200029417798,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.20828937158125316,
+      "mean_delta_entropy": -0.46872718130359947,
+      "mean_delta_other_marker_mass": 1.258800971669148e-08
+     },
+     "0.25": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.27415610949930935,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.21847425297827894,
+      "mean_delta_entropy": -0.47876258876341543,
+      "mean_delta_other_marker_mass": 1.2683665611059639e-08
+     },
+     "0.5": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.27755403059004713,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.2259666525981681,
+      "mean_delta_entropy": -0.48609011446345124,
+      "mean_delta_other_marker_mass": 1.2748737983799651e-08
+     },
+     "0.75": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.2796423167354426,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.23036949668705908,
+      "mean_delta_entropy": -0.490527119882462,
+      "mean_delta_other_marker_mass": 1.2792149562828956e-08
+     },
+     "1.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.2804639804827088,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.23162453183786488,
+      "mean_delta_entropy": -0.49213778663760144,
+      "mean_delta_other_marker_mass": 1.281156442172957e-08
+     }
+    },
+    "calibration": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.2804639804827088,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.23162453183786488,
+      "mean_delta_entropy": -0.49213778663760144,
+      "mean_delta_other_marker_mass": 1.281156442172957e-08
+     },
+     "0.05": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.40264393811509547,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.903184895789728,
+      "mean_delta_entropy": -0.807183055946473,
+      "mean_delta_other_marker_mass": 1.0562147908183838e-08
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.448368033183527,
+      "improved_fraction": 1.0,
+      "mean_kl": 2.2489960771943127,
+      "mean_delta_entropy": -0.9967945269133105,
+      "mean_delta_other_marker_mass": 4.4139332858033375e-09
+     }
+    },
+    "heldout_curve_at_0.02": {
+     "0.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.1293241828997698,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.03509564897365497,
+      "mean_delta_entropy": -0.14763846048527512,
+      "mean_delta_other_marker_mass": 1.740553703635975e-09
+     },
+     "0.25": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.13279313895511927,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.0371977418980822,
+      "mean_delta_entropy": -0.15156024410436347,
+      "mean_delta_other_marker_mass": 1.7946210908703452e-09
+     },
+     "0.5": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.13539116905255857,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.03882036499106248,
+      "mean_delta_entropy": -0.15451632140236685,
+      "mean_delta_other_marker_mass": 1.8397887972713218e-09
+     },
+     "0.75": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.13705447154731798,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.03987420897312289,
+      "mean_delta_entropy": -0.15641936094808756,
+      "mean_delta_other_marker_mass": 1.874655837623647e-09
+     },
+     "1.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.13776242894159652,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.04032661504485588,
+      "mean_delta_entropy": -0.1572631931259446,
+      "mean_delta_other_marker_mass": 1.8997881772362405e-09
+     }
+    },
+    "heldout": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.13776242894159652,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.04032661504485588,
+     "mean_delta_entropy": -0.1572631931259446,
+     "mean_delta_other_marker_mass": 1.8997881772362405e-09
+    }
+   },
+   "selected_sites": [
+    {
+     "trajectory": "aime__2002__2002_I_1__think",
+     "t": 113,
+     "n_prefix": 234,
+     "dose": 0.02,
+     "delta_logp": 0.07481346487440599,
+     "kl": 0.046956149685656215,
+     "delta_entropy": -0.2339765477421417,
+     "delta_other_marker_mass": 2.3490019492798696e-09
+    },
+    {
+     "trajectory": "aime__2020__2020_I_1__no_think",
+     "t": 150,
+     "n_prefix": 263,
+     "dose": 0.02,
+     "delta_logp": 0.1838349009251336,
+     "kl": 0.023235148261653727,
+     "delta_entropy": -0.06130037322840853,
+     "delta_other_marker_mass": 1.1321054579920805e-09
+    }
+   ]
+  },
+  "6771": {
+   "target_marker": 6771,
+   "layer": 20,
+   "n_calibration": 2,
+   "n_heldout": 2,
+   "cos_to_mean_g": {
+    "1": 0.1514398887909439,
+    "2": 0.20737350154323458,
+    "5": 0.28957376815709657,
+    "10": 0.3628831833728824,
+    "20": 0.43721950691109013,
+    "50": 0.552515905408977,
+    "100": 0.6605605134649255,
+    "200": 0.7826488446734116,
+    "500": 0.9278339664854431
+   },
+   "reconstruction_cos": {
+    "1": 0.1514398887909439,
+    "2": 0.20737350154323458,
+    "5": 0.2895737681570965,
+    "10": 0.36288318337288233,
+    "20": 0.43721950691109013,
+    "50": 0.552515905408977,
+    "100": 0.6605605134649254,
+    "200": 0.7826488446734116,
+    "500": 0.9278339664854431
+   },
+   "calibration_low": {
+    "1": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.10186186673732103,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.013332882521329227,
+     "mean_delta_entropy": -0.03284104404613448,
+     "mean_delta_other_marker_mass": 4.370462354585654e-09
+    },
+    "2": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.1319904112128356,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.023842280361239036,
+     "mean_delta_entropy": -0.05554401813275987,
+     "mean_delta_other_marker_mass": 5.842151910868734e-09
+    },
+    "5": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.16032589889813606,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.03863194707321263,
+     "mean_delta_entropy": -0.09181063819699561,
+     "mean_delta_other_marker_mass": 4.301146793120564e-09
+    },
+    "10": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.18598691559438854,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.056191868692216956,
+     "mean_delta_entropy": -0.11363524234651046,
+     "mean_delta_other_marker_mass": 6.063251945824936e-09
+    },
+    "20": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.20869396979404725,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.07694049577505596,
+     "mean_delta_entropy": -0.13682729509139907,
+     "mean_delta_other_marker_mass": 6.1607432141918655e-09
+    },
+    "50": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.24182580693136396,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.11907598812559522,
+     "mean_delta_entropy": -0.1769825960781824,
+     "mean_delta_other_marker_mass": 7.632589267906669e-09
+    },
+    "100": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.26676696984608994,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.16521372328273468,
+     "mean_delta_entropy": -0.2151279545479662,
+     "mean_delta_other_marker_mass": 8.243246970251539e-09
+    },
+    "200": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.2879829306655449,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.22145185275851625,
+     "mean_delta_entropy": -0.25377035293525,
+     "mean_delta_other_marker_mass": 8.322270206931964e-09
+    },
+    "500": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.3071038992445176,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.2954212659338499,
+     "mean_delta_entropy": -0.2956183974366229,
+     "mean_delta_other_marker_mass": 7.728396718533723e-09
+    }
+   },
+   "curve": [
+    {
+     "k": 1,
+     "cos_to_mean_g": 0.1514398887909439,
+     "reconstruction_cos": 0.1514398887909439,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": -0.027728404428567315,
+       "improved_fraction": 0.0,
+       "mean_kl": 0.0016711243782694277,
+       "mean_delta_entropy": 0.021461353494792314,
+       "mean_delta_other_marker_mass": -3.77091305199702e-11
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": -0.17970880804846553,
+       "improved_fraction": 0.5,
+       "mean_kl": 0.04666710937352476,
+       "mean_delta_entropy": 0.07797579015150699,
+       "mean_delta_other_marker_mass": 5.593700881113408e-10
+      }
+     }
+    },
+    {
+     "k": 2,
+     "cos_to_mean_g": 0.20737350154323458,
+     "reconstruction_cos": 0.20737350154323458,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.029472396763531684,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.002330341620263301,
+       "mean_delta_entropy": -0.029785754319387833,
+       "mean_delta_other_marker_mass": -3.826132266990724e-10
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.11119499160989495,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.053371619842697254,
+       "mean_delta_entropy": -0.15853637350177502,
+       "mean_delta_other_marker_mass": -2.41417561346013e-09
+      }
+     }
+    },
+    {
+     "k": 5,
+     "cos_to_mean_g": 0.28957376815709657,
+     "reconstruction_cos": 0.2895737681570965,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.021622919546108187,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.001274109443362759,
+       "mean_delta_entropy": -0.020242894577425775,
+       "mean_delta_other_marker_mass": -9.055355362650894e-10
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.09745873386575338,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.036544104722051586,
+       "mean_delta_entropy": -0.1307325801949171,
+       "mean_delta_other_marker_mass": -5.880979806410234e-09
+      }
+     }
+    },
+    {
+     "k": 10,
+     "cos_to_mean_g": 0.3628831833728824,
+     "reconstruction_cos": 0.36288318337288233,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.04417256645033114,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.005540848466642236,
+       "mean_delta_entropy": -0.047735345990104615,
+       "mean_delta_other_marker_mass": -1.2748777097140805e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.1395064238470687,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.11029565660146658,
+       "mean_delta_entropy": -0.22850270612541673,
+       "mean_delta_other_marker_mass": -5.6789362026027125e-09
+      }
+     }
+    },
+    {
+     "k": 20,
+     "cos_to_mean_g": 0.43721950691109013,
+     "reconstruction_cos": 0.43721950691109013,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.06861782306205082,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.01566080470143904,
+       "mean_delta_entropy": -0.08055562669716469,
+       "mean_delta_other_marker_mass": -2.1284242471354062e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.16376459811673658,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.24562465421732116,
+       "mean_delta_entropy": -0.30777893674008394,
+       "mean_delta_other_marker_mass": -9.69011110157282e-09
+      }
+     }
+    },
+    {
+     "k": 50,
+     "cos_to_mean_g": 0.552515905408977,
+     "reconstruction_cos": 0.552515905408977,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.09028863951697302,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.029559901267207138,
+       "mean_delta_entropy": -0.11837349826656532,
+       "mean_delta_other_marker_mass": -3.5168175959243603e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.17557563230874557,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.3885558931036644,
+       "mean_delta_entropy": -0.35859267005796464,
+       "mean_delta_other_marker_mass": -1.1066091317126178e-08
+      }
+     }
+    },
+    {
+     "k": 100,
+     "cos_to_mean_g": 0.6605605134649255,
+     "reconstruction_cos": 0.6605605134649254,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.10310334049763653,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.04114570378747683,
+       "mean_delta_entropy": -0.14443917962203667,
+       "mean_delta_other_marker_mass": -4.618116368852953e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.17915367361074952,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.4841507817341674,
+       "mean_delta_entropy": -0.37753788168292146,
+       "mean_delta_other_marker_mass": -1.1638743714675268e-08
+      }
+     }
+    },
+    {
+     "k": 200,
+     "cos_to_mean_g": 0.7826488446734116,
+     "reconstruction_cos": 0.7826488446734116,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.1170976083286751,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.058765311413816745,
+       "mean_delta_entropy": -0.1753858974721244,
+       "mean_delta_other_marker_mass": -6.129294716568382e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.18113130175766143,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.6295357806613586,
+       "mean_delta_entropy": -0.3898210668554002,
+       "mean_delta_other_marker_mass": -1.2771996744178566e-08
+      }
+     }
+    },
+    {
+     "k": 500,
+     "cos_to_mean_g": 0.9278339664854431,
+     "reconstruction_cos": 0.9278339664854431,
+     "rows": {
+      "0.02": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.12883761344505326,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.07906771518457124,
+       "mean_delta_entropy": -0.20441407833780273,
+       "mean_delta_other_marker_mass": -7.571617265667712e-09
+      },
+      "0.1": {
+       "n_sites": 2,
+       "mean_delta_logp": 0.18179686553748117,
+       "improved_fraction": 1.0,
+       "mean_kl": 0.7646569624412922,
+       "mean_delta_entropy": -0.39463223094800637,
+       "mean_delta_other_marker_mass": -1.4212840010380129e-08
+      }
+     }
+    }
+   ],
+   "baselines": {
+    "w": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.040827233001444516,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.004909009628338064,
+      "mean_delta_entropy": -0.041197666983621845,
+      "mean_delta_other_marker_mass": 9.826390454512936e-10
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.12612368492302128,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.0830155854801783,
+      "mean_delta_entropy": -0.18959568492265763,
+      "mean_delta_other_marker_mass": 5.493424336112966e-09
+     }
+    },
+    "mean_g": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.13400086878730005,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.09025867164340722,
+      "mean_delta_entropy": -0.21782444105011703,
+      "mean_delta_other_marker_mass": -7.847139641739683e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.18197174438749808,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.8409816050180902,
+      "mean_delta_entropy": -0.39600358683059733,
+      "mean_delta_other_marker_mass": -1.412190983678245e-08
+     }
+    },
+    "sparse_g": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.11257798444994915,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.05231411713256894,
+      "mean_delta_entropy": -0.1673737942494926,
+      "mean_delta_other_marker_mass": -6.435432991678913e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.18075607120162557,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.5855595716374342,
+      "mean_delta_entropy": -0.38755745361007704,
+      "mean_delta_other_marker_mass": -1.3953048422070808e-08
+     }
+    }
+   },
+   "top_units": [
+    {
+     "layer": 20,
+     "unit": 3173,
+     "coefficient": 0.17354730852210262
+    },
+    {
+     "layer": 20,
+     "unit": 3057,
+     "coefficient": 0.18413631863465818
+    },
+    {
+     "layer": 20,
+     "unit": 3546,
+     "coefficient": 0.1495248025976958
+    },
+    {
+     "layer": 20,
+     "unit": 4928,
+     "coefficient": 0.06157890002074823
+    },
+    {
+     "layer": 20,
+     "unit": 5577,
+     "coefficient": -0.052157456679584456
+    },
+    {
+     "layer": 20,
+     "unit": 1185,
+     "coefficient": 0.08970450698262357
+    },
+    {
+     "layer": 20,
+     "unit": 1284,
+     "coefficient": 0.13821253428563285
+    },
+    {
+     "layer": 20,
+     "unit": 4675,
+     "coefficient": -0.09354829939246587
+    },
+    {
+     "layer": 20,
+     "unit": 1118,
+     "coefficient": -0.12165735969979144
+    },
+    {
+     "layer": 20,
+     "unit": 3082,
+     "coefficient": -0.10318675846978159
+    },
+    {
+     "layer": 20,
+     "unit": 3732,
+     "coefficient": 0.07972332146636621
+    },
+    {
+     "layer": 20,
+     "unit": 288,
+     "coefficient": -0.07467177379271378
+    }
+   ],
+   "selected": {
+    "k": 500,
+    "dose": 0.02,
+    "cos_to_mean_g": 0.9278339664854431,
+    "reconstruction_cos": 0.9278339664854431,
+    "rule": "calibration: 90% of best delta at dose 0.02, KL<=0.10; then largest dose with calibration KL<=0.10",
+    "selection_status": "calibration 90%% effect saturation",
+    "calibration": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.3071038992445176,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.2954212659338499,
+      "mean_delta_entropy": -0.2956183974366229,
+      "mean_delta_other_marker_mass": 7.728396718533723e-09
+     },
+     "0.05": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.35382585892684804,
+      "improved_fraction": 1.0,
+      "mean_kl": 1.1359430378549173,
+      "mean_delta_entropy": -0.4580353079639422,
+      "mean_delta_other_marker_mass": 3.1508144101300806e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.3556327546986718,
+      "improved_fraction": 1.0,
+      "mean_kl": 2.6115237198546906,
+      "mean_delta_entropy": -0.4709823862143302,
+      "mean_delta_other_marker_mass": -5.451010853390698e-09
+     }
+    },
+    "heldout": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.12883761344505326,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.07906771518457124,
+     "mean_delta_entropy": -0.20441407833780273,
+     "mean_delta_other_marker_mass": -7.571617265667712e-09
+    }
+   },
+   "hybrid": {
+    "lambda_grid": [
+     0.0,
+     0.25,
+     0.5,
+     0.75,
+     1.0
+    ],
+    "selected_lambda": 1.0,
+    "selected_dose": 0.02,
+    "rule": "calibration: smallest lambda reaching 90% of mean-g delta at dose 0.02, KL<=0.10; then largest dose with calibration KL<=0.10",
+    "calibration_low": {
+     "0.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.3071038992445176,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.2954212659338499,
+      "mean_delta_entropy": -0.2956183974366229,
+      "mean_delta_other_marker_mass": 7.728396718533723e-09
+     },
+     "0.25": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.31038072385853815,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.31153264779436723,
+      "mean_delta_entropy": -0.303816513694818,
+      "mean_delta_other_marker_mass": 7.83039432450788e-09
+     },
+     "0.5": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.3126253189155326,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.3234035185665934,
+      "mean_delta_entropy": -0.3095872593235348,
+      "mean_delta_other_marker_mass": 7.921708473072642e-09
+     },
+     "0.75": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.31387998498936703,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.3304037126382516,
+      "mean_delta_entropy": -0.31286461130594095,
+      "mean_delta_other_marker_mass": 8.012681577943796e-09
+     },
+     "1.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.31422024391787323,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.3324261376066341,
+      "mean_delta_entropy": -0.3137448403559708,
+      "mean_delta_other_marker_mass": 8.099271966231214e-09
+     }
+    },
+    "calibration": {
+     "0.02": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.31422024391787323,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.3324261376066341,
+      "mean_delta_entropy": -0.3137448403559708,
+      "mean_delta_other_marker_mass": 8.099271966231214e-09
+     },
+     "0.05": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.3544250704971786,
+      "improved_fraction": 1.0,
+      "mean_kl": 1.2470238465834802,
+      "mean_delta_entropy": -0.4618180493459303,
+      "mean_delta_other_marker_mass": 3.179052300877162e-09
+     },
+     "0.1": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.3556372894118966,
+      "improved_fraction": 1.0,
+      "mean_kl": 2.83567551405254,
+      "mean_delta_entropy": -0.4710368858279598,
+      "mean_delta_other_marker_mass": -5.304622859403583e-09
+     }
+    },
+    "heldout_curve_at_0.02": {
+     "0.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.12883761344505326,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.07906771518457124,
+      "mean_delta_entropy": -0.20441407833780273,
+      "mean_delta_other_marker_mass": -7.571617265667712e-09
+     },
+     "0.25": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.13108791477644838,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.08374473137924555,
+      "mean_delta_entropy": -0.21014607344579325,
+      "mean_delta_other_marker_mass": -7.714518864228737e-09
+     },
+     "0.5": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.1326937991348487,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.08726454347952382,
+      "mean_delta_entropy": -0.21432227070818613,
+      "mean_delta_other_marker_mass": -7.80864913893051e-09
+     },
+     "0.75": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.13365846084097213,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.08945928581332935,
+      "mean_delta_entropy": -0.21687985226916326,
+      "mean_delta_other_marker_mass": -7.852396548375122e-09
+     },
+     "1.0": {
+      "n_sites": 2,
+      "mean_delta_logp": 0.13400086878730005,
+      "improved_fraction": 1.0,
+      "mean_kl": 0.09025867164340722,
+      "mean_delta_entropy": -0.21782444105011703,
+      "mean_delta_other_marker_mass": -7.847139641739683e-09
+     }
+    },
+    "heldout": {
+     "n_sites": 2,
+     "mean_delta_logp": 0.13400086878730005,
+     "improved_fraction": 1.0,
+     "mean_kl": 0.09025867164340722,
+     "mean_delta_entropy": -0.21782444105011703,
+     "mean_delta_other_marker_mass": -7.847139641739683e-09
+    }
+   },
+   "selected_sites": [
+    {
+     "trajectory": "aime__1989__1989_I_1__think",
+     "t": 53,
+     "n_prefix": 153,
+     "dose": 0.02,
+     "delta_logp": 2.4538078767053585e-06,
+     "kl": 1.848832009300958e-06,
+     "delta_entropy": -3.253710071190468e-05,
+     "delta_other_marker_mass": -1.993762273726287e-09
+    },
+    {
+     "trajectory": "aime__2020__2020_I_1__think",
+     "t": 68,
+     "n_prefix": 177,
+     "dose": 0.02,
+     "delta_logp": 0.2576727730822298,
+     "kl": 0.1581335815371332,
+     "delta_entropy": -0.4087956195748936,
+     "delta_other_marker_mass": -1.3149472257609135e-08
+    }
+   ]
+  }
+ },
+ "source_hashes": {
+  "vector": "6ef6df33e2cb22d647594d7d9f0b371e7bec8c9a0cd25741095b7fe26a890c16",
+  "sweep": "2c696560172def08ab622a11d54d915bc78a228e4b986777d6e6a0e9f977b484"
+ },
+ "guards": {
+  "n_markers": 3,
+  "vector_sha_ok": true,
+  "selection_uses_calibration_only": true,
+  "all_heldout_finite": true
+ },
+ "generated_by": "backend/examples/build_unit_design.py"
+}
