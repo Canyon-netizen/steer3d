@@ -121,3 +121,22 @@ w（offset 0）：+0.020 / +0.047 / +0.083 / +0.133；random 接近 0。
 - mean_g 在 dose 0.1 后接近饱和；w 更弱；random 无效果。
 
 新增文件：reasoning_path_sweep.png。
+
+## Free-running generation（2026-10-18 补）
+
+24-token greedy generation，dose 0.1：
+
+| mode | first divergence | hidden displacement |
+|---|---|---:|
+| mean_g one-shot | 6/6 source 在 24 token 内**完全不分叉** | 3.1-6.5 |
+| mean_g per-token | 4/6 source 在 2-19 token 分叉；2/6 不分叉 | 96-827 |
+| w one-shot | 6/6 不分叉 | 3.4-4.2 |
+| random one-shot | 6/6 不分叉 | 3.1-3.7 |
+
+结论：
+
+- 单次 anchor 注入虽然把 marker logp 提高约 +0.32，**没有改变 24-token greedy 输出**；
+- 每步都注入 mean_g 才会改变输出，但 hidden displacement 大 1-2 个数量级，属于强 off-manifold 干预；
+- 因此 one-shot 向量更像“局部 logit 偏置”，不是稳定的自由生成控制器。
+
+新增文件：reasoning_path_free.png。

@@ -124,3 +124,19 @@ w 在 offset 0 为 +0.020/+0.047/+0.083/+0.133；random 接近 0。
 - 所以“向量把路线推远”与“向量改变行为”是两件不同的事，且效果在时间上局部。
 
 这直接支持：静态向量不是全局控制器，而是局部干预。
+
+## Free-running generation
+
+24-token greedy：
+
+| mode | 结果 |
+|---|---|
+| mean_g one-shot | 6/6 source 24 token 完全不分叉；Δlogp 虽 +0.32 |
+| mean_g per-token | 4/6 source 在 2-19 token 分叉；2/6 不分叉；displacement 96-827 |
+| w / random one-shot | 6/6 不分叉 |
+
+- **one-shot 只改变 logit，不改变 greedy 输出**；
+- per-token 才改变输出，但位移大 1-2 个数量级，属于强 off-manifold；
+- 因此当前向量是局部探针/偏置，不是稳定的自由生成控制器。
+
+图：reasoning_path_free.png

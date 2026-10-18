@@ -31,6 +31,8 @@ CAUSAL = ROOT / "experiments/reasoning_path_v1/remote_l21/causal_patching.json"
 CAUSAL_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_causal.png"
 SWEEP = ROOT / "experiments/reasoning_path_v1/remote_sweep/reasoning_sweep.json"
 SWEEP_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_sweep.png"
+FREE = ROOT / "experiments/reasoning_path_v1/remote_free/free_running.json"
+FREE_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_free.png"
 HTML = ROOT / "experiments/reasoning_path_v1/reasoning_path.html"
 PUBLIC = ROOT / "frontend/public/reasoning-path.html"
 LAYER = 21
@@ -68,6 +70,7 @@ def main() -> int:
     attribution = load_json(ATTRIBUTION)
     causal = load_json(CAUSAL)
     sweep = load_json(SWEEP)
+    free = load_json(FREE)
     states = np.load(REMOTE / "reasoning_path_states.npz")
     layer = int(LAYER)
     arms = capture["arms"]
@@ -158,6 +161,7 @@ def main() -> int:
         "attribution": attribution,
         "causal": causal,
         "sweep": sweep,
+        "free_running": free,
     }
     OUT.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print("[ok] json", OUT, "bytes", OUT.stat().st_size)
@@ -166,6 +170,7 @@ def main() -> int:
     render_heads(payload, attribution, HEADS_PNG)
     render_causal(causal, CAUSAL_PNG)
     render_sweep(sweep, SWEEP_PNG)
+    render_free(free, FREE_PNG)
     render_html(payload, HTML)
     PUBLIC.write_text(HTML.read_text(encoding="utf-8"), encoding="utf-8")
     (PUBLIC.parent / "reasoning_path.png").write_bytes(PNG.read_bytes())
@@ -173,6 +178,7 @@ def main() -> int:
     (PUBLIC.parent / "reasoning_path_heads.png").write_bytes(HEADS_PNG.read_bytes())
     (PUBLIC.parent / "reasoning_path_causal.png").write_bytes(CAUSAL_PNG.read_bytes())
     (PUBLIC.parent / "reasoning_path_sweep.png").write_bytes(SWEEP_PNG.read_bytes())
+    (PUBLIC.parent / "reasoning_path_free.png").write_bytes(FREE_PNG.read_bytes())
     print("[ok] png", PNG)
     print("[ok] html", HTML)
     return 0
@@ -340,6 +346,35 @@ def render_sweep(sweep, path: Path) -> None:
     print("[sweep fig]", path)
 
 
+def render_free(free, path: Path) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    records = free["records"]
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.4), constrained_layout=True)
+    x = np.arange(len(records))
+    one = [record["arms"]["mean_g:oneshot"]["first_divergence"] for record in records]
+    per = [record["arms"]["mean_g:per_token"]["first_divergence"] for record in records]
+    axes[0].bar(x - 0.18, one, width=0.34, color="#94a3b8", label="mean_g one-shot")
+    axes[0].bar(x + 0.18, per, width=0.34, color="#fbbf24", label="mean_g per-token")
+    axes[0].axhline(free["tokens"], color="#64748b", ls="--", lw=1, label="no divergence within window")
+    axes[0].set_xticks(x); axes[0].set_xticklabels([record["id"][-18:] for record in records], rotation=25, ha="right")
+    axes[0].set_ylabel("first divergent token"); axes[0].set_title("free-running divergence")
+    axes[0].legend(fontsize=7); axes[0].grid(alpha=0.2, axis="y")
+    one_disp = [record["arms"]["mean_g:oneshot"]["hidden_displacement"] for record in records]
+    per_disp = [record["arms"]["mean_g:per_token"]["hidden_displacement"] for record in records]
+    axes[1].bar(x - 0.18, one_disp, width=0.34, color="#94a3b8", label="one-shot")
+    axes[1].bar(x + 0.18, per_disp, width=0.34, color="#fbbf24", label="per-token")
+    axes[1].set_yscale("log")
+    axes[1].set_xticks(x); axes[1].set_xticklabels([record["id"][-18:] for record in records], rotation=25, ha="right")
+    axes[1].set_ylabel("mean hidden displacement (log)")
+    axes[1].set_title("hidden-state movement")
+    axes[1].legend(fontsize=7); axes[1].grid(alpha=0.2, axis="y")
+    fig.suptitle("Free-running generation from the anchor (greedy, 24 tokens)", fontsize=12)
+    fig.savefig(path, dpi=170)
+    print("[free fig]", path)
+
+
 def render_html(payload, path: Path) -> None:
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     html = '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -379,6 +414,7 @@ table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:left;p
 <div class="panel" style="margin-top:14px"><h2>Head / OV & MLP attribution at anchor</h2><img id="staticheads" src="reasoning_path_heads.png" alt="head attribution preview" style="width:100%;border-radius:10px;display:block"><div class="small" style="margin-top:8px">layer 20：每根柱是一个 attention head 的 ΔDLA（mean_g），右侧是 MLP 的 ΔDLA。当前 marker 上 MLP write 远大于 head 直接贡献；这是单点 attribution，不是完整 edge graph。</div></div>
 <div class="panel" style="margin-top:14px"><h2>Causal patching：MLP write 是充分通道吗？</h2><img id="staticcausal" src="reasoning_path_causal.png" alt="causal patching preview" style="width:100%;border-radius:10px;display:block"><div class="small" style="margin-top:8px">sufficiency：把 steered 的组件 patch 回 baseline，能恢复多少 Δlogp；necessity：把 baseline 组件 patch 进 steered，效果是否消失。mean_g 的 MLP20+21 组合 sufficiency 约 0.87，heads 只有约 0.12；necessity 接近 1 说明单组件可被下游补偿——效应是分布式/冗余的，不是单点开关。</div></div>
 <div class="panel" style="margin-top:14px"><h2>Dose / anchor sweep：效果是局部的</h2><img id="staticsweep" src="reasoning_path_sweep.png" alt="dose anchor sweep preview" style="width:100%;border-radius:10px;display:block"><div class="small" style="margin-top:8px">在 target 前 16/8/0 个 token 注入，扫 dose 0.02-0.2。只有 offset=0（紧邻 marker）明显改变 marker logp；offset=-8/-16 仍能把 hidden state 推远（右图），但 Δlogp 接近 0。⇒ 位移大不等于有效，向量作用在时间上是局部的。</div></div>
+<div class="panel" style="margin-top:14px"><h2>Free-running generation：one-shot 真的改变输出吗？</h2><img id="staticfree" src="reasoning_path_free.png" alt="free running preview" style="width:100%;border-radius:10px;display:block"><div class="small" style="margin-top:8px">24-token greedy generation。one-shot 只改 prefill anchor；per-token 每一步都注入 mean_g。one-shot 在 6/6 source 上 24 个 token 完全不变；per-token 在 4/6 source 上发生分叉，但 hidden displacement 大 1-2 个数量级，属于强 off-manifold 干预。</div></div>
 <div class="panel" style="margin-top:14px"><h2>怎么读</h2><p class="small">每条线是一个 source 的完整 baseline 推理路线（生成 token 的 layer-21 hidden state，PCA 到 3D）。彩色窗口是 anchor 附近 baseline→+arm 的局部轨迹；黄色箭头是同一 token 位置的位移。右下曲线是该窗口内下一 token 的 log p；anchor 虚线处是 marker 前的位置。teacher-forced 保证 token 对齐，不是自由生成。</p></div>
 </div>
 <script>
