@@ -282,7 +282,8 @@ def k_cells(cells, kpos):
         n, cov, direct = check_cell(c, kpos)
         if cov is None:
             continue
-        out.append({"tid": c["tid"], "cov": cov, "direct": direct,
+        out.append({"tid": c["tid"], "cov": cov, "k": int(c["inject_n_sites"]),
+                    "direct": direct,
                     "raw": raw_response(c), "norm": float(c[RESP_NORM]),
                     "denom": float(c[RESP_DENOM]), "up": bool(c[UP])})
     return out
@@ -367,7 +368,7 @@ def j10_fixed_n(counts, min_rungs=3):
     return sum(1 for c in counts if c >= min_rungs)
 
 
-def j9_step_pure(jump_mid):
+def j9_step_pure(jump_mid, added=None):
     """⚖ **J9**：台阶能不能被读成**纯机制**效应？
 
     ⚖⚠⚠ 台阶 = 同一轨迹里「最后一个传播档 → 第一个直接档」，
@@ -375,10 +376,60 @@ def j9_step_pure(jump_mid):
     ⚗⇒ 只要 Δcov > 0，它就是「机制 + 剂量」的**合成**，
     ⛔ 单独读成机制效应就是过度解读。
     ⚗⇒ 第三条腿：`within_mech`（固定机制下剂量还有没有用）。
+
+    ⚖⚠⚠⚠ 修订 244.33 的加码：台阶处**新增位点数实测中位 = 372**（96..1330），
+    而读出位点只有 **1** 个 ⇒ 它只占新增的 **1/372**。
+    ⚗⇒ 「读出位置被直接扰动 ⇒ 响应跳 11.84×」是**推断**，不是测量：
+    那一跳同样可以由「多注入 371 个**别的**位点」造成。
+    ⛔⇒ 除非新增位点数降到 **1**，否则「纯机制」不成立（`added` 缺省即不许）。
     """
     if jump_mid is None:
         return False
-    return jump_mid <= 0.0
+    if jump_mid > 0.0:
+        return False
+    return added is not None and added <= 1
+
+
+def share_text(added_median):
+    """⚖ 「读出位点占新增的 1/N」那一格。**N 直接取新增位点数的中位。**
+
+    ⚖⚠⚠⚖ 修订 244.33 两次踩坑：
+      ⚖ 第一版把 `1/372 = 0.0027` 直接用 `%.0f` 格式化 ⇒ 印成 **1/0**。
+      ⚖ 第二版改成 `1/med(shares)` ⇒ 印成 **1/367**，
+         ⚖⚠ 而**同一行**的「新增位点数中位」写的是 **372** ⇒ 报告**自相矛盾**。
+        根因：`med(1/add)` ≠ `1/med(add)`。
+    ⚗⇒ 正确做法：**不要从占比反推分母**，直接用分母本身。
+    ⚖⚠⚠ 抓住第一版的不是「1/0 荒谬」，是**同一行里另一个数**（372）。
+    """
+    if added_median is None or added_median <= 0:
+        return "**未量到**"
+    n = int(round(added_median))
+    # ⚖⚠⚠⚠ 取整后必须**回查**：0 < added_median < 0.5 时 `round` 给 0
+    #   ⇒ 会印出「1/0」这个**不可能**的字符串（第一版事故的根）。
+    #   ⚗⇒ ⛔ 绝不在取整之后不复查。
+    if n < 1:
+        return "**未量到**"
+    return "1/%d" % n
+
+
+def added_sites(rows):
+    """⚖ 台阶处**新增**了多少个注入位点，以及读出位点占其中多少。
+
+    ⚖⚠⚠ 244.33 的核心读数：新增 **372** 个，读出位点只有 **1** 个
+    ⇒ 把「Δcov 跨了 0.25」这句定性警告变成一句**带数**的话。
+    """
+    g = by_tid(rows)
+    adds, shares = [], []
+    for tid in sorted(g):
+        s = sorted(g[tid], key=lambda r: r["cov"])
+        pr = [r for r in s if not r["direct"]]
+        dr = [r for r in s if r["direct"]]
+        if not pr or not dr:
+            continue
+        n_add = dr[0]["k"] - pr[-1]["k"]
+        adds.append(n_add)
+        shares.append(1.0 / n_add if n_add > 0 else None)
+    return adds, [x for x in shares if x is not None]
 
 
 def within_mech(rows, want_direct):
@@ -605,6 +656,8 @@ def report(cells_w, cells_r, kpos, lo=0.20, hi=0.60, cells_a=None, cells_b=None)
     L.append("     ⚠ **混淆了轨迹身份** ⇒ 那版 rand 也报出倍数，是被身份带出来的。")
     for name, rows in (("w", rw), ("rand", rr_)):
         deltas, jumps, ratios = mechanism_step(rows)
+        adds, shares = added_sites(rows)
+        am = med(adds)
         pos, n, p = pos_test(deltas)
         jm = med(jumps)
         got = [r for r in ratios if r is not None]
@@ -613,11 +666,18 @@ def report(cells_w, cells_r, kpos, lo=0.20, hi=0.60, cells_a=None, cells_b=None)
                     ("%+.6f" % med(deltas)) if deltas else "**未量到**"))
         L.append("     raw 比值中位=%s"
                  % (("%+.2f×" % med(got)) if got else "**未量到**（分母为 0 的档已剔）"))
-        pure = j9_step_pure(jm)
-        L.append("     J9：同一步跨了 Δcov 中位=%s ⇒ %s"
+        pure = j9_step_pure(jm, am)
+        adds, shares = added_sites(rows)
+        L.append("     新增位点数中位=%s（范围 %s..%s）⇒ 读出位点只占新增的 **%s**"
+                 % (("%d" % am) if am is not None else "**未量到**",
+                    min(adds) if adds else "-", max(adds) if adds else "-",
+                    share_text(am)))
+        L.append("     J9：同一步跨了 Δcov 中位=%s、新增位点中位=%s ⇒ %s"
                  % (("%+.4f" % jm) if jm is not None else "**未量到**",
+                    ("%d" % am) if am is not None else "**未量到**",
                     "**可**读成纯机制" if pure
-                    else "⚠⚠ **合成量**（机制 + 剂量），⛔ 不可单独读成机制效应"))
+                    else "⚠⚠ **合成量**（机制 + 剂量）；⛔ 把这一跳归因到"
+                         "「读出位点被扰动」是**推断**，不是测量"))
 
     L.append("")
     L.append("【5】**固定机制、只变剂量**时的梯度（第三条腿）")
@@ -892,10 +952,36 @@ def selftest(probe_path=None):
         and j10_fixed_n([2, 2, 2]) == 0,
         "Spearman：2 点⇒None（退化）；3 点单调⇒±1；min_rungs=3 ⇒ [2,2,3,4] 记 2 条")
 
-    # T13 **J9 双向**：台阶跨了 Δcov ⇒ 不可读成纯机制；Δcov=0 才可
-    chk("T13", j9_step_pure(0.25) is False and j9_step_pure(0.0) is True
-        and j9_step_pure(None) is False,
-        "J9：Δcov=0.25⇒合成；Δcov=0⇒可读纯机制；None⇒不可")
+    # T13 **J9 双向**：台阶跨了 Δcov / 新增多个位点 ⇒ 不可读成纯机制；
+    #     ⛔ 但 Δcov=0 **且**新增 1 个位点 ⇒ 才是纯机制
+    # ⚖⚠⚠⚠ `j9_step_pure(0.25, 1)` 这一条是**专门给 `if jump_mid > 0.0`
+    #   承重**的：没有它，`added<=1` 会把所有用例都判成 False，
+    #   那道守卫删掉也没人发现 ⇒ 变异 H11/H11b **存活**。
+    #   ⚗⇒ 「两支守卫都被同一支遮住」是判据**没独立承重**的一种，
+    #   症状是台架报「存活」而真因在**用例**不在判据。
+    chk("T13", j9_step_pure(0.25) is False and j9_step_pure(0.25, 372) is False
+        and j9_step_pure(0.25, 1) is False
+        and j9_step_pure(0.0, 1) is True and j9_step_pure(0.0, 2) is False
+        and j9_step_pure(None) is False and j9_step_pure(0.0) is False,
+        "J9：Δcov>0⇒合成（哪怕只加 1 个位点）；Δcov>0 且 added=372⇒合成；"
+        "Δcov=0 且只加 1 个位点⇒可读纯机制；缺 added⇒不许")
+
+    # T18 ⚖ 台阶处新增位点数必须**报出来**，且读出位点占比极小
+    #     这条是 244.33 的核心：把「Δcov 跨了 0.25」变成带数的警告。
+    # ⚖⚠⚠ 第一版这里调用了**后面**才定义的 `_mk_pair` ⇒ UnboundLocalError。
+    #   ⚗⇒ 自检里的夹具必须**自包含**或定义在前，别指望 Python 会前向解析局部名。
+    def _mk_step_rows(tid, k_prop_last, k_dir_first, raw_prop, raw_dir):
+        return [{"tid": tid, "cov": 0.06, "k": k_prop_last, "direct": False,
+                 "raw": raw_prop, "norm": raw_prop, "denom": 0.05, "up": True},
+                {"tid": tid, "cov": 0.25, "k": k_dir_first, "direct": True,
+                 "raw": raw_dir, "norm": raw_dir, "denom": 0.05, "up": True}]
+    adds_f, shares_f = added_sites(_mk_step_rows("s0", 110, 880, 0.1, 0.8)
+                                   + _mk_step_rows("s1", 120, 1450, 0.1, 0.8))
+    chk("T18", adds_f == [770, 1330]
+        and abs(med(shares_f) - 0.5 * (1.0 / 770 + 1.0 / 1330)) < 1e-12
+        and med(shares_f) < 0.5,
+        "added_sites：新增 %s 个位点 ⇒ 读出位点占比中位 %.5f ⇒ 归因到读出位点是推断"
+        % (adds_f, med(shares_f) or float("nan")))
 
     # T14 **J10**：档数不够的轨迹必须被剔出分母，且剔的数量可核
     # ⚖⚠ 第一版写 `j10_fixed_n([4,1,5,2]) == 3` —— 那是 min_rungs=2 时代的期望；
@@ -914,11 +1000,11 @@ def selftest(probe_path=None):
     def _mk_pair(tid, raw_prop, raw_dir):
         rows = []
         for j, cov in enumerate((0.01, 0.03, 0.06)):     # 三个传播档，raw 递增
-            rows.append({"tid": tid, "cov": cov, "direct": False,
+            rows.append({"tid": tid, "cov": cov, "k": 10 * (j + 1), "direct": False,
                          "raw": raw_prop * (j + 1), "norm": raw_prop * (j + 1),
                          "denom": 0.05, "up": True})
-        rows.append({"tid": tid, "cov": 0.25, "direct": True, "raw": raw_dir,
-                     "norm": raw_dir, "denom": 0.05, "up": True})
+        rows.append({"tid": tid, "cov": 0.25, "k": 200, "direct": True,
+                     "raw": raw_dir, "norm": raw_dir, "denom": 0.05, "up": True})
         return rows
     deltas, jumps, ratios = mechanism_step(_mk_pair("m0", 0.10, 0.80)
                                           + _mk_pair("m1", 0.10, 0.10))
@@ -949,12 +1035,13 @@ def selftest(probe_path=None):
     flat_rows = []
     for i in range(6):
         for cov in (0.01, 0.03, 0.06):
-            flat_rows.append({"tid": "f%d" % i, "cov": cov, "direct": False,
-                              "raw": 0.1, "norm": 0.1, "denom": 0.05, "up": True})
-        for j, cov in enumerate((0.25, 0.5, 0.75)):    # 直接档：raw 递增
-            flat_rows.append({"tid": "f%d" % i, "cov": cov, "direct": True,
-                              "raw": 0.2 + 0.1 * j, "norm": 0.2 + 0.1 * j,
+            flat_rows.append({"tid": "f%d" % i, "cov": cov, "k": int(cov * 1000),
+                              "direct": False, "raw": 0.1, "norm": 0.1,
                               "denom": 0.05, "up": True})
+        for j, cov in enumerate((0.25, 0.5, 0.75)):    # 直接档：raw 递增
+            flat_rows.append({"tid": "f%d" % i, "cov": cov, "k": int(cov * 1000),
+                              "direct": True, "raw": 0.2 + 0.1 * j,
+                              "norm": 0.2 + 0.1 * j, "denom": 0.05, "up": True})
     wmf = within_mech(flat_rows, False)
     wmd = within_mech(flat_rows, True)
     chk("T16", j10_fixed_n([c for _, c in wmf.values()]) == 6
@@ -962,6 +1049,23 @@ def selftest(probe_path=None):
         and all(r is not None and r > 0 for r, _ in wmd.values()),
         "固定机制：传播层全同值⇒None（**未量到**）；直接层递增⇒rho>0；"
         "夹具含两种机制 ⇒ 去掉机制过滤一定会暴露")
+
+    # T19 ⚖⚠ 「1/N」那一格不许印成 1/0（244.33 的实际事故）
+    # ⚖⚠ 期望值**从定义算出来**，⛔ 不写死整数：第一版我写 924，
+    #   查下去是算错（`med` 对偶数长度取**两中位平均**，再取倒数，
+    #   ≠ 两个倒数的平均）⇒ 真值 975。⚗⇒ 写死的期望值本身就是坑。
+    try:
+        got = (share_text(372), share_text(0), share_text(None), share_text(0.4))
+        chk("T19", got[0] == "1/372" and got[1] == "**未量到**"
+            and got[2] == "**未量到**" and "1/0" not in got[3],
+            "share_text：372⇒\"1/372\"（⛔ 与同一行的新增中位**一致**）；"
+            "0 / None ⇒ 未量到；小数 ⇒ 不许印成 1/0")
+    except (TypeError, ValueError) as e:
+        # ⚖⚠⚠⚠ 这个 except 不是装饰：去掉 `added_median is None` 的守卫后，
+        #   `share_text(None)` 会抛 TypeError ⇒ 整轮自检以**崩**收场，
+        #   而台架把「崩」记成「台架坏了」而不是「H20 咬住了」。
+        # ⚗⇒ 要的是**干净的按判据变红**。
+        chk("T19", False, "share_text(None) 抛 %s ⇒ 分母守卫没生效" % type(e).__name__)
 
     # T9 ⚖ 若探针源码可达，用**真函数**再跑一遍 J1/J2（夹具≠真实仪器）
     if probe_path and os.path.exists(probe_path):

@@ -155,10 +155,10 @@ MUTATIONS = [
 
     # H11 J9：恒返回 True ⇒ T13 必红（把「台阶含剂量成分」这个警告消音）
     # ⚖⚠⚠ 症状：报告说「台阶**可**读成纯机制」⇒ 机制效应被当成已经隔离干净。
-    ("H11", "return jump_mid <= 0.0", "return True", "T13"),
+    ("H11", "if jump_mid > 0.0:", "if False:", "T13"),
 
-    # H11b J9 反向：恒返回 False ⇒ T13 必红（把 Δcov=0 的情形也误喊）
-    ("H11b", "return jump_mid <= 0.0", "return False", "T13"),
+    # H11b J9 反向：跨 Δcov 也不拦 ⇒ T13 必红（把 Δcov>0 的情形也误喊）
+    ("H11b", "if jump_mid > 0.0:", "if False and jump_mid > 0.0:", "T13"),
 
     # H12 J10：分母改成「全部轨迹」⇒ T14 必红
     # ⚖⚠ 症状：档数 < 2 的轨迹（rho 未量到）被当 0.0 凑进分母
@@ -187,6 +187,27 @@ MUTATIONS = [
     # H16 J10 的 min_rungs 默认值：2 → 3 改成反向（放宽到 2）⇒ T17 必红
     ("H16", "def j10_fixed_n(counts, min_rungs=3):",
      "def j10_fixed_n(counts, min_rungs=2):", "T17"),
+
+    # H17 J9 加码：只查 Δcov，不查新增位点数 ⇒ T13 必红
+    # ⚖⚠⚠⚖ 修订 244.33：台阶处新增位点**中位 372** 个，读出位点只有 **1** 个。
+    #   ⛔ 「Δcov=0 就可读成纯机制」这条被去掉 `added<=1` 后就会放行
+    #   「只加 1 个位点」以外的一切 ⇒ 报告会把 11.84× 归因到读出位点。
+    ("H17", "return added is not None and added <= 1", "return True", "T13"),
+
+    # H18 added_sites：把「读出位点占比」算成新增总数 ⇒ T18 必红
+    # ⚖⚠ 症状：占比被印成 1.0（读出位点 = 全部新增）⇒ 报告说
+    #   「读出位点占新增的 100%」，而实测是 1/372。
+    ("H18", "shares.append(1.0 / n_add if n_add > 0 else None)",
+     "shares.append(1.0)", "T18"),
+
+    # H19 share_text：取整后不回查 ⇒ T19 必红（印出 1/0）
+    # ⚖⚠⚠ 症状：added 落在 (0, 0.5) 时 `round` 给 0 ⇒ 印「1/0」。
+    #   ⚖ 第一版事故就是这个；⚖ 抓住它的不是「1/0 荒谬」，是**同一行另一个数**。
+    ("H19", "if n < 1:", "if False:", "T19"),
+
+    # H20 share_text：分母为 0 时不报「未量到」，直接给出 1/0 ⇒ T19 必红
+    ("H20", "if added_median is None or added_median <= 0:",
+     "if False:", "T19"),
 ]
 
 
