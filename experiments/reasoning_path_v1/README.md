@@ -99,3 +99,25 @@ Layer 21 top：head 0 (+0.146), 14 (+0.076), 10 (+0.075), 11 (+0.071)。
 - w 的 MLP sufficiency 接近 0 → w 的效果不是由 MLP write 传递，和它弱且非对靶一致。
 
 新增文件：reasoning_path_causal.png。
+
+## Dose / anchor sweep（2026-10-18 补）
+
+在 target marker 前 16/8/0 个 token 注入，扫 dose 0.02/0.05/0.1/0.2（6 sources 平均）：
+
+mean_g：
+
+| offset | dose 0.02 Δlogp / disp | 0.05 | 0.1 | 0.2 |
+|---|---:|---:|---:|---:|
+| 0 | +0.182 / 0.99 | +0.271 / 2.49 | +0.319 / 4.99 | +0.333 / 9.96 |
+| -8 | 0.000 / 0.67 | +0.001 / 1.67 | +0.002 / 3.37 | +0.004 / 6.85 |
+| -16 | 0.000 / 0.16 | +0.001 / 0.39 | +0.002 / 0.77 | +0.002 / 1.48 |
+
+w（offset 0）：+0.020 / +0.047 / +0.083 / +0.133；random 接近 0。
+
+结论：
+
+- **效果在时间上是局部的**：只有紧邻 marker 的 offset=0 明显改变 marker logp；
+- offset=-8/-16 仍能把 hidden state 推远（disp 增长），但 Δlogp≈0；
+- mean_g 在 dose 0.1 后接近饱和；w 更弱；random 无效果。
+
+新增文件：reasoning_path_sweep.png。

@@ -29,6 +29,8 @@ ATTRIBUTION = ROOT / "experiments/reasoning_path_v1/remote_l21/vector_attributio
 HEADS_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_heads.png"
 CAUSAL = ROOT / "experiments/reasoning_path_v1/remote_l21/causal_patching.json"
 CAUSAL_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_causal.png"
+SWEEP = ROOT / "experiments/reasoning_path_v1/remote_sweep/reasoning_sweep.json"
+SWEEP_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_sweep.png"
 HTML = ROOT / "experiments/reasoning_path_v1/reasoning_path.html"
 PUBLIC = ROOT / "frontend/public/reasoning-path.html"
 LAYER = 21
@@ -65,6 +67,7 @@ def main() -> int:
     capture = load_json(REMOTE / "reasoning_path.json")
     attribution = load_json(ATTRIBUTION)
     causal = load_json(CAUSAL)
+    sweep = load_json(SWEEP)
     states = np.load(REMOTE / "reasoning_path_states.npz")
     layer = int(LAYER)
     arms = capture["arms"]
@@ -154,6 +157,7 @@ def main() -> int:
         "summary": global_summary,
         "attribution": attribution,
         "causal": causal,
+        "sweep": sweep,
     }
     OUT.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print("[ok] json", OUT, "bytes", OUT.stat().st_size)
@@ -161,12 +165,14 @@ def main() -> int:
     render_behaviour(payload, BEHAVIOUR_PNG)
     render_heads(payload, attribution, HEADS_PNG)
     render_causal(causal, CAUSAL_PNG)
+    render_sweep(sweep, SWEEP_PNG)
     render_html(payload, HTML)
     PUBLIC.write_text(HTML.read_text(encoding="utf-8"), encoding="utf-8")
     (PUBLIC.parent / "reasoning_path.png").write_bytes(PNG.read_bytes())
     (PUBLIC.parent / "reasoning_path_behaviour.png").write_bytes(BEHAVIOUR_PNG.read_bytes())
     (PUBLIC.parent / "reasoning_path_heads.png").write_bytes(HEADS_PNG.read_bytes())
     (PUBLIC.parent / "reasoning_path_causal.png").write_bytes(CAUSAL_PNG.read_bytes())
+    (PUBLIC.parent / "reasoning_path_sweep.png").write_bytes(SWEEP_PNG.read_bytes())
     print("[ok] png", PNG)
     print("[ok] html", HTML)
     return 0
@@ -300,6 +306,40 @@ def render_causal(causal, path: Path) -> None:
     print("[causal fig]", path)
 
 
+def render_sweep(sweep, path: Path) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    arms = sweep["arms"]
+    offsets = sweep["offsets"]
+    doses = sweep["doses"]
+    colors = {0: "#fbbf24", -8: "#60a5fa", -16: "#94a3b8"}
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.5), constrained_layout=True)
+    for arm in arms:
+        for offset in offsets:
+            deltas = []
+            disps = []
+            for dose in doses:
+                rows = [row for record in sweep["records"] for row in record["rows"]
+                        if row["arm"] == arm and row["offset"] == offset and abs(row["dose"] - dose) < 1e-9]
+                deltas.append(float(np.mean([row["delta"] for row in rows])))
+                disps.append(float(np.mean([row["displacement"] for row in rows])))
+            style = "-" if arm == "mean_g" else ("--" if arm == "w" else ":")
+            axes[0].plot(doses, deltas, style, marker="o", color=colors.get(offset, "#94a3b8"), lw=1.5,
+                         label=arm + " @ " + str(offset))
+            axes[1].plot(doses, disps, style, marker="o", color=colors.get(offset, "#94a3b8"), lw=1.5)
+    axes[0].axhline(0, color="#334155", lw=1)
+    axes[0].set_xlabel("dose"); axes[0].set_ylabel("target delta log p")
+    axes[0].set_title("marker effect vs dose and anchor offset")
+    axes[0].legend(fontsize=6, ncol=2); axes[0].grid(alpha=0.2)
+    axes[1].set_xlabel("dose"); axes[1].set_ylabel("mean hidden displacement")
+    axes[1].set_title("geometric movement (same arms/offsets)")
+    axes[1].grid(alpha=0.2)
+    fig.suptitle("Dose / anchor sweep (target marker fixed, teacher-forced)", fontsize=12)
+    fig.savefig(path, dpi=170)
+    print("[sweep fig]", path)
+
+
 def render_html(payload, path: Path) -> None:
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     html = '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -338,6 +378,7 @@ table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:left;p
 <div class="panel" style="margin-top:14px"><h2>Per-source summary</h2><table id="table"></table></div>
 <div class="panel" style="margin-top:14px"><h2>Head / OV & MLP attribution at anchor</h2><img id="staticheads" src="reasoning_path_heads.png" alt="head attribution preview" style="width:100%;border-radius:10px;display:block"><div class="small" style="margin-top:8px">layer 20：每根柱是一个 attention head 的 ΔDLA（mean_g），右侧是 MLP 的 ΔDLA。当前 marker 上 MLP write 远大于 head 直接贡献；这是单点 attribution，不是完整 edge graph。</div></div>
 <div class="panel" style="margin-top:14px"><h2>Causal patching：MLP write 是充分通道吗？</h2><img id="staticcausal" src="reasoning_path_causal.png" alt="causal patching preview" style="width:100%;border-radius:10px;display:block"><div class="small" style="margin-top:8px">sufficiency：把 steered 的组件 patch 回 baseline，能恢复多少 Δlogp；necessity：把 baseline 组件 patch 进 steered，效果是否消失。mean_g 的 MLP20+21 组合 sufficiency 约 0.87，heads 只有约 0.12；necessity 接近 1 说明单组件可被下游补偿——效应是分布式/冗余的，不是单点开关。</div></div>
+<div class="panel" style="margin-top:14px"><h2>Dose / anchor sweep：效果是局部的</h2><img id="staticsweep" src="reasoning_path_sweep.png" alt="dose anchor sweep preview" style="width:100%;border-radius:10px;display:block"><div class="small" style="margin-top:8px">在 target 前 16/8/0 个 token 注入，扫 dose 0.02-0.2。只有 offset=0（紧邻 marker）明显改变 marker logp；offset=-8/-16 仍能把 hidden state 推远（右图），但 Δlogp 接近 0。⇒ 位移大不等于有效，向量作用在时间上是局部的。</div></div>
 <div class="panel" style="margin-top:14px"><h2>怎么读</h2><p class="small">每条线是一个 source 的完整 baseline 推理路线（生成 token 的 layer-21 hidden state，PCA 到 3D）。彩色窗口是 anchor 附近 baseline→+arm 的局部轨迹；黄色箭头是同一 token 位置的位移。右下曲线是该窗口内下一 token 的 log p；anchor 虚线处是 marker 前的位置。teacher-forced 保证 token 对齐，不是自由生成。</p></div>
 </div>
 <script>
