@@ -1,0 +1,580 @@
+{
+ "schema": "steer3d.causal_patching/1",
+ "complete": true,
+ "scope": "single-position component patching at the anchor; necessity = baseline component into steered, sufficiency = steered component into baseline",
+ "layers": [
+  20,
+  21
+ ],
+ "arms": [
+  "mean_g",
+  "w"
+ ],
+ "top_heads": 4,
+ "records": [
+  {
+   "id": "aime__1989__1989_I_1__think",
+   "marker": 7196,
+   "anchor_t": 40,
+   "alpha": 79.30389404296875,
+   "arms": {
+    "mean_g": {
+     "base_logp": -0.019073486328125,
+     "steer_logp": -7.62939453125e-06,
+     "delta": 0.01906585693359375,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -7.62939453125e-06,
+       "patched_base_logp": -8.0108642578125e-05,
+       "necessity_fraction": 1.0,
+       "sufficiency_fraction": 0.9961984793917567
+      },
+      "mlp21": {
+       "patched_steer_logp": -3.814697265625e-06,
+       "patched_base_logp": -0.00023651123046875,
+       "necessity_fraction": 1.0002000800320128,
+       "sufficiency_fraction": 0.9879951980792316
+      },
+      "heads20": {
+       "patched_steer_logp": -7.62939453125e-06,
+       "patched_base_logp": -0.01828765869140625,
+       "necessity_fraction": 1.0,
+       "sufficiency_fraction": 0.041216486594637856
+      },
+      "heads21": {
+       "patched_steer_logp": -7.62939453125e-06,
+       "patched_base_logp": -0.01483154296875,
+       "necessity_fraction": 1.0,
+       "sufficiency_fraction": 0.2224889955982393
+      },
+      "mlp_both": {
+       "patched_steer_logp": -4.1961669921875e-05,
+       "patched_base_logp": -1.9073486328125e-05,
+       "necessity_fraction": 0.9981992797118847,
+       "sufficiency_fraction": 0.9993997599039616
+      },
+      "heads_both": {
+       "patched_steer_logp": -7.62939453125e-06,
+       "patched_base_logp": -0.0140380859375,
+       "necessity_fraction": 1.0,
+       "sufficiency_fraction": 0.26410564225690275
+      }
+     }
+    },
+    "w": {
+     "base_logp": -0.019073486328125,
+     "steer_logp": -0.03687286376953125,
+     "delta": -0.01779937744140625,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -0.038524627685546875,
+       "patched_base_logp": -0.01813507080078125,
+       "necessity_fraction": 1.0927989712816117,
+       "sufficiency_fraction": -0.05272181740248607
+      },
+      "mlp21": {
+       "patched_steer_logp": -0.03556060791015625,
+       "patched_base_logp": -0.020412445068359375,
+       "necessity_fraction": 0.9262751821688813,
+       "sufficiency_fraction": 0.07522503214744963
+      },
+      "heads20": {
+       "patched_steer_logp": -0.038482666015625,
+       "patched_base_logp": -0.01813507080078125,
+       "necessity_fraction": 1.0904414916416632,
+       "sufficiency_fraction": -0.05272181740248607
+      },
+      "heads21": {
+       "patched_steer_logp": -0.035030364990234375,
+       "patched_base_logp": -0.0201263427734375,
+       "necessity_fraction": 0.8964852121731676,
+       "sufficiency_fraction": 0.05915130732961852
+      },
+      "mlp_both": {
+       "patched_steer_logp": -0.04209136962890625,
+       "patched_base_logp": -0.0169525146484375,
+       "necessity_fraction": 1.2931847406772397,
+       "sufficiency_fraction": -0.1191598799828547
+      },
+      "heads_both": {
+       "patched_steer_logp": -0.0369415283203125,
+       "patched_base_logp": -0.018917083740234375,
+       "necessity_fraction": 1.0038576939562796,
+       "sufficiency_fraction": -0.008786969567081011
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "aime__2022__2022_I_1__think",
+   "marker": 7196,
+   "anchor_t": 75,
+   "alpha": 69.077685546875,
+   "arms": {
+    "mean_g": {
+     "base_logp": -0.012859344482421875,
+     "steer_logp": -0.000255584716796875,
+     "delta": 0.012603759765625,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -0.000331878662109375,
+       "patched_base_logp": -0.00220489501953125,
+       "necessity_fraction": 0.9939467312348669,
+       "sufficiency_fraction": 0.8453389830508474
+      },
+      "mlp21": {
+       "patched_steer_logp": -0.0002899169921875,
+       "patched_base_logp": -0.003871917724609375,
+       "necessity_fraction": 0.9972760290556901,
+       "sufficiency_fraction": 0.7130750605326877
+      },
+      "heads20": {
+       "patched_steer_logp": -0.0002593994140625,
+       "patched_base_logp": -0.01165771484375,
+       "necessity_fraction": 0.9996973365617433,
+       "sufficiency_fraction": 0.09533898305084745
+      },
+      "heads21": {
+       "patched_steer_logp": -0.0002593994140625,
+       "patched_base_logp": -0.0125579833984375,
+       "necessity_fraction": 0.9996973365617433,
+       "sufficiency_fraction": 0.02391041162227603
+      },
+      "mlp_both": {
+       "patched_steer_logp": -0.00045013427734375,
+       "patched_base_logp": -0.001163482666015625,
+       "necessity_fraction": 0.9845641646489104,
+       "sufficiency_fraction": 0.9279661016949152
+      },
+      "heads_both": {
+       "patched_steer_logp": -0.000263214111328125,
+       "patched_base_logp": -0.01141357421875,
+       "necessity_fraction": 0.9993946731234867,
+       "sufficiency_fraction": 0.11470944309927361
+      }
+     }
+    },
+    "w": {
+     "base_logp": -0.012859344482421875,
+     "steer_logp": -0.011627197265625,
+     "delta": 0.001232147216796875,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -0.011440277099609375,
+       "patched_base_logp": -0.01287078857421875,
+       "necessity_fraction": 1.151702786377709,
+       "sufficiency_fraction": -0.009287925696594427
+      },
+      "mlp21": {
+       "patched_steer_logp": -0.01064300537109375,
+       "patched_base_logp": -0.013545989990234375,
+       "necessity_fraction": 1.7987616099071206,
+       "sufficiency_fraction": -0.5572755417956656
+      },
+      "heads20": {
+       "patched_steer_logp": -0.011806488037109375,
+       "patched_base_logp": -0.0126495361328125,
+       "necessity_fraction": 0.8544891640866873,
+       "sufficiency_fraction": 0.17027863777089783
+      },
+      "heads21": {
+       "patched_steer_logp": -0.0115509033203125,
+       "patched_base_logp": -0.013011932373046875,
+       "necessity_fraction": 1.061919504643963,
+       "sufficiency_fraction": -0.1238390092879257
+      },
+      "mlp_both": {
+       "patched_steer_logp": -0.010334014892578125,
+       "patched_base_logp": -0.01409912109375,
+       "necessity_fraction": 2.0495356037151704,
+       "sufficiency_fraction": -1.0061919504643964
+      },
+      "heads_both": {
+       "patched_steer_logp": -0.01172637939453125,
+       "patched_base_logp": -0.0128021240234375,
+       "necessity_fraction": 0.9195046439628483,
+       "sufficiency_fraction": 0.04643962848297214
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "aime__1989__1989_I_1__no_think",
+   "marker": 10061,
+   "anchor_t": 72,
+   "alpha": 81.5836669921875,
+   "arms": {
+    "mean_g": {
+     "base_logp": -0.6106681823730469,
+     "steer_logp": -0.01538848876953125,
+     "delta": 0.5952796936035156,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -0.03814697265625,
+       "patched_base_logp": -0.2934532165527344,
+       "necessity_fraction": 0.9617684188940653,
+       "sufficiency_fraction": 0.5328839018513416
+      },
+      "mlp21": {
+       "patched_steer_logp": -0.032360076904296875,
+       "patched_base_logp": -0.3584442138671875,
+       "necessity_fraction": 0.9714897243814443,
+       "sufficiency_fraction": 0.42370665624259046
+      },
+      "heads20": {
+       "patched_steer_logp": -0.015411376953125,
+       "patched_base_logp": -0.6123199462890625,
+       "necessity_fraction": 0.9999615505386129,
+       "sufficiency_fraction": -0.0027747694634377663
+      },
+      "heads21": {
+       "patched_steer_logp": -0.01560211181640625,
+       "patched_base_logp": -0.6055107116699219,
+       "necessity_fraction": 0.9996411383603868,
+       "sufficiency_fraction": 0.008663945299232933
+      },
+      "mlp_both": {
+       "patched_steer_logp": -0.06735610961914062,
+       "patched_base_logp": -0.18265533447265625,
+       "necessity_fraction": 0.912700497920525,
+       "sufficiency_fraction": 0.7190113361828656
+      },
+      "heads_both": {
+       "patched_steer_logp": -0.01564788818359375,
+       "patched_base_logp": -0.6060943603515625,
+       "necessity_fraction": 0.9995642394376125,
+       "sufficiency_fraction": 0.007683484033861159
+      }
+     }
+    },
+    "w": {
+     "base_logp": -0.6106681823730469,
+     "steer_logp": -0.4316253662109375,
+     "delta": 0.17904281616210938,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -0.4702796936035156,
+       "patched_base_logp": -0.5608100891113281,
+       "necessity_fraction": 0.7841056780654097,
+       "sufficiency_fraction": 0.2784702247789496
+      },
+      "mlp21": {
+       "patched_steer_logp": -0.4286460876464844,
+       "patched_base_logp": -0.6107368469238281,
+       "necessity_fraction": 1.0166400340896986,
+       "sufficiency_fraction": -0.0003835091083413231
+      },
+      "heads20": {
+       "patched_steer_logp": -0.429840087890625,
+       "patched_base_logp": -0.6143150329589844,
+       "necessity_fraction": 1.0099712368168745,
+       "sufficiency_fraction": -0.020368594865239162
+      },
+      "heads21": {
+       "patched_steer_logp": -0.43489837646484375,
+       "patched_base_logp": -0.6066703796386719,
+       "necessity_fraction": 0.9817193991690636,
+       "sufficiency_fraction": 0.022328752530094812
+      },
+      "mlp_both": {
+       "patched_steer_logp": -0.45545196533203125,
+       "patched_base_logp": -0.5766372680664062,
+       "necessity_fraction": 0.8669223394055608,
+       "sufficiency_fraction": 0.19007137530627463
+      },
+      "heads_both": {
+       "patched_steer_logp": -0.4335784912109375,
+       "patched_base_logp": -0.6093978881835938,
+       "necessity_fraction": 0.9890912964738469,
+       "sufficiency_fraction": 0.007094918504314478
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "aime__2020__2020_I_1__no_think",
+   "marker": 10061,
+   "anchor_t": 150,
+   "alpha": 76.53583984375,
+   "arms": {
+    "mean_g": {
+     "base_logp": -0.6487236022949219,
+     "steer_logp": -0.07400131225585938,
+     "delta": 0.5747222900390625,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -0.15150070190429688,
+       "patched_base_logp": -0.38346099853515625,
+       "necessity_fraction": 0.8651533253683791,
+       "sufficiency_fraction": 0.4615491835921943
+      },
+      "mlp21": {
+       "patched_steer_logp": -0.11873245239257812,
+       "patched_base_logp": -0.4767799377441406,
+       "necessity_fraction": 0.9221691225275455,
+       "sufficiency_fraction": 0.29917695473251027
+      },
+      "heads20": {
+       "patched_steer_logp": -0.07304763793945312,
+       "patched_base_logp": -0.650299072265625,
+       "necessity_fraction": 1.0016593654586485,
+       "sufficiency_fraction": -0.0027412717376875083
+      },
+      "heads21": {
+       "patched_steer_logp": -0.074462890625,
+       "patched_base_logp": -0.6477470397949219,
+       "necessity_fraction": 0.999196867118014,
+       "sufficiency_fraction": 0.0016991902296561794
+      },
+      "mlp_both": {
+       "patched_steer_logp": -0.20160675048828125,
+       "patched_base_logp": -0.30451202392578125,
+       "necessity_fraction": 0.777970264170981,
+       "sufficiency_fraction": 0.598918093720961
+      },
+      "heads_both": {
+       "patched_steer_logp": -0.07361984252929688,
+       "patched_base_logp": -0.6484031677246094,
+       "necessity_fraction": 1.0006637461834595,
+       "sufficiency_fraction": 0.0005575467941059339
+      }
+     }
+    },
+    "w": {
+     "base_logp": -0.6487236022949219,
+     "steer_logp": -0.5654525756835938,
+     "delta": 0.08327102661132812,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -0.5502853393554688,
+       "patched_base_logp": -0.67108154296875,
+       "necessity_fraction": 1.1821430207522103,
+       "sufficiency_fraction": -0.26849603738146505
+      },
+      "mlp21": {
+       "patched_steer_logp": -0.5105972290039062,
+       "patched_base_logp": -0.7112503051757812,
+       "necessity_fraction": 1.6587566998030143,
+       "sufficiency_fraction": -0.7508818544138531
+      },
+      "heads20": {
+       "patched_steer_logp": -0.5744895935058594,
+       "patched_base_logp": -0.6393508911132812,
+       "necessity_fraction": 0.891474643822438,
+       "sufficiency_fraction": 0.11255669064089056
+      },
+      "heads21": {
+       "patched_steer_logp": -0.5646400451660156,
+       "patched_base_logp": -0.6502532958984375,
+       "necessity_fraction": 1.0097576618260113,
+       "sufficiency_fraction": -0.018370058179486004
+      },
+      "mlp_both": {
+       "patched_steer_logp": -0.5006256103515625,
+       "patched_base_logp": -0.7305145263671875,
+       "necessity_fraction": 1.7785056576114344,
+       "sufficiency_fraction": -0.982225479866233
+      },
+      "heads_both": {
+       "patched_steer_logp": -0.5739288330078125,
+       "patched_base_logp": -0.6406097412109375,
+       "necessity_fraction": 0.8982088048009529,
+       "sufficiency_fraction": 0.0974391864034083
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "aime__1986__1986_I_1__think",
+   "marker": 6771,
+   "anchor_t": 29,
+   "alpha": 76.70364379882812,
+   "arms": {
+    "mean_g": {
+     "base_logp": -0.6838951110839844,
+     "steer_logp": -3.4332275390625e-05,
+     "delta": 0.6838607788085938,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -0.00084686279296875,
+       "patched_base_logp": -0.038257598876953125,
+       "necessity_fraction": 0.9988118480504268,
+       "sufficiency_fraction": 0.9441066547665532
+      },
+      "mlp21": {
+       "patched_steer_logp": -0.000202178955078125,
+       "patched_base_logp": -0.19695663452148438,
+       "necessity_fraction": 0.9997545601606516,
+       "sufficiency_fraction": 0.712043286662576
+      },
+      "heads20": {
+       "patched_steer_logp": -4.1961669921875e-05,
+       "patched_base_logp": -0.6525192260742188,
+       "necessity_fraction": 0.999988843643666,
+       "sufficiency_fraction": 0.04588051542366263
+      },
+      "heads21": {
+       "patched_steer_logp": -4.1961669921875e-05,
+       "patched_base_logp": -0.6610031127929688,
+       "necessity_fraction": 0.999988843643666,
+       "sufficiency_fraction": 0.03347464718023094
+      },
+      "mlp_both": {
+       "patched_steer_logp": -0.002658843994140625,
+       "patched_base_logp": -0.012790679931640625,
+       "necessity_fraction": 0.9961622134210967,
+       "sufficiency_fraction": 0.9813465722095164
+      },
+      "heads_both": {
+       "patched_steer_logp": -4.1961669921875e-05,
+       "patched_base_logp": -0.6324043273925781,
+       "necessity_fraction": 0.999988843643666,
+       "sufficiency_fraction": 0.07529424889830981
+      }
+     }
+    },
+    "w": {
+     "base_logp": -0.6838951110839844,
+     "steer_logp": -0.4408111572265625,
+     "delta": 0.24308395385742188,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -0.5010910034179688,
+       "patched_base_logp": -0.6070938110351562,
+       "necessity_fraction": 0.7520204635688841,
+       "sufficiency_fraction": 0.3159455769502377
+      },
+      "mlp21": {
+       "patched_steer_logp": -0.5422859191894531,
+       "patched_base_logp": -0.5519561767578125,
+       "necessity_fraction": 0.5825526105173956,
+       "sufficiency_fraction": 0.542771055976649
+      },
+      "heads20": {
+       "patched_steer_logp": -0.4378929138183594,
+       "patched_base_logp": -0.6894378662109375,
+       "necessity_fraction": 1.0120050845063793,
+       "sufficiency_fraction": -0.02280181410165874
+      },
+      "heads21": {
+       "patched_steer_logp": -0.4463691711425781,
+       "patched_base_logp": -0.6748237609863281,
+       "necessity_fraction": 0.9771354142146478,
+       "sufficiency_fraction": 0.03731776595577735
+      },
+      "mlp_both": {
+       "patched_steer_logp": -0.5676841735839844,
+       "patched_base_logp": -0.5213623046875,
+       "necessity_fraction": 0.47806914300958836,
+       "sufficiency_fraction": 0.6686282817820881
+      },
+      "heads_both": {
+       "patched_steer_logp": -0.441558837890625,
+       "patched_base_logp": -0.6819114685058594,
+       "necessity_fraction": 0.9969241874990192,
+       "sufficiency_fraction": 0.008160318880153164
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "aime__2002__2002_I_1__think",
+   "marker": 6771,
+   "anchor_t": 35,
+   "alpha": 72.2470703125,
+   "arms": {
+    "mean_g": {
+     "base_logp": -0.02739715576171875,
+     "steer_logp": 0.0,
+     "delta": 0.02739715576171875,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -1.9073486328125e-05,
+       "patched_base_logp": -0.001438140869140625,
+       "necessity_fraction": 0.9993038150932888,
+       "sufficiency_fraction": 0.9475076580339739
+      },
+      "mlp21": {
+       "patched_steer_logp": -7.62939453125e-06,
+       "patched_base_logp": -0.00672149658203125,
+       "necessity_fraction": 0.9997215260373155,
+       "sufficiency_fraction": 0.7546644388749651
+      },
+      "heads20": {
+       "patched_steer_logp": 0.0,
+       "patched_base_logp": -0.023662567138671875,
+       "necessity_fraction": 1.0,
+       "sufficiency_fraction": 0.13631300473405736
+      },
+      "heads21": {
+       "patched_steer_logp": 0.0,
+       "patched_base_logp": -0.02313995361328125,
+       "necessity_fraction": 1.0,
+       "sufficiency_fraction": 0.15538847117794485
+      },
+      "mlp_both": {
+       "patched_steer_logp": -6.866455078125e-05,
+       "patched_base_logp": -0.00048828125,
+       "necessity_fraction": 0.9974937343358395,
+       "sufficiency_fraction": 0.9821776663881927
+      },
+      "heads_both": {
+       "patched_steer_logp": 0.0,
+       "patched_base_logp": -0.019916534423828125,
+       "necessity_fraction": 1.0,
+       "sufficiency_fraction": 0.2730437204121415
+      }
+     }
+    },
+    "w": {
+     "base_logp": -0.02739715576171875,
+     "steer_logp": -0.0169219970703125,
+     "delta": 0.01047515869140625,
+     "components": {
+      "mlp20": {
+       "patched_steer_logp": -0.019702911376953125,
+       "patched_base_logp": -0.023868560791015625,
+       "necessity_fraction": 0.7345229424617625,
+       "sufficiency_fraction": 0.33685360524399127
+      },
+      "mlp21": {
+       "patched_steer_logp": -0.020977020263671875,
+       "patched_base_logp": -0.021793365478515625,
+       "necessity_fraction": 0.6128914785142024,
+       "sufficiency_fraction": 0.5349599417334304
+      },
+      "heads20": {
+       "patched_steer_logp": -0.01618194580078125,
+       "patched_base_logp": -0.0285797119140625,
+       "necessity_fraction": 1.0706482155863073,
+       "sufficiency_fraction": -0.11289147851420248
+      },
+      "heads21": {
+       "patched_steer_logp": -0.017749786376953125,
+       "patched_base_logp": -0.02603912353515625,
+       "necessity_fraction": 0.9209759650400583,
+       "sufficiency_fraction": 0.12964311726147124
+      },
+      "mlp_both": {
+       "patched_steer_logp": -0.0228271484375,
+       "patched_base_logp": -0.01981353759765625,
+       "necessity_fraction": 0.4362709395484341,
+       "sufficiency_fraction": 0.7239621267297888
+      },
+      "heads_both": {
+       "patched_steer_logp": -0.0171356201171875,
+       "patched_base_logp": -0.026824951171875,
+       "necessity_fraction": 0.9796067006554989,
+       "sufficiency_fraction": 0.05462490895848507
+      }
+     }
+    }
+   }
+  }
+ ]
+}

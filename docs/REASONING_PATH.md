@@ -88,3 +88,21 @@ PCA 前三个方向只解释 6.3% / 3.5% / 2.9% 的方差，所以 3D 图是局�
 - 这是单点 DLA，不是完整 edge graph；head 的间接/多层贡献仍需 path patching。
 
 图：reasoning_path_heads.png
+
+## Causal patching（补充）
+
+| component | mean_g sufficiency | mean_g necessity | w sufficiency |
+|---|---:|---:|---:|
+| mlp20 | 0.788 | 0.970 | 0.100 |
+| mlp21 | 0.648 | 0.982 | -0.026 |
+| mlp_both | **0.868** | 0.945 | -0.087 |
+| heads20 (top4) | 0.052 | 1.000 | 0.012 |
+| heads21 (top4) | 0.074 | 1.000 | 0.018 |
+| heads_both | 0.123 | 1.000 | 0.034 |
+
+- MLP20+21 write **sufficient**：恢复约 87% mean_g 效果；heads 约 12%，不充分。
+- necessity 接近 1：单组件被下游补偿，效应分布式/冗余，不能说是单点开关。
+- w 的 MLP sufficiency 接近 0：w 的效果不由 MLP write 传递。
+
+这比 DLA 更强：DLA 说“MLP 直接贡献大”，patching 说“MLP write 足以传递大部分 mean_g 效果”。
+但 necessity 仍提示：不是单点因果链。

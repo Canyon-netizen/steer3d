@@ -27,6 +27,8 @@ PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path.png"
 BEHAVIOUR_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_behaviour.png"
 ATTRIBUTION = ROOT / "experiments/reasoning_path_v1/remote_l21/vector_attribution.json"
 HEADS_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_heads.png"
+CAUSAL = ROOT / "experiments/reasoning_path_v1/remote_l21/causal_patching.json"
+CAUSAL_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_causal.png"
 HTML = ROOT / "experiments/reasoning_path_v1/reasoning_path.html"
 PUBLIC = ROOT / "frontend/public/reasoning-path.html"
 LAYER = 21
@@ -62,6 +64,7 @@ def project(points: np.ndarray, mean: np.ndarray, components: np.ndarray):
 def main() -> int:
     capture = load_json(REMOTE / "reasoning_path.json")
     attribution = load_json(ATTRIBUTION)
+    causal = load_json(CAUSAL)
     states = np.load(REMOTE / "reasoning_path_states.npz")
     layer = int(LAYER)
     arms = capture["arms"]
@@ -150,17 +153,20 @@ def main() -> int:
         "sources": records,
         "summary": global_summary,
         "attribution": attribution,
+        "causal": causal,
     }
     OUT.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print("[ok] json", OUT, "bytes", OUT.stat().st_size)
     render_figure(payload, PNG)
     render_behaviour(payload, BEHAVIOUR_PNG)
     render_heads(payload, attribution, HEADS_PNG)
+    render_causal(causal, CAUSAL_PNG)
     render_html(payload, HTML)
     PUBLIC.write_text(HTML.read_text(encoding="utf-8"), encoding="utf-8")
     (PUBLIC.parent / "reasoning_path.png").write_bytes(PNG.read_bytes())
     (PUBLIC.parent / "reasoning_path_behaviour.png").write_bytes(BEHAVIOUR_PNG.read_bytes())
     (PUBLIC.parent / "reasoning_path_heads.png").write_bytes(HEADS_PNG.read_bytes())
+    (PUBLIC.parent / "reasoning_path_causal.png").write_bytes(CAUSAL_PNG.read_bytes())
     print("[ok] png", PNG)
     print("[ok] html", HTML)
     return 0
@@ -268,6 +274,32 @@ def render_heads(payload, attribution, path: Path) -> None:
     print("[heads fig]", path)
 
 
+def render_causal(causal, path: Path) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    arms = causal["arms"]
+    conditions = list(causal["records"][0]["arms"][arms[0]]["components"].keys())
+    colors = {"mean_g": "#fbbf24", "w": "#fb7185"}
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4.5), constrained_layout=True)
+    x = np.arange(len(conditions))
+    for index, arm in enumerate(arms):
+        nec = [float(np.mean([row["arms"][arm]["components"][condition]["necessity_fraction"] for row in causal["records"]])) for condition in conditions]
+        suf = [float(np.mean([row["arms"][arm]["components"][condition]["sufficiency_fraction"] for row in causal["records"]])) for condition in conditions]
+        axes[0].bar(x + (index - 0.5) * 0.36, suf, width=0.34, color=colors.get(arm, "#94a3b8"), label=arm + " sufficiency")
+        axes[1].bar(x + (index - 0.5) * 0.36, nec, width=0.34, color=colors.get(arm, "#94a3b8"), label=arm + " necessity")
+    for ax in axes:
+        ax.axhline(1, color="#64748b", ls="--", lw=1)
+        ax.axhline(0, color="#334155", lw=1)
+        ax.set_xticks(x); ax.set_xticklabels(conditions, rotation=25, ha="right")
+        ax.legend(fontsize=7); ax.grid(alpha=0.2, axis="y")
+    axes[0].set_ylabel("sufficiency fraction"); axes[0].set_title("steered component into baseline")
+    axes[1].set_ylabel("necessity fraction"); axes[1].set_title("baseline component into steered")
+    fig.suptitle("Causal patching at the anchor (6 sources)", fontsize=12)
+    fig.savefig(path, dpi=170)
+    print("[causal fig]", path)
+
+
 def render_html(payload, path: Path) -> None:
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     html = '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -305,6 +337,7 @@ table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:left;p
 </div>
 <div class="panel" style="margin-top:14px"><h2>Per-source summary</h2><table id="table"></table></div>
 <div class="panel" style="margin-top:14px"><h2>Head / OV & MLP attribution at anchor</h2><img id="staticheads" src="reasoning_path_heads.png" alt="head attribution preview" style="width:100%;border-radius:10px;display:block"><div class="small" style="margin-top:8px">layer 20：每根柱是一个 attention head 的 ΔDLA（mean_g），右侧是 MLP 的 ΔDLA。当前 marker 上 MLP write 远大于 head 直接贡献；这是单点 attribution，不是完整 edge graph。</div></div>
+<div class="panel" style="margin-top:14px"><h2>Causal patching：MLP write 是充分通道吗？</h2><img id="staticcausal" src="reasoning_path_causal.png" alt="causal patching preview" style="width:100%;border-radius:10px;display:block"><div class="small" style="margin-top:8px">sufficiency：把 steered 的组件 patch 回 baseline，能恢复多少 Δlogp；necessity：把 baseline 组件 patch 进 steered，效果是否消失。mean_g 的 MLP20+21 组合 sufficiency 约 0.87，heads 只有约 0.12；necessity 接近 1 说明单组件可被下游补偿——效应是分布式/冗余的，不是单点开关。</div></div>
 <div class="panel" style="margin-top:14px"><h2>怎么读</h2><p class="small">每条线是一个 source 的完整 baseline 推理路线（生成 token 的 layer-21 hidden state，PCA 到 3D）。彩色窗口是 anchor 附近 baseline→+arm 的局部轨迹；黄色箭头是同一 token 位置的位移。右下曲线是该窗口内下一 token 的 log p；anchor 虚线处是 marker 前的位置。teacher-forced 保证 token 对齐，不是自由生成。</p></div>
 </div>
 <script>

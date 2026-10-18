@@ -76,3 +76,26 @@ Top heads（mean_g, layer 20）：head 6 (+0.160), 5 (+0.111), 12 (+0.108), 9 (+
 Layer 21 top：head 0 (+0.146), 14 (+0.076), 10 (+0.075), 11 (+0.071)。
 
 新增文件：reasoning_path_heads.png。
+
+## Causal patching（2026-10-18 补）
+
+对 mean_g / w 在 anchor 做组件 patching（6 sources 平均）：
+
+| component | mean_g sufficiency | mean_g necessity | w sufficiency |
+|---|---:|---:|---:|
+| mlp20 | 0.788 | 0.970 | 0.100 |
+| mlp21 | 0.648 | 0.982 | -0.026 |
+| mlp_both | **0.868** | 0.945 | -0.087 |
+| heads20 (top4) | 0.052 | 1.000 | 0.012 |
+| heads21 (top4) | 0.074 | 1.000 | 0.018 |
+| heads_both | 0.123 | 1.000 | 0.034 |
+
+解释：
+
+- **sufficiency**：把 steered 的 MLP20+21 write patch 回 baseline，能恢复约 87% 的 mean_g Δlogp；
+  heads 只有约 12% → MLP write 是充分通道，heads 不是。
+- **necessity** 接近 1：把 baseline 单个组件 patch 进 steered，效果几乎不消失 → 下游可补偿，
+  效应是分布式/冗余的，不是单点开关。
+- w 的 MLP sufficiency 接近 0 → w 的效果不是由 MLP write 传递，和它弱且非对靶一致。
+
+新增文件：reasoning_path_causal.png。
