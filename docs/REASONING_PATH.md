@@ -67,3 +67,24 @@ PCA 前三个方向只解释 6.3% / 3.5% / 2.9% 的方差，所以 3D 图是局�
 2. 多 dose / 多 anchor，看位移是否可预测 Δlogp；
 3. 用 independent split 验证“箭头方向 → 行为”的映射；
 4. 接 state-dependent guidance，比较固定向量 vs 流形切向控制。
+
+## Head / OV & MLP attribution（2026-10-18 补）
+
+对 6 个 source 的 anchor 做单点 head/OV + MLP attribution：
+
+| arm (layer 20) | mean MLP ΔDLA | mean sum head ΔDLA |
+|---|---:|---:|
+| w | +0.96 | +0.25 |
+| mean_g | **+31.06** | +0.56 |
+| sparse_g | +19.04 | +0.54 |
+| random | -0.86 | +0.09 |
+
+结论：
+
+- 在这个 marker 设置下，vector 的直接 logit 效应主要落在 MLP write；
+- attention head 的直接 ΔDLA 小一个数量级以上；
+- 因此不能简单套用“steering 主要走 OV circuit”的结论——至少对 marker logp，
+  block-20/21 的 MLP 是更大的直接通道；
+- 这是单点 DLA，不是完整 edge graph；head 的间接/多层贡献仍需 path patching。
+
+图：reasoning_path_heads.png

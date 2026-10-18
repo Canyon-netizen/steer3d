@@ -25,6 +25,8 @@ DATA_ROOT = ROOT / "datasets/aime_qwen3_1p7b_32k_fp32/aime"
 OUT = ROOT / "experiments/reasoning_path_v1/reasoning_path.json"
 PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path.png"
 BEHAVIOUR_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_behaviour.png"
+ATTRIBUTION = ROOT / "experiments/reasoning_path_v1/remote_l21/vector_attribution.json"
+HEADS_PNG = ROOT / "experiments/reasoning_path_v1/reasoning_path_heads.png"
 HTML = ROOT / "experiments/reasoning_path_v1/reasoning_path.html"
 PUBLIC = ROOT / "frontend/public/reasoning-path.html"
 LAYER = 21
@@ -59,6 +61,7 @@ def project(points: np.ndarray, mean: np.ndarray, components: np.ndarray):
 
 def main() -> int:
     capture = load_json(REMOTE / "reasoning_path.json")
+    attribution = load_json(ATTRIBUTION)
     states = np.load(REMOTE / "reasoning_path_states.npz")
     layer = int(LAYER)
     arms = capture["arms"]
@@ -146,15 +149,18 @@ def main() -> int:
         "pca": {"mean": [float(v) for v in mean], "components": [[float(v) for v in row] for row in components], "explained": explained},
         "sources": records,
         "summary": global_summary,
+        "attribution": attribution,
     }
     OUT.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print("[ok] json", OUT, "bytes", OUT.stat().st_size)
     render_figure(payload, PNG)
     render_behaviour(payload, BEHAVIOUR_PNG)
+    render_heads(payload, attribution, HEADS_PNG)
     render_html(payload, HTML)
     PUBLIC.write_text(HTML.read_text(encoding="utf-8"), encoding="utf-8")
     (PUBLIC.parent / "reasoning_path.png").write_bytes(PNG.read_bytes())
     (PUBLIC.parent / "reasoning_path_behaviour.png").write_bytes(BEHAVIOUR_PNG.read_bytes())
+    (PUBLIC.parent / "reasoning_path_heads.png").write_bytes(HEADS_PNG.read_bytes())
     print("[ok] png", PNG)
     print("[ok] html", HTML)
     return 0
@@ -234,6 +240,34 @@ def render_behaviour(payload, path: Path) -> None:
     print("[behaviour fig]", path)
 
 
+def render_heads(payload, attribution, path: Path) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    selected = max(payload["sources"], key=lambda s: s["summary"]["mean_g"]["anchor_delta_logp"])
+    record = next(item for item in attribution["records"] if item["id"] == selected["id"])
+    arms = attribution["arms"]
+    layer = "20"
+    heads = np.asarray([head["mean_g"]["delta"] for head in record["layers"][layer]["heads"]])
+    head_ids = np.arange(len(heads))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.4), constrained_layout=True)
+    axes[0].bar(head_ids, heads, color="#60a5fa")
+    axes[0].axhline(0, color="#334155", lw=1)
+    axes[0].set_xlabel("attention head"); axes[0].set_ylabel("delta DLA (mean_g)")
+    axes[0].set_title("per-head DLA change at anchor · layer 20")
+    axes[0].grid(alpha=0.2, axis="y")
+    mlp = [record["layers"][layer]["mlp"][arm]["delta"] for arm in arms]
+    axes[1].bar(np.arange(len(arms)), mlp, color=["#fb7185", "#fbbf24", "#2dd4bf", "#94a3b8"])
+    axes[1].set_xticks(np.arange(len(arms))); axes[1].set_xticklabels(arms)
+    axes[1].axhline(0, color="#334155", lw=1)
+    axes[1].set_ylabel("MLP delta DLA")
+    axes[1].set_title("MLP write attribution at anchor · layer 20")
+    axes[1].grid(alpha=0.2, axis="y")
+    fig.suptitle(selected["id"][:40] + " · marker " + str(selected["marker"]) + " · mean_g", fontsize=12)
+    fig.savefig(path, dpi=170)
+    print("[heads fig]", path)
+
+
 def render_html(payload, path: Path) -> None:
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     html = '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -270,6 +304,7 @@ table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:left;p
 <div class="small" id="summary"></div></div>
 </div>
 <div class="panel" style="margin-top:14px"><h2>Per-source summary</h2><table id="table"></table></div>
+<div class="panel" style="margin-top:14px"><h2>Head / OV & MLP attribution at anchor</h2><img id="staticheads" src="reasoning_path_heads.png" alt="head attribution preview" style="width:100%;border-radius:10px;display:block"><div class="small" style="margin-top:8px">layer 20：每根柱是一个 attention head 的 ΔDLA（mean_g），右侧是 MLP 的 ΔDLA。当前 marker 上 MLP write 远大于 head 直接贡献；这是单点 attribution，不是完整 edge graph。</div></div>
 <div class="panel" style="margin-top:14px"><h2>怎么读</h2><p class="small">每条线是一个 source 的完整 baseline 推理路线（生成 token 的 layer-21 hidden state，PCA 到 3D）。彩色窗口是 anchor 附近 baseline→+arm 的局部轨迹；黄色箭头是同一 token 位置的位移。右下曲线是该窗口内下一 token 的 log p；anchor 虚线处是 marker 前的位置。teacher-forced 保证 token 对齐，不是自由生成。</p></div>
 </div>
 <script>

@@ -56,3 +56,23 @@ PCA 前三个方向解释方差约 6.3% / 3.5% / 2.9%——3D 只是投影，不
 测试：
 
     python3 -m pytest backend/tests/test_reasoning_path.py -q
+
+## Head / OV & MLP attribution at anchor
+
+Remote capture results_attr/vector_attribution.json（单点、layer 20/21）：
+
+| arm (layer 20) | mean MLP ΔDLA | mean sum head ΔDLA |
+|---|---:|---:|
+| w | +0.96 | +0.25 |
+| mean_g | +31.06 | +0.56 |
+| sparse_g | +19.04 | +0.54 |
+| random | -0.86 | +0.09 |
+
+⇒ 在这个 marker 设置下，anchor 处 vector 的直接 logit 效应主要来自 MLP write，
+attention head 的直接 DLA 变化小一个数量级以上。注意：这是 layer 20/21 单点 DLA，
+不是完整 edge graph，也不代表其它层/位置没有 head 贡献。
+
+Top heads（mean_g, layer 20）：head 6 (+0.160), 5 (+0.111), 12 (+0.108), 9 (+0.102)。
+Layer 21 top：head 0 (+0.146), 14 (+0.076), 10 (+0.075), 11 (+0.071)。
+
+新增文件：reasoning_path_heads.png。
