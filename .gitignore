@@ -131,3 +131,6 @@ frontend/public/latent/data06/
 .cache/*/profile*/
 .cache/*/cc/
 .cache/*/dc/
+
+# remote reasoning-path arrays (large, regenerable via collect_reasoning_path.py)
+experiments/reasoning_path_v1/remote*/*.npz

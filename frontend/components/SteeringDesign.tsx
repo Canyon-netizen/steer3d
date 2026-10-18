@@ -665,6 +665,7 @@ export default function SteeringDesignPage() {
             <a className="hover:text-teal-300" href="/steering-sweep">剂量/副作用</a>
             <a className="hover:text-teal-300" href="/steering-recipe">编译 recipe</a>
             <a className="hover:text-teal-300" href="/steering-workbench.html">总工作台</a>
+            <a className="hover:text-teal-300" href="/reasoning-path.html">推理路径</a>
             <a className="hover:text-teal-300" href="/bpath-explorer">向量响应实验</a>
             <a className="hover:text-teal-300" href="/latent/index.html">隐空间观察台</a>
           </nav>
