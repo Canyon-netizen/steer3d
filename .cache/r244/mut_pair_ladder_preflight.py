@@ -148,6 +148,29 @@ MUTATIONS = [
     # ⚖⚠ 症状：位点数与 k_base 不符时**继续算** ⇒ 覆盖率的分母换了口径，
     #   而报告看不出任何异常。
     ("P9", "if len(S) != k_base:", "if False:", "T10"),
+
+    # P10 **K6**：判定恒返回 True ⇒ T12 必红（过期常量不再拒读）
+    # ⚖⚠⚖⚖ 这是 244.34.1 的守卫：抄来的 `LADDER_DCOV` 会**静默过期**，
+    #   而过期会让「小 N 倍」这句结论**无声地**失真，报告看上去完全正常。
+    # ⚖⚠ 症状：现场算出 0.24982、抄来的是 0.08（明显过期），
+    #   工具却照样通过 ⇒ 一条基于过期前提的结论被放行。
+    ("P10", "return abs(declared - computed) / computed <= tol", "return True", "T12"),
+
+    # P10b K6 反向：恒返回 False ⇒ T12 必红（一切都被判过期）
+    ("P10b", "return abs(declared - computed) / computed <= tol", "return False", "T12"),
+
+    # P11 K6：容差放到 10 倍（等于没有核对）⇒ T12 必红
+    # ⚖⚠⚠ 症状：任何抄来的值都算「一致」⇒ K6 变成一句废话。
+    ("P11", "def k6_fresh(computed, declared, tol=0.05):",
+     "def k6_fresh(computed, declared, tol=5.0):", "T12"),
+
+    # P12 `run()`：把**现场算的值**换回抄来的常量 ⇒ T12 必红
+    # ⚖⚠⚖⚖ 症状与 P10 同类，但更隐蔽：代码看着在核对，
+    #   实际比的是「常量 vs 常量」⇒ 现场计算成了**死代码**。
+    #   ⚗⇒ 判据必须钉住「比的是现场值」这件事本身 ⇒ 由**端到端**的 T13 承重
+    #   （喂一份故意过期的核对值，要求报告判它过期）。
+    ("P12", "measured = ladder_step_dcov(w_log, probe_path)",
+     "measured = ladder_dcov", "T13"),
 ]
 
 

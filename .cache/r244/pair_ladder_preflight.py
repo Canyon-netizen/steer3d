@@ -44,11 +44,11 @@ RESP_HI = "p9_hi_meas"
 RESP_LO = "p9_lo_meas"
 PROBE_REL = ".cache/mutbak/r204_noise_probe.py"
 
-# ⚖ 现有阶梯机制台阶的 Δcov（244.33 实测：新增位点中位 372 ⇒ Δcov 中位 0.2498）。
-# ⚖⚠⚠⚠ 这个数是**外部实测值**，⛔ 不许当常数写进判据 —— 判据只比
-#     「配对 Δcov 与阶梯 Δcov 的比值」，⛔ 不比绝对值。
-# ⚖⚠ 若把它写进 `if d_pair < LADDER_DCOV` 这种判据 ⇒ 改一下它结论就变
-#     ⇒ 那是「门槛松紧改变结论」的配方（244.26 的 H6 已记过）。
+# ⚖ 现有阶梯机制台阶的 Δcov —— ⚖⚠⚠⚖ 244.34.1：**这一行是第一版的错**。
+# ⚖⚠⚠⚠ 它是另一个工具的输出被我**抄成常量** ⇒ 那个工具的口径一变， —— 判据只比
+#     这里**不会知道** ⇒ 「小 N 倍」会**无声地**失真。
+# ⚖⚠ 改一下这个常量结论就变 ⇒ 那是「门槛松紧改变结论」的配方。
+#     ⛔ 所以它**降级为交叉核对值**，由判据 K6 守住（差 >5% ⇒ 拒读）。
 LADDER_DCOV = 0.2498
 
 # ⚖ 配对 Δcov 的上限：**剂量混淆必须可忽略**才允许把对照读成「只有机制变」。
@@ -154,6 +154,40 @@ def pair_sets(n, kpos, target_cov=TARGET_COV):
     return S, Sp, k_base, rank
 
 
+def ladder_step_dcov(log_path, probe_path=PROBE_REL):
+    """现场从**同一份日志**算「现有阶梯那个机制台阶」的 Δcov 中位。
+
+    ⚖⚠⚠⚖ 为什么要现场算：写死常量来自**另一个工具**，它变了我不会知道。
+    ⚗⇒ 复用 `dose_axis_audit` 的 `k_cells` / `mechanism_step`
+       （⛔ **不做第二份实现** —— 手抄就是两份口径必然漂移）。
+    ⛔ 算不出来（没有可配对轨迹）⇒ 返回 None ⇒ 「**未量到**」，⛔ 不许当 0.2498。
+    """
+    here = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else None
+    if here and here not in sys.path:
+        sys.path.insert(0, here)
+    import dose_axis_audit as D
+    kpos = D.load_k_positions(probe_path)
+    rows = D.k_cells(D.load_cells(log_path), kpos)
+    _deltas, jumps, _rat = D.mechanism_step(rows)
+    if not jumps:
+        return None
+    return D.med(jumps)
+
+
+def k6_fresh(computed, declared, tol=0.05):
+    """K6：写死的那份常量**还新鲜**吗？⛔ 不新鲜就拒读。
+
+    ⚖⚠⚠ 这是 244.34.1 的守卫：抄来的常量会**静默过期**，
+    而过期会让「小 N 倍」这句结论**无声地**失真 —— 报告看上去完全正常。
+    ⚗⇒ 宁可在跑批前拒读，也不让过期常量撑着一条结论。
+    """
+    if computed is None or computed <= 0.0:
+        return False
+    if declared is None:
+        return True                      # 没给核对值 ⇒ 无从核对，不算失败
+    return abs(declared - computed) / computed <= tol
+
+
 # --------------------------------------------------------------- 判据
 def k4_pair_dcov_ok(d_pair):
     """⚖ **K4**：配对 Δcov 必须小到「剂量变化可忽略」。"""
@@ -222,17 +256,34 @@ def run(w_log, probe_path=PROBE_REL, target_cov=TARGET_COV, ladder_dcov=LADDER_D
     L.append("【2】K4：配对的 Δcov vs 现有阶梯台阶的 Δcov（**都要算出来再比**）")
     L.append("  ⚖ 配对 Δcov = 1/n_eff：中位 **%.5f**（范围 %.5f..%.5f）"
              % (dp, min(dcs), max(dcs)))
-    L.append("  ⚖ 阶梯台阶 Δcov = %.4f（244.33 实测：新增位点中位 372）" % ladder_dcov)
-    if dp is None or ladder_dcov <= 0:
+    # ⚖⚠⚠ 244.34.1：阶梯台阶的 Δcov **现场从同一份日志算**，⛔ 不用抄来的常量。
+    measured = ladder_step_dcov(w_log, probe_path)
+    fresh = k6_fresh(measured, ladder_dcov)
+    L.append("  ⚖ 阶梯台阶 Δcov：**现场算出 = %s**"
+             % ("%.5f" % measured if measured is not None else "**未量到**"))
+    L.append("  ⚖ 抄来的核对值 LADDER_DCOV = %.5f ⇒ K6 %s"
+             % (ladder_dcov,
+                "✅ 一致（≤5%）" if fresh else
+                "⛔ **不一致** ⇒ 抄来的常量已过期，⛔ 拒读"))
+    if not fresh:
+        L.append("     ⚠⚠⚠ 过期常量会**无声地**让「小 N 倍」失真 ——")
+        L.append("     宁可在跑批前拒读，也不让它撑着一条结论。")
+    if measured is None:
         L.append("  K4：**未量到** ⇒ ⛔ 不许说「剂量变化可忽略」")
         ratio = None
+        dp_eff = dp
     else:
-        ratio = ladder_dcov / dp
-        ok = k4_pair_dcov_ok(dp)
-        L.append("  ⇒ 配对方案的剂量变化比阶梯台阶**小 %.0f 倍**" % ratio)
-        L.append("  K4：%s" % ("✅ 通过（Δcov ≤ %.4f）" % PAIR_DCOV_MAX if ok else
-                              "⚠⚠ **不通过**：Δcov > %.4f ⇒ 剂量变化不可忽略，"
-                              "⛔ 这组对照不能读成「只有机制变」" % PAIR_DCOV_MAX))
+        dp_eff = dp
+        if dp_eff is None or dp_eff <= 0:
+            L.append("  K4：**未量到** ⇒ ⛔ 不许说「剂量变化可忽略」")
+            ratio = None
+        else:
+            ratio = measured / dp_eff
+            ok = k4_pair_dcov_ok(dp_eff)
+            L.append("  ⇒ 配对方案的剂量变化比阶梯台阶**小 %.0f 倍**" % ratio)
+            L.append("  K4：%s" % ("✅ 通过（Δcov ≤ %.4f）" % PAIR_DCOV_MAX if ok else
+                                  "⚠⚠ **不通过**：Δcov > %.4f ⇒ 剂量变化不可忽略，"
+                                  "⛔ 这组对照不能读成「只有机制变」" % PAIR_DCOV_MAX))
     L.append("")
     L.append("【3】K5：被读出位点的秩夹住的轨迹（⛔ 不许藏）")
     L.append("  ⚖ 目标覆盖率 %.2f；低于 %.2f 视为被夹住" % (TARGET_COV, CLAMP_COV))
@@ -451,6 +502,52 @@ def selftest():
     finally:
         try:
             os.unlink(_path)
+        except OSError:
+            pass
+
+    # T12 ⚖⚠⚖ **K6 新鲜度**：抄来的常量必须与**现场算的**一致
+    #     ⚖⚠⚠ 第一版把 `LADDER_DCOV = 0.2498` 当**判据输入**用
+    #   （`ratio = ladder_dcov / dp`）⇒ 那个工具口径一变，这里**不会知道**
+    #   ⇒ 「小 N 倍」会**无声地**失真，而报告看上去完全正常。
+    # ⚗⇒ 双向：一致⇒通过；过期⇒不通过；现场值算不出来⇒不通过。
+    chk("T12", k6_fresh(0.2498, 0.2498) is True
+        and k6_fresh(0.2498, 0.26) is True
+        and k6_fresh(0.2498, 0.30) is False
+        and k6_fresh(0.2498, 0.10) is False
+        and k6_fresh(0.2498, None) is True
+        and k6_fresh(None, 0.2498) is False
+        and k6_fresh(0.0, 0.2498) is False,
+        "K6：一致 / 差3.7%⇒通过；差20% / 差60% ⇒ 过期拒读；"
+        "现场值未量到 ⇒ 不通过")
+
+    # T13 ⚖⚠⚖⚖ **端到端**：`run()` 必须拿**现场算的值**去比
+    #     ⚖⚠⚠ 变异 P12 把 `measured = ladder_step_dcov(...)` 换成
+    #   `measured = ladder_dcov` ⇒ 现场计算成了**死代码**，
+    #   比的是「常量 vs 常量」⇒ 恒一致。
+    # ⚖⚠⚠ 而 T12 只调 `k6_fresh`、**从不调 `run()`** ⇒ 抓不到它。
+    #   ⚗⇒ **测试调错层**：判据在 `k6_fresh`，变异在 `run()`。
+    #   ⚗⇒ 修法：喂一份**故意过期**的核对值，要求报告**判它过期**。
+    _fd, _logp = tempfile.mkstemp(suffix="_synth.log")
+    try:
+        cell = {"tid": "synth__x", "pos_frac": 0.5, "t": 500, "n_gen": 1000,
+                "P": 500, "inject_scope": "k", "inject_n_sites": 100,
+                "p9_hi_meas": 0.2, "p9_lo_meas": 0.1, "margin_meas": 1.0,
+                "resid_std": 0.1, "up_mono_meas": True, "arm": "w"}
+        with os.fdopen(_fd, "w", encoding="utf-8") as _f:
+            _f.write(json.dumps(cell) + "\n")
+            _f.write(json.dumps(dict(cell, inject_n_sites=500,
+                                     p9_hi_meas=1.2, up_mono_meas=False)) + "\n")
+        _txt, _rc, _d = run(_logp, probe_path=os.path.join(
+            tempfile.gettempdir(), "__no_such_probe__.py")
+            if not os.path.exists(PROBE_REL) else PROBE_REL,
+            ladder_dcov=0.05)   # ⚖ 故意**过期**：现场算出 0.40 vs 抄来的 0.05
+        chk("T13", "**不一致**" in _txt and "现场算出" in _txt,
+            "run() 拿过期核对值（0.05 vs 现场 0.40）⇒ 必须判**不一致**")
+    except HardFail as e:
+        chk("T13", False, "run() 在合成夹具上抛 HardFail：%s" % str(e)[:40])
+    finally:
+        try:
+            os.unlink(_logp)
         except OSError:
             pass
 
