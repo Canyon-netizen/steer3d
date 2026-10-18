@@ -101,6 +101,16 @@ def rankdata(v):
 def spearman(x, y):
     if len(x) != len(y):
         raise HardFail("spearman：长度不等 %d vs %d" % (len(x), len(y)))
+    # ⚖⚠⚠⚖ 修订 244.32：**至少 3 个点**才有相关可言。
+    #   n=2 时 Spearman **恒等于 ±1**，无论数据怎么动 —— 它**退化成常数**。
+    # ⚖ 第一版用 `len(sub) >= 2` 放行，实测直接层里 **14 条有 7 条只有 2 档**
+    #   ⇒ 印出「中位 rho = +1.000、13/14 正号」的「完美单调」，
+    #   ⚖ 而逐点看 `aime25__p00__think` 是 0.178 → **0.040** → 0.111 → 0.168
+    #   （**非单调**）⇒ 那个 +1.000 是退化值灌出来的，不是发现。
+    # ⚗⇒ 判据：⛔ 样本量小到统计量变常数时，必须报「未量到」，不许报那个常数。
+    # ⚖ 抓住它的不是「+1.000 看着可疑」，是**去数了每条轨迹有几档**。
+    if len(x) < 3:
+        return None
     rx, ry = rankdata(x), rankdata(y)
     n = len(x)
     mx, my = sum(rx) / n, sum(ry) / n
@@ -346,6 +356,74 @@ def band_compare(cells, kpos, lo=0.20, hi=0.60):
             "lo": lo, "hi": hi}
 
 
+def j10_fixed_n(counts, min_rungs=3):
+    """⚖ **J10**：固定机制下的梯度，n = **档数够**的轨迹数。
+
+    ⚖⚠⚠ `min_rungs` 默认 **3** 不是 2：Spearman 在 n=2 上**恒为 ±1**
+       （退化成常数）⇒ 放它进分母会把「无信息」印成「完美相关」。
+    ⚖⚠ 档数 < min_rungs 的轨迹 Spearman **未量到** ⇒ 必须
+    ⛔ 从分母里**剔掉并报出剔了几条**，而不是当 0.0 凑进分母。
+    """
+    return sum(1 for c in counts if c >= min_rungs)
+
+
+def j9_step_pure(jump_mid):
+    """⚖ **J9**：台阶能不能被读成**纯机制**效应？
+
+    ⚖⚠⚠ 台阶 = 同一轨迹里「最后一个传播档 → 第一个直接档」，
+    机制确实变了，⛔ 但它**同时跨了一个 Δcov**（实测中位 ≈ 0.25）。
+    ⚗⇒ 只要 Δcov > 0，它就是「机制 + 剂量」的**合成**，
+    ⛔ 单独读成机制效应就是过度解读。
+    ⚗⇒ 第三条腿：`within_mech`（固定机制下剂量还有没有用）。
+    """
+    if jump_mid is None:
+        return False
+    return jump_mid <= 0.0
+
+
+def within_mech(rows, want_direct):
+    """⚖ **固定机制下的剂量梯度**：只用 `direct == want_direct` 的档。
+
+    ⚖ 这才是「把机制摁住、只变 k」的估计量 —— 每条轨迹的低覆盖率档**必然**
+    都在同一机制内（读出位点的秩实测 0.063–0.716，⛔ 没有一条低于最低那档
+    0.0625），⇒ **14 条全部可算**，不必退到 n=3 的带内配对。
+    ⛔ 档数 < 2 ⇒ Spearman 未量到 ⇒ 返回 None（⛔ 不许当 0.0）。
+    """
+    g = by_tid(rows)
+    out = {}
+    for tid in sorted(g):
+        sub = [r for r in g[tid] if r["direct"] == want_direct]
+        rho = (spearman([r["cov"] for r in sub], [r["raw"] for r in sub])
+               if len(sub) >= 2 else None)
+        out[tid] = (rho, len(sub))
+    return out
+
+
+def mechanism_step(rows):
+    """⚖ **轨迹内成对台阶**：同一轨迹「最后一个传播档 → 第一个直接档」。
+
+    ⚖⚠⚠ 为什么它比带内配对强：带内配对（244.31 结论三）是
+       「低阈值轨迹的 direct 档」vs「高阈值轨迹的 propagation 档」
+       ⇒ **组间**比较，⚖ 混淆了**轨迹身份**（问题、prompt、n_eff 全不同）
+       ⇒ 那版 rand 也报出 3.50×，正是被轨迹身份带出来的。
+    ⚗⇒ 本估计量**同轨迹、相邻两档** ⇒ prompt/问题/轨迹全部固定。
+    ⚖⚠ 但它跨了 Δcov ⇒ 见 J9：**合成量，不是纯机制**。
+    """
+    g = by_tid(rows)
+    deltas, jumps, ratios = [], [], []
+    for tid in sorted(g):
+        s = sorted(g[tid], key=lambda r: r["cov"])
+        pr = [r for r in s if not r["direct"]]
+        dr = [r for r in s if r["direct"]]
+        if not pr or not dr:
+            continue
+        a, b = pr[-1], dr[0]
+        deltas.append(b["raw"] - a["raw"])
+        jumps.append(b["cov"] - a["cov"])
+        ratios.append((b["raw"] / a["raw"]) if a["raw"] > 0 else None)
+    return deltas, jumps, ratios
+
+
 def ladder_same(cells_a, cells_b, kpos):
     """⚖ **J4**：两臂的 (tid, 覆盖率) 阶梯必须逐格相同，否则剂量轴不可比 ⇒ HardFail。
 
@@ -521,7 +599,46 @@ def report(cells_w, cells_r, kpos, lo=0.20, hi=0.60, cells_a=None, cells_b=None)
     L.append("     ⇒ 「剂量—响应」曲线上占主导的斜率来自**是否触及读出位点**。")
 
     L.append("")
-    L.append("【4】本工具**依赖**、但**没有**自己验的（⛔ 不许说成端到端）")
+    L.append("【4】**轨迹内成对台阶**（同轨迹、相邻两档；n=可配对轨迹数）")
+    L.append("  ⚖⚠⚠ 这才是干净的机制对比：prompt/问题/轨迹**全部固定**，")
+    L.append("     ⛔ 而【3】的带内配对是**组间**（低阈值轨迹 vs 高阈值轨迹），")
+    L.append("     ⚠ **混淆了轨迹身份** ⇒ 那版 rand 也报出倍数，是被身份带出来的。")
+    for name, rows in (("w", rw), ("rand", rr_)):
+        deltas, jumps, ratios = mechanism_step(rows)
+        pos, n, p = pos_test(deltas)
+        jm = med(jumps)
+        got = [r for r in ratios if r is not None]
+        L.append("  ── %s 臂：可配对 n=%d；Δraw 正号 %d/%d  p=%s  中位 Δ=%s"
+                 % (name, n, pos, n, ("%.4g" % p) if p is not None else "**未量到**",
+                    ("%+.6f" % med(deltas)) if deltas else "**未量到**"))
+        L.append("     raw 比值中位=%s"
+                 % (("%+.2f×" % med(got)) if got else "**未量到**（分母为 0 的档已剔）"))
+        pure = j9_step_pure(jm)
+        L.append("     J9：同一步跨了 Δcov 中位=%s ⇒ %s"
+                 % (("%+.4f" % jm) if jm is not None else "**未量到**",
+                    "**可**读成纯机制" if pure
+                    else "⚠⚠ **合成量**（机制 + 剂量），⛔ 不可单独读成机制效应"))
+
+    L.append("")
+    L.append("【5】**固定机制、只变剂量**时的梯度（第三条腿）")
+    L.append("  ⚖ 用传播档与直接档**分别**算 rho(覆盖率, 原始响应)。")
+    L.append("  ⚖ 若【4】的台阶是真的机制效应，【5】的层内应当**看不到**剂量梯度。")
+    L.append("  ⚖⚠ Spearman 至少要 **3 个档**（2 点时**恒为 ±1**，退化）⇒ 档数不够的"
+             "轨迹剔出分母并报出条数。")
+    for name, rows in (("w", rw), ("rand", rr_)):
+        for want, label in ((False, "传播层"), (True, "直接层")):
+            wm = within_mech(rows, want)
+            ns = j10_fixed_n([c for _, c in wm.values()])
+            pos, n, p = pos_test([r for r, _ in wm.values()])
+            got = [r for r, _ in wm.values() if r is not None]
+            L.append("  ── %s / %s：可算轨迹 %d/%d%s；rho 正号 %d/%d  p=%s  中位 rho=%s"
+                     % (name, label, ns, len(wm),
+                        ("（剔掉 %d 条档数不足）" % (len(wm) - ns)) if ns < len(wm) else "",
+                        pos, n, ("%.4g" % p) if p is not None else "**未量到**",
+                        ("%+.3f" % med(got)) if got else "**未量到**"))
+
+    L.append("")
+    L.append("【6】本工具**依赖**、但**没有**自己验的（⛔ 不许说成端到端）")
     L.append("  ⚖ J1/J2 验的是**位点集**；生产者是整条 forward（`use_cache=False`, :423）")
     L.append("     ⇒ hook 里 `h.shape[1] == P + t` 属**代码阅读**，非本工具实测。")
     L.append("  ⚖ `all` / `single` 两档按**读码**判为直接（`:150` 广播全体；")
@@ -751,12 +868,100 @@ def selftest(probe_path=None):
         "带内无直接档 ⇒ ratio=None（**未量到**），⛔ 不许当 1.0")
 
     # T8 零方差 ⇒ None（未量到），⛔ 不许当 0.0
+    # ⚖⚠⚠ 必须是 **4 档**：spearman 现有「n<3 ⇒ 未量到」的前置守卫，
+    #   若这里只给 2 档，T8 会因为**那条**守卫而 PASS
+    #   ⇒ 它就不再测「零方差」了 ⇒ **恒绿检查**。⚗ 夹具的档数必须越过
+    #   另一条守卫，否则你要测的那条根本没被测到。
     flat = [_cell("f0", "k", 4, P4, T4_, NG4, 0.1, 0.1, 0.05, True),
-            _cell("f0", "k", 8, P4, T4_, NG4, 0.1, 0.1, 0.05, True)]
+            _cell("f0", "k", 8, P4, T4_, NG4, 0.1, 0.1, 0.05, True),
+            _cell("f0", "k", 16, P4, T4_, NG4, 0.1, 0.1, 0.05, True),
+            _cell("f0", "k", 32, P4, T4_, NG4, 0.1, 0.1, 0.05, True)]
     g = by_tid(k_cells(flat, kpos))
     rr = traj_rhos(g)["f0"]
     chk("T8", rr["raw"] is None and rr["denom"] is None,
-        "响应零方差 ⇒ rho=None（**未量到**），⛔ 不许当 0.0")
+        "4 档但响应零方差 ⇒ rho=None（**未量到**），⛔ 不许当 0.0")
+
+    # T17 ⚖⚠ **Spearman 在 n=2 上退化成 ±1** ⇒ 必须报「未量到」
+    #     这一条是 244.32 的核心修正：直接层里 14 条有 7 条只有 2 档，
+    #     放它们进分母 ⇒ 印出「中位 rho=+1.000」的假完美单调。
+    chk("T17", spearman([1.0, 2.0], [5.0, 9.0]) is None
+        and spearman([1.0, 2.0], [9.0, 5.0]) is None
+        and abs(spearman([1.0, 2.0, 3.0], [1.0, 2.0, 3.0]) - 1.0) < 1e-12
+        and abs(spearman([1.0, 2.0, 3.0], [3.0, 2.0, 1.0]) + 1.0) < 1e-12
+        and j10_fixed_n([2, 2, 3, 4]) == 2
+        and j10_fixed_n([2, 2, 2]) == 0,
+        "Spearman：2 点⇒None（退化）；3 点单调⇒±1；min_rungs=3 ⇒ [2,2,3,4] 记 2 条")
+
+    # T13 **J9 双向**：台阶跨了 Δcov ⇒ 不可读成纯机制；Δcov=0 才可
+    chk("T13", j9_step_pure(0.25) is False and j9_step_pure(0.0) is True
+        and j9_step_pure(None) is False,
+        "J9：Δcov=0.25⇒合成；Δcov=0⇒可读纯机制；None⇒不可")
+
+    # T14 **J10**：档数不够的轨迹必须被剔出分母，且剔的数量可核
+    # ⚖⚠ 第一版写 `j10_fixed_n([4,1,5,2]) == 3` —— 那是 min_rungs=2 时代的期望；
+    #   改成 3 之后（244.32 的修正）它**当场报红**，而这是**期望值过期**，
+    #   ⛔ 不是判据错。⚗⇒ 改判据的阈值就要同时改它的期望值，别把红色的判据修回去。
+    chk("T14", j10_fixed_n([4, 1, 5, 2]) == 2
+        and j10_fixed_n([4, 1, 5, 2], min_rungs=2) == 3
+        and j10_fixed_n([1, 1]) == 0 and j10_fixed_n([]) == 0,
+        "J10：档数 [4,1,5,2] → min_rungs=3 记 2 条、=2 记 3 条；全 <3 → 0 条")
+
+    # T15 机制台阶：构造一条「直接档更大」的轨迹对，必须检出 Δ>0；
+    #     再构造「两机制同值」的，必须 Δ=0 ⇒ 证明台阶不是恒正
+    # ⚖⚠⚠ 夹具必须给**多个**传播档：第一版每条轨迹只有 1 个传播档，
+    #   于是 `pr[-1]` 与 `pr[0]` **是同一个** ⇒ 变异 H13（把 pr[-1] 改成
+    #   pr[0]）什么也没改 ⇒ 台架报「存活」。⚗ 夹具不改严，变异就验不到。
+    def _mk_pair(tid, raw_prop, raw_dir):
+        rows = []
+        for j, cov in enumerate((0.01, 0.03, 0.06)):     # 三个传播档，raw 递增
+            rows.append({"tid": tid, "cov": cov, "direct": False,
+                         "raw": raw_prop * (j + 1), "norm": raw_prop * (j + 1),
+                         "denom": 0.05, "up": True})
+        rows.append({"tid": tid, "cov": 0.25, "direct": True, "raw": raw_dir,
+                     "norm": raw_dir, "denom": 0.05, "up": True})
+        return rows
+    deltas, jumps, ratios = mechanism_step(_mk_pair("m0", 0.10, 0.80)
+                                          + _mk_pair("m1", 0.10, 0.10))
+    # ⚖⚠⚠⚠ 这里**不要**顺手调 `pos_test`：n=2 的对称处双尾是 1.5，
+    #   而 H8 变异（去掉 `min(1.0,·)` 截断）会让它**抛** ⇒ 整轮自检以崩收场，
+    #   台架于是报「台架坏了」而不是「H8 咬住了」。
+    #   第一版就是这么写的（`pos, n, pp = pos_test(deltas)` 根本没被断言用到）。
+    #   ⚗⇒ 一个**没被用到的调用**能让变异台从「抓到」退化成「崩」——
+    #   夹具与变异的作用面必须对齐。
+    # ⚖ 正确配对：最后传播档 raw=0.30 → 第一直接档 0.80 ⇒ Δ=+0.50
+    # ⚖ 错配（pr[0]）：第一传播档 raw=0.10 → 0.80 ⇒ Δ=+0.70 ⇒ 变异可检出
+    # ⚖⚠ 第二条轨迹（直接档 0.10 < 最后传播档 0.30）⇒ Δ=**负**
+    #   ⚖ 第一版这里我按「两机制同值 ⇒ Δ=0」写期望值，**当场报红**：
+    #   查下去是**期望值算错**（传播档 raw 递增到 0.30，不是 0.10）。
+    #   ⛔ 不是判据错。⚗ 而「Δ 为负」恰好把「台阶不是恒正」演示得更强。
+    chk("T15", len(deltas) == 2 and abs(deltas[0] - 0.50) < 1e-12
+        and abs(deltas[0] - 0.70) > 1e-9
+        and deltas[1] < 0.0
+        and jumps[0] > 0 and ratios[0] is not None
+        and abs(ratios[0] - 0.80 / 0.30) < 1e-9,
+        "机制台阶：Δ=%s（第一条应 +0.50；⛔ 若变成 +0.70 说明配到了第一个传播档）、"
+        "比值=%s ⇒ 台阶**不是**恒正"
+        % (", ".join("%+.3f" % x for x in deltas),
+           ", ".join("%.2f" % x for x in ratios)))
+
+    # T16 固定机制梯度：传播层若全同值 ⇒ rho 必须 None（未量到）；
+    #     ⛔ 夹具**必须同时含直接档**，否则 H14（去掉机制过滤）不会造成任何差别。
+    flat_rows = []
+    for i in range(6):
+        for cov in (0.01, 0.03, 0.06):
+            flat_rows.append({"tid": "f%d" % i, "cov": cov, "direct": False,
+                              "raw": 0.1, "norm": 0.1, "denom": 0.05, "up": True})
+        for j, cov in enumerate((0.25, 0.5, 0.75)):    # 直接档：raw 递增
+            flat_rows.append({"tid": "f%d" % i, "cov": cov, "direct": True,
+                              "raw": 0.2 + 0.1 * j, "norm": 0.2 + 0.1 * j,
+                              "denom": 0.05, "up": True})
+    wmf = within_mech(flat_rows, False)
+    wmd = within_mech(flat_rows, True)
+    chk("T16", j10_fixed_n([c for _, c in wmf.values()]) == 6
+        and all(r is None for r, _ in wmf.values())
+        and all(r is not None and r > 0 for r, _ in wmd.values()),
+        "固定机制：传播层全同值⇒None（**未量到**）；直接层递增⇒rho>0；"
+        "夹具含两种机制 ⇒ 去掉机制过滤一定会暴露")
 
     # T9 ⚖ 若探针源码可达，用**真函数**再跑一遍 J1/J2（夹具≠真实仪器）
     if probe_path and os.path.exists(probe_path):
