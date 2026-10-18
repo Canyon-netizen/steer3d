@@ -275,10 +275,25 @@ def run(rc, kp, w_log, w_st, r_log, r_st, expect_cells, nmap):
     per_all = block("口径 A：全部档（**与档型混淆**）", None)
     per_fmt = block("口径 B：只公式档（**已按档型去混淆** ⛔ 这才是谈机制的干净口径）",
                     {"formula"})
-
-    # ---- 判定以**去混淆口径**为准，原始口径只作对照 ----
+    per_tail = block("口径 C：只尾段档（3/4、7/8 —— r235 为「尾段逐档展开」加的**步进点**，"
+                     "⛔ **不是**剂量档）", {"tail"})
+    per_scope = block("口径 D：只 single/all（**端点**，⛔ 同样不是剂量档）", {"scope"})
     per = per_fmt
-    L.append("\n  ⚖⚠ 判定用**口径 B**（去混淆）；口径 A 只作对照，⛔ 不得单独引用。")
+    L.append("\n  ⚖⚠ 判定用**口径 B**（去混淆）；A/C/D 只作对照，⛔ 不得单独引用。")
+    L.append("  ⚖⚠⚠ **只有口径 D** 与 244.23 的轨迹级 Δ 符号检验**计数相同**"
+             "（13/1 vs 5/9、p=0.0044241）")
+    L.append("     ⚠⚠ 而那**不是恒等** —— 逐轨迹比对：single/all 多数 vs `drift_khi_all` 符号，")
+    L.append("     w 一致 **12/14**、rand 一致 **8/14** ⇒ 二者**重叠但不同**。")
+    L.append("     ⇒ ⛔ 把口径 D 的 p 当作 Δ 检验的**独立佐证**就是**重复计数**。")
+    L.append("     ⚖⚠⚠ 口径 C（尾段档）与 244.23 的 Δ 检验**不是**同一件事："
+             "它是 %d/%d vs %d/%d、p=%.6g。"
+             % (per_tail["w"]["direct"]["nt"], per_tail["w"]["direct"]["n"],
+                per_tail["rand"]["direct"]["nt"], per_tail["rand"]["direct"]["n"],
+                fisher_two_sided(per_tail["w"]["direct"]["nt"],
+                                 per_tail["w"]["direct"]["nf"],
+                                 per_tail["rand"]["direct"]["nt"],
+                                 per_tail["rand"]["direct"]["nf"]) or float("nan")))
+    L.append("     ⚖ 而且尾段档的**传播层 n=0**（它们必然直接扰动读出位置）⇒ **未量到**。")
     if per["w"]["direct"]["n"] == 0 or per["w"]["prop"]["n"] == 0 or \
             per["rand"]["direct"]["n"] == 0 or per["rand"]["prop"]["n"] == 0:
         L.append("\n【判定】主判决对机制分层是否敏感")
