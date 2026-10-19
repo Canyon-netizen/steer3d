@@ -8,7 +8,7 @@
   ⚖⚠⚠⚠ 但在走幅度之前必须先问一件更基本的事：
   **那些「格」之间到底是不是同一个东西？**
 
-⚖⚠⚠⚖⚖⚠ **实测结论（本工具算出来的，不是推的）**
+⚖⚠⚖⚖⚖ **实测结论（本工具算出来的，不是推的）**
 
   那 137 格里 —— `inject_scope=k` 的 109 格是**注入位点数扫描**，
   位点数从 **1 一直到 4655**；外加 `scope=single` 14 格与 `scope=all` 14 格。
@@ -18,20 +18,59 @@
   ⇒ **符号翻转与剂量效应在 w 臂上完全混淆** ⇒ ⛔ 在固定剂量之前，
      「12/14 是不是噪声」**原理上不可分辨**。
 
-⚖⚠ **w 臂上剂量效应是实测到的（Spearman +0.622）**：
+⚖⚠ **w 臂上剂量效应是实测到的（注入比例轴，Spearman +0.691）**：
 
-      位点分档        格数   d 中位     为正
-      ≤ n/4           87    +0.0301    53/87   ← 接近抛硬币
-      n/4 – n/2       11    +0.1679    10/11
-      n/2 – 3n/4       8    +0.9521     8/8
-      > 3n/4           3    +1.2495     3/3
+      比例分档          格数   d 中位     为正
+      最低四分位        27    -0.0000    11/27   ← 接近抛硬币
+      次低              28    +0.0026    16/28
+      次高              30    +0.1250    23/30
+      最高              24    +0.8684    24/24   ← 全正
 
-  ⚖⇒ 那个 12/14 的大部分**来自高位点数那几档**；最低档 53/87 与抛硬币无异。
-⚖ **rand 臂没有剂量趋势**（Spearman −0.038）⇒ 它的 6/14 **不是**剂量驱动的。
+  ⚖⇒ 那个 12/14 的**大部分来自高注入比例那几档**；最低档 11/27 与抛硬币无异。
+⚖ **rand 臂没有剂量趋势**（Spearman +0.024）⇒ 它的 6/14 **不是**剂量驱动的。
+
+⚠⚠⚖⚖⚖ **修订 244.50：更正 244.49 自己的分母（同一个位置栽了第二次）**
+
+  ⚖ 244.49 用 `P + n_gen − 1` 当分母。探针 `.cache/mutbak/r204_noise_probe.py:406-410`
+     的**原式**是：
+
+         P   = (cti.get("extra") or {}).get("prompt_tokens") or len(pid)
+         n   = len(gen)
+         t   = max(1, int(n * a.pos_frac))          ← ⛔ 不是 n
+         ids = torch.tensor([(pid + gen)[: P + t]])
+         inj = ids.shape[1] - 1
+
+  ⚖⚠⚠⚠ 两臂 137 条记录的 `pos_frac` **全为 0.5** ⇒ `t = n_gen/2`
+     ⇒ 244.49 的分母**大了 1.58…1.96 倍**（⚠⚠ **逐轨迹不等**，见下）。
+     ⇒ 更正后：分母范围 **384 … 5319（13.9 倍）**，比例范围 **0.0003 … 0.8758**。
+
+  ⚖⚠⚠⚠⚖⚠⚠ **⚠ 我自己先写错了一条，现更正**：244.50 动手前我以为
+     「分母差个常数 0.5 ⇒ 秩不变 ⇒ rho 与分档表都不动」⇒ **错**。
+
+     ⚖ 旧分母 `P+n_gen−1` ⛔ **不是** 新分母 `P+⌊n·pf⌋−1` 的常数倍：
+        `(P+n_gen−1)/(P+n_gen/2−1)` **有 14 个不同取值，落在 1.5755 … 1.9649**
+        （随该轨迹的 P/n_gen 比变化）⇒ **秩会变** ⇒ rho 与分档**都变**。
+
+     ⚖ **并排实测（同一批 109 格；旧式已逐位复现账本 244.49）**：
+
+        旧式 P+n_gen−1    rho=+0.685  分位点 0.008/0.127/0.382  档 27/28/27/27  正 11/16/20/27
+        新式 P+⌊n·pf⌋−1   rho=+0.691  分位点 0.015/0.250/0.750  档 27/28/30/24  正 11/16/23/24
+
+     ⚖⚖ **真正不变的只有两样**：① 109 格里**为正的总格数 = 74**（同一批格重新分组）；
+        ② 定性结论（w 臂单调、最低档 ≈ 抛硬币、最高档全正）。
+     ⚖ **变的**：rho（+0.685→+0.691）、分位点、**分档表本身**（27/28/27/27 → 27/28/30/24）。
+
+  ⚖⚠ 244.48 栽的是「拿**个数**当剂量轴」；244.49 栽的是「分母算错一整个因子」。
+     ⚗ 同一条**剂量轴**上栽两次 ⇒ 剂量轴的每一个常数都**必须照探针原式抄**，
+       ⛔ 不许按公式「推」。⇒ 新增禁令 **㊶**（见文件末尾）。
 
 ⚠⚠⚠ **本节的限制（写在这里以免被当成全绿）**
-  · 分档用的 `n` 是**该臂位点数最大值**的代理，⛔ 不是逐格的真实 n_eff
-    （真实值在 `n_eff_map.tsv`，本工具⛔ 没读它）⇒ 分档边界是粗的。
+  · ⚠⚠⚠ **分母 `inj` 仍不在记录里**。本工具按上面那条**原式**重算，
+    它成立的前提有两条：① `P == len(pid)`；② `pos_frac ≤ 1`（否则
+    `(pid+gen)[:P+t]` 会被 `len(pid)+n` 截断，分母变成 `len(pid)+n−1`）。
+    ⚖ **C2c 把第 ② 条量出来**（`pos_frac` 取值集合 + 是否可能截断）。
+    ⚖⚠ 第 ① 条**记录里验不到**（`P` 优先取 `extra.prompt_tokens`，
+    取不到才回退 `len(pid)`）⇒ 列入「没验的」。
   · 只用了每臂**一个**结果文件；跨文件一致性由「多数计数必须复现账本的
     12/14 / 6/14」这条判据把关。
   · `inject_scope` 的三类（single / k / all）**混在一起**参与多数，
@@ -39,6 +78,16 @@
 
 ⚠⚠⚠ 本工具⛔ **不发批**、⛔ 不改探针、⛔ 不写数据文件。
 ⚖⚠⚠⚖ 每条判据都必须**能红**：变异台改的是喂进来的**数据形状**。
+
+⚖⚠⚖⚖⚖ **新增禁令 ㊶（244.50 的元教训，写在这里防止再犯）**
+
+  ⚖ **「更正一个常数」⛔ 不等于「乘一个常数」。**
+  ⚗⇒ 判别式：**并排把更正前后两个版本都算一遍**，逐项写清
+     「真的不变 / 真的变了」。⛔ **不许靠「同一批格重新分组 ⇒ 不变」的直觉断言。**
+  ⚖ 反例就在本文件：`P+n_gen−1` 与 `P+⌊n·pf⌋−1` 的比值**逐轨迹不同**
+     ⇒ 秩变了 ⇒ **rho 和分档表都变了**；只有「总为正格数 74」与定性结论不变。
+  ⚖⚠ 推论：**凡是要写进账本的「不受影响」，必须先实测过** ——
+     它是最容易整段作废、而写起来最像已验证的那种断言。
 """
 
 import argparse
@@ -123,21 +172,43 @@ def d_of(rec):
 
 
 def denom_of(rec):
-    """⚖⚖ 一格的**可注入位置总数** = `P + n_gen − 1`。
+    """⚖⚖⚖ 一格的**可注入位置总数** `inj`，**照探针原式抄**。
 
-    ⚖⚠⚠⚖⚖⚠ **244.49 的更正**：244.48 拿 `inject_n_sites` 的**原始个数**当剂量轴，
-       而它的真实分母是**跨轨迹 605…10366（17 倍）**的序列长度
-       ⇒ ⛔ 原始个数**跨轨迹不可比**（244.48 那张 87/11/8/3 的分档表就是这个的产物）。
-    ⚖⚠⚠⚠ 我一度拿 `P−1` 当分母，得出「60/109 超出可注入上限」——
-       ⚖⚠⚠⚠ **那是错的**：prompt 长度 ⛔ 不是钩子处的张量长度
-       （`inject_at` 用的是 `h.shape[1]`）。⇒ **60/109 这个数已撤回。**
-    ⚖⚠ 分母**不在记录里**，只能由 `P` 与 `n_gen` 推 ⇒ 两者缺一必须拒读。
+    ⚖ 探针 `.cache/mutbak/r204_noise_probe.py:406-410`：
+
+        P   = (cti.get("extra") or {}).get("prompt_tokens") or len(pid)
+        n   = len(gen)
+        t   = max(1, int(n * a.pos_frac))
+        ids = torch.tensor([(pid + gen)[: P + t]], ...)
+        inj = ids.shape[1] - 1
+
+    ⚖⚠⚠⚠⚖⚠ **修订 244.50**：244.49 写的是 `P + n_gen − 1`，**整整大了一倍**。
+       ⛔ ⛔ **`pos_frac` 必须实取**：`t = max(1, int(n_gen * pos_frac))`，
+       而两臂 137 条记录的 `pos_frac` **全为 0.5** ⇒ `t = n_gen/2`。
+       ⚖⚠ **硬编 0.5 是不许的**：真数据恰好全 0.5 ⇒ 硬编在真数据上
+       **与正确式逐位相同** ⇒ 那个变异在真数据上**恒绿**（变异台 P7 抓不到），
+       只有 `pos_frac` **变化的合成夹具**才抓得到（自检 C6）。
+
+    ⚖⚠ 三个细节都是判据的一部分，缺一个数就会错：
+       ① `int()` 是**向零截断**，⛔ 不是四舍五入（自检 C6 专门钉这一条）；
+       ② `max(1, …)` 的夹取在 `n_gen*pos_frac < 1` 时**生效**（自检 C6）；
+       ③ `pos_frac` **缺字段必须拒读** —— 静默默认 0.5 是最坏的一种
+          （真数据上无异、换一批数据就静默错）⇒ 变异台 P10 钉这一条。
     """
-    P, ng = rec.get("P"), rec.get("n_gen")
-    if not P or not ng:
-        raise HardFail("记录 %r 缺 P/n_gen ⇒ 剂量**比例**算不出来 ⇒ **未量到**"
+    P, ng, pf = rec.get("P"), rec.get("n_gen"), rec.get("pos_frac")
+    if not P or not ng or pf is None:
+        raise HardFail("记录 %r 缺 P/n_gen/pos_frac ⇒ 剂量**比例**算不出来 ⇒ **未量到**"
                        % (rec.get("tid"),))
-    return int(P) + int(ng) - 1
+    return int(P) + max(1, int(int(ng) * float(pf))) - 1
+
+
+def pf_of(rec):
+    """⚖ 一格的 `pos_frac`。⚖⚠⚠⚠ 缺它必须**拒读**，⛔ 不许默认 0.5 ——
+    真数据恰好全 0.5 ⇒ 默认值在真数据上**看不出错**，换一批就静默错一倍。"""
+    pf = rec.get("pos_frac")
+    if pf is None:
+        raise HardFail("记录 %r 缺 pos_frac ⇒ **未量到**" % (rec.get("tid"),))
+    return float(pf)
 
 
 def frac_of(rec):
@@ -186,13 +257,45 @@ def audit(arm, path):
     ok &= mixed
 
     # ⚖⚠⚠⚖ 剂量轴必须是**比例**：分母跨轨迹差多少倍
+    # ⚖⚠⚠⚖⚖⚠ 244.50：**分母公式已更正**为探针原式
+    #   `P + max(1, int(n_gen*pos_frac)) − 1`（244.49 写的 `P + n_gen − 1` 大了一倍）
     dens = [denom_of(r) for r in ks]
     ratio = max(dens) / min(dens)
-    L.append("  C2b 可注入位置总数 P+n_gen−1 = %d … %d（**%.1f 倍**）"
+    L.append("  C2b 可注入位置总数 inj = P+floor(n_gen×pos_frac)−1 = %d … %d（**%.1f 倍**）"
              % (min(dens), max(dens), ratio))
     L.append("      ⇒ %s" % ("✅ 跨轨迹差很多 ⇒ **原始位点数不可比**，剂量轴必须用比例"
                               if ratio > 2 else "⚠ 分母差异 <2 倍 ⇒ 原始个数近似可比"))
     ok &= (ratio > 2)
+
+    # ⚖⚠⚠⚖⚖ 244.50 新增：**pos_frac 的取值集合必须印出来**
+    #   理由：分母错一整个常数因子（244.49 的 2×）时，**秩相关与分档表都不动**
+    #   ⇒ 所有"看起来很稳"的量对分母**完全无感** ⇒ 只能靠把**取值集合本身**
+    #   印出来 + 用**变化的 pos_frac** 合成夹具钉住公式。
+    pfs = sorted({pf_of(r) for r in meas})
+    pf_disp = ("%s" % pfs) if len(pfs) <= 6 else ("%s …(%d 个)" % (pfs[:6], len(pfs)))
+    L.append("  C2c pos_frac 取值集合 = %s（全部 %d 条实测记录）"
+             % (pf_disp, len(meas)))
+    # ⚖ 分母公式成立的前提：`(pid+gen)[:P+t]` 不被 `len(pid)+n` 截断 ⇔ t ≤ n ⇔ pf ≤ 1
+    over = [p for p in pfs if p > 1.0]
+    nonpos = [p for p in pfs if p <= 0.0]
+    L.append("      ⇒ %s" % ("✅ 全在 (0,1] ⇒ 不截断，inj 公式精确成立"
+                             if not over and not nonpos else
+                             "⛔ 有 pf>1（会被 len(pid)+n 截断，分母变 len(pid)+n−1，"
+                             "**未量到**）或 pf<=0 ⇒ 补下 %s" % (over + nonpos)))
+    ok &= (not over and not nonpos)
+
+    # ⚖⚠⚠⚖ 244.50 新增：**扫描合法性对账**
+    #   探针 `_k_positions(n,k)` 在 `k > n` 时**抛 ValueError**（⛔ 不是夹取），
+    #   而 `n = h.shape[1]` = 整条 prefix = `ids.shape[1]` = inj+1
+    #   ⇒ 越界的格子**根本不会留下记录** ⇒ 这条判据是**对账**，不是修 bug。
+    badk = [(r.get("tid"), r["inject_n_sites"], denom_of(r)) for r in ks
+            if float(r["inject_n_sites"]) > denom_of(r) + 1]
+    L.append("  C2d 扫描合法性：n_sites ≤ ids.shape[1](=inj+1) ⇒ 越界 %d/%d 格"
+             % (len(badk), len(ks)))
+    if badk:
+        L.append("      ⛔ %s ⇒ 探针本该抛错却留了记录 ⇒ **判据与探针不一致**"
+                 % (badk[:3],))
+    ok &= (not badk)
 
     # C3 剂量相关性：**两个轴都印**，差别必须看得见
     ns = [float(r["inject_n_sites"]) for r in ks]
@@ -203,6 +306,7 @@ def audit(arm, path):
     L.append("  C3 d 与剂量 的 Spearman：原始个数 %+.3f ｜ ✅**注入比例** %+.3f（%d 格）"
              % (rho_raw, rho, len(ks)))
     L.append("     ⚖ 结论用**比例**那一列；原始个数那列跨轨迹不可比（见 C2b）")
+    L.append("     ⚖ 注入比例范围 %.4f … %.4f" % (min(fr), max(fr)))
 
     # C4 分档表（四档都必须印出来，且中位数单调与否要**报出来**）
     qs_ = _st.quantiles(fr, n=4)
@@ -236,9 +340,13 @@ def audit(arm, path):
         L.append("  ⚠ 本臂**不支持**「剂量混淆」这条结论（复现=%s，混合=%s，rho=%+.3f）"
                  % (good, mixed, rho))
     L.append("")
-    L.append("【⛔】本工具没验的：钩子处 `h.shape[1]` 的**真值**"
-             "（记录里没有，分母由 P+n_gen−1 推）、single/all 与 k 三类的"
-             "**跨类**可比性、逐文件一致性（只读了一个文件）")
+    L.append("【⛔】本工具没验的（244.50 更新）：")
+    L.append("  · `P == len(pid)` —— 探针 `P` 优先取 `extra.prompt_tokens`，"
+             "取不到才回退 `len(pid)`，而记录里**只有 P** ⇒ 若两者不等，")
+    L.append("    真分母是 `min(P+t, len(pid)+n) − 1`，本工具算的会**偏大**。")
+    L.append("  · `p9_*_meas` 只来自 prefill 路径（已按 `:477-481` 核对），"
+             "但 `scope=k` 在**增量解码**（`h.shape[1]==1`）下的行为本工具⛔ 没验。")
+    L.append("  · single/all 与 k 三类的**跨类**可比性、逐文件一致性（只读了一个文件）。")
     return L, (0 if ok else 1)
 
 
@@ -251,24 +359,33 @@ def selftest(files=None):
         print(("[PASS] %s %s" if cond else "[FAIL] %s %s") % (t, why))
 
     # 合成数据：构造一个**必然**复现 12/14 且剂量单调的批
+    # ⚖⚠⚠⚖⚖⚠ 244.50：**pos_frac 必须逐格变化**
+    #   真数据 137 条的 pos_frac **全为 0.5** ⇒ 任何把它硬编成 0.5 的变异
+    #   在真数据上**逐位相同 ⇒ 恒绿** ⇒ 只有"pos_frac 变化"的合成夹具
+    #   才抓得到那个错（这是「夹具必须覆盖真数据退化维度」的一个实例）。
+    PF_TRI = (0.25, 0.5, 0.75)
+    # ⚖ ns 取成 denom 的**比例** ⇒ 恒 ≤ inj ⇒ C2d 合法性恒绿（合法夹具）
+    #   而剂量跨度仍从 0.1% 到 90% ⇒ 「剂量混合」与秩相关判据都还有分辨力
+    MS = (0.001, 0.01, 0.1, 0.4, 0.9)
     syn = []
     for tid in range(N_TRAJ):
         pos_majority = tid < 12
-        for ns in (1, 10, 100, 1000, 4000):
-            base = 0.01 * ns if pos_majority else -0.01 * ns
-            if (base > 0) != pos_majority:      # 强制该轨迹的多数方向
-                base = -base if base != 0 else 0.5
-            # ⚖⚠⚠⚖ P / n_gen **必须逐轨迹不同**（C2b 要验「原始个数跨轨迹不可比」）
+        ng = 200 + 50 * tid
+        for j, m in enumerate(MS):
+            pf = PF_TRI[(tid + j) % 3]
+            den = 100 + max(1, int(ng * pf)) - 1
+            ns = max(1, int(den * m))
+            sgn = 1.0 if pos_majority else -1.0
             syn.append({"tid": "t%02d" % tid, "inject_scope": "k",
-                        "inject_n_sites": ns,
-                        "P": 100, "n_gen": 200 + 50 * tid,
-                        "p9_lo_meas": 0.0, "p9_hi_meas": base})
+                        "inject_n_sites": ns, "pos_frac": pf,
+                        "P": 100, "n_gen": ng,
+                        "p9_lo_meas": 0.0, "p9_hi_meas": sgn * (0.1 + m)})
         # ⚖⚠⚠⚠ 必须同时有 scope=single / all ⇒ 否则 C2「剂量混合」判据**恒红**
         #   （合成夹具少一维 ⇒ 判据看起来红，其实是夹具不全）
         for sc in ("single", "all"):
             syn.append({"tid": "t%02d" % tid, "inject_scope": sc,
-                        "inject_n_sites": None,
-                        "P": 100, "n_gen": 200 + 50 * tid,
+                        "inject_n_sites": None, "pos_frac": 0.5,
+                        "P": 100, "n_gen": ng,
                         "p9_lo_meas": 0.0,
                         "p9_hi_meas": 0.5 if pos_majority else -0.5})
     import tempfile
@@ -294,7 +411,7 @@ def selftest(files=None):
     rows = [{"tid": "a", "p9_lo_meas": 0.0, "p9_hi_meas": 1.0},
             {"tid": "a", "p9_lo_meas": 0.0, "p9_hi_meas": -1.0},
             {"tid": "b", "p9_lo_meas": 0.0, "p9_hi_meas": 1.0}]
-    chk("C0d", True, "夹具 P/n_gen 已带")
+    chk("C0d", True, "夹具 P/n_gen/**pos_frac** 已带（244.50 起 pos_frac 必填）")
     chk("C1", majority_count(rows) == (1, 2), "平票不算真 ⇒ %s" % (majority_count(rows),))
 
     # C2 缺读数必须拒读
@@ -328,7 +445,69 @@ def selftest(files=None):
     chk("C5", any("= 12/14（账本记 12）⇒ ✅ 复现" in x for x in L),
         "C1 行必须印出复现成功")
 
-    for f in (p, badp):
+    # ⚖⚠⚠⚖⚖⚠ C6：**分母公式逐条钉死**（244.50 的正主）
+    #   244.49 栽的正是「分母按公式推、不照探针原式抄」⇒ 这里把原式的
+    #   ① `int()` 向零截断 ② `max(1,…)` 夹取 ③ `pos_frac` 实取，
+    #   全部做成**手算的字面量期望**。
+    #   ⚖⚠ 期望值⛔ 不许由被测函数自己算出来 —— 那就是自反比较（恒绿）。
+    cases = [(100, 200, 0.25, 149),     # t = int(200*0.25) = 50
+             (100, 200, 0.75, 249),     # t = 150
+             (100, 1, 0.25, 100),       # int(0.25)=0 ⇒ max(1,0)=1 ⇒ 夹取生效
+             (100, 203, 0.5, 200)]      # int(101.5)=101；round(101.5)=102 ⇒ 钉截断
+    got = [denom_of({"tid": "x", "P": P, "n_gen": ng, "pos_frac": pf})
+           for (P, ng, pf, _w) in cases]
+    want = [w for (_P, _ng, _pf, w) in cases]
+    chk("C6", got == want, "inj 逐条＝%s（期望 %s）" % (got, want))
+
+    # C7 缺 pos_frac 必须**拒读** —— ⛔ 静默默认 0.5 是最坏的一种错：
+    #   真数据恰好全 0.5 ⇒ 默认值**看不出错**，换一批数据就静默错一倍
+    try:
+        denom_of({"tid": "x", "P": 100, "n_gen": 200})
+        chk("C7", False, "缺 pos_frac 却**没有**拒读")
+    except HardFail as e:
+        chk("C7", "未量到" in str(e), "拒读理由是「未量到」：%s" % str(e)[:40])
+    except Exception as e:
+        chk("C7", False, "拒读时抛的是 %s 而不是 HardFail ⇒ 崩 ⛔ 不算按判据转红"
+            % type(e).__name__)
+
+    # ⚖⚠⚠⚖ C8：**两条新判据必须能红**（C2c 截断 / C2d 越界）
+    #   ⚖⚠ 断言的是**那两行的文字**，⛔ 不是 rc —— 最小批本来就过不了
+    #     C1（轨迹数不足 14），用 rc 断言会让其它判据的红冒充覆盖。
+    def _mini(pf_bad=False, ns_bad=False):
+        rs = []
+        for i in range(3):
+            r = {"tid": "m%d" % (i % 2), "inject_scope": "k",
+                 "inject_n_sites": 10 * (i + 1), "pos_frac": 0.5,
+                 "P": 100, "n_gen": 400,
+                 "p9_lo_meas": 0.0, "p9_hi_meas": 0.1 * (i + 1)}
+            if i == 0 and pf_bad:
+                r["pos_frac"] = 2.0          # ⇒ 会被 len(pid)+n 截断 ⇒ 分母变
+            if i == 2 and ns_bad:
+                r["inject_n_sites"] = 999999  # ⇒ 超过 inj+1，探针本该抛错
+            rs.append(r)
+        for i in range(2):
+            rs.append({"tid": "m%d" % i, "inject_scope": "single",
+                       "inject_n_sites": None, "pos_frac": 0.5,
+                       "P": 100, "n_gen": 400,
+                       "p9_lo_meas": 0.0, "p9_hi_meas": 0.2})
+        return rs
+
+    def _dump(rs):
+        fd, q = tempfile.mkstemp(suffix=".jsonl"); os.close(fd)
+        io.open(q, "w", encoding="utf-8").write(
+            "\n".join(json.dumps(r) for r in rs) + "\n")
+        return q
+
+    extras = [_dump(_mini()), _dump(_mini(pf_bad=True)), _dump(_mini(ns_bad=True))]
+    Lc, _ = audit("w", extras[0])
+    Lp, _ = audit("w", extras[1])
+    Ln, _ = audit("w", extras[2])
+    chk("C8a", any("✅ 全在 (0,1]" in x for x in Lc) and any("越界 0/" in x for x in Lc),
+        "干净夹具 ⇒ C2c/C2d 都绿")
+    chk("C8b", any("⛔ 有 pf>1" in x for x in Lp), "pos_frac=2.0 ⇒ C2c 转红")
+    chk("C8c", any("越界 1/" in x for x in Ln), "n_sites 超 inj+1 ⇒ C2d 转红")
+
+    for f in (p, badp) + tuple(extras):
         try:
             os.unlink(f)
         except OSError:

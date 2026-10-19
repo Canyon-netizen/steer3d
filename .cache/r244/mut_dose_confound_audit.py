@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""mut_dose_confound_audit —— `dose_confound_audit.py` 的变异台（修订 244.48）
+"""mut_dose_confound_audit —— `dose_confound_audit.py` 的变异台（修订 244.48，244.50 扩到 12 条）
 
 ⚖ 纪律（同本项目其它台架）：
   1. needle **唯一命中、落在代码行、不在前导缩进里**；
   2. 替换后必须断言**旧串真的消失**（新串含回旧串时除外），并 `ast.parse`；
   3. ⛔ 期望标签必须是**具体那一条自检**。
+
+⚖⚠⚠⚠ **244.50 的教训（P7 那一族）**：
+  真数据的 `pos_frac` **全为 0.5** ⇒ 「硬编 0.5 / 缺字段默认 0.5」这类错
+  **在真数据上逐位不可分辨** ⇒ ⛔ 不能靠真数据证明公式对，
+  ⛔ 必须有一条 **pos_frac 变化**的合成夹具（自检 C6 的表）来钉住公式。
+  ⚖ 一般化：**真数据在某维度上全同值 ⇒ 该维度上的错在真数据里恒绿。**
 
 跑法：python3 mut_dose_confound_audit.py
 """
@@ -70,6 +76,33 @@ MUTATIONS = [
 
     # P6 并列秩取「第一个」而不是平均 ⇒ C0c 必红（并列必须平均秩）
     ("P6", "avg = (i + j) / 2.0 + 1", "avg = i + 1.0", "C0c"),
+
+    # ⚖⚠⚠⚖⚖⚖ 244.50 新增：分母公式的四个部件各钉一条
+    # ⚖⚠⚠⚠⚖⚠ **P7 是本台最该记住的一条**：真数据 137 条的 pos_frac **全为 0.5**
+    #   ⇒ 把 `float(pf)` 硬编成 0.5，在**真数据上逐位相同 ⇒ 恒绿**。
+    #   ⚖⇒ 只有 pos_frac **变化**的合成夹具（自检 C6 的表）能抓它。
+    #   ⚖⚠ 这也是「夹具必须覆盖真数据退化维度」的一个实例：
+    #     真数据在某维度上全同值 ⇒ 该维度上的错**在真数据里不可分辨**。
+    ("P7", "int(int(ng) * float(pf))", "int(int(ng) * 0.5)", "C6"),
+    # P8 拆掉 `max(1, …)` 夹取 ⇒ n_gen*pos_frac < 1 时少一位 ⇒ C6 必红
+    ("P8", "max(1, int(int(ng) * float(pf)))", "int(int(ng) * float(pf))", "C6"),
+    # P9 `int()`（向零截断）换成 `round()`（四舍五入）⇒ n_gen*pf = x.5 时差一位 ⇒ C6 必红
+    ("P9", "int(int(ng) * float(pf))", "round(int(ng) * float(pf))", "C6"),
+    # ⚖⚠⚠ P10 是**最坏的一种错**：pos_frac 缺字段时静默默认 0.5
+    #   ⇒ 真数据上完全看不出（真数据全 0.5）⇒ 换一批数据就静默错一整个因子。
+    ("P10", "if not P or not ng or pf is None:", "if not P or not ng:", "C7"),
+
+    # ⚖ 244.50 新增两条审计判据各自的「闸被焊死」变异
+    # ⚖⚠ P11 必须改**印出来那一行**的选择器，⛔ 不是改 `ok &= …`：
+    #   只改 `ok &=` 的话 rc 会变、**那行文字不变** ⇒ C8b 照样通过 ⇒ 变异存活。
+    #   ⚖ 判别式：**期望标签断言的是文字还是 rc**，就得改**它读的那一处**。
+    ("P11", "if not over and not nonpos else", "if True else", "C8b"),
+    # P11b 同一判据的**计分**那一行（rc 通路）⇒ 恒判「不通过」⇒ 合成批 C4 转红
+    ("P11b", "ok &= (not over and not nonpos)", "ok &= False", "C4"),
+    # ⚖⚠⚠ P12 的 repl **不许吃掉闭合括号**：needle ⛔ 不含 `]`
+    #   （第一版含了，repl 写成 `if False` ⇒ 源码变成 `if False]` 之外的残缺
+    #   `for … \n False]` ⇒ ast.parse 直接 SyntaxError ⇒ 台架记 T1 失败）
+    ("P12", 'if float(r["inject_n_sites"]) > denom_of(r) + 1', "if False", "C8c"),
 ]
 
 
