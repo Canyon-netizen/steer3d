@@ -122,6 +122,32 @@ def d_of(rec):
     return float(hi) - float(lo)
 
 
+def denom_of(rec):
+    """⚖⚖ 一格的**可注入位置总数** = `P + n_gen − 1`。
+
+    ⚖⚠⚠⚖⚖⚠ **244.49 的更正**：244.48 拿 `inject_n_sites` 的**原始个数**当剂量轴，
+       而它的真实分母是**跨轨迹 605…10366（17 倍）**的序列长度
+       ⇒ ⛔ 原始个数**跨轨迹不可比**（244.48 那张 87/11/8/3 的分档表就是这个的产物）。
+    ⚖⚠⚠⚠ 我一度拿 `P−1` 当分母，得出「60/109 超出可注入上限」——
+       ⚖⚠⚠⚠ **那是错的**：prompt 长度 ⛔ 不是钩子处的张量长度
+       （`inject_at` 用的是 `h.shape[1]`）。⇒ **60/109 这个数已撤回。**
+    ⚖⚠ 分母**不在记录里**，只能由 `P` 与 `n_gen` 推 ⇒ 两者缺一必须拒读。
+    """
+    P, ng = rec.get("P"), rec.get("n_gen")
+    if not P or not ng:
+        raise HardFail("记录 %r 缺 P/n_gen ⇒ 剂量**比例**算不出来 ⇒ **未量到**"
+                       % (rec.get("tid"),))
+    return int(P) + int(ng) - 1
+
+
+def frac_of(rec):
+    """⚖ 一格的注入**比例** = n_sites / 可注入位置总数。"""
+    ns = rec.get("inject_n_sites")
+    if ns is None:
+        raise HardFail("记录 %r 没有 inject_n_sites ⇒ **未量到**" % (rec.get("tid"),))
+    return float(ns) / float(denom_of(rec))
+
+
 def majority_count(recs):
     """⚖ 账本口径：逐轨迹取 `d > 0` 的多数（平票算 False ⇒ 不算真）。"""
     g = {}
@@ -159,19 +185,33 @@ def audit(arm, path):
                              if mixed else "⛔ 剂量是齐的 ⇒ 这批不能支持「混淆」这条结论"))
     ok &= mixed
 
-    # C3 剂量相关性
+    # ⚖⚠⚠⚖ 剂量轴必须是**比例**：分母跨轨迹差多少倍
+    dens = [denom_of(r) for r in ks]
+    ratio = max(dens) / min(dens)
+    L.append("  C2b 可注入位置总数 P+n_gen−1 = %d … %d（**%.1f 倍**）"
+             % (min(dens), max(dens), ratio))
+    L.append("      ⇒ %s" % ("✅ 跨轨迹差很多 ⇒ **原始位点数不可比**，剂量轴必须用比例"
+                              if ratio > 2 else "⚠ 分母差异 <2 倍 ⇒ 原始个数近似可比"))
+    ok &= (ratio > 2)
+
+    # C3 剂量相关性：**两个轴都印**，差别必须看得见
     ns = [float(r["inject_n_sites"]) for r in ks]
+    fr = [frac_of(r) for r in ks]
     dd = [d_of(r) for r in ks]
-    rho = spearman(ns, dd)
-    L.append("  C3 d 与位点数的 Spearman = %+.3f（%d 格）" % (rho, len(ks)))
+    rho_raw = spearman(ns, dd)
+    rho = spearman(fr, dd)
+    L.append("  C3 d 与剂量 的 Spearman：原始个数 %+.3f ｜ ✅**注入比例** %+.3f（%d 格）"
+             % (rho_raw, rho, len(ks)))
+    L.append("     ⚖ 结论用**比例**那一列；原始个数那列跨轨迹不可比（见 C2b）")
 
     # C4 分档表（四档都必须印出来，且中位数单调与否要**报出来**）
-    hi = max(ns)
-    bands = [("位点<=n/4", [r for r in ks if r["inject_n_sites"] <= hi / 4]),
-             ("n/4..n/2", [r for r in ks if hi / 4 < r["inject_n_sites"] <= hi / 2]),
-             ("n/2..3n/4", [r for r in ks if hi / 2 < r["inject_n_sites"] <= 3 * hi / 4]),
-             ("位点>3n/4", [r for r in ks if r["inject_n_sites"] > 3 * hi / 4])]
-    L.append("  C4 按位点数分档（n 用**该臂最大值**代理，⚠ 边界是粗的）")
+    qs_ = _st.quantiles(fr, n=4)
+    bands = [("frac<=q1", [r for r, f2 in zip(ks, fr) if f2 <= qs_[0]]),
+             ("q1..q2", [r for r, f2 in zip(ks, fr) if qs_[0] < f2 <= qs_[1]]),
+             ("q2..q3", [r for r, f2 in zip(ks, fr) if qs_[1] < f2 <= qs_[2]]),
+             ("frac>q3", [r for r, f2 in zip(ks, fr) if f2 > qs_[2]])]
+    L.append("  C4 按**注入比例**四分位分档（分位点 %.3f / %.3f / %.3f）"
+             % tuple(qs_))
     meds = []
     for lab, sub in bands:
         if not sub:
@@ -196,8 +236,9 @@ def audit(arm, path):
         L.append("  ⚠ 本臂**不支持**「剂量混淆」这条结论（复现=%s，混合=%s，rho=%+.3f）"
                  % (good, mixed, rho))
     L.append("")
-    L.append("【⛔】本工具没验的：真实 n_eff（未读 n_eff_map.tsv）、"
-             "single/all 与 k 三类的**跨类**可比性、逐文件一致性（只读了一个文件）")
+    L.append("【⛔】本工具没验的：钩子处 `h.shape[1]` 的**真值**"
+             "（记录里没有，分母由 P+n_gen−1 推）、single/all 与 k 三类的"
+             "**跨类**可比性、逐文件一致性（只读了一个文件）")
     return L, (0 if ok else 1)
 
 
@@ -217,14 +258,18 @@ def selftest(files=None):
             base = 0.01 * ns if pos_majority else -0.01 * ns
             if (base > 0) != pos_majority:      # 强制该轨迹的多数方向
                 base = -base if base != 0 else 0.5
+            # ⚖⚠⚠⚖ P / n_gen **必须逐轨迹不同**（C2b 要验「原始个数跨轨迹不可比」）
             syn.append({"tid": "t%02d" % tid, "inject_scope": "k",
-                        "inject_n_sites": ns, "p9_lo_meas": 0.0,
-                        "p9_hi_meas": base})
+                        "inject_n_sites": ns,
+                        "P": 100, "n_gen": 200 + 50 * tid,
+                        "p9_lo_meas": 0.0, "p9_hi_meas": base})
         # ⚖⚠⚠⚠ 必须同时有 scope=single / all ⇒ 否则 C2「剂量混合」判据**恒红**
         #   （合成夹具少一维 ⇒ 判据看起来红，其实是夹具不全）
         for sc in ("single", "all"):
             syn.append({"tid": "t%02d" % tid, "inject_scope": sc,
-                        "inject_n_sites": None, "p9_lo_meas": 0.0,
+                        "inject_n_sites": None,
+                        "P": 100, "n_gen": 200 + 50 * tid,
+                        "p9_lo_meas": 0.0,
                         "p9_hi_meas": 0.5 if pos_majority else -0.5})
     import tempfile
     fd, p = tempfile.mkstemp(suffix=".jsonl"); os.close(fd)
@@ -249,6 +294,7 @@ def selftest(files=None):
     rows = [{"tid": "a", "p9_lo_meas": 0.0, "p9_hi_meas": 1.0},
             {"tid": "a", "p9_lo_meas": 0.0, "p9_hi_meas": -1.0},
             {"tid": "b", "p9_lo_meas": 0.0, "p9_hi_meas": 1.0}]
+    chk("C0d", True, "夹具 P/n_gen 已带")
     chk("C1", majority_count(rows) == (1, 2), "平票不算真 ⇒ %s" % (majority_count(rows),))
 
     # C2 缺读数必须拒读
