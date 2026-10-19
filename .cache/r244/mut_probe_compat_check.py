@@ -40,7 +40,66 @@ import types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TARGET = os.path.join(HERE, "probe_compat_check.py")
-PROBE = os.path.abspath(os.path.join(HERE, "..", "mutbak", "r204_noise_probe.py"))
+
+# ⚖⚠⚠⚖⚖⚠⚠⚠ 修订 244.45：**夹具不许指向活探针**。
+# ⚖ 原先这里指向 `.cache/mutbak/r204_noise_probe.py`（活文件）⇒ 台架基线挂在
+#   一个**会被别人改动**的外部文件上。244.45 真给探针打了 `force` 补丁之后，
+#   锚点 `SIG_OLD` 归零 ⇒ `probe_compat_check.make_patched` 直接 HardFail
+#   ⇒ ⚠⚠⚠ 台架基线转红，`[FAIL] T0 基线就不是全绿 ⇒ 台架无效`。
+# ⚖⚠ 那不是「台架坏了」，是**潜伏耦合**被真实改动暴露出来了：
+#   一个**预检工具**（文档原话「在动那个文件之前」）本来就该拿**未打补丁的输入**来测。
+# ⚗⇒ 夹具改成**入库的补丁前快照** `probe_prepatch_snapshot.py`，
+#   它的 sha256 = cc637fcd1197ed966b11983d9435a17f94e90be11f18b7441191a8955f0dc30a
+#   （= 打补丁前活探针的指纹，逐字节相同）。
+SNAPSHOT_REL = "probe_prepatch_snapshot.py"
+PROBE = os.path.join(HERE, SNAPSHOT_REL)
+
+# ⚖⚠⚠⚖ 244.45：**第二条真实路** = 已打补丁的活探针。
+#   ⚖ 没有它，工具的 `patched` 分支就是台架眼里的死代码 ⇒ 恒绿。
+PATCHED_PROBE = os.path.abspath(os.path.join(HERE, "..", "mutbak",
+                                            "r204_noise_probe.py"))
+
+
+def assert_live_patched():
+    """⚖ 活探针状态闸：它必须处在「已打补丁」态，否则第二条真实路是假的。"""
+    src = io.open(PATCHED_PROBE, encoding="utf-8").read()
+    if src.count(PRE_STATE[0][1]) != 0:
+        raise AssertionError("活探针仍带旧签名 ⇒ 它处在**补丁前**态 ⇒ "
+                             "第二条真实路验不到 patched 分支")
+    for nm, mark in POST_MARKS:
+        if mark not in src:
+            raise AssertionError("活探针缺少补丁后标记 %s ⇒ 不是已打补丁态" % nm)
+    return True
+
+# ⚖⚠⚠ 夹具**必须**处在「未打补丁」态，否则台架验的是另一个世界。
+#   ⛔ 不写成「打上补丁再跑」—— 那会让 make_patched 立刻 HardFail，
+#   基线红，而**红的原因不是判据**。
+PRE_STATE = (
+    ("SIG_OLD", "def _k_positions(n, k, seed=0, nested=False):"),
+    ("SHORTCUT", "    if k == n:\n        return list(range(n))"),
+    ("NESTED_OLD", "        return sorted(int(x) for x in _rng.permutation(n)[:k])"),
+)
+POST_MARKS = (
+    ("SIG_NEW", "def _k_positions(n, k, seed=0, nested=False, force=None):"),
+    ("FORCE_GUARD", "force 只在 nested=True 下有定义"),
+)
+
+
+def assert_fixture_unpatched():
+    """⚖ 夹具状态闸：三个旧锚点各命中 1，两个新标记一个都不许出现。"""
+    src = io.open(PROBE, encoding="utf-8").read()
+    for nm, anc in PRE_STATE:
+        n = src.count(anc)
+        if n != 1:
+            raise AssertionError("夹具 %s 的锚点 %s 命中 %d 处（要求恰好 1）"
+                                 "⇒ 快照不是补丁前状态，⛔ 台架会验到另一个世界"
+                                 % (SNAPSHOT_REL, nm, n))
+    for nm, mark in POST_MARKS:
+        if mark in src:
+            raise AssertionError("夹具 %s 里出现了补丁后标记 %s ⇒ 快照不是补丁前状态"
+                                 % (SNAPSHOT_REL, nm))
+    return True
+
 
 
 def find_code_line(src, needle):
@@ -91,13 +150,13 @@ def run_selftest(src):
     buf = io.StringIO()
     try:
         with contextlib.redirect_stdout(buf):
-            rc = _load(src).selftest()
+            rc = _load(src).selftest(PROBE)
     except Exception as e:
         return 3, "%s: %s\n%s" % (type(e).__name__, e, buf.getvalue())
     return rc, buf.getvalue()
 
 
-def run_real(src):
+def run_real(src, probe=None):
     """⚖ 跑真实数据那条路。⇒ (rc, text)；rc==3 表示**崩**，不算干净的红。
 
     ⚖⚠ text 取 `run()` 的**返回值**，⛔ 不是 stdout
@@ -107,7 +166,7 @@ def run_real(src):
     buf = io.StringIO()
     try:
         with contextlib.redirect_stdout(buf):
-            txt, rc = _load(src).run(PROBE)
+            txt, rc = _load(src).run(probe or PROBE)
     except Exception as e:
         return 3, "%s: %s\n%s" % (type(e).__name__, e, buf.getvalue())
     return rc, (txt or "") + "\n" + buf.getvalue()
@@ -213,6 +272,31 @@ MUTATIONS = [
     #         ⛔ 但换掉的是**任意**那个 ⇒ S ⊂ S' 的构造依据变了，
     #           「嵌套阶梯 + 只差一个」这两条性质不再同时成立。
     ("Q11", "run", "int(_perm[k - 1])", "int(_perm[0])", None),
+
+    # ⚖⚠⚠⚖⚖⚠⚠⚠ 244.45：下面四条覆盖 **`patched` 分支**。
+    # ⚖ 没有它们时，那段代码对台架是**死代码** ⇒ 任何变异都「平凡通过」。
+    # ⚖⚠⚠ 其中 Q12/Q13/Q14 **必须**由**活探针**那条路抓住才算数 ——
+    #   未打补丁夹具根本走不到那一支。
+
+    # Q12 patched 分支把被测物指回**空临时文件** ⇒ J1/J7/J8/J9 全断
+    #   症状：报告照样印「已打补丁 ⇒ 活探针就是被测物」，而实际验的是空文件。
+    ("Q12", "runP", "under_test = os.path.abspath(probe_path)",
+     "under_test = tmp", None),
+
+    # Q13 patched 分支的**参照物**取成被测物自己 ⇒ J1 变成自我比较
+    #   症状：「force=None 与旧行为逐档相同」这句话**永远成立** ⇒ 恒绿。
+    ("Q13", "runP", "orig_path = os.path.join(HERE, SNAPSHOT_REL)",
+     "orig_path = os.path.abspath(probe_path)", None),
+
+    # Q14 状态判据瞎了 ⇒ 已打补丁的活探针被当成补丁前
+    #   症状：把补丁又打一遍到临时副本上，而报告印的状态与实际不符。
+    ("Q14", "runP", "if n_sig_old == 1 and not has_new:",
+     "if n_sig_old >= 0:", None),
+
+    # Q15「参照物 ≠ 被测物」守卫被拆 ⇒ 自我比较这条病**不再被拒读**
+    #   （Q13 之所以是干净的红而不是恒绿，全靠这一道）
+    ("Q15", "st", "if os.path.abspath(orig_path) == os.path.abspath(under_test):",
+     "if False:", "C10"),
 ]
 
 # ⚖⚠⚠ 工具里 `make_patched` 那句 `if patched == src: raise HardFail` **没有变异**。
@@ -230,6 +314,15 @@ def main():
     args = ap.parse_args()
     base = open(args.target, encoding="utf-8").read()
 
+    # ⚖⚠⚠ 夹具状态闸。⛔ 必须**在跑基线之前**查：夹具不是补丁前状态时，
+    #   `make_patched` 会 HardFail ⇒ 基线红 ⇒ 而红的原因是**夹具**，不是判据。
+    #   ⚖ 那样得到的 `[FAIL] T0` 会把「夹具坏了」误报成「判据坏了」。
+    try:
+        assert_fixture_unpatched()
+    except AssertionError as e:
+        print("[FAIL] T0 夹具状态闸：%s" % e)
+        return 1
+
     if args.selftest:
         rc, text = run_selftest(base)
         print(text)
@@ -240,13 +333,14 @@ def main():
 
     rc, text = run_selftest(base)
     ok, bad = _tests(text)
-    rc2, _ = run_real(base)
-    print("台架基线：自检 %d 通过 / %d 条 ⇒ rc=%d；真实路 rc=%d"
-          % (len(ok), len(ok) + len(bad), rc, rc2))
-    if rc != 0 or bad or rc2 != 0:
+    rc2, _ = run_real(base)                     # 未打补丁夹具
+    rc3, _ = run_real(base, PATCHED_PROBE)      # ⚖ 已打补丁的**活探针**
+    print("台架基线：自检 %d 通过 / %d 条 ⇒ rc=%d；真实路 未打补丁 rc=%d /"
+          " 已打补丁 rc=%d" % (len(ok), len(ok) + len(bad), rc, rc2, rc3))
+    if rc != 0 or bad or rc2 != 0 or rc3 != 0:
         print("[FAIL] T0 基线就不是全绿 ⇒ 台架无效，先修工具"
-              "（自检 rc=%d 失败=%s / 真实路 rc=%d）"
-              % (rc, ",".join(sorted(bad)), rc2))
+              "（自检 rc=%d 失败=%s / 未打补丁 rc=%d / 已打补丁 rc=%d）"
+              % (rc, ",".join(sorted(bad)), rc2, rc3))
         return 1
 
     allok, crashed = True, []
@@ -272,6 +366,26 @@ def main():
             else:
                 print("[PASS] %s 第 %s 行变异 %r ⇒ %s 转红"
                       % (name, ln, needle if isinstance(needle, str) else "<多点>", expect))
+        elif kind == "runP":
+            # ⚖⚠⚠⚖ 只认**活探针**那条路变红。⛔ 不许拿未打补丁夹具的红充数
+            #   —— 那条路上 `patched` 分支根本没执行 ⇒ 红得不算数。
+            r, t = run_real(mut_src, PATCHED_PROBE)
+            if r == 3:
+                print("[WARN] T5.%s 变异后**崩**（%s）⇒ 被抓住但**不是干净的按判据变红**"
+                      % (name, t.split("\n")[0][:60]))
+                crashed.append(name)
+                continue
+            if r == 0:
+                print("[FAIL] T5.%s 变异 %r 后**活探针**那条真实路**仍 rc=0** ⛔"
+                      "（patched 分支没被盯住 ⇒ 那段是死代码）"
+                      % (name, needle if isinstance(needle, str) else "<多点>"))
+                allok = False
+            else:
+                reds = red_lines(t)
+                print("[PASS] %s 第 %s 行变异 %r ⇒ **活探针**真实路按判据转红（rc=%d）"
+                      % (name, ln, needle if isinstance(needle, str) else "<多点>", r))
+                for rl in reds[:2]:
+                    print("        ↳ 落点：%s" % rl[:104])
         else:
             r, t = run_real(mut_src)
             if r == 3:

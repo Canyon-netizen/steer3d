@@ -101,6 +101,13 @@ NESTED_NEW = (
 
 ANCHORS = (("SIG_OLD", SIG_OLD), ("SHORTCUT", SHORTCUT_ANCHOR), ("NESTED_RET", NESTED_OLD))
 
+# ⚖⚠⚠ 244.45：验「已打补丁」时的**参照物** = 入库的补丁前快照。
+#   ⚖ 为什么必须入库：⛔ 不能靠「反向撤销补丁」现场造参照物 ——
+#   那样得到的原函数**必然**与被打过补丁的函数在默认路径上同源，
+#   ⇒ J1 恒绿 ⛔ 完全没有判别力。
+#   ⚗⇒ 参照物必须是**补丁打上去之前**就定下来的那份文件。
+SNAPSHOT_REL = "probe_prepatch_snapshot.py"
+
 
 class HardFail(Exception):
     pass
@@ -160,6 +167,44 @@ def make_patched(probe_path, out_path):
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(patched)
     return patched
+
+
+def probe_state(src):
+    """⚖ 判探针处在哪个状态：``unpatched`` / ``patched`` / ``mixed``。
+
+    ⚖⚠⚠⚖⚖⚠⚠ **判据只能落在 `SIG_NEW` 上** ——
+      `SHORTCUT` 与 `NESTED_OLD` 两个锚点在**两种状态下都恰好命中 1**
+      （补丁是**插入/包裹**，不是替换）⇒ 拿它们分状态 ⇒ **恒真**。
+      ⚖ 这正是 244.45 打补丁当场踩到的那一下：第一版断言「三个旧锚点
+      都得归零」，当场炸在 `SHORTCUT 残留 1 处` ⇒ 断的是**我的断言**，不是补丁。
+
+    ⚖⚠ 必须**互斥且穷尽**：判不出来的形态叫 ``mixed`` ⇒ HardFail，
+    ⛔ 绝不许默认落到某一支（那是「拿不到的当没有」）。
+    """
+    n_sig_old = src.count(SIG_OLD)
+    has_new = SIG_NEW in src
+    has_guard = FORCE_GUARD in src
+    if n_sig_old == 1 and not has_new:
+        return "unpatched"
+    if n_sig_old == 0 and has_new and has_guard:
+        return "patched"
+    return "mixed"
+
+
+def assert_distinct_reference(orig_path, under_test):
+    """⚖⚠⚠⚖ **参照物必须来自被测物之外**（244.45）。
+
+    ⚖ 症状：`orig` 与 `under_test` 指向同一个文件 ⇒ J1 是「拿自己比自己」
+       ⇒ **恒绿** ⇒ 报告里那句「force=None 与旧行为逐档相同」永远成立。
+    ⚖⚠ 同族：预检曾打算用「反向撤销补丁的副本」当参照物 —— 同一个病。
+
+    ⚖⚠ 这条**必须能红**：自检 C10 拿合成夹具证明它真的会抛。
+    """
+    if os.path.abspath(orig_path) == os.path.abspath(under_test):
+        raise HardFail(
+            "参照物与被测物**同一个文件**（%s）⇒ J1 变成自我比较 ⇒ "
+            "⛔ 恒绿，拒读" % under_test)
+
 
 
 # --------------------------------------------------------------- 判据
@@ -316,9 +361,24 @@ def run(probe_path=PROBE_REL):
     os.close(fd)
     L = []
     try:
-        make_patched(probe_path, tmp)
-        orig = load_by_path(probe_path, "_k_positions")
-        new = load_by_path(tmp, "_k_positions")
+        _psrc = open(probe_path, encoding="utf-8").read()
+        state = probe_state(_psrc)
+        if state == "mixed":
+            raise HardFail(
+                "探针处在**混合形态**（SIG_OLD 命中 %d 次、force 签名 %s、"
+                "守卫 %s）⇒ 既不是补丁前也不是补丁后，⛔ 拒读"
+                % (_psrc.count(SIG_OLD), "有" if SIG_NEW in _psrc else "无",
+                   "有" if FORCE_GUARD in _psrc else "无"))
+        if state == "unpatched":
+            make_patched(probe_path, tmp)
+            under_test, orig_path = tmp, probe_path
+        else:
+            # ⚖ 已打补丁 ⇒ **活探针就是被测物**；参照物改用**入库快照**。
+            under_test = os.path.abspath(probe_path)
+            orig_path = os.path.join(HERE, SNAPSHOT_REL)
+        assert_distinct_reference(orig_path, under_test)
+        orig = load_by_path(orig_path, "_k_positions")
+        new = load_by_path(under_test, "_k_positions")
 
         grid = []
         for n in (385, 490, 617, 758, 1141, 1156, 1762, 1878, 2210,
@@ -328,6 +388,13 @@ def run(probe_path=PROBE_REL):
                 if k < n:
                     grid.append((n, k))
 
+        L.append("【0】被测探针状态：**%s**" % state)
+        L.append("  ⚖ 参照物 = %s"
+                 % os.path.basename(os.path.abspath(orig_path)))
+        L.append("  ⚖ %s" % ("未打补丁 ⇒ 在**临时副本**上施加候选补丁再验"
+                             if state == "unpatched" else
+                             "已打补丁 ⇒ **活探针本身**就是被测物，"
+                             "参照物 = 入库快照 `%s`" % SNAPSHOT_REL))
         L.append("【1】J1 行为等价：force=None 时必须与原函数**逐档相同**")
         L.append("  ⚖ 网格 %d 格（14 个真实 n_eff × 7 个档比例）" % len(grid))
         eqT = j1_equiv(orig, new, grid, nested=True)
@@ -390,7 +457,7 @@ def run(probe_path=PROBE_REL):
         res7 = []
         for m in EXTRACTORS:
             try:
-                fn = _extractor(m).load_k_positions(tmp)
+                fn = _extractor(m).load_k_positions(under_test)
                 fn = fn[0] if isinstance(fn, tuple) else fn
                 good, why = j7_isolated_call(fn)
                 res7.append((m, good, why))
@@ -404,7 +471,7 @@ def run(probe_path=PROBE_REL):
         drift = []
         try:
             for m in EXTRACTORS:
-                fn = _extractor(m).load_k_positions(tmp)
+                fn = _extractor(m).load_k_positions(under_test)
                 fn = fn[0] if isinstance(fn, tuple) else fn
                 if not j1_equiv(orig, fn, [(997, 249), (2210, 552), (385, 96)],
                                  nested=True):
@@ -428,7 +495,7 @@ def run(probe_path=PROBE_REL):
         for m in EXTRACTORS:
             try:
                 mod = _extractor(m)
-                olds, ndef, stuck = rebind_probe(mod.__dict__, tmp)
+                olds, ndef, stuck = rebind_probe(mod.__dict__, under_test)
             except Exception as e:
                 res9.append((m, False, "%s: %s" % (type(e).__name__, str(e)[:40])))
                 continue
@@ -440,7 +507,8 @@ def run(probe_path=PROBE_REL):
             buf = io.StringIO()
             try:
                 with contextlib.redirect_stdout(buf):
-                    rc = mod.selftest(tmp) if m == "dose_axis_audit" else mod.selftest()
+                    rc = (mod.selftest(under_test) if m == "dose_axis_audit"
+                      else mod.selftest())
             except Exception as e:
                 res9.append((m, False, "自检崩了：%s: %s"
                              % (type(e).__name__, str(e)[:40])))
@@ -465,10 +533,18 @@ def run(probe_path=PROBE_REL):
                  % ("✅ 向后兼容，且 force 语义成立" if allok
                     else "⛔ 不满足要求，⛔ 不得采用"))
         L.append("  ⚖⚠ 本工具⛔ **没有改真探针**，⛔ 没有跑批，也没有批准任何改动。")
-        L.append("  ⚖⚠⚠ 仍未验的：J9 只跑了三个工具的**自检**与**位点抽取**；")
-        L.append("     ⛔ 真跑 56 格的结果、以及真探针里 `inject_at`/`run()`")
-        L.append("     是否会**误传** force，那是 GPU 跑批阶段的事。")
+        L.append("  ⚖⚠⚠ 本轮只验了**位点抽取 + 自检 + force 语义**；")
+        L.append("     ⛔ 真跑 56 格、以及 `inject_at`/`run()` 是否会**误传** force，"
+                 "仍是 GPU 跑批阶段的事。")
+
         return "\n".join(L), (0 if allok else 1)
+    except HardFail as e:
+        # ⚖⚠⚠⚖ 244.45：**设计好的拒读不是崩**。
+        #   本工具用 HardFail 表达「这份输入我拒绝验」（混合形态、参照物同源…），
+        #   ⛔ 让它穿出去会被变异台记成 T4「崩」⇒ 而崩 ⛔ 不等于「按判据转红」。
+        #   ⚗⇒ 这里把它收成**干净的红**（rc=1）并把消息带上。
+        #   ⚖ 真正的意外异常仍然穿出去 —— 那些才是崩。
+        return ("\n".join(L) + "\n\n【⛔】拒读：%s" % e), 1
     finally:
         try:
             os.unlink(tmp)
@@ -491,14 +567,17 @@ def _base_fn(n, k, seed=0, nested=False):
                                                           replace=False).tolist()[:k])
 
 
-def selftest():
+def selftest(probe_path=PROBE_REL):
+    # ⚖⚠⚠ 修订 244.45：`probe_path` 必须是**形参**，⛔ 不许读模块全局 `PROBE_REL`。
+    #   原先 `main()` 收了 `--probe` 却只喂给 `run()`，自检仍硬读活探针
+    #   ⇒ 那个 flag 对自检**静默不生效**（㉫「默认值定义时绑定」的近亲）。
     ok, bad = [], []
 
     def chk(t, cond, why=""):
         (ok if cond else bad).append(t)
         print(("[PASS] %s %s" if cond else "[FAIL] %s %s") % (t, why))
 
-    _PROBE = PROBE_REL if os.path.exists(PROBE_REL) else None
+    _PROBE = probe_path if os.path.exists(probe_path) else None
     tmpdir = tempfile.mkdtemp(prefix="compat_st_")
 
     # C1 三个锚点必须**各恰好 1**（真探针）
@@ -508,7 +587,7 @@ def selftest():
         chk("C1", all(c == 1 for _, c in cs),
             "锚点 %s（各须恰好 1）" % ", ".join("%s=%d" % (n, c) for n, c in cs))
     else:
-        chk("C1", False, "探针源码不可达（%r）⇒ 锚点未验" % PROBE_REL)
+        chk("C1", False, "探针源码不可达（%r）⇒ 锚点未验" % probe_path)
 
     # C2 J1 双向 × **两条路**：同函数⇒过；候选多吐一个⇒不过
     def drift_fn(n, k, seed=0, nested=False):
@@ -640,6 +719,23 @@ def selftest():
         "只改全局 ⇒ 仍读到真探针=%s；改 __defaults__ 后读到 %r（改了 %d 个，"
         "仍卡住 %d 个）" % (only_global, ns_fix["f"](), ndef9, len(stuck9)))
 
+    # C10 ⚖⚠⚠⚖「参照物 ≠ 被测物」这道守卫**必须能红**，否则它就是恒绿。
+    #   ⚖ 两半都要验：同路径 ⇒ 必须抛；不同路径 ⇒ 必须**不**抛
+    #   （⛔ 只验「会抛」⇒ 一道永远抛的假守卫也能过）。
+    _self = os.path.join(tmpdir, "same.py")
+    io.open(_self, "w", encoding="utf-8").write("x = 1\n")
+    try:
+        assert_distinct_reference(_self, _self)
+        chk("C10", False, "同路径当参照物 ⇒ 守卫**没抛** ⇒ J1 会变成自我比较（恒绿）")
+    except HardFail:
+        try:
+            assert_distinct_reference(_self, _self + ".other")
+            chk("C10", True, "同路径抛 / 异路径不抛 ⇒ J1 不会被自己的参照物喂绿")
+        except HardFail as e:
+            chk("C10", False, "守卫**对不同路径也抛** ⇒ 假守卫：%s" % str(e)[:60])
+    except Exception as e:
+        chk("C10", False, "抛的不是 HardFail：%s" % type(e).__name__)
+
     for p in (p_good, p_bad, p_pat, dup):
         try:
             os.unlink(p)
@@ -663,7 +759,8 @@ def main():
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
     if args.selftest:
-        return selftest()
+        # ⚖⚠ 修订 244.45：`--probe` 现在对自检**也**生效（244.45 之前它只喂 run()）
+        return selftest(args.probe)
     txt, rc = run(args.probe)
     print(txt)
     return rc

@@ -105,7 +105,7 @@ def repeat_summary(rep):
     return out
 
 
-def _k_positions(n, k, seed=0, nested=False):
+def _k_positions(n, k, seed=0, nested=False, force=None):
     """确定性地挑出 `k` 个位置（0 <= k <= n），**可复现**。
 
     ⚠⚠⛔ 这里**必须**用固定种子。仪器里出现未设种子的随机，等于
@@ -119,6 +119,11 @@ def _k_positions(n, k, seed=0, nested=False):
         raise ValueError("序列长度为 0")
     if k < 0 or k > n:
         raise ValueError("k=%r 越界：必须 0 <= k <= n=%d" % (k, n))
+    if force is not None and not nested:
+        raise ValueError(
+            "force 只在 nested=True 下有定义（非嵌套抽取没有『下一个位点』"
+            "可换）；⛔ 不许静默忽略")
+
     if k == n:
         return list(range(n))
     if k == 0:
@@ -130,7 +135,18 @@ def _k_positions(n, k, seed=0, nested=False):
         # ⚖ 于是每一步同时变了「个数」与「挑了哪几个」⇒ 两者不可分，
         # ⚖ 只能否掉「单调累积」，分不出「个数」还是「身份」。
         # ⚖ 嵌套之后 k1 ⊂ k2 ⊂ … ⊂ all，曲线才是真正的累积曲线。
-        return sorted(int(x) for x in _rng.permutation(n)[:k])
+        # ⚖⚠⚠⚖ 默认路径这一行**逐字**保留旧实现 ⛔ 不许改写它：
+        #   `ladder_position_audit` 的自检 A4 按**这一行的文本**做
+        #   夹具变异（`[:k]` -> `[:k-1]`）来证明「位数 != k ⇒ 硬失败」。
+        #   改写成等价形式 ⇒ 那个 str.replace **静默变空操作**。
+        if force is None:
+            return sorted(int(x) for x in _rng.permutation(n)[:k])
+        _perm = _rng.permutation(n)
+        pos = sorted(int(x) for x in _perm[:k])
+        if int(force) not in pos:
+            pos = sorted([p for p in pos if p != int(_perm[k - 1])]
+                        + [int(force)])
+        return pos
     return sorted(_rng.choice(n, size=k, replace=False).tolist())
 
 

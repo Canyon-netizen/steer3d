@@ -1,0 +1,844 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""r204 —— ⛔ 多点重复测「残差 std」的**分布**（解修订 201 §201.5 的单点限制）。
+
+## 为什么有这个
+
+修订 201 的定点扫描只用**一条轨迹的一个位置**，得出
+
+    Δ(marker) 残差 std = 0.059052   SNR = 0.1225/0.059 ≈ 2.07
+
+并明写：「上面所有数都来自**一条轨迹的一个位置**。⚠⚠⚴ 噪声 std 会不会随
+位置/轨迹变，**没量过**。⛔ **不得**据此宣布「P6 可跑」」。
+
+⚠⚠⚴ 本脚本量的就是那个「没量过」：在 **多条轨迹 × 多个位置**上重复同一道测量，
+⚠⚠⚴ 报出残差 std 的**分布**，而不是它的单点值。
+
+## 两条纪律（都来自本项目已付过代价的坑）
+
+1. ⚠⚠⚴ **噪声底必须跨进程量。**
+   同进程里重复跑 N 次是测不出非确定性的 —— 那些重复只证明「进程没动」。
+   本脚本 `--driver` 为**每一格**拉起**独立子进程**。
+
+2. ⚠⚠⚴ **一格一次只改一个变量。**
+   每格只带 (traj, pos_frac)，其余（模型、层、marker 集合、w、α 网格）全同。
+
+## 每格报三样
+
+| 量 | 作用 |
+|---|---|
+| `resid_std` | 扣掉线性趋势后的残差标准差（= 噪声底） |
+| `n_distinct` | Δ(marker) 的**不同取值个数** —— 量化是否随位置/轨迹变 |
+| `min_adj_diff` | 最小相邻差 —— 是否有取整台阶，台阶是多少 |
+
+⚠ 本脚本**只做测量**，不判「P6 能不能跑」。
+⚠ 判定要等分布出来之后，由人按修订 201 §201.5 的口径来做。
+
+用法：
+    # 最小可跑样（先过这个，别直接跑全）
+    python3 r204_noise_probe.py --cell --tid <TID> --pos-frac 0.5 --n-steps 20 …
+
+    # 驱动：跨进程逐格测量
+    python3 r204_noise_probe.py --driver --n-traj 5 --pos-fracs 0.25,0.5,0.75 \
+        --n-steps 60 --out /tmp/r204.tsv …
+
+退出码：0 成功 / 2 参数错 / 3 读不到轨迹 / 4 该格测量失败
+"""
+
+import argparse
+import csv
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+MODEL = "/home/zhourui/.cache/huggingface/models/Qwen--Qwen3-1.7B/snapshots/master"
+MARKER_IDS = [13824, 14190, 6771, 10061, 7196, 88190, 80022]
+CONTROL_ID = 279          # ' the '
+LAYER = 20
+
+
+def cuda_visible_for(uuid):
+    """把 `--gpu-uuid` 的值转成 `CUDA_VISIBLE_DEVICES` 该有的样子。
+
+    ⚠⚠⚴ **`CUDA_VISIBLE_DEVICES` 要的是带 `GPU-` 前缀的完整 UUID。**
+    ⚠⚠⚴ 我移植 r201 时**只抄了注释没抄逻辑**（注释写着「脚本自己拼 GPU-」，
+    ⚠⚠⚴ 代码却是裸赋值）⇒ 每一格都 `RuntimeError: No CUDA GPUs are
+    ⚠⚠⚴ available`，整轮 10/10 全废且只有一行 stderr。
+    ⚗⇒ 抽出来单测：前缀缺失、前缀重复、None 三态都要验。
+    """
+    if not uuid:
+        return None
+    return uuid if uuid.startswith("GPU-") else "GPU-" + uuid
+
+
+def repeat_summary(rep):
+    """把「同一剂量上重复跑的读数」折成诊断量。**纯函数**，可单测。
+
+    ⚠⚠⛔ 这里有个最容易犯的错：`rep_std == 0.0` 时，
+    ⚠⚠⛔ 它表示「重复之间**逐位相同**」（forward 是确定性的），
+    ⚠⚠⛔ 而**不是**「没量到 / 量不出来」。
+    ⚠⚠⛔ ⇒ 所以绝不能用 `if std:` 之类的 truthy 判断把 0 当成缺数据，
+    ⚠⚠⛔ 必须另给一个显式的 `rep_exact` 布尔量。
+    ⚗ 这正是「测得为 0」≠「不存在」那个家族（见 agent memory）。
+
+    参 `rep`：{"lo": [...], "hi": [...]}，每个是同一剂量上的多次读数。
+    返回可直接并进 analyze() 结果的 dict。
+    """
+    import statistics as _st
+    out = {}
+    if not rep:                       # ⚠ 空/None 输入 ⇒ 空结果，不抛
+        return out
+    for lab in ("lo", "hi"):
+        v = list(rep.get(lab) or [])
+        if not v:
+            continue
+        out["rep_n_%s" % lab] = len(v)
+        # ⚠ n==1 ⇒ 没有散布可言。stdev 会抛 ValueError，且 std 恰 0 会被误读成
+        # 「确定性」⇒ 这里 n==1 时给 None（**没量到**），不是 0.0（**确定性**）。
+        out["rep_std_%s" % lab] = (_st.stdev(v) if len(v) > 1 else None)
+        out["rep_spread_%s" % lab] = max(v) - min(v)
+        out["rep_mean_%s" % lab] = sum(v) / len(v)
+        out["rep_exact_%s" % lab] = (max(v) == min(v))
+    return out
+
+
+def _k_positions(n, k, seed=0, nested=False):
+    """确定性地挑出 `k` 个位置（0 <= k <= n），**可复现**。
+
+    ⚠⚠⛔ 这里**必须**用固定种子。仪器里出现未设种子的随机，等于
+    ⚠⚠⛔ 「同一个命令两次跑出两个数」—— 而本项目所有判决都靠**逐位相同**，
+    ⚖ 一旦不可复现，那些判据全部失效。
+    ⚖ 种子固定为 0 ⇒ 同一 (n, k) 永远挑到同一组位置。
+    """
+    import numpy as _np
+    n, k = int(n), int(k)
+    if n <= 0:
+        raise ValueError("序列长度为 0")
+    if k < 0 or k > n:
+        raise ValueError("k=%r 越界：必须 0 <= k <= n=%d" % (k, n))
+    if k == n:
+        return list(range(n))
+    if k == 0:
+        return []
+    _rng = _np.random.default_rng(int(seed))
+    if nested:
+        # ⚠⚠⁴ 修订 226：**嵌套**子集 —— 固定一个排列，各 k 取它的前 k 个。
+        # ⚖ 为什么必须能选嵌套：修订 225 用的是**各自独立**的一组位点，
+        # ⚖ 于是每一步同时变了「个数」与「挑了哪几个」⇒ 两者不可分，
+        # ⚖ 只能否掉「单调累积」，分不出「个数」还是「身份」。
+        # ⚖ 嵌套之后 k1 ⊂ k2 ⊂ … ⊂ all，曲线才是真正的累积曲线。
+        return sorted(int(x) for x in _rng.permutation(n)[:k])
+    return sorted(_rng.choice(n, size=k, replace=False).tolist())
+
+
+def inject_at(h, v, alpha, scope, inj, n_sites=None, nested=False):
+    """把 `alpha * v` 注入残差 `h`。**纯函数**，numpy 与 torch 都能跑。
+
+    ⚠⚠⛔ `scope` 是**口径开关**，两个值量的**不是同一个东西**：
+      - `"single"`：只注入第 `inj` 位（prefix 的最后一位）—— 修订 205–208 用它。
+      - `"all"`：广播到**所有**位置 —— `run_intervention.ResidualSteerer`
+        的真实流水线语义（`x + vector`，vector 形状 (1,1,-1)）。
+    ⚗⇒ 修订 209 实测两者在第 0 步差 **0.155**，**大于** resid_std（0.05–0.10）
+      ⇒ 混进同一个汇总会得出错误结论。⇒ 口径必须随数落盘。
+
+    ⚠⚠⛔ 增量解码时当前 chunk 长度是 **1**，而 `inj` 是按整个 prefix 算的
+    （本例 338）⇒ 写死 `h[:, inj, :]` 会抛
+    `IndexError: index 338 is out of bounds for dimension 1 with size 1`。
+    ⚗⇒ 这里必须 `min(inj, 当前长度−1)`。
+    """
+    # ⚠⚠ 鸭子类型化：torch 用 `.clone()`，numpy 用 `.copy()`。
+    # ⚗⇒ 正因为它不碰 torch，这个函数**不需要 GPU** 就能被单测覆盖
+    #     （`inject_at` 的口径逻辑若留在 `run_cell` 里就只能靠真机验）。
+    h = h.clone() if hasattr(h, "clone") else h.copy()
+
+    if scope == "all":
+        return h + (alpha * v).reshape(1, 1, -1)
+    # ⚠⚠⁴ 修订 223：`"k"` = 在**确定性的 k 个位置**上注入。
+    # ⚖ 用途只有一个：把「all 的基线漂移是不是注入位点数堆出来的」
+    # ⚖ 里那个**不可分的混杂**（位点数 ≡ 序列长度 ≡ think/no_think）拆开 ——
+    # ⚖ 固定同一条序列、只变 k，就能测出 Δ(k) 曲线。
+    # ⛔⛔ 本项目所有判决靠逐位相同 ⇒ **种子必须固定**（见 `_k_positions`）。
+    # ⚠ 增量解码时 chunk 长度是 1 ⇒ k 会被夹到 1，此时 k 与 single 同形
+    # ⚠ （这正是修订 209 那条「长度 1 时 all ≡ single」的推论）。
+    if scope == "k":
+        if n_sites is None:
+            raise ValueError("inject_scope=k 但没给 n_sites")
+        pos = _k_positions(h.shape[1], n_sites, nested=nested)
+        out = h.copy() if hasattr(h, "copy") else h.clone()
+        for j in pos:
+            out[:, j, :] = out[:, j, :] + alpha * v
+        return out
+    if scope != "single":
+        raise ValueError("未知 inject_scope: %r" % (scope,))
+    j = min(int(inj), int(h.shape[1]) - 1)
+    h[:, j, :] = h[:, j, :] + alpha * v
+    return h
+
+
+def analyze(alphas, dm, dc, gap=None, band=60.0, meas=None):
+    """把一条 α 扫描折成 {slope, resid_std, n_distinct, min_adj_diff, …}。
+
+    ⚠⚠⚴ 抽出来是为了**能在无 GPU 的合成数据上自检** ——
+    ⚠⚠⚴ 「残差 std 算得对不对」这件事本身此前从未被验过，
+    ⚠⚠⚴ 而它是修订 201 §201.5 要测的那个量的**定义**。
+    ⚗⇒ 见 `r204_noise_selftest.py`（四组：已知噪声 / 无噪声 / 量化台阶 / 斜率复原）。
+
+    ⚠⚠⚴ `gap` 给了之后额外报 **P9 相关量**：
+    ⚠⚠⚴ P9 的剂量是 `α = rel × class_gap`，rel ∈ {0.5, 1.0}。gap≈113 ⇒
+    ⚠⚠⚴ **α=113.5 那一档落在第一遍的扫域（±60）之外**，
+    ⚠⚠⚴ 那个域里量到的斜率**不能**替 P9 说话。⚗ 本函数因此显式报：
+      p9_lo / p9_hi   线性拟合在 α=0.5·gap 与 α=1.0·gap 处的**预测**读数
+      p9_se_hi        该预测的**标准误**（含残差与外推距离两项）
+      p9_up_mono      预测是否满足 P9 的「+w 随剂量升」
+      p9_margin_se    两档预测差 / 标准误（≳1 才谈得上「压得住噪声」）
+    """
+    import numpy as np
+    alphas = np.asarray(alphas, dtype=float)
+    dm = np.asarray(dm, dtype=float)
+    dc = np.asarray(dc, dtype=float)
+    A = np.vstack([alphas, np.ones_like(alphas)]).T
+    coef, *_ = np.linalg.lstsq(A, dm, rcond=None)
+    resid = dm - A.dot(coef)
+    ad = np.abs(np.diff(dm))
+    ad = ad[ad != 0.0]
+    ac = np.abs(np.diff(dc))
+    ac = ac[ac != 0.0]
+    # ---- 两段拟合：局部(±band) vs 全域 ⇒ 线性还成不成立 ----
+    # ⚠⚠⚴ 只报一个 resid_std 不够：若扫域比 P9 的工作区间大，
+    # ⚠⚠⚴ 那个残差里混着「噪声」与「非线性」两样东西，分不开。
+    # ⚗⇒ 同时做两段：局部带残差 ≈ 纯噪声；全域残差 ÷ 局部残差
+    # ⚗   ≈ 1 ⇒ 线性成立；显著 >1 ⇒ 大剂量处弯了。
+    m = np.abs(alphas) <= band
+    if int(m.sum()) >= 5 and float(alphas[m].std()) > 0:
+        cl, *_ = np.linalg.lstsq(A[m], dm[m], rcond=None)
+        rl = dm[m] - A[m].dot(cl)
+        rstd_local = float(rl.std(ddof=1))
+        slope_local = float(cl[0])
+    else:
+        rstd_local, slope_local = float("nan"), float("nan")
+    out = {
+        "slope": float(coef[0]),
+        "resid_std": float(resid.std(ddof=1)),
+        "slope_local": slope_local,
+        "resid_std_local": rstd_local,
+        "lin_ratio": (float(resid.std(ddof=1)) / rstd_local)
+                     if rstd_local == rstd_local and rstd_local > 0 else float("nan"),
+        "n_distinct": int(len({round(float(x), 9) for x in dm})),
+        "min_adj_diff": float(ad.min()) if ad.size else 0.0,
+        "ctl_n_distinct": int(len({round(float(x), 9) for x in dc})),
+        "ctl_min_adj_diff": float(ac.min()) if ac.size else 0.0,
+        "dm_min": float(dm.min()),
+        "dm_max": float(dm.max()),
+    }
+    if gap:
+        n = alphas.size
+        xbar = float(alphas.mean())
+        sxx = float(((alphas - xbar) ** 2).sum())
+        rstd_ = out["resid_std"]
+        a_lo, a_hi = 0.5 * gap, 1.0 * gap
+        f = lambda x: float(coef[0] * x + coef[1])
+        se = lambda x: rstd_ * float(np.sqrt(1.0 + 1.0 / n + (x - xbar) ** 2 / sxx))
+        out.update({
+            "gap": float(gap),
+            "p9_lo": f(a_lo), "p9_hi": f(a_hi),
+            "p9_se_lo": se(a_lo), "p9_se_hi": se(a_hi),
+            "p9_up_mono": bool(f(a_hi) >= f(a_lo)),
+            "p9_margin_se": abs(f(a_hi) - f(a_lo)) / se(a_hi) if se(a_hi) > 0 else float("inf"),
+        })
+        # ---- ⚠⚠⚴ P9 的规格是「**单次读数**」，不是拟合值 -------------
+        # 账本 R6_RERUN_PREREG.md:25789 写的是 `w+@1.0 >= w+@0.5`，
+        # 而 :25824 自己已经标注「P9 的 up_mono 用的是单次读数，不是拟合」。
+        # ⇒ 上面那套 f(a_lo)/f(a_hi) 是**代入**，它是本探针为了省两次 forward
+        #    做的替换，替换本身合法但**不能**当成读数用。
+        # ⚗⇒ meas=(dm@a_lo, dm@a_hi) 是**在那两个剂量上真跑一遍**得到的读数。
+        if meas is not None:
+            m_lo, m_hi = float(meas[0]), float(meas[1])
+            out.update({
+                "p9_lo_meas": m_lo, "p9_hi_meas": m_hi,
+                # 直线在工作剂量上偏高/偏低多少；再除以 resid_std 就是
+                # 「这个偏差比噪声大几个 σ」。
+                "fit_err_lo": f(a_lo) - m_lo,
+                "fit_err_hi": f(a_hi) - m_hi,
+                "fit_err_hi_sigma": (f(a_hi) - m_hi) / rstd_ if rstd_ > 0
+                                    else float("nan"),
+                # ⛔ 按**实测读数**判的 up_mono —— 这才是规格要的那一条。
+                "up_mono_meas": bool(m_hi >= m_lo),
+                "margin_meas": abs(m_hi - m_lo) / rstd_ if rstd_ > 0
+                               else float("inf"),
+            })
+        else:
+            # ⚠⚠⚴ 没测就必须**显式**说没测。
+            # ⛔ 绝不许用 False 代替 None —— 那样「没量」会被读成「量了且没过」，
+            #    而 P9 的通过率正是靠这些布尔值汇总的。
+            out["up_mono_meas"] = None
+    return out
+
+
+def decode_trace(vec, alpha, scope, ids, mk, lse_t, k, inj, eos_id, ctx="no_grad",
+                 use_cache=True, n_sites=None, nested=False):
+    """prefill + k 步**贪心增量解码**，逐步回报 marker 的 logsumexp。**纯逻辑**。
+
+    ⚠⚠⛔ 修订 210/211/212 建立的「`probe(all)` 与流水线**逐位一致**」只在
+    ⚠⚠⛔ **第 0 步（prefill）**上成立。真实流水线
+    ⚠⚠⛔ `run_paired_steering.generate` 是 `for step in 1..budget:` 的增量解码，
+    ⚠⚠⛔ 每步都 `record_logits(out)` ⇒ 它在**每一步**都有一个读数，
+    ⚠⚠⛔ 而探针此前只量第 0 步 ⇒ 「等价」这句话覆盖不到那些步。
+    ⚗⇒ 本函数补的就是这个缺口。
+
+    ⚠⚠⛔ **必须用贪心 argmax 而不是教师强制**，否则不是流水线的那个量：
+    流水线喂的是 `int(torch.argmax(logits))`（`run_paired_steering.py:147,163`），
+    自己选 token。用 npz 里的 ground-truth token 会把「token 序列」这个变量
+    偷偷换掉 ⇒ 那时比的就不是「同一段生成」了。
+    ⚗ 好处是贪心还自带一个免费的判别器：**两边 argmax 一致 ⇒ token 链一致**，
+    于是第 k 步的比较才是「同一段历史的同一位置」。
+    ⛔ 反面：**两边一旦分叉，后续步比的就是两条不同历史** ⇒ 所以必须报
+    ⛔ `first_divergence_step`，不能只报「N/N 一致」。
+
+    ⚠⚠⛔ **EOS 必须显式记账**：`argmax == eos` 时流水线 `break`。
+    ⛔ 若不报「这一格只跑了 k' < k 步」，那 k' 步全绿会被读成 k 步全绿 ——
+    ⛔ 这是「恒绿不是绿」那个家族：**分母变小而通过率不变**。
+    """
+    import torch
+    blk = _LAYER_BLOCK[0]
+    steps = {"marks": [], "tops": [], "fed": [], "eos_step": None}
+
+    def pre(mod, inp):
+        if alpha == 0.0:
+            return None
+        h = inp[0]
+        v = torch.as_tensor(vec, dtype=h.dtype, device=h.device)
+        # ⚠⚠⚠ `k` 在本函数里是**解码步数**（修订 213），不是注入位点数。
+        # ⚠⚠⚠ 同名会让「扫位点数」静默变成「扫步数」—— 故另起 `n_sites`。
+        return (inject_at(h, v, alpha, scope, inj, n_sites,
+                           nested),) + inp[1:]
+
+    hk = blk.register_forward_pre_hook(pre)
+    try:
+        # ⚠⚠⛔ 上下文管理器必须**在 with 语句里新建**，不能提到外面复用同一个实例：
+        # ⚠⚠⛔ `no_grad()`/`inference_mode()` 把状态存在实例上，跨 `with` 复用
+        # ⚠⚠⛔ 在某些 torch 版本上会**静默不再生效** ⇒ 那时探针就在
+        # ⚠⚠⛔ 非推理模式下跑，而流水线在推理模式下跑 ⇒ 比的不是同一个东西，
+        # ⚠⚠⛔ 而且**日志上完全看不出来**。
+        with (torch.inference_mode() if ctx == "inference"
+              else torch.no_grad()):
+            # ⚠ 与 run_paired_steering 一致：prefill **带** attention_mask，
+            # ⚠ 增量解码步**不带**（那边 `:157-159` 就是这么写的）。
+            o = model_ref[0](input_ids=ids, attention_mask=torch.ones_like(ids),
+                             use_cache=use_cache, return_dict=True)
+            past = o.past_key_values
+            lg = o.logits[0, -1].float()
+            steps["marks"].append(lse_t(lg[mk]))
+            nxt = int(torch.argmax(lg).item())
+            steps["tops"].append(nxt)
+            for _ in range(k):
+                if nxt == eos_id:
+                    steps["eos_step"] = len(steps["marks"]) - 1
+                    break
+                steps["fed"].append(nxt)
+                o = model_ref[0](input_ids=torch.tensor([[nxt]], device=ids.device),
+                                 past_key_values=past, use_cache=use_cache,
+                                 return_dict=True)
+                past = o.past_key_values
+                lg = o.logits[0, -1].float()
+                steps["marks"].append(lse_t(lg[mk]))
+                nxt = int(torch.argmax(lg).item())
+                steps["tops"].append(nxt)
+            else:
+                # ⚠⚠⛔ 跑满 k 步而**没**撞上 EOS ⇒ 记 None，不是 k。
+                # ⛔ 「没撞上」与「撞上了」在三态里必须分开，否则汇总分母不同。
+                steps["eos_step"] = None
+    finally:
+        hk.remove()
+    steps["n_ran"] = len(steps["marks"]) - 1     # 减掉 prefill 那一步
+    return steps
+
+
+# ⚠⚠⛔ 模块级单槽：decode_trace 需要 layer-20 的 block 与 model 实例，
+# ⚠⚠⛔ 而它们只在 run_cell 里加载。抽成纯函数是为了**能在无 GPU 的合成数据上
+# ⚠⚠⛔ 单测口径语义**（同 inject_at 的理由），代价就是这两个单槽。
+# ⛔ 单槽意味着**不可并发** —— 驱动本来就是每格独立进程，不受影响。
+_LAYER_BLOCK = [None]
+model_ref = [None]
+
+
+def run_cell(a):
+    """量一格：扫 α，拟直线，回报残差 std / 不同值个数 / 最小相邻差。"""
+    import numpy as np
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    _cv = cuda_visible_for(a.gpu_uuid)
+    if _cv:
+        os.environ["CUDA_VISIBLE_DEVICES"] = _cv
+
+    tok = AutoTokenizer.from_pretrained(MODEL)
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL, torch_dtype=torch.bfloat16).cuda().eval()
+    # ⚠ decode_trace 用这两个单槽（见其 docstring 的理由）
+    model_ref[0] = model
+    _LAYER_BLOCK[0] = model.model.layers[LAYER]
+
+    z = np.load(os.path.join(a.npz_dir, a.tid + ".npz"))
+    gen = z["token_ids"].tolist()
+    z.close()
+    cti = json.load(open(Path(a.sidecar_dir) / (a.tid + ".json"), encoding="utf-8"))
+    pid = tok(cti["chat_template_input"], return_tensors="pt",
+              add_special_tokens=False).input_ids[0].tolist()
+    P = (cti.get("extra") or {}).get("prompt_tokens") or len(pid)
+    n = len(gen)
+    t = max(1, int(n * a.pos_frac))
+    ids = torch.tensor([(pid + gen)[: P + t]], dtype=torch.long, device="cuda:0")
+    inj = ids.shape[1] - 1
+
+    _W0 = np.load(a.w)
+    W = _W0
+    if a.arm == "rand":
+        # ⚠⚠⁴ 修订 226：**rand 臂** —— 修订 221 发现「all 口径下随机方向也下移」，
+        # ⚖ 而修订 223/225 的 k 扫描**只有 w 臂**，答不了那一条。
+        # ⚖ 方向：**固定种子**的随机单位向量，模长对齐 W（模长不同就没法比）。
+        # ⚖⛔ 这里用 W 的元素个数作形状 —— 与 r6_rerun.py 的 rand 臂同思路，
+        # ⚖    但**向量本身不同源** ⇒ 跨脚本比读数要当两条独立测量。
+        _g = np.random.default_rng(0)
+        W = _g.standard_normal(_W0.shape).astype(np.float64)
+        W = (W / np.linalg.norm(W)) * float(np.linalg.norm(_W0))
+        print("[臂] 用固定种子随机方向（mod=%.4f，与 w 同模长）"
+              % float(np.linalg.norm(W)), flush=True)
+    mk = torch.tensor(MARKER_IDS, device="cuda:0")
+    ctl = torch.tensor([CONTROL_ID], device="cuda:0")
+
+    def lse_t(v):
+        return float(torch.logsumexp(v, dim=-1).item())
+
+    def forward(vec, alpha):
+        blk = model.model.layers[LAYER]
+
+        def pre(mod, inp):
+            if alpha == 0.0:
+                return None
+            h = inp[0]
+            v = torch.as_tensor(vec, dtype=h.dtype, device=h.device)
+            return (inject_at(h, v, alpha, a.inject_scope, inj,
+                                a.inject_n_sites, a.inject_nested),) + inp[1:]
+
+
+        hk = blk.register_forward_pre_hook(pre)
+        try:
+            with torch.no_grad():
+                o = model(input_ids=ids, use_cache=False, return_dict=True)
+        finally:
+            hk.remove()
+        return o.logits[0, -1].float()
+
+    base = forward(W, 0.0)
+    b_mark = lse_t(base[mk])
+    b_ctl = lse_t(base[ctl])
+
+    alphas = np.linspace(-a.alpha_max, a.alpha_max, a.n_steps)
+    dm, dc = [], []
+    for al in alphas:
+        lg = forward(W, float(al))
+        dm.append(lse_t(lg[mk]) - b_mark)
+        dc.append(lse_t(lg[ctl]) - b_ctl)
+
+    # ---- ⚠⚠⚴ 在 P9 的两个工作剂量上**真跑一遍** ----------------------
+    # α 网格是 linspace(-alpha_max, alpha_max, n_steps)：80 点跨 240 ⇒ 间距
+    # 3.038，而 a_lo/a_hi 一般**落在两个格点之间** ⇒ 插值不可替代实测。
+    # 代价：每格 +2 次 forward（80 次里的 2 次）。
+    # ⚗⇒ 这是 P9 规格真正要的那两个数（账本 :25824「用单次读数，不是拟合」）。
+    #
+    # ---- ⚠⚠⚴ `--repeat R`：量「同一剂量上单读」的可重复性 ---------------
+    # 修订 207 §207.5 的死结：`err_hi - err_lo = 真·剂量间变化 + 两次单读
+    # 噪声之差`，而当时的表里**没有任何量能剥掉后面那一项**。
+    # ⚗⇒ 在同一剂量上重复跑，直接把单读噪声量出来。
+    # ⛔⛔ **报给判据的仍然是第 1 次读数**（`meas[0]`）—— 规格写的是「单次读数」。
+    #     重复的均值/散布只作**诊断**另存，不许折进判据里改口径。
+    meas = None
+    rep = {}
+    if a.gap:
+        for _lab, _al in (("lo", 0.5 * a.gap), ("hi", 1.0 * a.gap)):
+            vals = [lse_t(forward(W, _al)[mk]) - b_mark
+                    for _ in range(max(1, a.repeat))]
+            rep[_lab] = vals
+        meas = (rep["lo"][0], rep["hi"][0])
+
+    st = analyze(alphas, dm, dc, gap=a.gap, band=a.band, meas=meas)
+    st["inject_scope"] = a.inject_scope
+    # ⚠⚠⁴ 修订 223：位点数也要落盘，否则「扫 k」的各档读数混起来
+    # ⚠⚠⁴ 与 single/all 分不清 —— 与修订 220 那条同源。
+    st["inject_n_sites"] = a.inject_n_sites
+    # ⚠⚠⁴ 位点怎么挑的也是**出处**：独立 vs 嵌套量的不是同一个东西。
+    st["inject_nested"] = bool(a.inject_nested)
+    st["arm"] = a.arm
+    # ⚠⚠⛔ 口径必须**随数一起落盘**：`single` 与 `all` 是两个**不同的量**，
+    # ⛔⛔ 而它们的差（修订 209 实测 Δ=−0.155）比 resid_std 还大。
+    # ⛔   不记这一列 ⇒ 两批读数会被混进同一个汇总里，而日志上完全看不出来。
+    # ⓘ 同时把**未取差**的 marker logsumexp 记下来 —— 它才是流水线
+    #    `record_logits` 那一侧的数字，跨系统比对时必须用它。
+    st["b_mark"] = float(b_mark)
+    st["b_ctl"] = float(b_ctl)
+    st["marker_raw_lo"] = float(b_mark + meas[0]) if meas else None
+    st["marker_raw_hi"] = float(b_mark + meas[1]) if meas else None
+
+    # ---- ⚠⚠⛔ 增量解码逐步读数（`--decode-steps K`）---------------------
+    # ⚠⚠⛔ 修订 210-212 的逐位等价只在**第 0 步**成立；流水线在每一步都 record_logits。
+    # ⚠⚠⛔ 这里量的是**同一个量**的第二段历史：prefill 之后按贪心 argmax
+    # ⚠⚠⛔ 喂 K 步，逐步取 marker 的 logsumexp。
+    # ⛔⛔ 三条剂量都量：base(α=0) 与 P9 两档。缺 base 就没法在下游算 Δ，
+    # ⛔⛔ 而「Δ 在逐步上是不是也逐位为 0」才是等价性的真正表述。
+    # ⚠⚠⛔ 这段必须排在 `st = analyze(...)` **之后**：decode_trace 要把结果
+    # ⚠⚠⛔ 写进 st，而 st 在这里才第一次被赋值。
+    # ⛔⛔ 我第一版把它插在 analyze 之前 ⇒ 真机最小样直接
+    # ⛔⛔ `UnboundLocalError: cannot access local variable 'st'`。
+    # ⛔⛔ 这条路径此前**从未被执行过**，静态检查（ast.parse）看不出来。
+    dec = {}
+    if a.decode_steps and a.decode_steps > 0:
+        st["dec_n_steps"] = int(a.decode_steps)
+    if a.decode_steps and a.decode_steps > 0 and a.gap:
+        _eos = tok.eos_token_id
+        for _lab, _al in (("base", 0.0), ("lo", 0.5 * a.gap), ("hi", 1.0 * a.gap)):
+            dec[_lab] = decode_trace(W, _al, a.inject_scope, ids, mk, lse_t,
+                                     int(a.decode_steps), inj, _eos,
+                                     ctx="no_grad", use_cache=True,
+                                     n_sites=a.inject_n_sites,
+                                     nested=a.inject_nested)
+        # ⚠⚠⛔ 探针的 ctx 是 no_grad、use_cache=True；流水线那份是
+        # ⚠⚠⛔ inference_mode + use_cache=True。修订 209 实测 A→B Δ=0，
+        # ⚠⚠⛔ 但那是在**单步**上测的 ⇒ 这里逐���能不能也对上，**要靠对账验**，
+        # ⚠⚠⛔ 不许拿单步的 Δ=0 直接当逐步也成立。
+        st["dec_marks_base"] = dec["base"]["marks"]
+        st["dec_tops_base"] = dec["base"]["tops"]
+        st["dec_ran_base"] = dec["base"]["n_ran"]
+        st["dec_eos_base"] = dec["base"]["eos_step"]
+        for _lab in ("lo", "hi"):
+            st["dec_marks_%s" % _lab] = dec[_lab]["marks"]
+            st["dec_tops_%s" % _lab] = dec[_lab]["tops"]
+            st["dec_ran_%s" % _lab] = dec[_lab]["n_ran"]
+            st["dec_eos_%s" % _lab] = dec[_lab]["eos_step"]
+        # ⛔⛔ 三条剂量各自撞 EOS 的步数**必须一样**，否则 token 链已经分叉，
+        # ⛔⛔ 后面的逐步比较就不是「同一段历史」了 ⇒ 显式报出来，不合成一个数。
+        st["dec_eos_agree"] = (dec["base"]["eos_step"] == dec["lo"]["eos_step"]
+                               == dec["hi"]["eos_step"])
+    elif a.decode_steps and a.decode_steps > 0:
+        # ⚠⚠⛔ 要跑逐步读数就必须有 P9 的两个工作剂量 ⇒ 没传 --gap 时
+        # ⚠⚠⛔ **显式说没量**，绝不许静默跳过（否则日志上「跑了」看起来一样）。
+        st["dec_status"] = "NOT-MEASURED：--decode-steps 需要 --gap（没有 P9 工作剂量）"
+
+    # ---- 诊断量：单读可重复性（不进判据）--------------------------------
+    if rep:
+        st.update(repeat_summary(rep))
+
+    # ---- ⚠ 原始读数曲线落盘：不落盘就没法离线复核，任何事后分析都得重跑 GPU
+    if a.dump_raw:
+        _fn = os.path.join(a.dump_raw, "%s__pos%s.json"
+                           % (a.tid, str(a.pos_frac).replace(".", "_")))
+        os.makedirs(a.dump_raw, exist_ok=True)
+        with open(_fn, "w", encoding="utf-8") as _fh:
+            json.dump({"tid": a.tid, "pos_frac": a.pos_frac,
+                       "alphas": [float(x) for x in alphas],
+                       "dm": [float(x) for x in dm],
+                       "dc": [float(x) for x in dc],
+                       "meas_lo": (meas[0] if meas else None),
+                       "meas_hi": (meas[1] if meas else None),
+                       "b_mark": float(b_mark), "b_ctl": float(b_ctl),
+                       "resid_std": st["resid_std"],
+                       "slope": st["slope"],
+                       # ⚠⚠⛔ 逐步读数**必须一起落盘**：对账只用落盘原始浮点，
+                       # ⚠⚠⛔ 而日志里是 %.6f 转录值（修订 212 的教训）。
+                       "dec": ({k: {kk: vv for kk, vv in v.items()}
+                                for k, v in dec.items()} if dec else None),
+                       # ⚠⚠⛔ 逐步读数用的是**哪三个剂量**必须落盘：
+                       # ⚠⚠⛔ 对账时要把探针的 base/lo/hi 映射到锚点的 alpha，
+                       # ⚠⚠⛔ 靠的是**数值相等**而不是标签顺序 —— 顺序假设一旦错，
+                       # ⚠⚠⛔ 比的就把 lo 当成 hi，而两边都「自洽」，看不出来。
+                       "dec_alpha": ({"base": 0.0, "lo": 0.5 * a.gap,
+                                      "hi": 1.0 * a.gap} if dec else None),
+                       "inject_scope": a.inject_scope,
+                       "inject_n_sites": a.inject_n_sites,
+                       "inject_nested": bool(a.inject_nested),
+                       "arm": a.arm,
+                       }, _fh)
+        st["dump_raw"] = _fn
+    out = {"tid": a.tid, "pos_frac": a.pos_frac, "t": t, "n_gen": n, "P": P,
+           "n_steps": int(a.n_steps)}
+    out.update(st)
+    # ⚠⚠⚴ flush：⛔ 不加的话，重定向到日志文件时 print 被**块缓冲**，
+    # ⚠⚠⚴ 进度要等进程退出才刷出来 —— 于是「跑到第几格」这件事**看不见**。
+    # ⚗ 与浏览器探针那个「等不到看不见」是同一类毛病（修订 205 之外那笔）。
+    print("RESULT r204_cell  %s pos=%.2f  resid_std=%.6f  n_distinct=%d/%d  "
+          "min_adj=%.6f  slope=%.6f"
+          % (a.tid, a.pos_frac, st["resid_std"], st["n_distinct"], a.n_steps,
+             st["min_adj_diff"], st["slope"]), flush=True)
+    # ⚠⚠⚴ 实测判决必须**印在日志上**，不能只躺在 JSON 里
+    # ⚠⚠⚴ （进度行是给人看的；JSON 只有真去翻文件才看得到 ⇒ 等于看不见）。
+    # ⛔⛔ 没测就印 NOT-MEASURED，**绝不许**印 False ——
+    #    False 与「没量」在汇总时会被当成同一件事。
+    if st.get("up_mono_meas") is None:
+        print("        p9(实测) ⛔ NOT-MEASURED（未传 --gap 或未采到读数）",
+              flush=True)
+    else:
+        print("        p9 实测: lo=%+.4f hi=%+.4f  up_mono(拟合)=%s "
+              "up_mono(实测)=%s  拟合偏高 %+.2f sigma"
+              % (st["p9_lo_meas"], st["p9_hi_meas"], st["p9_up_mono"],
+                 st["up_mono_meas"], st["fit_err_hi_sigma"]), flush=True)
+    # ⚠⚠⚴ 单读可重复性必须印出来：它决定「拟合偏高」到底是曲率还是噪声。
+    # ⛔ rep_std 恰为 0.0 时那**不是**「没量到」，而是「真的逐位相同」——
+    # ⛔ 所以这里显式打 exact，别让人把 0 当成缺数据。
+    if st.get("rep_n_lo"):
+        print("        单读重复 n=%d：lo 散布=%.3e(exact=%s) hi 散布=%.3e(exact=%s)"
+              % (st["rep_n_lo"], st["rep_spread_lo"], st["rep_exact_lo"],
+                 st["rep_spread_hi"], st["rep_exact_hi"]), flush=True)
+    # ⚠⚠⛔ 逐步读数必须**显式**印出跑了多少步、是不是提前 EOS ——
+    # ⚠⚠⛔ 「只跑了 2 步就 EOS」与「跑满 8 步全绿」在汇总里长得一样。
+    if st.get("dec_n_steps"):
+        if st.get("dec_status"):
+            print("        ⚠⚠ 逐步读数 ⛔ %s" % st["dec_status"], flush=True)
+        else:
+            print("        逐步解码 预算=%d 实跑=%d(base)/%d(lo)/%d(hi)  "
+                  "EOS步一致=%s"
+                  % (st["dec_n_steps"], st["dec_ran_base"], st["dec_ran_lo"],
+                     st["dec_ran_hi"], st["dec_eos_agree"]), flush=True)
+            print("        base marks: %s"
+                  % ["%.6f" % x for x in st["dec_marks_base"]], flush=True)
+            print("        lo   marks: %s"
+                  % ["%.6f" % x for x in st["dec_marks_lo"]], flush=True)
+            print("        hi   marks: %s"
+                  % ["%.6f" % x for x in st["dec_marks_hi"]], flush=True)
+
+    print(json.dumps(out, ensure_ascii=False))
+    return out
+
+
+def pick_tids(a):
+    """从标注里挑 n_traj 条**有 marker** 的轨迹。"""
+    rows = json.load(open(a.labels, encoding="utf-8"))
+    rows = rows["rows"] if isinstance(rows, dict) and "rows" in rows else rows
+    out = []
+    for r in rows:
+        tid = r.get("traj")
+        if not tid:
+            continue
+        if not (Path(a.npz_dir) / (tid + ".npz")).exists():
+            continue
+        if not (Path(a.sidecar_dir) / (tid + ".json")).exists():
+            continue
+        out.append(tid)
+        if len(out) >= a.n_traj:
+            break
+    return out
+
+
+def run_driver(a):
+    """⚠⚠ 每一格一个**独立子进程** —— 噪声底必须跨进程量。"""
+    tids = pick_tids(a)
+    if not tids:
+        print("[错误] 找不到可用的轨迹（npz/sidecar 缺失）")
+        return 3
+    fracs = [float(x) for x in a.pos_fracs.split(",") if x.strip()]
+    print("=== 驱动：%d 条轨迹 × %d 个位置 = %d 格，每格独立进程 ==="
+          % (len(tids), len(fracs), len(tids) * len(fracs)))
+    print("    每格 α 网格 %d 点，α ∈ [−%.1f, +%.1f]"
+          % (a.n_steps, a.alpha_max, a.alpha_max))
+
+    rows = []
+    for tid in tids:
+        for fr in fracs:
+            cmd = [sys.executable, os.path.abspath(__file__), "--cell",
+                   "--npz-dir", a.npz_dir, "--sidecar-dir", a.sidecar_dir,
+                   "--labels", a.labels, "--w", a.w, "--tid", tid,
+                   "--pos-frac", str(fr), "--n-steps", str(a.n_steps),
+                   "--alpha-max", str(a.alpha_max)]
+            cmd += ["--band", str(a.band)]
+            if a.gap is not None:
+                cmd += ["--gap", str(a.gap)]
+            if a.repeat is not None and a.repeat != 1:
+                cmd += ["--repeat", str(a.repeat)]
+            if a.dump_raw:
+                cmd += ["--dump-raw", a.dump_raw]
+            if a.decode_steps:
+                cmd += ["--decode-steps", str(a.decode_steps)]
+            if a.inject_scope != "single":
+                cmd += ["--inject-scope", a.inject_scope]
+            if a.inject_n_sites is not None:
+                cmd += ["--inject-n-sites", str(a.inject_n_sites)]
+            if a.inject_nested:
+                cmd += ["--inject-nested"]
+            if a.arm != "w":
+                cmd += ["--arm", a.arm]
+            if a.gpu_uuid:
+                cmd += ["--gpu-uuid", a.gpu_uuid]
+            p = subprocess.run(cmd, capture_output=True, text=True)
+            line = [l for l in p.stdout.splitlines() if l.startswith("{")]
+            if p.returncode != 0 or not line:
+                print("  ⛔ %s pos=%.2f 失败 rc=%d: %s"
+                      % (tid, fr, p.returncode, (p.stderr or p.stdout)[-300:]))
+                continue
+            rows.append(json.loads(line[-1]))
+            r = rows[-1]
+            extra = ""
+            if "p9_up_mono" in r:
+                extra = ("  p9(拟合): lo=%+.4f±%.4f hi=%+.4f±%.4f mono=%s "
+                         "margin=%.2fSE"
+                         % (r["p9_lo"], r["p9_se_lo"], r["p9_hi"], r["p9_se_hi"],
+                            r["p9_up_mono"], r["p9_margin_se"]))
+            # ⚠⚠⚴ 实测那一条与拟合那条**并列**印出来：两者会不一致，
+            # ⚠⚠⚴ 而不一致本身就是这轮要看的证据（拟合在工作剂量上偏了多少）。
+            if r.get("up_mono_meas") is None:
+                extra += "  ⛔实测 NOT-MEASURED"
+            else:
+                extra += ("  |实测: lo=%+.4f hi=%+.4f mono=%s margin=%.2f sigma"
+                          " 拟合偏高=%+.2f sigma"
+                          % (r["p9_lo_meas"], r["p9_hi_meas"],
+                             r["up_mono_meas"], r["margin_meas"],
+                             r["fit_err_hi_sigma"]))
+            if r.get("rep_n_lo"):
+                # ⚠⚠ **单读可重复性**：0.0 意味着**逐位相同**（确定性），
+                # ⚠⚠ 不是「没量到」⇒ 所以单独打 exact 标志。
+                extra += ("  [重复%d次 lo/hi散布=%.1e/%.1e exact=%s/%s]"
+                          % (r["rep_n_lo"], r["rep_spread_lo"], r["rep_spread_hi"],
+                             r["rep_exact_lo"], r["rep_exact_hi"]))
+            print("  [%d/%d] %s pos=%.2f  resid=%.6f  slope=%+.6f%s"
+                  % (len(rows), len(tids) * len(fracs), tid, fr,
+                     r["resid_std"], r["slope"], extra), flush=True)
+            # ⛔ 口径必须打在**每一行**上，否则混批时看不出来
+            if r.get("inject_scope", "single") != "single":
+                print("        ⚠⚠ 本批 inject_scope=%s（**与修订 205-208 的"
+                      " single 口径不是同一个量**）"
+                      % r["inject_scope"], flush=True)
+
+    # ⚠⚠⚴ 0 格成功时原来直接 `rows[0]` ⇒ **IndexError**，而真正的错误
+    # ⚠⚠⚴ （10 格各自的 stderr）在上面 10 行里。⇒ 必须自己先说清楚。
+    if not rows:
+        print("⛔⛔ **0/%d 格成功** —— 产物没写。"
+              % (len(tids) * len(fracs)))
+        print("   ⚠ 各格失败原因见上面 ⛔ 行（**第一处通常是根因**）。")
+        return 4
+    if a.out:
+        # ⚠⚠⚴ fieldnames 必须取**所有行的键的并集**，不能只取 rows[0]。
+        # ⚠⚠⚴ 只取第一行时，若后面某行多一个键（如某格没采到读数而没有
+        # ⚠⚠⚴ p9_lo_meas），DictWriter 默认 extrasaction="raise"
+        # ⚠⚠⚴ ⇒ 整轮**崩在写文件这一步**，前面所有格子的计算全部作废。
+        # ⚗ 与刚修的「0 格成功时 rows[0] ⇒ IndexError」是同一族：
+        # ⚗   **聚合阶段的崩溃会把已经付过款的测量一起吞掉**。
+        fn, seen = [], set()
+        for r in rows:
+            for k in r:
+                if k not in seen:
+                    seen.add(k)
+                    fn.append(k)
+        with open(a.out, "w", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=fn)
+            w.writeheader()
+            for r in rows:
+                w.writerow(r)
+        print("已写 %s（%d 行，%d 列）" % (a.out, len(rows), len(fn)))
+
+    # ---- 分布，不是单点 ----
+    if rows:
+        import statistics
+        rs = sorted(r["resid_std"] for r in rows)
+        nd = sorted(r["n_distinct"] for r in rows)
+        print()
+        print("=== 残差 std 的**分布**（%d 格）===" % len(rs))
+        print("  min=%.6f  中位=%.6f  max=%.6f  极差=%.6f"
+              % (rs[0], statistics.median(rs), rs[-1], rs[-1] - rs[0]))
+        print("  ⚠ 修订 201 的单点值是 **0.059052**；")
+        print("  ⚠ 若本分布的极差远大于 0 ⇒ 单点值不能代表全局。")
+        print("  不同取值个数 n_distinct：min=%d 中位=%d max=%d（上限 %d 点）"
+              % (nd[0], statistics.median(nd), nd[-1], rows[0]["n_steps"]))
+
+
+def main():
+    ap = argparse.ArgumentParser(add_help=True)
+    ap.add_argument("--npz-dir", required=True)
+    ap.add_argument("--sidecar-dir", required=True)
+    ap.add_argument("--labels", required=True)
+    ap.add_argument("--w", required=True)
+    ap.add_argument("--gpu-uuid", default=None, help="**裸 UUID**（不带 GPU- 前缀）")
+    ap.add_argument("--cell", action="store_true", help="只量一格")
+    ap.add_argument("--driver", action="store_true", help="驱动多格（每格独立进程）")
+    ap.add_argument("--tid", default=None)
+    ap.add_argument("--pos-frac", type=float, default=0.5)
+    ap.add_argument("--pos-fracs", default="0.25,0.5,0.75")
+    ap.add_argument("--n-traj", type=int, default=5)
+    ap.add_argument("--n-steps", type=int, default=60)
+    ap.add_argument("--alpha-max", type=float, default=120.0,
+                    help="⚠ 必覆盖 P9 的最高剂量 α=1.0×class_gap（≈113.5）")
+    ap.add_argument("--band", type=float, default=60.0,
+                    help="局部拟合带（±band）；band < alpha-max 才能分辨非线性")
+    ap.add_argument("--gap", type=float, default=None,
+                    help="w 的 class_gap（取自 w*.npy.json）。给了就额外报 P9 量")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="⚠ 在每个 P9 工作剂量上重复跑几次（默认 1 = 保持原口径）。"
+                         "报给判据的**仍是第 1 次**；重复只用于量单读可重复性。")
+    ap.add_argument("--inject-scope", default="all",
+                    choices=["single", "all", "k"],
+                    help="⛔ 口径开关：single=只注入 prefix 最后一位（探针原样；**修订 205-208 的实测读数是在它上面取的**）；all=广播到**所有**位置（run_intervention.ResidualSteerer 的语义）。⚠⚠ 两者量的**不是同一个东西**，差 0.155 > resid_std。"
+                         "⚠⚠⚠ 修订 241：默认已由 single 改成 all。"
+                         "⚖ 改动是**向后**的 —— 205-208 的读数仍按 single 记录，⛔ 没有被改写。"
+                         "⚖⚠ 现有三支跑批（r232/r234/r235）**每一处调用都显式传 --inject-scope**（已逐处核过），"
+                         "⚖ 所以它们的基准**不受影响**。"
+                         "⚠⚠ 但**今后任何漏传这个开关的跑批会静默换基准**（差 0.155 > resid_std）"
+                         "⇒ ⚖ 跑批脚本一律显式传，⛔ 不要依赖默认值。")
+    ap.add_argument("--inject-n-sites", type=int, default=None,
+                    help="⛔ 注入位点数。**只有** --inject-scope k 时才被读；"
+                         "不给就用 none。\n"
+                         "⚠⚠ 修订 223：这是修订 222 那条「基线漂移是不是位点数堆的」"
+                         "的唯一干净测法 ——\n"
+                         "⚖   固定**同一条序列**，只变位点数，把「位点数」从"
+                         "「序列长度 ≡ think/no_think」里摘出来。\n"
+                         "⚠⚠⛔ 名字里带 n_ 是因为本文件已有一个 `k` 表示**解码步数**"
+                         "（修订 213）—— 同名会静默串味。\n"
+                         "⚖ 位点由固定种子挑出 ⇒ 同一 (长度, n_sites) 永远同一组位点，"
+                         "逐位可复现。")
+    ap.add_argument("--dump-raw", default=None,
+                    help="把每格的原始读数曲线（alphas/dm/dc/meas）写到该目录")
+    ap.add_argument("--decode-steps", type=int, default=0,
+                    help="⚠⚠⛔ 增量解码逐步读数的**预算步数**（默认 0 = 完全不跑，"
+                         "保持修订 205-212 的既有读数不变）。>0 时在 base/0.5·gap/"
+                         "1.0·gap 三条剂量上各跑一遍 prefill+贪心解码，逐步回报 "
+                         "marker 的 logsumexp。⚠⚠ **必须配 --gap**，否则那格显式报 "
+                         "NOT-MEASURED。⚠ 撞 EOS 会**提前停**，实跑步数会 < 预算 —— "
+                         "那不是跑满了，是分母变小了。")
+    ap.add_argument("--arm", default="w", choices=["w", "rand"],
+                    help="⛔ 用哪个方向。默认 w（既有读数不变）。"
+                         "rand = 固定种子的随机单位向量，与 w 同模长。\n"
+                         "⚠⚠ 修订 226：修订 221 发现「all 口径下随机方向也下移」，"
+                         "而此前的扫描只有 w 臂 ⇒ 答不了那一条。")
+    ap.add_argument("--inject-nested", action="store_true",
+                    help="⚠⚠ 修订 226：k 口径的位点取**固定排列的前 k 个**"
+                         "（**嵌套**）而不是各自独立挑。\n"
+                         "⚖ 修订 225 用的是独立子集 ⇒「个数」与「位置身份」不可分，"
+                         "只能否掉「单调累积」。嵌套之后 k1 ⊂ k2 ⊂ … ⊂ all。\n"
+                         "⛔ 默认**关闭** ⇒ 修订 225 的读数仍可复现。")
+    ap.add_argument("--out", default=None)
+    a = ap.parse_args()
+
+    # ⚠⚠⛔ 组合校验。两个错配都会**静默**：
+    #   scope=k 但没给 n_sites ⇒ 纯函数抛错（好，能看见）；
+    #   给了 n_sites 但 scope 不是 k ⇒ 位点数被**完全忽略**，
+    #   而产物里还记着 n_sites ⇒ 读数看着像「扫过 k」，其实一个位点都没多。
+    if a.inject_scope == "k" and a.inject_n_sites is None:
+        raise SystemExit("⛔ --inject-scope k 必须配 --inject-n-sites N")
+    if a.inject_n_sites is not None and a.inject_scope != "k":
+        raise SystemExit("⛔ --inject-n-sites 只在 --inject-scope k 下有意义；"
+                         "当前 scope=%r ⇒ 给它会被静默忽略" % (a.inject_scope,))
+    if a.inject_n_sites is not None and a.inject_n_sites < 1:
+        raise SystemExit("⛔ --inject-n-sites 必须 >= 1")
+
+    if a.cell:
+        if not a.tid:
+            print("[错误] --cell 需要 --tid")
+            return 2
+        run_cell(a)
+        return 0
+    if a.driver:
+        return run_driver(a)
+    print("[错误] 要么 --cell，要么 --driver")
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
