@@ -516,8 +516,8 @@ def check_table(headroom_path, dw, dr):
             gk, gn = derived[name]
             if (k, n) != (gk, gn):
                 mism.append((name, (k, n), (gk, gn)))
-    L.append("  ℹ 判决清单十行对账（**6 行可从读数重算**、4 行是层内 rho 正号"
-             "⇒ **未量到**，本工具⛔ 不重算）")
+    L.append("  ℹ 判决清单十行对账（**6 行可从读数重算**；另 4 行是层内 rho 正号，"
+             "**本工具⛔ 不重算**）")
     for name, k, n, tier in vs:
         if name in derived:
             gk, gn = derived[name]
@@ -525,7 +525,11 @@ def check_table(headroom_path, dw, dr):
             L.append("      %-22s 表里 %d/%d ｜ 重算 %d/%d  %s"
                      % (name, k, n, gk, gn, mark))
         else:
-            L.append("      %-22s 表里 %d/%d ｜ **未量到**（层内 rho 正号，"
+            # ⚖⚠⚠ 修订 244.56：**别在这里印「未量到」** ——
+            #   ⚖ 那 4 行在 244.56 里**已经被独立重算过**（`layer_row_audit.py`）
+            #   ⇒ 印「未量到」会变成**过期的断言**。
+            #   ⚖⚠ 而「本工具⛔ 不重算」是**关于本工具作用域**的真话 ⇒ 印它。
+            L.append("      %-22s 表里 %d/%d ｜ **本工具⛔ 不重算**（层内 rho 正号，"
                      "来源 244.32）" % (name, k, n))
     put("C8", not mism,
         "判决清单里**可重算的 6 行**必须与重算值逐位相等；不一致 %d 行%s"

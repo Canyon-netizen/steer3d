@@ -48,6 +48,7 @@ import argparse
 import contextlib
 import io
 import os
+import re
 import sys
 import types
 
@@ -199,7 +200,10 @@ def main():
             continue
         red = set(c for c, v in R.items() if not v)
         # ⚖ 自检里的失败 id 形如 `C6x` ⇒ 去掉尾部的 `x` 即是它守的那条判据
-        sf_cids = set(x.rstrip("x") for x in sf)
+        # ⚖ 自检里的失败 id 形如 `C1x` ⇒ 取**判据号前缀**
+        #   （⛔ 不用 rstrip("x")：那种写法对 `C3y` **不成立** ⇒ 244.56 踩过）
+        sf_cids = set(re.match(r"([A-Z]\d+)", x).group(1)
+                      for x in sf if re.match(r"([A-Z]\d+)", x))
         by = []
         if want in red:
             by.append("真实数据路")
