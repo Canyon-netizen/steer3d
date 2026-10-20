@@ -230,8 +230,8 @@ def pb_pmf_by_enumeration(nzs):
     return [counts.get(i, 0) / float(total) for i in range(len(nzs) + 1)]
 
 
-def paired_perm_p(diffs, n_perm=20000, seed=20261020):
-    """⚖⚖⚖ **配对置换检验**（跨臂比较用）。
+def paired_perm_geom(diffs, n_perm=20000, seed=20261020):
+    """⚖⚖⚖ **配对置换检验**（跨臂比较用）—— **多返回 MC 的计数**（`ge` / `n_perm`）。
 
     ⚖ 零假设 = 「两臂的标签逐轨迹**可交换**」⇒ 逐轨迹随机交换两臂的判定
     ⇒ 统计量 = 两臂「为真条数」之差 ⇒ p = P(|T| ≥ |T_obs|)。
@@ -239,10 +239,16 @@ def paired_perm_p(diffs, n_perm=20000, seed=20261020):
     ⚖⚠⚠ **为什么不用生产的 Fisher**：Fisher 假设「每条轨迹为真的概率 = 0.5」
     ⇒ 在层内这个前提**是错的**（基准是 0.25–0.5，且各层不同）
     ⇒ 本工具**两个都印**，但**结论用配对置换**。
+
+    ⚖⚖⚖⚖ **244.66 加的**：多返回 `ge` / `n_perm` ⇒ 244.66 要报**MC 不确定带**
+    （p 贴着 α 时，这个带是**决定性的** ⇒ 见 244.62 的教训）
+    ⇒ **一个实现**：`paired_perm_p` 是本函数的**薄包装** ⇒ ⛔ 不许另写第二份置换。
+    ⚖⚖⚖ **与 244.60–244.65 逐位兼容**：`paired_perm_p` 的返回值与旧版**完全相同**
+    （同样的随机流、同样的 `ge` 计数、同样的 `(ge+1)/(n_perm+1)`）。
     """
     obs = sum(diffs)
     if not diffs:
-        return 1.0, 0
+        return 1.0, 0, 0, n_perm
     rng = random.Random(seed)
     ge = 0
     for _ in range(n_perm):
@@ -251,7 +257,17 @@ def paired_perm_p(diffs, n_perm=20000, seed=20261020):
             t += d if rng.random() < 0.5 else -d
         if abs(t) >= abs(obs):
             ge += 1
-    return (ge + 1) / (n_perm + 1.0), obs
+    return (ge + 1) / (n_perm + 1.0), obs, ge, n_perm
+
+
+def paired_perm_p(diffs, n_perm=20000, seed=20261020):
+    """⚖⚖⚖ **配对置换检验**的薄包装（返回 `(p, obs)` ⇒ 244.60–244.65 的调用点**逐位不变**）。
+
+    ⚖ **唯一实现**是 `paired_perm_geom`（244.66 加：多返回 MC 的 `ge` / `n_perm`
+    ⇒ 244.66 的 MC 不确定带要它们）⇒ ⛔ 不许在这里另写第二份置换。
+    """
+    p, obs, _ge, _n = paired_perm_geom(diffs, n_perm, seed)
+    return p, obs
 
 
 def track_is_positive(draws, n_nz, n_zero):
