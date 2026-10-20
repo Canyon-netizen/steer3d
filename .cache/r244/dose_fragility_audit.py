@@ -6,7 +6,7 @@
 
   244.60 报出本项目**第一个**剂量—响应信号：
   **w 臂**格级正号率 0.407 → 0.571 → 0.767 → **1.000**（剂量趋势 MC **p=0.0002**），
-  而 **rand 臂**基本平坦（0.407 → 0.429 → 0.400 → 0.500，趋势 p=0.0878）
+  而 **rand 臂**基本平坦（0.407 → 0.429 → 0.400 → 0.500，趋势 p=0.0876）
   ⇒ 「**剂量—响应只出现在 w 臂**」。
 
   ⚖⚠⚠⚠ **但那条结论建立在一个**从没被扰动过**的剂量轴上**：
@@ -72,10 +72,10 @@ BASE_BAND_SIZE = (27, 28, 30, 24)
 BASE_LAYER_K = {"w": (4, 6, 10, 14), "rand": (2, 4, 5, 6)}
 # ⚖ 244.60 的剂量趋势统计量与 MC p
 BASE_TREND_T = {"w": 15.875, "rand": 5.375}
-BASE_TREND_P = {"w": 0.0002, "rand": 0.0878}
+BASE_TREND_P = {"w": 0.0002, "rand": 0.0876}
 # ⚖ 244.60/244.61 的**剂量轴口径**多数（scope=k）
 BASE_SCOPE_K = {"w": (10, 14), "rand": (5, 14)}
-# ⚖ 244.60 的结论：w p=0.0002<0.05 且 rand p=0.0878≥0.05 ⇒「剂量—响应只出现在 w 臂」**成立**
+# ⚖ 244.60 的结论：w p=0.0002<0.05 且 rand p=0.0876≥0.05 ⇒「剂量—响应只出现在 w 臂」**成立**
 BASE_VERDICT = True
 # ⚖ 244.51 的独立实测（账本 244.51 【2】那张表）：**分档表** + **rho**
 #   ⇒ 244.62 的四个扰动场景必须**逐位复现**它 ⇒ 扰动实现写错 ⇒ 红
@@ -162,14 +162,14 @@ def build_scenario(shifted_by_arm, label, is_base):
             layers[i] = {"cells": g}
         rows = []
         for L in range(N_LAYER):
-            v = DL.layer_verdicts(layers[L]["cells"], DL.cell_sign_p9)
+            v = DL.layer_verdicts(layers[L]["cells"], DL.cell_sign_p9, DL.cell_zero_p9)
             cells = [c for cs in layers[L]["cells"].values() for c in cs]
             rows.append({
                 "L": L,
                 "verdicts": v,
                 "K": sum(1 for t in v if v[t]["verdict"]),
                 "n_traj": len(v),
-                "nzs": [v[t]["nz"] for t in sorted(v)],
+                "nzs": [(v[t]["nz"], v[t]["nzero"]) for t in sorted(v)],
                 "cellpos": sum(1 for c in cells if DL.cell_sign_p9(c)),
                 "celln": len(cells),
             })
@@ -202,7 +202,7 @@ def build_scenario(shifted_by_arm, label, is_base):
     # ---- 层内基准（每层每臂）：⛔ 不是 0.5 ----
     for arm in ARMS:
         for row in out["arm"][arm]["rows"]:
-            bases = [DL.majority_base_p(nz) for nz in row["nzs"]]
+            bases = [DL.base_of(nz) for nz in row["nzs"]]
             row["bases"] = bases
             row["avg_base"] = (sum(bases) / len(bases)) if bases else None
     out["verdict"] = verdict_of(out)
@@ -268,7 +268,7 @@ def j_c0_baseline(base):
         p = base["arm"][arm]["trend"]["p"]
         good = abs(p - BASE_TREND_P[arm]) < 5e-5
         ok &= good
-        d.append("%s 趋势 p=%.4f（期望 %.4f）%s" % (arm, p, BASE_TREND_P[arm],
+        d.append("%s 趋势 p=%.6f（期望 %.4f）%s" % (arm, p, BASE_TREND_P[arm],
                                                    "✅" if good else "❌"))
         sk = tuple(base["arm"][arm]["scope_k"])
         good = (sk == BASE_SCOPE_K[arm])
@@ -326,7 +326,7 @@ def j_c3_layer_base(allr):
     for sc in allr["scenarios"]:
         for arm in ARMS:
             for row in sc["arm"][arm]["rows"]:
-                want = [DL.majority_base_p(nz) for nz in row["nzs"]]
+                want = [DL.base_of(nz) for nz in row["nzs"]]
                 good = (row["bases"] == want)
                 ok &= good
                 if not good:
@@ -367,7 +367,7 @@ def j_c4_verdicts_printed(allr, RP):
         got = ("**成立**" in ln)
         good = (want == got)
         ok &= good
-        d.append("判决行 p=(%.4f, %.4f) ⇒ 应%s，实印%s %s"
+        d.append("判决行 p=(%.6f, %.6f) ⇒ 应%s，实印%s %s"
                  % (pw, pr, "成立" if want else "不成立",
                     "成立" if got else "不成立", "✅" if good else "❌"))
     ok = ok and (printed == n_sc)
@@ -378,8 +378,11 @@ def j_c10_mc_band_printed(allr, RP):
     """C10：每个场景每臂的 **MC 不确定带**必须印出（⛔ 只印点估计 ⇒ 边界看不出来）。
 
     ⚖⚠⚠⚠ **这是本轮最要紧的一条**：p 贴着 α 时，「显著/不显著」**取决于 MC 噪声**
-    ⇒ 只印 p = 0.0488 会让人以为「rand 臂也显著了」，
+    ⇒ 只印 p = 0.0490 会让人以为「rand 臂也显著了」，
        而它的带**跨过** α ⇒ 那个场景的显著性**本来就未定**。
+    ⚖⚠⚠ 244.65：这里印的是**四位小数** ⇒ 「全部 P+4」的真值 0.048990 会被印成 0.0490，
+       而「no_think 全 P−4」的真值 0.049990 会被印成 **0.0500** ⇒ **看起来在 α 上方、实际在下方**
+       ⇒ ⇒ 所以判决行现在用 **6 位小数**、且比较符号**按真值**印。
     """
     n_sc = len(allr["scenarios"])
     lines = [ln for ln in RP if "MC95%带" in ln]
@@ -547,7 +550,7 @@ def build_report(allr):
                      for L in range(N_LAYER)]
             tr = a["trend"]
             RP.append("    · %-4s 档 %s ｜ rho %+.4f ｜ 各层 K=%s ｜ 格级正号率 %s"
-                      " ｜ 趋势 T=%.3f p=%.4f MC95%%带 [%.4f, %.4f]%s"
+                      " ｜ 趋势 T=%.3f p=%.6f MC95%%带 [%.4f, %.4f]%s"
                       " ｜ 剂量轴口径多数 %d/%d"
                       % (arm, bs, a["rho"], "/".join(str(x) for x in ks_),
                          "/".join(rates), tr["T"], tr["p"],
@@ -556,9 +559,10 @@ def build_report(allr):
                          a["scope_k"][0], a["scope_k"][1]))
         pw = sc["arm"]["w"]["trend"]["p"]
         pr = sc["arm"]["rand"]["trend"]["p"]
-        RP.append("    ⇒ 判决【%s】：**%s**（w 趋势 p=%.4f < %.2f ∧ rand 趋势 p=%.4f ≥ %.2f）%s"
+        RP.append("    ⇒ 判决【%s】：**%s**（w 趋势 p=%.6f %s %.2f ∧ rand 趋势 p=%.6f %s %.2f）%s"
                   % (sc["label"], "成立" if sc["verdict"] else "不成立",
-                     pw, ALPHA, pr, ALPHA,
+                     pw, "<" if pw < ALPHA else "≥", ALPHA,
+                     pr, "<" if pr < ALPHA else "≥", ALPHA,
                      "  ⚠⚠ **翻转**" if sc["flip"] else ""))
     flips = [sc["label"] for sc in allr["scenarios"] if sc["flip"]]
     RP.append("  ⚖ 翻转：%d 个场景下「剂量—响应只出现在 w 臂」**不成立**%s"

@@ -96,7 +96,7 @@ COMBO_EXPECT = {
         "w": {"bands": (27, 28, 30, 24), "K": (4, 6, 10, 14), "T": 15.875,
               "p": 0.0002, "rho": 0.6911, "scope": (10, 14), "det": "「检出」"},
         "rand": {"bands": (27, 28, 30, 24), "K": (2, 4, 5, 6), "T": 5.375,
-                 "p": 0.0878, "rho": 0.0237, "scope": (5, 14), "det": "「未检出」"},
+                 "p": 0.0876, "rho": 0.0237, "scope": (5, 14), "det": "「未检出」"},
     },
     ("prod", "inclusive", "drop"): {
         "w": {"bands": (27, 28, 30, 24), "K": (4, 6, 10, 14), "T": 15.875,
@@ -108,7 +108,7 @@ COMBO_EXPECT = {
         "w": {"bands": (27, 28, 30, 24), "K": (4, 6, 10, 14), "T": 15.875,
               "p": 0.0002, "rho": 0.6911, "scope": (10, 14), "det": "「检出」"},
         "rand": {"bands": (27, 28, 30, 24), "K": (2, 4, 5, 6), "T": 5.375,
-                 "p": 0.0878, "rho": 0.0237, "scope": (5, 14), "det": "「未检出」"},
+                 "p": 0.0876, "rho": 0.0237, "scope": (5, 14), "det": "「未检出」"},
     },
     ("prod", "exclusive", "drop"): {
         "w": {"bands": (27, 28, 30, 24), "K": (4, 6, 10, 14), "T": 15.875,
@@ -120,7 +120,7 @@ COMBO_EXPECT = {
         "w": {"bands": (27, 27, 27, 28), "K": (4, 7, 8, 14), "T": 16.625,
               "p": 0.0002, "rho": 0.6911, "scope": (10, 14), "det": "「检出」"},
         "rand": {"bands": (27, 27, 27, 28), "K": (2, 4, 3, 6), "T": 6.625,
-                 "p": 0.0418, "rho": 0.0237, "scope": (5, 14), "det": "「检出」"},
+                 "p": 0.0424, "rho": 0.0237, "scope": (5, 14), "det": "「检出」"},
     },
     ("alt", "inclusive", "drop"): {
         "w": {"bands": (27, 27, 27, 28), "K": (4, 7, 8, 14), "T": 16.625,
@@ -132,7 +132,7 @@ COMBO_EXPECT = {
         "w": {"bands": (27, 27, 27, 28), "K": (4, 7, 8, 14), "T": 16.625,
               "p": 0.0002, "rho": 0.6911, "scope": (10, 14), "det": "「检出」"},
         "rand": {"bands": (27, 27, 27, 28), "K": (2, 4, 3, 6), "T": 6.625,
-                 "p": 0.0418, "rho": 0.0237, "scope": (5, 14), "det": "「检出」"},
+                 "p": 0.0424, "rho": 0.0237, "scope": (5, 14), "det": "「检出」"},
     },
     ("alt", "exclusive", "drop"): {
         "w": {"bands": (27, 27, 27, 28), "K": (4, 7, 8, 14), "T": 16.625,
@@ -152,7 +152,7 @@ TOL_RHO = 3e-4
 BASE_BAND_SIZE = (27, 28, 30, 24)
 BASE_LAYER_K = {"w": (4, 6, 10, 14), "rand": (2, 4, 5, 6)}
 BASE_TREND_T = {"w": 15.875, "rand": 5.375}
-BASE_TREND_P = {"w": 0.0002, "rand": 0.0878}
+BASE_TREND_P = {"w": 0.0002, "rand": 0.0876}
 BASE_SCOPE_K = {"w": (10, 14), "rand": (5, 14)}
 # ⚖ 244.60 的结论（w p<α ∧ rand p≥α）在**基准口径**下**成立**
 BASE_VERDICT = True
@@ -264,13 +264,13 @@ def build_combo(rows_by_arm, combo):
             layers[i] = {"cells": g}
         rows = []
         for L in range(N_LAYER):
-            v = DL.layer_verdicts(layers[L]["cells"], DL.cell_sign_p9)
+            v = DL.layer_verdicts(layers[L]["cells"], DL.cell_sign_p9, DL.cell_zero_p9)
             cells = [c for cs in layers[L]["cells"].values() for c in cs]
             rows.append({
                 "L": L, "verdicts": v,
                 "K": sum(1 for t in v if v[t]["verdict"]),
                 "n_traj": len(v),
-                "nzs": [v[t]["nz"] for t in sorted(v)],
+                "nzs": [(v[t]["nz"], v[t]["nzero"]) for t in sorted(v)],
                 "cellpos": sum(1 for c in cells if DL.cell_sign_p9(c)),
                 "celln": len(cells),
             })
@@ -315,7 +315,7 @@ def build_combo(rows_by_arm, combo):
     # ---- 层内基准（每层每臂）：⛔ 不是 0.5 ----
     for arm in ARMS:
         for row in out["arm"][arm]["rows"]:
-            bases = [DL.majority_base_p(nz) for nz in row["nzs"]]
+            bases = [DL.base_of(nz) for nz in row["nzs"]]
             row["bases"] = bases
             row["avg_base"] = (sum(bases) / len(bases)) if bases else None
     out["verdict"] = verdict_of(out)
@@ -436,7 +436,7 @@ def build_report(allr):
                      for L in range(N_LAYER)]
             tr = a["trend"]
             RP.append("    · %-4s 档 %s ｜ rho %+.4f ｜ 各层 K=%s ｜ 格级正号率 %s"
-                      " ｜ 趋势 T=%.3f p=%.4f MC95%%带 [%.4f, %.4f]%s"
+                      " ｜ 趋势 T=%.3f p=%.6f MC95%%带 [%.4f, %.4f]%s"
                       " ｜ 剂量轴口径多数 %d/%d ｜ 检出状态=%s"
                       % (arm, bs, a["rho"], "/".join(str(x) for x in ks_),
                          "/".join(rates), tr["T"], tr["p"],
@@ -454,10 +454,11 @@ def build_report(allr):
                      "**不成立**（两臂格数不同 ⇒ 该组合的**跨臂比较未量到**）"))
         pw = s["arm"]["w"]["trend"]["p"]
         pr = s["arm"]["rand"]["trend"]["p"]
-        RP.append("    ⇒ 判决【%s】：**%s**（w 趋势 p=%.4f < %.2f ∧ rand 趋势 p=%.4f ≥ %.2f）"
+        RP.append("    ⇒ 判决【%s】：**%s**（w 趋势 p=%.6f %s %.2f ∧ rand 趋势 p=%.6f %s %.2f）"
                   " ｜ w %s ｜ rand %s%s"
                   % (s["label"], "成立" if s["verdict"] else "不成立",
-                     pw, ALPHA, pr, ALPHA,
+                     pw, "<" if pw < ALPHA else "≥", ALPHA,
+                     pr, "<" if pr < ALPHA else "≥", ALPHA,
                      s["arm"]["w"]["state"], s["arm"]["rand"]["state"],
                      "  ⚠⚠ **翻转**" if s["flip"] else ""))
 
@@ -540,7 +541,7 @@ def j_c0_baseline(base):
         p = a["trend"]["p"]
         good = abs(p - BASE_TREND_P[arm]) < TOL_P
         ok &= good
-        d.append("%s 趋势 p=%.4f（期望 %.4f）%s" % (arm, p, BASE_TREND_P[arm],
+        d.append("%s 趋势 p=%.6f（期望 %.4f）%s" % (arm, p, BASE_TREND_P[arm],
                                                    "✅" if good else "❌"))
         sk = tuple(a["scope_k"])
         good = (sk == BASE_SCOPE_K[arm])
@@ -693,7 +694,7 @@ def j_c3_layer_base(allr):
     for s in allr["scenarios"]:
         for arm in ARMS:
             for row in s["arm"][arm]["rows"]:
-                want = [DL.majority_base_p(nz) for nz in row["nzs"]]
+                want = [DL.base_of(nz) for nz in row["nzs"]]
                 good = (row["bases"] == want)
                 ok &= good
                 if not good:
@@ -734,7 +735,7 @@ def j_c4_verdicts_printed(allr, RP):
         got = ("**成立**" in ln)
         good = (want == got)
         ok &= good
-        d.append("判决行 p=(%.4f, %.4f) ⇒ 应%s，实印%s %s"
+        d.append("判决行 p=(%.6f, %.6f) ⇒ 应%s，实印%s %s"
                  % (pw, pr, "成立" if want else "不成立",
                     "成立" if got else "不成立", "✅" if good else "❌"))
     ok = ok and (printed == n_sc)
@@ -930,7 +931,7 @@ def j_c11_combos_match_expect(allr):
                         "✅" if good else "❌"))
             good = abs(a["trend"]["p"] - e["p"]) < TOL_P
             ok &= good
-            d.append("组合 %s / %s 趋势 p=%.4f（期望 %.4f）%s"
+            d.append("组合 %s / %s 趋势 p=%.6f（期望 %.4f）%s"
                      % (s["label"], arm, a["trend"]["p"], e["p"],
                         "✅" if good else "❌"))
             good = abs(a["rho"] - e["rho"]) < TOL_RHO

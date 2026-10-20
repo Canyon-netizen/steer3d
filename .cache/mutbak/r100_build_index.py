@@ -17,6 +17,10 @@
 ⚠ 修订 48–52 各有**两段**（「判据」+「取数与落地」），
   **这不是重复条目，是两笔 commit** ⇒ 索引里合并成一条并标出两段行号。
 
+⚠ **244 这一编号下已经有几十段**（244.1 … 244.65 …）⇒ 同上：**不是重复条目**，
+  索引里**每段都单列**（⇒ 所以「两笔」这个说法只对 48–52 成立，⛔ 不许套到 244 上；
+  实际笔数由下面的输出**现算**，⛔ 不写死在这里）。
+
 ⚠ 本脚本只读预登记，不碰它。
 """
 import re
@@ -165,8 +169,9 @@ def main():
       f"（{sorted(multi_sub) if multi_sub else '无'}）")
     w(f"- **⚠ 与上面完全是两回事**：另有 **{len(multi_seg)} 个修订**"
       f"（{sorted(multi_seg) if multi_seg else '无'}）"
-      f"在同一编号下出现**两笔 commit**（判据 + 取数与落地）"
-      f"—— 那**不是**重复条目，索引里两段都列")
+      f"在同一编号下出现**多笔 commit**（每笔的笔数："
+      f"{ {n: len(v) for n, v in sorted(multi_seg.items())} }）"
+      f"—— 那**不是**重复条目，索引里几段都列")
     w(f"- 另有 **{len(base_heads)} 条 `## N.` 基础章节**（§0 为什么要重跑、"
       f"§1 判决规则、§2 算力预算、§3 明确不做的事、§4 已知风险），不在本索引内")
     w("")
@@ -224,7 +229,7 @@ def main():
             t = t[:82] + "…"
         w(f"| {n} | {start}–{end2} | {span} | {struct} | {t} |")
     w("")
-    w("## ⚠「两笔 commit」的修订（判据 + 落地，与上面的「小节」不是一回事）")
+    w("## ⚠「多笔 commit」的修订（判据 + 落地，与上面的「小节」不是一回事）")
     w("")
     for n in sorted(multi_seg):
         w(f"- **修订 {n}**")
@@ -243,7 +248,8 @@ def main():
     ends_nl = OUT.read_bytes().endswith(b"\n")
     print(f"已写出 {OUT}")
     print(f"  修订 {len(nums)} 条 / 缺口 {gaps or '无'}")
-    print(f"  小节式 {len(multi_sub)} 个 / 两笔 commit {sorted(multi_seg)}")
+    print(f"  小节式 {len(multi_sub)} 个 / 多笔 commit "
+          f"{ {n: len(v) for n, v in sorted(multi_seg.items())} }")
     print(f"  坏字 {txt.count(chr(0xfffd))} / 以换行结尾 {ends_nl}")
     if strays:
         # ⚠⚠⚠⚠ 大声报，⛔ 不吞。⚖ 这一段实测**抓到过两个真实修订**（237/238）

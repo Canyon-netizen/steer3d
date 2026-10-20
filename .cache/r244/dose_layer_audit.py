@@ -145,6 +145,49 @@ def majority_base_p(nz):
                for j in range(nz // 2 + 1, nz + 1))
 
 
+def majority_base_p2(n_nz, n_zero=0):
+    """⚖⚖⚖⚖ **层内「多数为真」在零假设下的概率（含零格的正确版，244.65 加）**。
+
+    ⚖ **零假设**：每个**非零**格的符号是公平硬币；**零格恒为 False**
+       （`d == 0` **不是**一次抛硬币 ⇒ 它**不进基准**，但**进分母**）
+    ⇒ 判据 `npos·2 > n_nz + n_zero`（分母含零格 ⇒ **阈值随之抬高**）
+    ⇒ ⚖ `n_zero == 0` 时**逐位等于** `majority_base_p(n_nz)` ⇒ 旧数据一个数都不动
+
+    ⚖⚠⚖⚖⚖ **244.65 查出的缺陷（这就是它）**：
+       旧写法把零格也当成一次公平抛硬币 ⇒ 零格**凭空有 50% 概率为正**
+       ⇒ **零假设分布**被污染 ⇒ p 不再是「零格恒为 False」那个零假设下的 p
+       ⇒ ⇒ **偏保守 ⇒ 漏检**（本批 rand 臂 k 档有 **2 个零格** ⇒ 受影响）。
+
+    ⚖⚠⚖⚖⚖⚖⚖ **244.65 的实测澄清（我第一版把因果写错了，撤回）**：
+       我第一版写「零假设的期望被抬高 ⇒ T_obs 被压低 ⇒ p 被抬高」⇒ **这是错的**。
+       ⚖ 真相：在这个 MC 检验里 **解析基准 `e0` 会完全抵消** ——
+         `T_obs = Σ_L w_L·(K_L − e0_L)`、`T_sim = Σ_L w_L·(k_sim_L − e0_L)`
+         ⇒ 两边**同量平移** ⇒ 比较结果不变 ⇒ **改 e0 一个数都不动 p**。
+       ⚖ **真正改掉 p 的是「模拟规则」**：旧代码给零格抽了公平硬币、且阈值用总格数
+         （`npos·2 > m`）⇒ 零假设分布本身错了；新规则是零格恒 False、阈值 `npos·2 > n_nz+n_zero`。
+       ⚖ ⇒ 所以：**别用「注入错基准 ⇒ p 会变」来当判据**（那条判据**数学上不可能成立**），
+         必须**直接钉住模拟规则**（见 `j_c11_*` 与 `sim_null_positive_rate`）。
+    """
+    if n_nz <= 0:
+        return 0.5
+    tot = n_nz + n_zero
+    return sum(math.comb(n_nz, j) * 0.5 ** n_nz
+               for j in range(n_nz + 1) if j * 2 > tot)
+
+
+def base_of(z):
+    """⚖ 零假设基准的**统一入口**（244.65）：接受 `int`（零格数 = 0）或 `(nz, nzero)` 元组。
+
+    ⚖ ⛔ 不许在别处直接调 `majority_base_p` 吃元组 ⇒ 那会**崩**（崩 ≠ 抓到）。
+    """
+    return majority_base_p2(*(z if isinstance(z, tuple) else (z, 0)))
+
+
+def cell_zero_p9(r):
+    """⚖ 244.65：格级「零」＝ `d = 0`（既不正也不负 ⇒ **进分母、不进基准**）。"""
+    return dconf().d_of(r) == 0.0
+
+
 def poisson_binomial_pmf(ps):
     """⚖ Poisson-binomial 的 PMF（DP；纯 stdlib，⛔ 不引 scipy）。"""
     dist = [1.0]
@@ -211,7 +254,51 @@ def paired_perm_p(diffs, n_perm=20000, seed=20261020):
     return (ge + 1) / (n_perm + 1.0), obs
 
 
-def mc_trend_p_geom(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020, n_layer=None):
+def track_is_positive(draws, n_nz, n_zero):
+    """⚖⚖⚖⚖⚖ **零假设下「一条轨迹在该层为真」的判定**（**唯一实现**，244.65 加）。
+
+    ⚖ **零格恒为 False**：`d == 0` 的格**不是**一次抛硬币 ⇒
+       ① 它的抽取结果**不计入**正号数（`draws[:n_nz]`）；
+       ② 阈值是 `npos·2 > n_nz + n_zero`（**分母含零格 ⇒ 阈值抬高**）。
+    ⚖⚠⚖⚖⚖ **这才是真正决定 p 的东西**：解析基准 `e0` 在 MC 比较里**完全抵消**
+       （`T_obs` 与 `T_sim` 同量平移）⇒ 而本函数改的是**零分布本身**
+       ⇒ 旧写法（零格也抽公平硬币、阈值用总格数）⇒ 零分布错 ⇒ **p 偏保守 ⇒ 漏检**。
+    ⚖ `draws` 的长度必须是 `n_nz + n_zero`（⛔ 消耗量与旧实现一致 ⇒ 无零格处逐位不变）。
+    """
+    npos = sum(1 for _r in draws[:n_nz] if _r < 0.5)
+    return npos * 2 > n_nz + n_zero
+
+
+def sim_null_positive_rate(n_nz, n_zero, n_mc=20000, seed=20261020):
+    """⚖ 零假设下「一条轨迹在该层为真」的**频率**（**实测**，不是断言）。
+
+    ⚖ 用途：给「零格恒为 False」这条语义配一个**能红**的夹具 ——
+       正确的概率是 `P(Bin(n_nz,0.5)·2 > n_nz + n_zero)`；
+       旧写法（零格也抽公平硬币、阈值用总格数）给的是 `P(Bin(n_nz+n_zero,0.5)·2 > n_nz+n_zero)`
+       ⇒ 两者**可分辨** ⇒ 判据钉住频率就能抓住「退回旧写法」。
+    """
+    rng = random.Random(seed)
+    hit = 0
+    for _ in range(n_mc):
+        draws = [rng.random() for _ in range(n_nz + n_zero)]
+        if track_is_positive(draws, n_nz, n_zero):
+            hit += 1
+    return hit / float(n_mc)
+
+
+def trend_weights(n_layer):
+    """⚖ 层间权重 `L − (n−1)/2`（**唯一实现**，244.65 加）。
+
+    ⚖ 关于中间层对称 ⇒ **Σ 权重 = 0** ⇒ 统计量中心化。
+    ⚖⚠⚠⚠ **为什么必须抽成函数**：C12 要**读它**来钉「权重和为 0」
+    ⇒ 若 C12 自己重算 ⇒ 那就是**从被检对象派生** ⇒ 变异存活（244.65 实测）。
+    """
+    w_off = (n_layer - 1) / 2.0
+    return [L - w_off for L in range(n_layer)]
+
+
+def mc_trend_p_geom(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020, n_layer=None,
+                    base_fn=None):
     """⚖⚖⚖ **剂量趋势检验**（MC 零假设）—— **多返回 MC 的计数**（`ge` / `n_mc`）。
 
     ⚖ 统计量 `T = Σ_L (L − 1.5) · (K_L − E0_L)`：`K_L` = 该层为真的条数，
@@ -242,20 +329,40 @@ def mc_trend_p_geom(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020, n_layer=
     # ⚖ 权重中心：层数 n 时，权重 `L − (n−1)/2` 关于中间层对称
     #   n=4 ⇒ 1.5（与 244.63 及以前的写死值**逐位相同**）
     #   n=3 ⇒ 1.0（−1, 0, +1）｜ n=5 ⇒ 2.0（−2, −1, 0, +1, +2）
-    w_off = (n_layer - 1) / 2.0
-    e0 = [sum(majority_base_p(nz) for nz in nzs_by_layer[L]) for L in range(n_layer)]
-    t_obs = sum((L - w_off) * (obs_counts[L] - e0[L]) for L in range(n_layer))
+    # ⚖⚠⚖ **唯一实现** `trend_weights`（⛔ 不许在别处重算 ⇒ C12 要读它）
+    ws = trend_weights(n_layer)
+    # ⚖⚠⚖⚖⚖ **244.65：每条轨迹的基准与阈值都按「非零格 + 零格」算**
+    #   · 输入可以是 `int`（旧写法 ⇒ 零格数 = 0）或 `(nz, nzero)` 元组
+    #   · `int` 与 `(n, 0)` **逐位等价** ⇒ 旧夹具/旧数据**一个数都不动**
+    def _split(z):
+        return (z, 0) if isinstance(z, int) else (int(z[0]), int(z[1]))
+    # ⚖⚖⚖⚖⚖ **244.65 加的注入点 `base_fn`**：
+    #   零假设基准 = 「层内多数为真」的概率 ⇒ 它**必须真的进公式**
+    #   ⇒ 判据要能证明「注进去的错基准会改结果」⇒ 否则「基准」可能只是印出来给人看的
+    #   ⚖ 契约：`base_fn((nz, nzero)) -> float`（**接收归一化后的元组**）
+    #   ⚖ 默认 = `base_of`（= 唯一实现 `majority_base_p2`）
+    _base = base_of if base_fn is None else base_fn
+    e0 = [sum(_base(_split(z)) for z in nzs_by_layer[L])
+          for L in range(n_layer)]
+    t_obs = sum(ws[L] * (obs_counts[L] - e0[L]) for L in range(n_layer))
     rng = random.Random(seed)
     ge = 0
     for _ in range(n_mc):
         tot = 0.0
         for L in range(n_layer):
             k = 0
-            for nz in nzs_by_layer[L]:
-                npos = sum(1 for _ in range(nz) if rng.random() < 0.5)
-                if npos * 2 > nz:
+            for z in nzs_by_layer[L]:
+                n_nz, n_zero = _split(z)
+                # ⚖⚠⚖⚖ **随机流的消耗量保持不变**（仍抽 `n_nz + n_zero` 次）
+                #   ⇒ 零格对应的那次抽签**照旧消耗掉**，只是**不计入 npos**
+                #   ⇒ ⇒ **无零格的数据逐位不变** ⇒ 变更面**精确地**限定在有零格处
+                #   ⇒ ⇒ 而零格**恒为 False** ⇒ 阈值是 `npos·2 > n_nz + n_zero`
+                #   ⚖⚠⚖⚖⚖ **判定交给唯一实现** `track_is_positive`
+                #   （⛔ 不许在这里另写一份 ⇒ 两处口径必然一致）
+                _draws = [rng.random() for _ in range(n_nz + n_zero)]
+                if track_is_positive(_draws, n_nz, n_zero):
                     k += 1
-            tot += (L - w_off) * (k - e0[L])
+            tot += ws[L] * (k - e0[L])
         if tot >= t_obs - 1e-12:
             ge += 1
     return (ge + 1) / (n_mc + 1.0), t_obs, e0, ge, n_mc
@@ -285,19 +392,69 @@ def cell_sign_pre(r):
     return r.get("up_mono_meas") is True
 
 
-def layer_verdicts(cells_by_tid, sign_fn):
+def layer_verdicts(cells_by_tid, sign_fn, zero_fn=None):
     """⚖ 逐轨迹在层内的多数（`nT > nF` ⇒ **平票算 False**）。
 
-    ⚖ 返回 {tid: {pos, neg, nz, m, verdict}}；`nz` = **非零**格数
+    ⚖ 返回 {tid: {pos, neg, nz, nzero, m, verdict}}；`nz` = **非零**格数
     （`d == 0` 的格既不算正也不算负 ⇒ 只进分母不进基准）。
+
+    ⚖⚠⚖⚖⚖ **244.65 更正**：原来的实现把 `nz` 算成 `nT + nF` = **全部格数**
+       ⇒ **零格被算进了零假设基准** ⇒ 与它自己上面那句 docstring **矛盾**
+       ⇒ 现在 `nz` = 非零格数（docstring 终于对上了），并**另外报出** `nzero`。
+    ⚖ `zero_fn=None` ⇒ `nzero = 0` ⇒ 与旧版**逐位相同**（向后兼容）。
     """
     out = {}
     for tid, cs in cells_by_tid.items():
         nT = sum(1 for c in cs if sign_fn(c))
         nF = sum(1 for c in cs if not sign_fn(c))
-        out[tid] = {"pos": nT, "neg": nF, "nz": nT + nF, "m": len(cs),
-                    "verdict": nT > nF}
+        nzero = (sum(1 for c in cs if zero_fn(c)) if zero_fn is not None else 0)
+        out[tid] = {"pos": nT, "neg": nF, "nz": len(cs) - nzero, "nzero": nzero,
+                    "m": len(cs), "verdict": nT > nF}
     return out
+
+
+def size_requirements(layer_rows, cells_per_traj, fisher_power=None, n_layer=None,
+                      min_n=14, target_power=0.8, max_check=64):
+    """⚖ **跑批规模**（**唯一实现**）：244.60 的 C7 块与 244.65 的预算表都调它。
+
+    ⚖⚠⚖⚖⚖ **规模是「规划量」，⛔ 不是判决**（244.60 的原话，写在这里免得被忘）
+    ⚖ 返回 `(lines, size)`：
+      · `lines` = 逐行文本（调用方**直接印** ⇒ 两处口径**必然一致**）
+      · `size[L]` = `{"need": 精确枚举复核得到的每臂条数 or None, "approx": 正态近似规模}`
+    ⚖ `fisher_power(n, p1, p0) -> (power, ...)` 注入进来（⛔ 不在这里 import，
+      好让 244.65 的工具能**换**实现来对账 ⇒ 也好让自检能用**已知答案**的夹具）
+    """
+    n_layer = N_LAYER if n_layer is None else n_layer
+    lines = []
+    size = {}
+    for row in layer_rows:
+        p1, p0 = max(row["pw"], row["pr"]), min(row["pw"], row["pr"])
+        delta = abs(p1 - p0)
+        if delta <= 0:
+            size[row["L"]] = {"need": None, "note": "两臂比例相同 ⇒ 所需条数 ∞"}
+            lines.append("    · 层 %d：两臂比例相同 ⇒ 所需条数 **∞**" % row["L"])
+            continue
+        z975, z80 = 1.959963984540054, 0.8416212335729143
+        pbar = (p1 + p0) / 2.0
+        n_approx = max(min_n, int(math.ceil(
+            2.0 * (z975 + z80) ** 2 * pbar * (1.0 - pbar) / (delta ** 2))))
+        n_chk = None
+        note = ">%d/臂（精确枚举 O(n³) ⇒ 本轮**不**复核）" % max_check
+        if fisher_power is not None and n_approx <= max_check:
+            for n in range(n_approx, max_check + 1, 2):
+                if fisher_power(n, p1, p0)[0] >= target_power:
+                    n_chk = n
+                    break
+            note = "%s/臂" % n_chk
+        size[row["L"]] = {"need": n_chk, "approx": n_approx}
+        lines.append("    · 层 %d：w %.3f vs rand %.3f（差 %.1fpp）｜ 正态近似规模 %d/臂"
+                     " ｜ **精确枚举复核 %s**（现有 14）"
+                     % (row["L"], row["pw"], row["pr"], 100 * delta, n_approx, note))
+    need_cells = 3 * n_layer
+    lines.append("    · 每条轨迹平均 k 档 %.2f ⇒ 要让每层 m≥3（平票不出现）需 ≥%d 档"
+                 " ⇒ 阶梯要扫到现在的 **%.2f 倍**"
+                 % (cells_per_traj, need_cells, need_cells / cells_per_traj))
+    return lines, size
 
 
 def build_all():
@@ -437,8 +594,8 @@ def build_report(A):
     layer_rows = []
     ok2 = True
     for L in range(N_LAYER):
-        vw = layer_verdicts(A["arm"]["w"]["layers"][L]["cells"], cell_sign_p9)
-        vr = layer_verdicts(A["arm"]["rand"]["layers"][L]["cells"], cell_sign_p9)
+        vw = layer_verdicts(A["arm"]["w"]["layers"][L]["cells"], cell_sign_p9, cell_zero_p9)
+        vr = layer_verdicts(A["arm"]["rand"]["layers"][L]["cells"], cell_sign_p9, cell_zero_p9)
         kw = sum(1 for t in vw if vw[t]["verdict"])
         kr = sum(1 for t in vr if vr[t]["verdict"])
         nw, nr = len(vw), len(vr)
@@ -493,7 +650,7 @@ def build_report(A):
             cells = [c for cs in A["arm"][arm]["layers"][L]["cells"].values()
                      for c in cs]
             prod_k, prod_n = dconf().majority_count(cells)
-            mine = layer_verdicts(A["arm"][arm]["layers"][L]["cells"], cell_sign_p9)
+            mine = layer_verdicts(A["arm"][arm]["layers"][L]["cells"], cell_sign_p9, cell_zero_p9)
             mk = sum(1 for t in mine if mine[t]["verdict"])
             same = (prod_k == mk and prod_n == len(mine))
             ok2 = ok2 and same
@@ -526,7 +683,7 @@ def build_report(A):
         L_ = row["L"]
         vw = row["vw"]
         nzs = [vw[t]["nz"] for t in sorted(vw)]
-        bases = [majority_base_p(nz) for nz in nzs]
+        bases = [majority_base_p2(vw[t]["nz"], vw[t]["nzero"]) for t in sorted(vw)]
         avg = sum(bases) / len(bases)
         row["avg_base"] = avg
         row["bases"] = bases
@@ -577,11 +734,12 @@ def build_report(A):
         counts = []
         nzs_by_layer = []
         for L in range(N_LAYER):
-            v = layer_verdicts(A["arm"][arm]["layers"][L]["cells"], cell_sign_p9)
+            v = layer_verdicts(A["arm"][arm]["layers"][L]["cells"], cell_sign_p9, cell_zero_p9)
             counts.append(sum(1 for t in v if v[t]["verdict"]))
-            nzs_by_layer.append([v[t]["nz"] for t in sorted(v)])
+            nzs_by_layer.append([(v[t]["nz"], v[t]["nzero"]) for t in sorted(v)])
         p_tr, t_obs, e0 = mc_trend_p(nzs_by_layer, counts)
-        trend[arm] = {"p": p_tr, "T": t_obs, "e0": e0, "counts": counts}
+        trend[arm] = {"p": p_tr, "T": t_obs, "e0": e0, "counts": counts,
+                      "nzs": nzs_by_layer}
         RP.append("    · %-4s 剂量趋势：各层 K=%s ｜ 各层零假设期望 E0=%s"
                  " ｜ T=%.3f ｜ MC p=%.4f"
                  % (arm, counts, [round(x, 2) for x in e0], t_obs, p_tr))
@@ -612,7 +770,7 @@ def build_report(A):
         vk = layer_verdicts(gk, cell_sign_p9)
         flips_n = []
         for L in range(N_LAYER):
-            v = layer_verdicts(a["layers"][L]["cells"], cell_sign_p9)
+            v = layer_verdicts(a["layers"][L]["cells"], cell_sign_p9, cell_zero_p9)
             n = sum(1 for t in v if t in vk and v[t]["verdict"] != vk[t]["verdict"])
             flips_n.append((L, n, len(v)))
         d6.append("%s：面板口径（全部格）%d/%d ｜ 剂量轴口径（scope=k）%d/%d"
@@ -626,7 +784,7 @@ def build_report(A):
             for r in A["rows"][arm]:
                 if r.get("p9_lo_meas") is not None:
                     allg.setdefault(r["tid"], []).append(r)
-            vfull = layer_verdicts(allg, cell_sign_p9)
+            vfull = layer_verdicts(allg, cell_sign_p9, cell_zero_p9)
             fl = sorted(t for t in vk if vk[t]["verdict"] != vfull[t]["verdict"])
             d6.append("   ⇒ ⚠⚠ 两口径**差 %d 条**（端点格 all/single 不在剂量轴上）：%s"
                       % (abs(a["panel"][0] - a["scope_k"][0]), fl[:4]))
@@ -655,39 +813,12 @@ def build_report(A):
     put("C6", ok6, "层内多数与全量多数的**不一致数**（w / rand 各一条）必须印出，"
         "且备选口径 b 的退化情况必须报出（⚠ 那是**关于世界**的事实 ⇒ 只要求**如实印出**）")
 
-    # ---- C7 跑批规模 ----
+    # ---- C7 跑批规模（⚖ 算式在 `size_requirements`（**唯一实现**）里）----
+    #   ⚖⚠⚖ 244.65 的预算表也调它 ⇒ 两处的口径**必然一致**（⛔ 不另写第二套算式）
     RP.append("  ℹ 跑批规模（每层每臂要多少条轨迹 / 每条轨迹每层要多少格）")
-    size = {}
-    for row in layer_rows:
-        p1, p0 = max(row["pw"], row["pr"]), min(row["pw"], row["pr"])
-        delta = abs(p1 - p0)
-        if delta <= 0:
-            size[row["L"]] = {"need": None, "note": "两臂比例相同 ⇒ 所需条数 ∞"}
-            RP.append("    · 层 %d：两臂比例相同 ⇒ 所需条数 **∞**" % row["L"])
-            continue
-        z975, z80 = 1.959963984540054, 0.8416212335729143
-        pbar = (p1 + p0) / 2.0
-        n_approx = max(14, int(math.ceil(
-            2.0 * (z975 + z80) ** 2 * pbar * (1.0 - pbar) / (delta ** 2))))
-        # ⚖⚠⚠⚠ **精确枚举的成本是 O(n³)**（`fisher_power` 是 n² 次 Fisher、每次 O(n)）
-        #   ⇒ 复核**封顶 n ≤ 64**（⛔ 244.59 的教训：搜索上界会毁掉台架）
-        n_chk = None
-        note = ">64/臂（精确枚举 O(n³) ⇒ 本轮**不**复核）"
-        if n_approx <= 64:
-            for n in range(n_approx, 65, 2):
-                if cpre().fisher_power(n, p1, p0)[0] >= 0.8:
-                    n_chk = n
-                    break
-            note = "%s/臂" % n_chk
-        size[row["L"]] = {"need": n_chk, "approx": n_approx}
-        RP.append("    · 层 %d：w %.3f vs rand %.3f（差 %.1fpp）｜ 正态近似规模 %d/臂"
-                 " ｜ **精确枚举复核 %s**（现有 14）"
-                 % (row["L"], row["pw"], row["pr"], 100 * delta, n_approx, note))
-    cells_per_traj = len(w["ks"]) / float(len(tids))
-    need_cells = 3 * N_LAYER
-    RP.append("    · 每条轨迹平均 k 档 %.2f ⇒ 要让每层 m≥3（平票不出现）需 ≥%d 档"
-             " ⇒ 阶梯要扫到现在的 **%.2f 倍**"
-             % (cells_per_traj, need_cells, need_cells / cells_per_traj))
+    _size_lines, size = size_requirements(
+        layer_rows, len(w["ks"]) / float(len(tids)), fisher_power=cpre().fisher_power)
+    RP.extend(_size_lines)
     put("C7", (_count_mark(RP, "精确枚举复核") >= 1)
         and (_count_mark(RP, "正态近似规模") >= 1)
         and (_count_mark(RP, "m≥3") >= 1),
@@ -709,6 +840,130 @@ def build_report(A):
     miss9 = [t for t in BLANK_MARKS if not any(t in ln for ln in RP)]
     put("C9", not miss9, "七条留白必须逐条印出（按**独立标签**查）；缺 %d 条%s"
         % (len(miss9), "" if not miss9 else "：%s" % miss9))
+
+    # ---- C10 零格**不进**基准（244.65 的更正）----
+    #   ⚖⚠⚖⚖⚖ **零格恒为 False ⇒ 进分母、不进基准**
+    #   ⇒ 基准必须是 P(Bin(n_nz,0.5)·2 > n_nz + n_zero)，⛔ 不是 P(Bin(m,0.5)·2 > m)
+    #   ⇒ 旧写法把零格**凭空**给了 50% 的正概率 ⇒ 期望被抬高 ⇒ p 被抬高 ⇒ **偏保守 ⇒ 漏检**
+    RP.append("  ℹ 零格的零假设处理（244.65：零格**恒为 False** ⇒ 进分母、**不进基准**）")
+    d10 = []
+    ok10 = True
+
+    def _base_enum(n_nz, n_zero):
+        """⚖ **独立枚举**复算层内基准（⛔ 不复用 `majority_base_p2` ⇒ 真能抓它）。"""
+        tot = n_nz + n_zero
+        return sum(math.comb(n_nz, j) * 0.5 ** n_nz
+                   for j in range(n_nz + 1) if j * 2 > tot)
+
+    for n_nz, n_zero in ((2, 0), (3, 0), (4, 0), (2, 1), (3, 2), (4, 1)):
+        want = _base_enum(n_nz, n_zero)
+        got = majority_base_p2(n_nz, n_zero)
+        good = (abs(got - want) <= 1e-12)
+        ok10 = ok10 and good
+        d10.append("  (nz=%d, 零格=%d) 基准 %.6f（独立枚举 %.6f）%s"
+                   % (n_nz, n_zero, got, want, "✅" if good else "❌"))
+    # ⚖ 有零格处：必须**不等于**旧写法；无零格处：必须与旧写法**逐位相同**
+    for n_nz, n_zero in ((2, 1), (3, 2), (4, 1)):
+        got = majority_base_p2(n_nz, n_zero)
+        old = majority_base_p(n_nz + n_zero)
+        good = (got != old)
+        ok10 = ok10 and good
+        d10.append("  (nz=%d, 零格=%d) 基准 %.6f vs 旧写法（零格也当抛硬币）%.6f ⇒ %s %s"
+                   % (n_nz, n_zero, got, old, "必须不同",
+                      "✅" if good else "❌"))
+    for n_nz in (1, 2, 3, 4):
+        good = (majority_base_p2(n_nz, 0) == majority_base_p(n_nz))
+        ok10 = ok10 and good
+        d10.append("  (nz=%d, 零格=0) 基准 %.6f 必须与旧写法**逐位相同** %s"
+                   % (n_nz, majority_base_p2(n_nz, 0), "✅" if good else "❌"))
+    # ⚖⚠⚖ **零格数必须被报出**：`layer_verdicts` 报的 `nzero`
+    #   必须与**独立数出来的**零格数逐层相同（⛔ 零格被悄悄算进 nz 就抓不到）
+    for arm in ("w", "rand"):
+        for L_ in range(N_LAYER):
+            cells = [c for cs in A["arm"][arm]["layers"][L_]["cells"].values()
+                     for c in cs]
+            n_indep = sum(1 for c in cells if dconf().d_of(c) == 0.0)
+            v = layer_verdicts(A["arm"][arm]["layers"][L_]["cells"],
+                                cell_sign_p9, cell_zero_p9)
+            n_rep = sum(x["nzero"] for x in v.values())
+            good = (n_indep == n_rep)
+            ok10 = ok10 and good
+            d10.append("  %s 臂层 %d：零格数 报出 %d / 独立数 %d %s"
+                       % (arm, L_, n_rep, n_indep, "✅" if good else "❌"))
+    for ln in d10:
+        RP.append(ln)
+    put("C10", ok10, "零格**恒为 False ⇒ 进分母、不进基准**必须成立："
+        "① 基准与独立枚举逐位一致 ② 有零格处必须≠旧写法 ③ 无零格处必须逐位相同 "
+        "④ 零格数必须被报出且与独立计数一致")
+
+    # ---- C11 零假设的**模拟规则**必须与观测规则一致（零格恒为 False）----
+    #   ⚖⚠⚖⚖⚖ **这是唯一真正决定 p 的东西**（解析基准 e0 会抵消 ⇒ 见 C12）
+    #   ⚖ 已知答案的夹具：一条轨迹 3 个非零格 + 1 个零格
+    #   ⇒ 正确：零格恒 False ⇒ 为真需 `npos·2 > 4` ⇔ npos = 3 ⇒ 概率 `1/8 = 0.125`
+    #   ⇒ 旧写法（零格也抽公平硬币、阈值用总格数）⇒ `npos ~ Bin(4,.5)`、需 `npos ≥ 3`
+    #     ⇒ 概率 `5/16 = 0.3125`
+    #   ⇒ 两者可分辨 ⇒ 频率夹具能抓住「退回旧写法」
+    RP.append("  ℹ 零假设**模拟规则**（244.65：零格恒为 False ⇒ 阈值 npos·2 > n_nz+n_zero）")
+    d11 = []
+    ok11 = True
+    rate = sim_null_positive_rate(3, 1, n_mc=20000, seed=20261020)
+    good = (0.10 <= rate <= 0.15)
+    ok11 = ok11 and good
+    d11.append("  夹具（3 个非零格 + 1 个零格）零假设为真的频率 = %.4f"
+               "（正确应为 P(Bin(3,.5)=3) = 0.125；旧写法会是 0.3125）%s"
+               % (rate, "✅" if good else "❌"))
+    rate2 = sim_null_positive_rate(2, 2, n_mc=20000, seed=20261021)
+    good = (rate2 <= 0.02)
+    ok11 = ok11 and good
+    d11.append("  夹具（2 个非零格 + 2 个零格）零假设为真的频率 = %.4f"
+               "（正确应为 **0**（阈值 npos·2 > 4 永不成立）；旧写法会是 0.25）%s"
+               % (rate2, "✅" if good else "❌"))
+    rate3 = sim_null_positive_rate(3, 0, n_mc=20000, seed=20261022)
+    good = (0.45 <= rate3 <= 0.55)
+    ok11 = ok11 and good
+    d11.append("  夹具（3 个非零格 + 0 个零格）频率 = %.4f"
+               "（无零格 ⇒ 与旧写法**同规则** ⇒ 应在 0.5 的邻域，"
+               "此处只查它**不是** 0）%s" % (rate3, "✅" if good else "❌"))
+    for ln in d11:
+        RP.append(ln)
+    put("C11", ok11, "零假设的**模拟规则**必须与观测规则一致"
+        "（**零格恒为 False** ⇒ 阈值 npos·2 > n_nz+n_zero ⇒ 用**已知答案的频率夹具**钉住）")
+
+    # ---- C12 解析基准 `e0` 在 MC 比较里**完全抵消**（数学恒等）----
+    #   ⚖⚠⚖⚖⚖ `T_obs = Σ_L w_L·(K_L − e0_L)`、`T_sim = Σ_L w_L·(k_sim_L − e0_L)`
+    #   ⇒ 两边**同量平移** ⇒ 比较不变 ⇒ **改 e0 一个数都不动 p**
+    #   ⚖⚠⚖⚖⚖⚖⚖ **撤回我第一版写错的因果（244.65）**：
+    #   这个抵消**不是因为**「层间权重和为 0」⇒ 而是因为**两边同量平移**
+    #   （**与权重是否对称无关**）⇒ 「Σ 权重 = 0」是**另一条**性质（统计量中心化）
+    #   ⇒ 两条**分开钉**：① 注入恒定基准 ⇒ p 必须逐位不变（抵消）
+    #   ⇒ ② 层间权重和必须为 0（中心化，读 `trend_weights` 的实现）
+    d12 = []
+    ok12 = True
+    # ⚖⚠⚠ 用 **w 臂**（⛔ 不用 rand：变异 M10 会把 rand 臂删掉 ⇒ 那会**崩**，崩 ≠ 抓到）
+    _nzs_ref = trend["w"]["nzs"]
+    _cnt_ref = trend["w"]["counts"]
+    _p_def, _T_def, _e0_def, _ge, _nm = mc_trend_p_geom(
+        _nzs_ref, _cnt_ref, n_mc=5000, seed=20261020, n_layer=N_LAYER)
+    _p_flat, _T_flat, _e0_flat, _ge3, _nm3 = mc_trend_p_geom(
+        _nzs_ref, _cnt_ref, n_mc=5000, seed=20261020, n_layer=N_LAYER,
+        base_fn=lambda z: 0.5)
+    good = (_p_flat == _p_def)
+    ok12 = ok12 and good
+    d12.append("  注入**恒定**基准（0.5）后 p = %.6f（应与默认**逐位相同**："
+               "解析基准在比较中**抵消**）%s"
+               % (_p_flat, "✅" if good else "❌"))
+    # ⚖⚠⚠⚠ **读实现**（⛔ 不许自己重算 ⇒ 那是「从被检对象派生」⇒ 变异会存活）
+    _wsum = sum(trend_weights(N_LAYER))
+    good = (abs(_wsum) <= 1e-12)
+    ok12 = ok12 and good
+    d12.append("  层间权重和 = %.1f（%d 层 ⇒ 必须为 0 ⇒ 常数平移才抵消）%s"
+               % (_wsum, N_LAYER, "✅" if good else "❌"))
+    for ln in d12:
+        RP.append(ln)
+    put("C12", ok12, "解析基准 `e0` 必须**在 MC 比较中抵消**"
+        "（① 注入恒定基准 ⇒ p 逐位不变：**两边同量平移**；"
+        "② 层间权重和必须为 0（**读 `trend_weights` 的实现**，⛔ 不许自己重算））"
+        "⇒ 这解释了「为什么 e0 不是 p 的来源」，也钉住了层间权重的中心化")
 
     return RP, R, layer_rows, trend
 
@@ -805,7 +1060,7 @@ def selftest():
     chk("C5y", w["panel"] == PANEL_MAJORITY["w"],
         "真实数据：面板口径 %d/%d" % (w["panel"][0], w["panel"][1]))
     v1 = layer_verdicts(w["layers"][1]["cells"], cell_sign_p9)
-    bases = [majority_base_p(v1[t]["nz"]) for t in sorted(v1)]
+    bases = [majority_base_p2(v1[t]["nz"], v1[t]["nzero"]) for t in sorted(v1)]
     chk("C5z", abs(sum(bases) / len(bases) - 0.25) < 1e-12,
         "真实数据：层 1 的平均基准 %.6f（应是 0.25：14 条全是 2 格）"
         % (sum(bases) / len(bases)))

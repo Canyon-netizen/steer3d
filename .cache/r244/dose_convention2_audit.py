@@ -113,13 +113,13 @@ WORKING_METHODS = ("inclusive", "exclusive")
 #   · w 臂在**全部 36 个组合**都检出
 W_DETECT_ALL = 36
 #   · rand 臂**检出**（p < α）的组合数
-RAND_DETECT_N = 7
+RAND_DETECT_N = 10
 #   · rand 臂 **MC95% 带跨 α** 的组合数（p 贴着 α ⇒ 显著/不显著**未定**）
-RAND_BORDER_N = 7
+RAND_BORDER_N = 9
 #   · 按档数分：rand 检出数（3 档 / 4 档 / 5 档）
-RAND_DETECT_BY_BANDS = {3: 0, 4: 6, 5: 1}
+RAND_DETECT_BY_BANDS = {3: 0, 4: 6, 5: 4}
 #   · 按档数分：rand MC 带跨 α 的组合数
-RAND_BORDER_BY_BANDS = {3: 0, 4: 0, 5: 7}
+RAND_BORDER_BY_BANDS = {3: 0, 4: 0, 5: 9}
 #   · 「inclusive ≡ exclusive」的设置数（12 = 3 档数 × 2 边界 × 2 零跨度）
 INC_EQ_EXC_N = 12
 #   · 「nearest-rank 与 inclusive 分档表不同」的组合数
@@ -131,6 +131,14 @@ ENDPOINT_NO_NSITES_N = 28
 K_CELLS_N = 109
 K_MISS_NSITES_N = 0
 K_MISS_READING_N = 0
+
+# ⚖⚖⚖⚖⚖ **零格数（字面量期望，244.65 实测于独立探针）**
+#   · 零跨度 keep ⇒ rand 臂 **2** 个零格、w 臂 **0** 个
+#   · 零跨度 drop ⇒ 两臂都 **0** 个（零跨度格被剔出轴 ⇒ 根本不存在零格）
+#   ⚠ **零格数是「零假设模拟」的直接输入** ⇒ 数错 ⇒ 零分布错 ⇒ p 错
+ZERO_CELLS_EXPECT = {"keep": {"w": 0, "rand": 2}, "drop": {"w": 0, "rand": 0}}
+# ⚖ 36 个组合的零格总数（18 个 keep 组合 × 2）⇒ **文件集的指纹**
+ZERO_CELLS_TOTAL = 36
 
 # ⚖⚖⚖⚖⚖ **期望表（字面量）**：36 个组合 × 2 臂
 #   ⚖ 每个字段：档表 / 各档 K / 趋势 T / 趋势 p / rho / 剂量轴口径多数 / 检出状态
@@ -154,7 +162,7 @@ COMBO_EXPECT = {
     },
     ('inclusive', 4, 'prod', 'keep'): {
         "w": {"bands": (27, 28, 30, 24), "K": (4, 6, 10, 14), "T": 15.875, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (27, 28, 30, 24), "K": (2, 4, 5, 6), "T": 5.375, "p": 0.08778244351129774, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
+        "rand": {"bands": (27, 28, 30, 24), "K": (2, 4, 5, 6), "T": 5.375, "p": 0.08758248350329934, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
     },
     ('inclusive', 4, 'prod', 'drop'): {
         "w": {"bands": (27, 28, 30, 24), "K": (4, 6, 10, 14), "T": 15.875, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -162,7 +170,7 @@ COMBO_EXPECT = {
     },
     ('inclusive', 4, 'alt', 'keep'): {
         "w": {"bands": (27, 27, 27, 28), "K": (4, 7, 8, 14), "T": 16.625, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (27, 27, 27, 28), "K": (2, 4, 3, 6), "T": 6.625, "p": 0.041791641671665665, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「检出」'},
+        "rand": {"bands": (27, 27, 27, 28), "K": (2, 4, 3, 6), "T": 6.625, "p": 0.04239152169566087, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「检出」'},
     },
     ('inclusive', 4, 'alt', 'drop'): {
         "w": {"bands": (27, 27, 27, 28), "K": (4, 7, 8, 14), "T": 16.625, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -170,7 +178,7 @@ COMBO_EXPECT = {
     },
     ('inclusive', 5, 'prod', 'keep'): {
         "w": {"bands": (22, 21, 23, 22, 21), "K": (5, 5, 7, 11, 14), "T": 24.75, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (22, 21, 23, 22, 21), "K": (2, 6, 2, 4, 7), "T": 8.75, "p": 0.06458708258348331, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
+        "rand": {"bands": (22, 21, 23, 22, 21), "K": (2, 6, 2, 4, 7), "T": 8.75, "p": 0.05358928214357129, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
     },
     ('inclusive', 5, 'prod', 'drop'): {
         "w": {"bands": (22, 21, 23, 22, 21), "K": (5, 5, 7, 11, 14), "T": 24.75, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -178,7 +186,7 @@ COMBO_EXPECT = {
     },
     ('inclusive', 5, 'alt', 'keep'): {
         "w": {"bands": (21, 22, 22, 22, 22), "K": (6, 4, 7, 11, 14), "T": 24.5, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (21, 22, 22, 22, 22), "K": (2, 6, 3, 4, 7), "T": 9.5, "p": 0.052589482103579284, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
+        "rand": {"bands": (21, 22, 22, 22, 22), "K": (2, 6, 3, 4, 7), "T": 9.5, "p": 0.04439112177564487, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「检出」'},
     },
     ('inclusive', 5, 'alt', 'drop'): {
         "w": {"bands": (21, 22, 22, 22, 22), "K": (6, 4, 7, 11, 14), "T": 24.5, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -202,7 +210,7 @@ COMBO_EXPECT = {
     },
     ('exclusive', 4, 'prod', 'keep'): {
         "w": {"bands": (27, 28, 30, 24), "K": (4, 6, 10, 14), "T": 15.875, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (27, 28, 30, 24), "K": (2, 4, 5, 6), "T": 5.375, "p": 0.08778244351129774, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
+        "rand": {"bands": (27, 28, 30, 24), "K": (2, 4, 5, 6), "T": 5.375, "p": 0.08758248350329934, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
     },
     ('exclusive', 4, 'prod', 'drop'): {
         "w": {"bands": (27, 28, 30, 24), "K": (4, 6, 10, 14), "T": 15.875, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -210,7 +218,7 @@ COMBO_EXPECT = {
     },
     ('exclusive', 4, 'alt', 'keep'): {
         "w": {"bands": (27, 27, 27, 28), "K": (4, 7, 8, 14), "T": 16.625, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (27, 27, 27, 28), "K": (2, 4, 3, 6), "T": 6.625, "p": 0.041791641671665665, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「检出」'},
+        "rand": {"bands": (27, 27, 27, 28), "K": (2, 4, 3, 6), "T": 6.625, "p": 0.04239152169566087, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「检出」'},
     },
     ('exclusive', 4, 'alt', 'drop'): {
         "w": {"bands": (27, 27, 27, 28), "K": (4, 7, 8, 14), "T": 16.625, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -218,7 +226,7 @@ COMBO_EXPECT = {
     },
     ('exclusive', 5, 'prod', 'keep'): {
         "w": {"bands": (22, 21, 23, 22, 21), "K": (5, 5, 7, 11, 14), "T": 24.75, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (22, 21, 23, 22, 21), "K": (2, 6, 2, 4, 7), "T": 8.75, "p": 0.06458708258348331, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
+        "rand": {"bands": (22, 21, 23, 22, 21), "K": (2, 6, 2, 4, 7), "T": 8.75, "p": 0.05358928214357129, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
     },
     ('exclusive', 5, 'prod', 'drop'): {
         "w": {"bands": (22, 21, 23, 22, 21), "K": (5, 5, 7, 11, 14), "T": 24.75, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -226,7 +234,7 @@ COMBO_EXPECT = {
     },
     ('exclusive', 5, 'alt', 'keep'): {
         "w": {"bands": (21, 22, 22, 22, 22), "K": (6, 4, 7, 11, 14), "T": 24.5, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (21, 22, 22, 22, 22), "K": (2, 6, 3, 4, 7), "T": 9.5, "p": 0.052589482103579284, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
+        "rand": {"bands": (21, 22, 22, 22, 22), "K": (2, 6, 3, 4, 7), "T": 9.5, "p": 0.04439112177564487, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「检出」'},
     },
     ('exclusive', 5, 'alt', 'drop'): {
         "w": {"bands": (21, 22, 22, 22, 22), "K": (6, 4, 7, 11, 14), "T": 24.5, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -242,7 +250,7 @@ COMBO_EXPECT = {
     },
     ('nearest_rank', 3, 'alt', 'keep'): {
         "w": {"bands": (36, 36, 37), "K": (5, 9, 14), "T": 8.8125, "p": 0.0005998800239952009, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (36, 36, 37), "K": (3, 4, 6), "T": 2.8125, "p": 0.1731653669266147, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
+        "rand": {"bands": (36, 36, 37), "K": (3, 4, 6), "T": 3.0625, "p": 0.14477104579084182, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
     },
     ('nearest_rank', 3, 'alt', 'drop'): {
         "w": {"bands": (36, 36, 37), "K": (5, 9, 14), "T": 8.8125, "p": 0.0005998800239952009, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -250,7 +258,7 @@ COMBO_EXPECT = {
     },
     ('nearest_rank', 4, 'prod', 'keep'): {
         "w": {"bands": (28, 27, 30, 24), "K": (4, 6, 10, 14), "T": 15.625, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (28, 27, 30, 24), "K": (2, 4, 5, 6), "T": 5.125, "p": 0.09578084383123375, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
+        "rand": {"bands": (28, 27, 30, 24), "K": (2, 4, 5, 6), "T": 5.125, "p": 0.09538092381523695, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
     },
     ('nearest_rank', 4, 'prod', 'drop'): {
         "w": {"bands": (28, 27, 30, 24), "K": (4, 6, 10, 14), "T": 15.625, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -258,7 +266,7 @@ COMBO_EXPECT = {
     },
     ('nearest_rank', 4, 'alt', 'keep'): {
         "w": {"bands": (27, 27, 27, 28), "K": (4, 7, 8, 14), "T": 16.625, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (27, 27, 27, 28), "K": (2, 4, 3, 6), "T": 6.625, "p": 0.041791641671665665, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「检出」'},
+        "rand": {"bands": (27, 27, 27, 28), "K": (2, 4, 3, 6), "T": 6.625, "p": 0.04239152169566087, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「检出」'},
     },
     ('nearest_rank', 4, 'alt', 'drop'): {
         "w": {"bands": (27, 27, 27, 28), "K": (4, 7, 8, 14), "T": 16.625, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -266,7 +274,7 @@ COMBO_EXPECT = {
     },
     ('nearest_rank', 5, 'prod', 'keep'): {
         "w": {"bands": (22, 22, 22, 22, 21), "K": (5, 5, 7, 11, 14), "T": 24.5, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (22, 22, 22, 22, 21), "K": (2, 6, 2, 4, 7), "T": 8.5, "p": 0.07198560287942411, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
+        "rand": {"bands": (22, 22, 22, 22, 21), "K": (2, 6, 2, 4, 7), "T": 8.5, "p": 0.05878824235152969, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
     },
     ('nearest_rank', 5, 'prod', 'drop'): {
         "w": {"bands": (22, 22, 22, 22, 21), "K": (5, 5, 7, 11, 14), "T": 24.5, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -274,7 +282,7 @@ COMBO_EXPECT = {
     },
     ('nearest_rank', 5, 'alt', 'keep'): {
         "w": {"bands": (21, 22, 22, 22, 22), "K": (6, 4, 7, 11, 14), "T": 24.5, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
-        "rand": {"bands": (21, 22, 22, 22, 22), "K": (2, 6, 3, 4, 7), "T": 9.5, "p": 0.052589482103579284, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「未检出」'},
+        "rand": {"bands": (21, 22, 22, 22, 22), "K": (2, 6, 3, 4, 7), "T": 9.5, "p": 0.04439112177564487, "rho": 0.023669955263642725, "scope": (5, 14), "det": '「检出」'},
     },
     ('nearest_rank', 5, 'alt', 'drop'): {
         "w": {"bands": (21, 22, 22, 22, 22), "K": (6, 4, 7, 11, 14), "T": 24.5, "p": 0.0001999600079984003, "rho": 0.6910593994437961, "scope": (10, 14), "det": '「检出」'},
@@ -374,13 +382,13 @@ def build_combo(rows_by_arm, combo):
             layers[i] = {"cells": g}
         rows = []
         for L in range(n_eff):
-            v = DL.layer_verdicts(layers[L]["cells"], DL.cell_sign_p9)
+            v = DL.layer_verdicts(layers[L]["cells"], DL.cell_sign_p9, DL.cell_zero_p9)
             cells = [c for cs in layers[L]["cells"].values() for c in cs]
             rows.append({
                 "L": L, "verdicts": v,
                 "K": sum(1 for t in v if v[t]["verdict"]),
                 "n_traj": len(v),
-                "nzs": [v[t]["nz"] for t in sorted(v)],
+                "nzs": [(v[t]["nz"], v[t]["nzero"]) for t in sorted(v)],
                 "cellpos": sum(1 for c in cells if DL.cell_sign_p9(c)),
                 "celln": len(cells),
             })
@@ -596,7 +604,7 @@ def build_report(allr):
                      for L in range(len(a["rows"]))]
             tr = a["trend"]
             RP.append("    · %-4s 档 %s ｜ rho %+.4f ｜ 各档 K=%s ｜ 格级正号率 %s"
-                      " ｜ 趋势 T=%.3f p=%.4f MC95%%带 [%.4f, %.4f]%s"
+                      " ｜ 趋势 T=%.3f p=%.6f MC95%%带 [%.4f, %.4f]%s"
                       " ｜ 剂量轴口径多数 %d/%d ｜ 检出状态=%s"
                       % (arm, bs, a["rho"], "/".join(str(x) for x in ks_),
                          "/".join(rates), tr["T"], tr["p"],
@@ -614,10 +622,11 @@ def build_report(allr):
                      "**不成立**（两臂格数不同 ⇒ 该组合的**跨臂比较未量到**）"))
         pw = s["arm"]["w"]["trend"]["p"]
         pr = s["arm"]["rand"]["trend"]["p"]
-        RP.append("    ⇒ 判决【%s】：**%s**（w 趋势 p=%.4f < %.2f ∧ rand 趋势 p=%.4f ≥ %.2f）"
+        RP.append("    ⇒ 判决【%s】：**%s**（w 趋势 p=%.6f %s %.2f ∧ rand 趋势 p=%.6f %s %.2f）"
                   " ｜ w %s ｜ rand %s%s"
                   % (s["label"], "成立" if s["verdict"] else "不成立",
-                     pw, ALPHA, pr, ALPHA,
+                     pw, "<" if pw < ALPHA else "≥", ALPHA,
+                     pr, "<" if pr < ALPHA else "≥", ALPHA,
                      s["arm"]["w"]["state"], s["arm"]["rand"]["state"],
                      "  ⚠⚠ **翻转**" if s["flip"] else ""))
 
@@ -684,7 +693,7 @@ def j_c0_baseline(allr):
 
     ⚖⚠⚖⚖⚖ **还必须钉住两件容易被偷改的东西**：
       ① **预登记的 α**（`ALPHA`）：把它改小 ⇒ 一大批组合的「检出」状态翻转
-      ⇒ 而基准那两个 p（0.0002 / 0.0878）在 α=0.01 下**状态不变** ⇒ 只比期望表**抓不到**
+      ⇒ 而基准那两个 p（0.0002 / 0.0876）在 α=0.01 下**状态不变** ⇒ 只比期望表**抓不到**
       ⇒ 必须**显式**断言 `ALPHA == BASE_ALPHA`。
       ② **生产口径的薄包装** `dose_bands(ks, fr)`：它的 `n_bands` **默认值**是 4
       ⇒ 有人把默认值改掉 ⇒ 生产剂量轴**整个变了** ⇒ 而本工具**显式传 n_bands** ⇒ 它看不见
@@ -808,7 +817,7 @@ def j_c3_layer_general(allr):
                 d.append("❌ 组合 %s / %s：声明 %d 档、实际 %d 档 ⇒ 权重中心对不上"
                          % (s["label"], arm, nb, nrow))
             m = min(nb, nrow)
-            e0 = [sum(DL.majority_base_p(nz) for nz in a["rows"][L]["nzs"])
+            e0 = [sum(DL.base_of(nz) for nz in a["rows"][L]["nzs"])
                   for L in range(m)]
             T_local = sum((L - w_off) * (a["rows"][L]["K"] - e0[L]) for L in range(m))
             good = (T_local == a["trend"]["T"]) and good_len
@@ -824,7 +833,7 @@ def j_c3_layer_general(allr):
     p_gen, T_gen, e0_gen, ge_gen, _n = DL.mc_trend_p_geom(nzs, obs, n_mc=2000, seed=1)
     import random
     rng = random.Random(1)
-    e0 = [sum(DL.majority_base_p(nz) for nz in nzs[L]) for L in range(4)]
+    e0 = [sum(DL.base_of(nz) for nz in nzs[L]) for L in range(4)]
     t_obs = sum((L - 1.5) * (obs[L] - e0[L]) for L in range(4))
     ge = 0
     for _ in range(2000):
@@ -850,7 +859,7 @@ def j_c3_layer_general(allr):
         fx_obs = [4, 6, 10, 12, 14][:nb]
         _p3, T3, _e3, _g3, _n3 = DL.mc_trend_p_geom(fx_nzs, fx_obs,
                                                     n_mc=200, seed=1, n_layer=nb)
-        e0_l = [sum(DL.majority_base_p(nz) for nz in fx_nzs[L]) for L in range(nb)]
+        e0_l = [sum(DL.base_of(nz) for nz in fx_nzs[L]) for L in range(nb)]
         T_l = sum((L - w_expect) * (fx_obs[L] - e0_l[L]) for L in range(nb))
         T_wrong = sum((L - 1.5) * (fx_obs[L] - e0_l[L]) for L in range(nb))
         good = (T3 == T_l and T_l != T_wrong)
@@ -1253,6 +1262,36 @@ def j_c17_combos_match_expect(allr):
     return ok, d
 
 
+def j_c18_zero_cells(allr):
+    """C18：**零格数**必须被报出（⛔ 零格被悄悄算进 nz ⇒ 零假设分布就错了 ⇒ p 就错了）。
+
+    ⚖⚠⚖⚖⚖ **零格恒为 False** ⇒ 它**不进**零假设基准、但**进**分母
+       ⇒ 零格数是「零分布」的直接输入 ⇒ 数错 ⇒ p 错
+    ⇒ 期望值是**独立探针实测的字面量**（⛔ 不从被检对象派生）
+    ⇒ 判据从**被检对象**读零格数（`rows[*]["nzs"]` 的第二项）⇒ 与期望对照 ⇒ **能红**。
+    """
+    ok = True
+    d = []
+    tot = 0
+    bad = []
+    for s in allr["scenarios"]:
+        zero_span = s["combo"][3]
+        for arm in ARMS:
+            z = sum(nz0 for r in s["arm"][arm]["rows"] for (_nz, nz0) in r["nzs"])
+            tot += z
+            want = ZERO_CELLS_EXPECT[zero_span][arm]
+            if z != want:
+                bad.append("%s / %s 臂：零格 %d（期望 %d）"
+                           % (s["label"], arm, z, want))
+    ok = (not bad) and (tot == ZERO_CELLS_TOTAL)
+    d.append("36 个组合的零格数：keep ⇒ rand 2 / w 0，drop ⇒ 两臂 0"
+             "（实测：不符合 %d 处）%s"
+             % (len(bad), "✅" if not bad else "❌ " + "；".join(bad[:4])))
+    d.append("零格总数 %d（写死 %d）%s"
+             % (tot, ZERO_CELLS_TOTAL, "✅" if tot == ZERO_CELLS_TOTAL else "❌"))
+    return ok, d
+
+
 # ---------------------------------------------------------------- 运行
 def run():
     allr = build_all()
@@ -1280,6 +1319,7 @@ def run():
     put("C15", *j_c15_conclusion_field(allr, RP))
     put("C16", *j_c16_marks(RP))
     put("C17", *j_c17_combos_match_expect(allr))
+    put("C18", *j_c18_zero_cells(allr))
 
     for ln in RP:
         print(ln)
@@ -1316,6 +1356,40 @@ def _mut_c7_band(a):
         if lo <= ALPHA <= hi:
             s["arm"]["rand"]["trend"]["band"] = (0.001, 0.01)
             return
+
+
+def _mut_c14_rand_detect(ln):
+    """⚖ 把边际行里「rand 检出」那个**数**改成别的（⛔ 不写死是哪个值）。"""
+    if not ln.startswith("  ⚖ 维度 "):
+        return ln
+    key = "rand 检出 "
+    i = ln.find(key)
+    if i < 0:
+        return ln
+    j = i + len(key)
+    k = j
+    while k < len(ln) and ln[k].isdigit():
+        k += 1
+    old = ln[j:k]
+    if not old:
+        return ln
+    new = "99" if old != "99" else "98"
+    return ln[:j] + new + ln[k:]
+
+
+def _mut_c18_zero(a):
+    """⚖ 把 rand 臂**一个真有零格**的轨迹的零格数改成 0 ⇒ C18 必须红。
+
+    ⚖⚠⚖ **必须找「真有零格」的那条**（244.65 的教训）：
+       打「第一个组合的第一个轨迹」⇒ 那个轨迹**本来就没有零格**
+       ⇒ 改动无效 ⇒ 判据看着像**恒绿**。
+    """
+    for s in a["scenarios"]:
+        for r in s["arm"]["rand"]["rows"]:
+            for i, (nz, nz0) in enumerate(r["nzs"]):
+                if nz0 > 0:
+                    r["nzs"][i] = (nz, 0)
+                    return
 
 
 def _mutations():
@@ -1373,6 +1447,8 @@ def _mutations():
         ("C17", "某个组合的各档 K 被改坏",
          lambda a: a["scenarios"][-1]["arm"]["rand"]["rows"][0].__setitem__(
              "K", 99)),
+        ("C18", "rand 臂某个组合的**零格数**被改坏（零格被算进 nz）",
+         _mut_c18_zero),
     ]
 
 
@@ -1408,6 +1484,7 @@ def selftest():
         "C15": lambda a, rp: j_c15_conclusion_field(a, rp),
         "C16": lambda a, rp: j_c16_marks(rp),
         "C17": lambda a, rp: j_c17_combos_match_expect(a),
+        "C18": lambda a, rp: j_c18_zero_cells(a),
     }
     for cid, name, mut in _mutations():
         a2 = copy.deepcopy(allr)
@@ -1426,9 +1503,9 @@ def selftest():
                 RP2 = [ln.replace("档 27/28/30/24", "档 27/28/30/25")
                        if ln.startswith("    · w ") else ln for ln in RP2]
             elif cid == "C14":
-                RP2 = [ln.replace("rand 检出  2", "rand 检出  3")
-                       if ln.startswith("  ⚖ 维度 分位算法 = inclusive") else ln
-                       for ln in RP2]
+                # ⚖⚠⚖ **按字段定位，⛔ 不写死是哪个数**（244.65 的教训：
+                #   写死「rand 检出  2」⇒ 那个数一变 ⇒ 替换打空 ⇒ 变异无效）
+                RP2 = [_mut_c14_rand_detect(ln) for ln in RP2]
             elif cid == "C15":
                 RP2 = [ln.replace("剂量—响应结论（α 上）= **未量到**",
                                    "剂量—响应结论（α 上）= **无差异**")

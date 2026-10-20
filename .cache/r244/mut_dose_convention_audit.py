@@ -118,7 +118,7 @@ MUTATIONS = [
      "ALPHA = 0.01\n# ⚖ **预登记的 α**",
      "C0", "预登记的 α 被改小（0.05 → 0.01）"),
     ("M6", "tool",
-     "bases = [DL.majority_base_p(nz) for nz in row[\"nzs\"]]",
+     "bases = [DL.base_of(nz) for nz in row[\"nzs\"]]",
      "bases = [0.5 for nz in row[\"nzs\"]]",
      "C3", "层内基准被换成 0.5（⛔ 244.60 的核心陷阱）"),
     ("M7", "tool",

@@ -95,8 +95,8 @@ MUTATIONS = [
      "               for j in range(nz // 2, nz + 1))",
      "C0y", "层内基准公式（2 格的基准被从 0.25 改成 0.75）"),
     ("M2",
-     "                    \"verdict\": nT > nF}",
-     "                    \"verdict\": nT >= nF}",
+     "                    \"m\": len(cs), \"verdict\": nT > nF}",
+     "                    \"m\": len(cs), \"verdict\": nT >= nF}",
      "C2", "平票规则（`nT > nF` 改成 `>=` ⇒ 与生产机械不一致）"),
     ("M3",
      "            nd[i] += v * (1.0 - p)\n            nd[i + 1] += v * p",
@@ -107,8 +107,8 @@ MUTATIONS = [
      "            t += d",
      "C5", "配对置换**不换臂**（统计量恒为观测值）"),
     ("M5",
-     "                npos = sum(1 for _ in range(nz) if rng.random() < 0.5)",
-     "                npos = sum(1 for _ in range(nz) if rng.random() < 1.0)",
+     "    npos = sum(1 for _r in draws[:n_nz] if _r < 0.5)",
+     "    npos = n_nz",
      "C4z", "MC 零假设改成「每格必正」⇒ 零分布塌掉 ⇒ 校准判据红"),
     ("M6",
      "    return dconf().d_of(r) > 0",
@@ -147,7 +147,24 @@ MUTATIONS = [
      '"  ⚠⚠ **翻转**" if flip else ""',
      '"  ⚠⚠ ✗✗" if flip else ""',
      "C4", "「**翻转**」这个**标记**被改掉 ⇒ 「必须印出」型判据红"),
+    ("M15",
+     "    return sum(math.comb(n_nz, j) * 0.5 ** n_nz\n"
+     "               for j in range(n_nz + 1) if j * 2 > tot)",
+     "    return majority_base_p(n_nz + n_zero)",
+     "C10", "零假设基准**退回旧写法**（零格也当一次公平抛硬币）"),
+    ("M16",
+     "    npos = sum(1 for _r in draws[:n_nz] if _r < 0.5)\n"
+     "    return npos * 2 > n_nz + n_zero",
+     "    npos = sum(1 for _r in draws if _r < 0.5)\n"
+     "    return npos * 2 > n_nz + n_zero",
+     "C11", "零假设**模拟规则退回旧写法**（零格也抽公平硬币 ⇒ 零分布变宽）"),
+    ("M17",
+     "    w_off = (n_layer - 1) / 2.0",
+     "    w_off = 0.0",
+     "C12", "层间权重改成**不对称** ⇒ 「解析基准在比较中抵消」的恒等破掉"),
 ]
+
+
 
 
 def _load(path, src=None):
