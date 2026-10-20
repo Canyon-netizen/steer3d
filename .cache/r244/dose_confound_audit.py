@@ -219,6 +219,34 @@ def frac_of(rec):
     return float(ns) / float(denom_of(rec))
 
 
+def dose_cells(recs):
+    """⚖ **剂量轴用的格集合** + 每格的**注入比例**（**唯一实现**；244.60 复用）。
+
+    ⚖ 格集合 = `inject_scope == "k"` 且**有实测读数**（`p9_lo_meas` 不为 None）
+    且有 `inject_n_sites` ⇒ ⛔ 端点档（all / single）**不进**剂量轴
+    （它们的覆盖率恒 = 1.0，不是剂量水平，而是**两种机制的端点**）。
+    """
+    meas = [r for r in recs if r.get("p9_lo_meas") is not None]
+    ks = [r for r in meas if r["inject_scope"] == "k" and r.get("inject_n_sites")]
+    return ks, [frac_of(r) for r in ks]
+
+
+def dose_bands(ks, fr):
+    """⚖ 244.50 的**注入比例四分位分档**（**唯一实现**；⛔ 不许在别处另写一份）。
+
+    ⚖ 返回 (分位点, [(档名, 格列表)…])。
+    ⚖⚠⚠ **档边界与 244.50 逐条相同**：第一档**含** q1（`f <= q1`），
+    其余三档**左开右闭**（`q1 < f <= q2` …）⇒ 最后一档是开区间（`f > q3`）。
+    ⚖ 改这里的边界 ⇒ **244.50/244.51/244.52 的剂量轴结论全部作废**。
+    """
+    qs = _st.quantiles(fr, n=4)
+    bands = [("frac<=q1", [r for r, f2 in zip(ks, fr) if f2 <= qs[0]]),
+             ("q1..q2", [r for r, f2 in zip(ks, fr) if qs[0] < f2 <= qs[1]]),
+             ("q2..q3", [r for r, f2 in zip(ks, fr) if qs[1] < f2 <= qs[2]]),
+             ("frac>q3", [r for r, f2 in zip(ks, fr) if f2 > qs[2]])]
+    return qs, bands
+
+
 def majority_count(recs):
     """⚖ 账本口径：逐轨迹取 `d > 0` 的多数（平票算 False ⇒ 不算真）。"""
     g = {}
@@ -244,7 +272,9 @@ def audit(arm, path):
     ok &= good
 
     # C2 格的构成：必须是**混合剂量**，否则「混淆」这条判据恒红
-    ks = [r for r in meas if r["inject_scope"] == "k" and r.get("inject_n_sites")]
+    # ⚖⚠⚠ 244.60：格集合与注入比例改由**唯一实现** `dose_cells()` 给
+    #   （⛔ 不许在本文件里另留一份，244.60 复用同一份）
+    ks, fr = dose_cells(recs)
     scopes = {}
     for r in meas:
         scopes[r["inject_scope"]] = scopes.get(r["inject_scope"], 0) + 1
@@ -299,7 +329,6 @@ def audit(arm, path):
 
     # C3 剂量相关性：**两个轴都印**，差别必须看得见
     ns = [float(r["inject_n_sites"]) for r in ks]
-    fr = [frac_of(r) for r in ks]
     dd = [d_of(r) for r in ks]
     rho_raw = spearman(ns, dd)
     rho = spearman(fr, dd)
@@ -309,11 +338,8 @@ def audit(arm, path):
     L.append("     ⚖ 注入比例范围 %.4f … %.4f" % (min(fr), max(fr)))
 
     # C4 分档表（四档都必须印出来，且中位数单调与否要**报出来**）
-    qs_ = _st.quantiles(fr, n=4)
-    bands = [("frac<=q1", [r for r, f2 in zip(ks, fr) if f2 <= qs_[0]]),
-             ("q1..q2", [r for r, f2 in zip(ks, fr) if qs_[0] < f2 <= qs_[1]]),
-             ("q2..q3", [r for r, f2 in zip(ks, fr) if qs_[1] < f2 <= qs_[2]]),
-             ("frac>q3", [r for r, f2 in zip(ks, fr) if f2 > qs_[2]])]
+    # ⚖⚠⚠ 244.60：分档改由**唯一实现** `dose_bands()` 给（⛔ 不许另写一份）
+    qs_, bands = dose_bands(ks, fr)
     L.append("  C4 按**注入比例**四分位分档（分位点 %.3f / %.3f / %.3f）"
              % tuple(qs_))
     meds = []
