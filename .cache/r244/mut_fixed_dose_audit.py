@@ -88,7 +88,7 @@ MUTATIONS = [
      '        self.boundary = "alt"',
      "F2", "档边界被**写死**成 alt（预登记说 prod）"),
     ("M2",
-     '        self.n_bands = int(raw["n_bands"])',
+     '        self.n_bands = _as_num(raw, "n_bands", int)',
      '        self.n_bands = 4',
      "T13", "档数被**写死**成 4（不再从预登记读 ⇒ 预登记改了也没人知道）"),
     ("M3",

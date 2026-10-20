@@ -1,0 +1,21 @@
+{
+  "_note": "⚠⚠⚠ **示例**设计描述（给 `fixed_dose_preflight.py` 用）⛔ **不是**建议规模 ⛔ **不是**已批准的设计 ⇒ 正式设计要由用户定。它的作用是：让下一位接手的人能立刻跑一遍预检器，看清『设计描述』长什么样、以及预检器会问哪些问题。逐字段的含义见工具的 docstring，或 `python3 .cache/r244/fixed_dose_preflight.py --emit-template`。",
+  "design_id": "example_fd_design（示例 ⛔ 不是建议规模）",
+  "n_blocks": 24,
+  "tracks_per_arm": 200,
+  "cells_per_track": 12,
+  "tracks_per_band": {
+    "w": [200, 200, 200, 200],
+    "rand": [200, 200, 200, 200]
+  },
+  "expected_proportions": {
+    "w": [0.2857142857142857, 0.42857142857142855, 0.7142857142857143, 1.0],
+    "rand": [0.14285714285714285, 0.2857142857142857, 0.35714285714285715, 0.42857142857142855]
+  },
+  "convention": {
+    "n_bands": 4,
+    "boundary": "prod",
+    "quantile": "inclusive",
+    "zero_span": "keep"
+  }
+}

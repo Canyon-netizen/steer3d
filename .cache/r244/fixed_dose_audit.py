@@ -197,13 +197,28 @@ def prereg_k_rows(path=PREREG):
     return out
 
 
+def _as_num(raw, key, cast):
+    """⚖⚠⚖⚖ 预登记的值**格式不对** ⇒ **HardFail**（⛔ 不许崩成 ValueError）。
+
+    ⚖ **244.68 补**：原来 `float(raw["alpha"])` 在值为空/非数时会**抛 ValueError**
+    ⇒ 读同一份预登记的**预检器**会带着 traceback **崩掉**
+    ⇒ ⛔ **「崩」不是「抓到」** ⇒ 改成**干净的 HardFail**（⇒ 明确「前提不满足」）。
+    ⚖ 良构路径的取值**完全不变**（只多了一层 except ⇒ 逐位相同）。
+    """
+    v = (raw or {}).get(key)
+    try:
+        return cast(v)
+    except (TypeError, ValueError):
+        raise HardFail("预登记 %s=%r 不是%s" % (key, v, cast.__name__))
+
+
 class Cfg(object):
     """⚖ **生效口径**（全部来自预登记）—— ⛔ 本类里没有一句「写死」的取值。"""
 
     def __init__(self, raw):
         self.raw = dict(raw)
-        self.alpha = float(raw["alpha"])
-        self.n_bands = int(raw["n_bands"])
+        self.alpha = _as_num(raw, "alpha", float)
+        self.n_bands = _as_num(raw, "n_bands", int)
         self.boundary = raw["boundary"]
         self.quantile = raw["quantile"]
         self.zero_span = raw["zero_span"]
@@ -215,9 +230,9 @@ class Cfg(object):
         self.interval_ratio = raw["interval_ratio"]
         self.interval_diff = raw["interval_diff"]
         self.mc_band = raw["mc_band"]
-        self.blocks_needed_sign_test = int(raw["blocks_needed_sign_test"])
-        self.blocks_needed_cluster = int(raw["blocks_needed_cluster"])
-        self.blocks_needed_fisher_exact = int(raw["blocks_needed_fisher_exact"])
+        self.blocks_needed_sign_test = _as_num(raw, "blocks_needed_sign_test", int)
+        self.blocks_needed_cluster = _as_num(raw, "blocks_needed_cluster", int)
+        self.blocks_needed_fisher_exact = _as_num(raw, "blocks_needed_fisher_exact", int)
         self.sign_date = raw["sign_date"]
         self._check_contract()
 
