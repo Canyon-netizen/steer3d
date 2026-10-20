@@ -211,7 +211,7 @@ def paired_perm_p(diffs, n_perm=20000, seed=20261020):
     return (ge + 1) / (n_perm + 1.0), obs
 
 
-def mc_trend_p_geom(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020):
+def mc_trend_p_geom(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020, n_layer=None):
     """⚖⚖⚖ **剂量趋势检验**（MC 零假设）—— **多返回 MC 的计数**（`ge` / `n_mc`）。
 
     ⚖ 统计量 `T = Σ_L (L − 1.5) · (K_L − E0_L)`：`K_L` = 该层为真的条数，
@@ -226,32 +226,51 @@ def mc_trend_p_geom(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020):
     `p = (ge+1)/(n_mc+1)` 只是**点估计**，MC 本身有**蒙特卡洛误差**
     ⇒ 244.62 要报「p 的不确定带」（当 p 贴着 α 时，这个带是**决定性的**）
     ⇒ **一个实现**：`mc_trend_p` 是本函数的薄包装 ⇒ ⛔ 不许另写第二份 MC。
+    ⚖⚠⚠⚠⚖⚖ **层数通用化（244.64 加的）**：
+    原来层数写死成 4（`N_LAYER`），统计量的权重也写死成 `L − 1.5`
+    ⇒ 244.64 要在**别的层数**上重算 ⇒ **参数化**：`n_layer`（默认 = `N_LAYER` = 4），
+    权重改成 `L − (n_layer − 1)/2`
+    ⇒ ⚖ **4 层时 `w_off = (4−1)/2 = 1.5` 逐位等于旧的写死值**
+    ⇒ 244.60–244.63 的数**必须逐位不变**（用「4 个依赖工具输出逐行相同」作证）。
     """
-    e0 = [sum(majority_base_p(nz) for nz in nzs_by_layer[L]) for L in range(N_LAYER)]
-    t_obs = sum((L - 1.5) * (obs_counts[L] - e0[L]) for L in range(N_LAYER))
+    if n_layer is None:
+        n_layer = N_LAYER
+    if n_layer < 1 or n_layer > len(nzs_by_layer):
+        raise ValueError(
+            "n_layer=%r 越界（nzs_by_layer 只有 %d 层）" % (n_layer, len(nzs_by_layer))
+        )
+    # ⚖ 权重中心：层数 n 时，权重 `L − (n−1)/2` 关于中间层对称
+    #   n=4 ⇒ 1.5（与 244.63 及以前的写死值**逐位相同**）
+    #   n=3 ⇒ 1.0（−1, 0, +1）｜ n=5 ⇒ 2.0（−2, −1, 0, +1, +2）
+    w_off = (n_layer - 1) / 2.0
+    e0 = [sum(majority_base_p(nz) for nz in nzs_by_layer[L]) for L in range(n_layer)]
+    t_obs = sum((L - w_off) * (obs_counts[L] - e0[L]) for L in range(n_layer))
     rng = random.Random(seed)
     ge = 0
     for _ in range(n_mc):
         tot = 0.0
-        for L in range(N_LAYER):
+        for L in range(n_layer):
             k = 0
             for nz in nzs_by_layer[L]:
                 npos = sum(1 for _ in range(nz) if rng.random() < 0.5)
                 if npos * 2 > nz:
                     k += 1
-            tot += (L - 1.5) * (k - e0[L])
+            tot += (L - w_off) * (k - e0[L])
         if tot >= t_obs - 1e-12:
             ge += 1
     return (ge + 1) / (n_mc + 1.0), t_obs, e0, ge, n_mc
 
 
-def mc_trend_p(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020):
+def mc_trend_p(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020, n_layer=None):
     """⚖⚖⚖ **剂量趋势检验**（MC 零假设）。
 
     ⚖ 统计量与零假设见 `mc_trend_p_geom`（**唯一实现**）⇒ 本函数是它的**薄包装**
     （返回 `(p, T, e0)`，⛔ 不带 MC 计数 ⇒ 244.60/244.61 的调用点**逐位不变**）。
+    ⚖ 244.64 加 `n_layer` 透传（默认 `None` ⇒ 内部解析成 `N_LAYER` = 4 ⇒ **逐位不变**）。
     """
-    p, t_obs, e0, _ge, _n = mc_trend_p_geom(nzs_by_layer, obs_counts, n_mc, seed)
+    p, t_obs, e0, _ge, _n = mc_trend_p_geom(
+        nzs_by_layer, obs_counts, n_mc, seed, n_layer=n_layer
+    )
     return p, t_obs, e0
 
 

@@ -233,6 +233,25 @@ BOUNDARY_CONVENTIONS = ("prod", "alt")
 QUANTILE_METHODS = ("inclusive", "exclusive")
 ZERO_SPAN_POLICIES = ("keep", "drop")
 
+# ⚖⚠⚠⚠⚖⚖ **244.64 加的两个口径维度**（同样住在这**唯一实现**里 ⇒ ⛔ 不许别处另写）：
+#   · `N_BANDS_CHOICES`：剂量轴的**档数**（244.63 的【B2】「档数不是 4 ⇒ 未量到」）
+#   · `QUANTILE_METHODS_EXT`：分位点算法的**第三支**（244.63 的【B1】
+#     「nearest-rank / numpy.percentile / 手算插值 ⇒ 未量到」）
+#
+# ⚖⚠⚠⚠ **为什么 `QUANTILE_METHODS` 不直接扩成 3 支**：
+#   244.63 的 `dose_convention_audit.py` **自己写死**了取值集合（不 import 本文件的）
+#   ⇒ 但本文件的常量是**口径空间的登记处** ⇒ 扩它会让「244.63 测的是 8 组合」
+#   与「本仓登记的口径空间」**对不上** ⇒ 故另起 `QUANTILE_METHODS_EXT`，
+#   并在 244.64 的工具里**显式断言** 244.63 的那 2 支 ⊂ 本集合。
+N_BANDS_CHOICES = (3, 4, 5)
+QUANTILE_METHODS_EXT = ("inclusive", "exclusive", "nearest_rank")
+# ⚖⚠⚠⚠ **本机只有 inclusive / exclusive 两支**（`statistics.quantiles` 的
+#   `method` 参数，Python 3.9.6）⇒ `hazen` / `weibull` / `linear` 等插值族
+#   **本机跑不了** ⇒ 那一整类口径**未量到**（要换解释器才能测）⇒
+#   ⛔ **不许**说成「没有影响」⇒ 登记在 244.64 的留白里。
+QUANTILE_METHODS_UNREACHABLE = ("hazen", "weibull", "linear", "median_unbiased",
+                                 "normal_unbiased")
+
 
 def dose_cells(recs, zero_span="keep"):
     """⚖ **剂量轴用的格集合** + 每格的**注入比例**（**唯一实现**；244.60 复用）。
@@ -257,11 +276,43 @@ def dose_cells(recs, zero_span="keep"):
     return ks, [frac_of(r) for r in ks]
 
 
-def dose_bands_v(ks, fr, boundary="prod", quantile="inclusive"):
+def _nearest_rank_cuts(fr, n_bands):
+    """⚖ **最近秩分位点**（R type 1，**不插值**）—— 244.64 加。
+
+    ⚖⚠⚠⚠ **为什么自己实现**：本机 Python 3.9.6 的 `statistics.quantiles`
+    **只支持 `inclusive` / `exclusive`** ⇒ `hazen` / `weibull` / `linear` 等
+    插值族**本机根本跑不了** ⇒ 「换插值族」这一整类口径**未量到**。
+    ⇒ 本机**唯一能加**的是**不插值**的那一族 ⇒ 选 **最近秩**（R type 1）。
+
+    ⚖ 定义：`Q(p) = x_sorted[ceil(n·p) − 1]`（1-indexed 秩、0-indexed 取值）
+    ⇒ 分位点**就是某个实测值** ⇒ 分档时**必有格正好落在分位点上**
+    ⇒ 这与 `inclusive` / `exclusive`（都插值 ⇒ 分位点通常不是实测值）
+    **结构上不同** ⇒ 这一维**不空转**（244.63 的「四分位算法」那一维就空转了）。
+
+    ⚖⚠ **分位点个数** = `n_bands − 1`（与 `statistics.quantiles(fr, n=n_bands)` 一致）
+    ⇒ 位置 `p = i / n_bands`（`i = 1 … n_bands−1`）⇒ 与 R 的 `quantile()` 同义。
+    """
+    xs = sorted(fr)
+    n = len(xs)
+    if n < 1:
+        raise HardFail("最近秩分位点：没有数据（%d 个）" % n)
+    cuts = []
+    for i in range(1, n_bands):
+        r = int(math.ceil(n * (i / float(n_bands))))
+        if r < 1:
+            r = 1
+        elif r > n:
+            r = n
+        cuts.append(xs[r - 1])
+    return cuts
+
+
+def dose_bands_v(ks, fr, boundary="prod", quantile="inclusive", n_bands=4):
     """⚖ **剂量轴分档**（**唯一实现**；244.63 参数化后覆盖全部口径变体）。
 
     ⚖ 返回 (分位点, [(档名, 格列表)…])。
-    ⚖⚠⚠ **生产口径（`boundary="prod"` ＋ `quantile="inclusive"`）与 244.50 逐条相同**：
+    ⚖⚠⚠ **生产口径（`boundary="prod"` ＋ `quantile="inclusive"` ＋ `n_bands=4`）
+       与 244.50 逐条相同**：
        第一档**含** q1（`f <= q1`），其余三档**左开右闭**（`q1 < f <= q2` …）
        ⇒ 最后一档是开区间（`f > q3`）。
     ⚖ 改这里的边界 ⇒ **244.50/244.51/244.52 的剂量轴结论全部作废**。
@@ -271,24 +322,42 @@ def dose_bands_v(ks, fr, boundary="prod", quantile="inclusive"):
       · `boundary="alt"` ：`f<q1`  / `q1<=f<q2` / `q2<=f<q3` / `f>=q3`
         （**只对正好落在分位点上的格**有影响 ⇒ 那 0 个 ⇒ 这个变体就**空转**）
       · `quantile="exclusive"`：`statistics.quantiles(..., method="exclusive")`
+
+    ⚖⚖⚖⚖⚖ **244.64 加的两个口径维度**（同一份实现 ⇒ 仍然不可能分叉）：
+      · `n_bands`（3 / 4 / 5）：**档数**。分位点数 = `n_bands − 1`，
+        档名与边界按 `n_bands` **通用生成** ⇒ 生产（4 档）的档名**逐字不变**
+        （`frac<=q1` / `q1..q2` / `q2..q3` / `frac>q3`）。
+        ⚖⚠ 档数变了 ⇒ **层数也变** ⇒ 剂量趋势检验的权重中心随之变
+        ⇒ 见 `dose_layer_audit.mc_trend_p_geom(..., n_layer=…)`。
+      · `quantile="nearest_rank"`：**最近秩**分位点（自实现，**不插值**）。
+        ⚖⚠⚠ **本机只有 inclusive / exclusive 两支 `statistics.quantiles`**
+        ⇒ 插值族（hazen / weibull / linear…）**本机未量到**（⛔ 不是「无影响」）。
     """
+    if n_bands < 2:
+        raise HardFail("n_bands 至少 2（得到 %r）" % (n_bands,))
     if quantile == "inclusive":
-        qs = _st.quantiles(fr, n=4)
+        qs = _st.quantiles(fr, n=n_bands)
     elif quantile == "exclusive":
-        qs = _st.quantiles(fr, n=4, method="exclusive")
+        qs = _st.quantiles(fr, n=n_bands, method="exclusive")
+    elif quantile == "nearest_rank":
+        qs = _nearest_rank_cuts(fr, n_bands)
     else:
-        raise HardFail("quantile 只能是 'inclusive' / 'exclusive'（得到 %r）"
-                       % (quantile,))
+        raise HardFail("quantile 只能是 %s（得到 %r）"
+                       % (list(QUANTILE_METHODS_EXT), quantile))
     if boundary == "prod":
-        bands = [("frac<=q1", [r for r, f2 in zip(ks, fr) if f2 <= qs[0]]),
-                 ("q1..q2", [r for r, f2 in zip(ks, fr) if qs[0] < f2 <= qs[1]]),
-                 ("q2..q3", [r for r, f2 in zip(ks, fr) if qs[1] < f2 <= qs[2]]),
-                 ("frac>q3", [r for r, f2 in zip(ks, fr) if f2 > qs[2]])]
+        bands = [("frac<=q1", [r for r, f2 in zip(ks, fr) if f2 <= qs[0]])]
+        for i in range(n_bands - 2):
+            bands.append(("q%d..q%d" % (i + 1, i + 2),
+                          [r for r, f2 in zip(ks, fr) if qs[i] < f2 <= qs[i + 1]]))
+        bands.append(("frac>q%d" % (n_bands - 1),
+                      [r for r, f2 in zip(ks, fr) if f2 > qs[-1]]))
     elif boundary == "alt":
-        bands = [("frac<q1", [r for r, f2 in zip(ks, fr) if f2 < qs[0]]),
-                 ("q1..q2", [r for r, f2 in zip(ks, fr) if qs[0] <= f2 < qs[1]]),
-                 ("q2..q3", [r for r, f2 in zip(ks, fr) if qs[1] <= f2 < qs[2]]),
-                 ("frac>=q3", [r for r, f2 in zip(ks, fr) if f2 >= qs[2]])]
+        bands = [("frac<q1", [r for r, f2 in zip(ks, fr) if f2 < qs[0]])]
+        for i in range(n_bands - 2):
+            bands.append(("q%d..q%d" % (i + 1, i + 2),
+                          [r for r, f2 in zip(ks, fr) if qs[i] <= f2 < qs[i + 1]]))
+        bands.append(("frac>=q%d" % (n_bands - 1),
+                      [r for r, f2 in zip(ks, fr) if f2 >= qs[-1]]))
     else:
         raise HardFail("boundary 只能是 'prod' / 'alt'（得到 %r）" % (boundary,))
     return qs, bands
