@@ -219,32 +219,89 @@ def frac_of(rec):
     return float(ns) / float(denom_of(rec))
 
 
-def dose_cells(recs):
+# ⚖⚖⚖⚖⚖ **244.63：剂量轴的「口径」有三个维度**（每个 2 种取值 ⇒ 2×2×2 = 8 个组合）
+#
+# ⚖ ① 档边界约定：prod（244.50 的原式）vs alt（**切点上的格改归后一档**）
+# ⚖ ② 四分位算法：`statistics.quantiles` 的 `inclusive`（生产默认）vs `exclusive`
+# ⚖ ③ 零跨度格（`d == 0`）进不进剂量轴
+#
+# ⚖⚠⚠⚖⚖⚖ **这三个维度都住在本文件里**（⛔ 不许在别处另写一份分档器）：
+#   ⇒ 「同一个概念的两个实现」会让两个报告**悄悄分叉**（244.61 的教训）
+#   ⇒ 生产口径**就是** `dose_bands_v(ks, fr, "prod", "inclusive")`
+#      （⇒ 少一个特判分支 ⇒ 变体与生产口径**不可能**对不上）
+BOUNDARY_CONVENTIONS = ("prod", "alt")
+QUANTILE_METHODS = ("inclusive", "exclusive")
+ZERO_SPAN_POLICIES = ("keep", "drop")
+
+
+def dose_cells(recs, zero_span="keep"):
     """⚖ **剂量轴用的格集合** + 每格的**注入比例**（**唯一实现**；244.60 复用）。
 
     ⚖ 格集合 = `inject_scope == "k"` 且**有实测读数**（`p9_lo_meas` 不为 None）
     且有 `inject_n_sites` ⇒ ⛔ 端点档（all / single）**不进**剂量轴
     （它们的覆盖率恒 = 1.0，不是剂量水平，而是**两种机制的端点**）。
+
+    ⚖⚖⚖ **244.63 加 `zero_span`**（口径维度③）：
+      · `"keep"`（默认）= **生产口径**，与 244.50/244.60 **逐位相同**
+      · `"drop"` = 把 `d == 0`（**零跨度**）的格**剔出**剂量轴
+    ⚖⛔ 剔掉的格**不是被丢弃**：它们只是**不进剂量轴**（别的口径照旧用它们）
+      ⇒ 本函数只管「剂量轴」这一件事。
     """
     meas = [r for r in recs if r.get("p9_lo_meas") is not None]
     ks = [r for r in meas if r["inject_scope"] == "k" and r.get("inject_n_sites")]
+    if zero_span == "drop":
+        # ⚖⚠ 缺 `p9_hi_meas` ⇒ `d_of` 拒读（**未量到**）⇒ ⛔ 不许当 0 静默剔掉
+        ks = [r for r in ks if d_of(r) != 0.0]
+    elif zero_span != "keep":
+        raise HardFail("zero_span 只能是 'keep' / 'drop'（得到 %r）" % (zero_span,))
     return ks, [frac_of(r) for r in ks]
+
+
+def dose_bands_v(ks, fr, boundary="prod", quantile="inclusive"):
+    """⚖ **剂量轴分档**（**唯一实现**；244.63 参数化后覆盖全部口径变体）。
+
+    ⚖ 返回 (分位点, [(档名, 格列表)…])。
+    ⚖⚠⚠ **生产口径（`boundary="prod"` ＋ `quantile="inclusive"`）与 244.50 逐条相同**：
+       第一档**含** q1（`f <= q1`），其余三档**左开右闭**（`q1 < f <= q2` …）
+       ⇒ 最后一档是开区间（`f > q3`）。
+    ⚖ 改这里的边界 ⇒ **244.50/244.51/244.52 的剂量轴结论全部作废**。
+
+    ⚖⚖⚖ **244.63 的三个口径维度**（都在这一个函数里 ⇒ 变体与生产口径不可能分叉）：
+      · `boundary="prod"`：`f<=q1` / `q1<f<=q2` / `q2<f<=q3` / `f>q3`
+      · `boundary="alt"` ：`f<q1`  / `q1<=f<q2` / `q2<=f<q3` / `f>=q3`
+        （**只对正好落在分位点上的格**有影响 ⇒ 那 0 个 ⇒ 这个变体就**空转**）
+      · `quantile="exclusive"`：`statistics.quantiles(..., method="exclusive")`
+    """
+    if quantile == "inclusive":
+        qs = _st.quantiles(fr, n=4)
+    elif quantile == "exclusive":
+        qs = _st.quantiles(fr, n=4, method="exclusive")
+    else:
+        raise HardFail("quantile 只能是 'inclusive' / 'exclusive'（得到 %r）"
+                       % (quantile,))
+    if boundary == "prod":
+        bands = [("frac<=q1", [r for r, f2 in zip(ks, fr) if f2 <= qs[0]]),
+                 ("q1..q2", [r for r, f2 in zip(ks, fr) if qs[0] < f2 <= qs[1]]),
+                 ("q2..q3", [r for r, f2 in zip(ks, fr) if qs[1] < f2 <= qs[2]]),
+                 ("frac>q3", [r for r, f2 in zip(ks, fr) if f2 > qs[2]])]
+    elif boundary == "alt":
+        bands = [("frac<q1", [r for r, f2 in zip(ks, fr) if f2 < qs[0]]),
+                 ("q1..q2", [r for r, f2 in zip(ks, fr) if qs[0] <= f2 < qs[1]]),
+                 ("q2..q3", [r for r, f2 in zip(ks, fr) if qs[1] <= f2 < qs[2]]),
+                 ("frac>=q3", [r for r, f2 in zip(ks, fr) if f2 >= qs[2]])]
+    else:
+        raise HardFail("boundary 只能是 'prod' / 'alt'（得到 %r）" % (boundary,))
+    return qs, bands
 
 
 def dose_bands(ks, fr):
     """⚖ 244.50 的**注入比例四分位分档**（**唯一实现**；⛔ 不许在别处另写一份）。
 
-    ⚖ 返回 (分位点, [(档名, 格列表)…])。
-    ⚖⚠⚠ **档边界与 244.50 逐条相同**：第一档**含** q1（`f <= q1`），
-    其余三档**左开右闭**（`q1 < f <= q2` …）⇒ 最后一档是开区间（`f > q3`）。
-    ⚖ 改这里的边界 ⇒ **244.50/244.51/244.52 的剂量轴结论全部作废**。
+    ⚖ 薄包装 ⇒ 生产口径 = `dose_bands_v(ks, fr, "prod", "inclusive")`
+    ⚖（244.63 参数化后，⛔ 生产路径**必须**与 244.50 逐位相同
+      ⇒ 改动前后四个依赖工具的输出要 **diff 为空**）。
     """
-    qs = _st.quantiles(fr, n=4)
-    bands = [("frac<=q1", [r for r, f2 in zip(ks, fr) if f2 <= qs[0]]),
-             ("q1..q2", [r for r, f2 in zip(ks, fr) if qs[0] < f2 <= qs[1]]),
-             ("q2..q3", [r for r, f2 in zip(ks, fr) if qs[1] < f2 <= qs[2]]),
-             ("frac>q3", [r for r, f2 in zip(ks, fr) if f2 > qs[2]])]
-    return qs, bands
+    return dose_bands_v(ks, fr, "prod", "inclusive")
 
 
 # --------------------------------------------------------------- 244.51 的扰动族
