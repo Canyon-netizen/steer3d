@@ -211,8 +211,8 @@ def paired_perm_p(diffs, n_perm=20000, seed=20261020):
     return (ge + 1) / (n_perm + 1.0), obs
 
 
-def mc_trend_p(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020):
-    """⚖⚖⚖ **剂量趋势检验**（MC 零假设）。
+def mc_trend_p_geom(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020):
+    """⚖⚖⚖ **剂量趋势检验**（MC 零假设）—— **多返回 MC 的计数**（`ge` / `n_mc`）。
 
     ⚖ 统计量 `T = Σ_L (L − 1.5) · (K_L − E0_L)`：`K_L` = 该层为真的条数，
     `E0_L` = 该层在零假设下的**期望条数**（`Σ_t base_p(nz_t)`）。
@@ -221,6 +221,11 @@ def mc_trend_p(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020):
 
     ⚖⚠⚠⚠ **为什么不能用 0.5 基准**：各层的 m 分布不同 ⇒ 基准不同
     ⇒ 「层间比大小」这个原始统计量**被 m 混淆** ⇒ 必须用**各自的基准**。
+
+    ⚖⚠⚠⚠⚖ **为什么多返回 `ge` / `n_mc`（244.62 加的）**：
+    `p = (ge+1)/(n_mc+1)` 只是**点估计**，MC 本身有**蒙特卡洛误差**
+    ⇒ 244.62 要报「p 的不确定带」（当 p 贴着 α 时，这个带是**决定性的**）
+    ⇒ **一个实现**：`mc_trend_p` 是本函数的薄包装 ⇒ ⛔ 不许另写第二份 MC。
     """
     e0 = [sum(majority_base_p(nz) for nz in nzs_by_layer[L]) for L in range(N_LAYER)]
     t_obs = sum((L - 1.5) * (obs_counts[L] - e0[L]) for L in range(N_LAYER))
@@ -237,7 +242,17 @@ def mc_trend_p(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020):
             tot += (L - 1.5) * (k - e0[L])
         if tot >= t_obs - 1e-12:
             ge += 1
-    return (ge + 1) / (n_mc + 1.0), t_obs, e0
+    return (ge + 1) / (n_mc + 1.0), t_obs, e0, ge, n_mc
+
+
+def mc_trend_p(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020):
+    """⚖⚖⚖ **剂量趋势检验**（MC 零假设）。
+
+    ⚖ 统计量与零假设见 `mc_trend_p_geom`（**唯一实现**）⇒ 本函数是它的**薄包装**
+    （返回 `(p, T, e0)`，⛔ 不带 MC 计数 ⇒ 244.60/244.61 的调用点**逐位不变**）。
+    """
+    p, t_obs, e0, _ge, _n = mc_trend_p_geom(nzs_by_layer, obs_counts, n_mc, seed)
+    return p, t_obs, e0
 
 
 # ---------------------------------------------------------------- 数据层

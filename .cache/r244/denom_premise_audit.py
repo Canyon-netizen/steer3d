@@ -36,6 +36,7 @@
 """
 
 import argparse
+import importlib.util
 import io
 import json
 import math
@@ -44,6 +45,27 @@ import statistics as _st
 import sys
 
 DEFAULT_FILES = {"w": ".cache/r244/_an.txt", "rand": ".cache/r244/_ra.txt"}
+# ⚖ 244.62：分档/分母的**唯一实现**在 `dose_confound_audit.py`（244.60 已归一）
+#   ⇒ 本工具的**扰动族**（C4）改调它 ⇒ ⛔ **不再内联第二份**（244.61 的禁令 ㋑）
+DCONF = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                      "dose_confound_audit.py")
+_MODS = {}
+
+
+def _load(path, name):
+    if name in _MODS:
+        return _MODS[name]
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    _MODS[name] = mod
+    return mod
+
+
+def dconf():
+    return _load(DCONF, "dc_24462")
+
 # ⚖ 244.7.7 记的模板偏移：think 与 no_think 的 P 差**恒 +4**
 TEMPLATE_OFFSET = 4
 # ⚖ 244.7.2 记的已验侧车数（⚠⚠⚠ **只有这个数，没有 tid 清单** ⇒ 见文件头）
@@ -230,15 +252,9 @@ def audit(wpath, rpath):
     ks, ns, dd = qsplit(W)
     base_rho, base_q, base_bands, base_fr = bands_of(ns, dd, [denom_of(r) for r in ks])
     off = uniq[0] if uniform else TEMPLATE_OFFSET
-    perturbs = {
-        "no_think 全 P−%d" % off: [r["P"] - (off if str(r.get("tid", "")).endswith("no_think") else 0)
-                                   for r in ks],
-        "think 全 P−%d" % off: [r["P"] - (off if str(r.get("tid", "")).endswith("think")
-                                          and not str(r.get("tid", "")).endswith("no_think") else 0)
-                                for r in ks],
-        "全部 P−%d" % off: [r["P"] - off for r in ks],
-        "全部 P+%d" % off: [r["P"] + off for r in ks],
-    }
+    # ⚖⚠⚠ **244.62：改调唯一实现**（原先这里是**内联**的第二份扰动族）
+    #   ⇒ 归一后**输出必须逐行不变**（由 `_dpa_before_24462.txt` 对账）
+    perturbs = dict(dconf().P_perturbations(ks, off))
     rows, rhos, bandset = [], [], set()
     for lab, Ps in sorted(perturbs.items()):
         dens = [P + max(1, int(int(r["n_gen"]) * float(r["pos_frac"]))) - 1

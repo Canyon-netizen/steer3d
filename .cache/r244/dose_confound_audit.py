@@ -247,6 +247,45 @@ def dose_bands(ks, fr):
     return qs, bands
 
 
+# --------------------------------------------------------------- 244.51 的扰动族
+# ⚖⚠⚠ **「唯一实现」**（244.62）：244.51 的 `denom_premise_audit.C4` **内联**过一份
+#    ⇒ 244.62 把它抽到这里，**两边都改调它** ⇒ ⛔ 不许再有第二份
+#    （244.61 的禁令 ㋑：同一个概念的两个实现 = 将来会悄悄分叉）。
+#
+# ⚖ **这个族是什么**：把 `P` 平移 ±off 个 token（= think→no_think 那个恒定模板偏移）
+#    ⇒ 改 `inj = P + max(1, floor(n_gen*pos_frac)) - 1`
+#    ⇒ 改注入比例 `frac = n_sites / inj`
+#    ⇒ 改四分位分档 ⇒ **改「哪几格属于哪一层」**
+#    ⇒ ⇒ 因此**层内基准 / 层内计数 / 剂量趋势 p 全部会动**
+#    ⇒ 244.51 只量了「分档表脆」，⛔ **没量**它对**结论**的影响 ⇒ 那正是 244.62 的活。
+PERTURB_MODES = ("no_think-", "think-", "all-", "all+")
+
+
+def P_perturbations(recs, off):
+    """⚖ 244.51 的 ±off token 扰动族 ⇒ 返回 `[(标签, 平移后的 P 列表), …]`。
+
+    ⚖⚠⚠⚖ **「think 全 P−off」的那个谓词必须排除 no_think**：
+    `tid.endswith("think")` 对 `...__no_think` **也成立** ⇒ 244.51 的原式额外
+    加了 `not endswith("no_think")` ⇒ ⛔ **不许省掉这一条**（省掉 ⇒ think 变体
+    实际会变成「全减」⇒ 少一个真正不同的场景）。
+
+    ⚖ **标签与 244.51 逐条相同**（`denom_premise_audit` 的 C4 打印行依赖它们
+    ⇒ 归一那一轮必须**输出逐行不变**）。
+    """
+    tids = [str(r.get("tid", "")) for r in recs]
+    Ps = [r["P"] for r in recs]
+    is_no = [t.endswith("no_think") for t in tids]
+    is_think_only = [t.endswith("think") and not t.endswith("no_think") for t in tids]
+    return [
+        ("no_think 全 P−%d" % off,
+         [p - (off if nt else 0) for p, nt in zip(Ps, is_no)]),
+        ("think 全 P−%d" % off,
+         [p - (off if to else 0) for p, to in zip(Ps, is_think_only)]),
+        ("全部 P−%d" % off, [p - off for p in Ps]),
+        ("全部 P+%d" % off, [p + off for p in Ps]),
+    ]
+
+
 def majority_count(recs):
     """⚖ 账本口径：逐轨迹取 `d > 0` 的多数（平票算 False ⇒ 不算真）。"""
     g = {}
