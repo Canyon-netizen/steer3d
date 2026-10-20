@@ -197,15 +197,19 @@ def recompute():
     cells["预登记跨臂 Fisher"] = "%.7g" % prereg["fisher"]
 
     # ---- 剂量轴（244.50 的口径：注入比例）----
-    ks = [r for r in rows_w if r.get("inject_scope") == "k"]
-    fr = [DCA.frac_of(r) for r in ks]
+    # ⚖⚠⚠⚠⚠ **244.61：归一** —— 这一段原来**自己**又算了一遍分档
+    #   （过滤只写 `inject_scope == "k"`，比 `dose_cells` **少两个**条件：
+    #    「有实测读数」与「有位点数」）
+    #   ⇒ 实测当时结果**恰好相同**（109 格、0.015/0.250/0.750、27/28/30/24、rho +0.6911）
+    #   ⇒ 但那是**巧合**，不是保证：只要将来有一格缺读数或缺位点数，
+    #      **这一份就会分档到不同的格集合** ⇒ 面板的剂量轴会与 244.60 的分层**悄悄分叉**
+    #   ⇒ 改由**唯一实现** `dose_cells()` / `dose_bands()` 给（⛔ 不许另写一份）
+    #   ⇒ 改动前后输出**逐行相同**（244.61 已验）
+    ks, fr = DCA.dose_cells(rows_w)
     dd = [DCA.d_of(r) for r in ks]
     rho = DCA.spearman(fr, dd)
-    qs = statistics.quantiles(fr, n=4)
-    bands = [len([1 for f in fr if f <= qs[0]]),
-             len([1 for f in fr if qs[0] < f <= qs[1]]),
-             len([1 for f in fr if qs[1] < f <= qs[2]]),
-             len([1 for f in fr if f > qs[2]])]
+    qs, _bands = DCA.dose_bands(ks, fr)
+    bands = [len(b[1]) for b in _bands]
     cells["剂量轴 w rho（注入比例）"] = "%+.3f" % rho
     cells["剂量轴分位点"] = "%.3f/%.3f/%.3f" % (qs[0], qs[1], qs[2])
     cells["剂量轴四档格数"] = "/".join(str(b) for b in bands)
