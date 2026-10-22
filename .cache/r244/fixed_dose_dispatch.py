@@ -23,6 +23,11 @@
 ⚖⚠⚖⚖⚖⚖ **三条必须说清的口径**（**本工具自己也不许含糊**）：
    ① `pos_frac` ⛔ **不是位置**（244.26 已证：它是**有效前缀比例** `t = max(1, int(n_gen·pos_frac))`）
       ⇒ ⇒ 固定剂量下**唯一**能变的轴就是它 ⇒ ⇒ **格清单必须多这一列** ⇒ ⇒ 这就是 C6。
+      ⇒ ⇒ ⚠⚠⚖⚖⚖ **244.72 更正**：这一段里「pos_frac **不承载剂量**」那句话**不成立** ⇒ ⇒
+        `pos_frac` 改的是**可注入位置数** `inj = P + max(1,int(n_gen·pos_frac)) − 1`
+        ⇒ ⇒ 而**生产剂量分数 = n_sites / inj** ⇒ ⇒ **同样 n_sites、不同 pos_frac ⇒ 剂量不同**
+        ⇒ ⇒ ⇒ 「固定剂量」的真含义是**密度相等** ⇒ ⇒ 判据是 **G13** ⇒ ⇒
+        ⇒ ⇒ **n_sites 必须随 pos_frac 等比变**（⛔ 不是「三条轨迹的 n_sites 相同」）。
    ② ⚠⚠⚖ **剂量必须用「分数」声明，不能用「档位序号」** —— **实测**（244.71 新查）：
       既有 `k` 阶梯是**每条轨迹自己的 n_eff 分位阶梯**（实测 14 条轨迹：档位落在
       0.0008 / 0.0036 / 0.0155 / 0.0623 / 0.25 / 0.50 / 0.75 / 0.875 附近），
@@ -53,11 +58,15 @@ BASE_DEFAULT = os.path.join(HERE, "fixed_dose_cost_baseline.json")
 
 # ⚖ 判据号（G4 拆成 a–d、G9 拆成 a/b ⇒ 因为它们问的是**不同的几件事**）
 G_IDS = ("G1", "G2", "G3", "G4a", "G4b", "G4c", "G4d", "G5", "G6", "G7",
-         "G8", "G9a", "G9b", "G10", "G11", "G12")
+         "G8", "G9a", "G9b", "G10", "G11", "G12", "G13")
 # ⚖⚠⚖ **G12 是「前提类」**（pos_frac 未测过）⇒ ⛔ **不进阻断集**
 #   ⇒ 否则「未量到」会被当成「失败」⇒ ⇒ 与 F5 / C7 同一条纪律
-G_BLOCKING = ("G1", "G2", "G3", "G4a", "G4b", "G4c", "G4d", "G5", "G6",
-              "G7", "G8", "G9a", "G9b", "G10", "G11")
+# ⚖⚠⚖⚖ **G3 从阻断集里移出（244.72）** ⇒ 因为它问的是「**注入参数**（scope/n_sites）
+#   是否一致」⇒ ⛔ **那不等于「剂量固定」** ⇒ ⇒ 「剂量固定」的判据是 **G13**
+#   （同一条轨迹的**复制格密度**相等 ⇒ **生产剂量口径** ⇒ ⛔ 复用
+#   `fixed_dose_density_audit.density_of` ⇒ ⇒ 与**分析管线**逐位同源）
+G_BLOCKING = ("G1", "G2", "G4a", "G4b", "G4c", "G4d", "G5", "G6",
+              "G7", "G8", "G9a", "G9b", "G10", "G11", "G13")
 
 # ⚖ 新格清单的**列**（⛔ 现状是 3 列 ⇒ 少的那一列就是 pos_frac ⇒ 这就是 C6）
 COLUMNS = ("tid", "scope", "n_sites", "pos_frac")
@@ -221,7 +230,9 @@ def build_spec(route, dose_scope, dose_frac, dose_tol, arms=None):
         "spec_id": "发批规格（%s）" % route["route_id"],
         "route": route,
         "dose": {"scope": dose_scope, "frac": float(dose_frac), "tol": float(dose_tol),
-                 "meaning": "**每条轨迹取「n_sites/n_eff 落在 frac ± tol 内」的那一档**"
+                 "meaning": "**每个 (轨迹, pos_frac) 取「生产密度 n_sites / (P + max(1,int(n_gen·pos_frac))−1) "
+                 "落在 frac ± tol 内」的那一档**⇒ ⚠⚠⚖ **244.72 更正**：244.71 这一版写的是 "
+                 "`n_sites/n_eff` ⇒ ⛔ **那不是生产剂量口径** ⇒ ⇒ 详见账本 244.72 段"
                             "⇒ ⛔ **不是**「档位序号」⇒ ⇒ **不是**同一个绝对 n_sites"},
         "arms": arms,
         "columns": list(COLUMNS),
@@ -238,7 +249,8 @@ def render_template(spec, route, base, pool):
     out.append("=" * 78)
     out.append("  ⚖ 规格：`%s`" % spec["spec_id"])
     out.append("  ⚖ 路线：`%s`（策略 `%s`）" % (route["route_id"], route["strategy"]))
-    out.append("  ⚖ 剂量口径：scope = `%s` ｜ 分数 **%.4f ± %.4f**（= n_sites / n_eff）"
+    out.append("  ⚖ 剂量口径：scope = `%s` ｜ **生产密度** **%.4f ± %.4f**"
+               "（= n_sites / (P + max(1,int(n_gen·pos_frac))−1)）"
                % (spec["dose"]["scope"], float(spec["dose"]["frac"]), float(spec["dose"]["tol"])))
     out.append("  ⚖ 臂：%s ｜ 每条轨迹 %d 格 ｜ 块数 %d"
                % (",".join(spec["arms"]), int(route["cells_per_track"]),
@@ -270,9 +282,15 @@ def render_template(spec, route, base, pool):
                % (int(route["n_blocks"]) * 2, int(route["n_blocks"])))
     out.append("    · 每条轨迹 **%d** 格 ⇒ pos_frac 取 **%s**"
                % (int(route["cells_per_track"]), ",".join(str(x) for x in route["pos_fracs"])))
-    out.append("    · 每条轨迹的 **scope / n_sites 全部相同**（剂量被钉死）")
-    out.append("      ⇒ n_sites = **该轨迹自己阶梯里、分数落在 %.4f ± %.4f 的那一档**"
+    out.append("    · 每条轨迹的 **scope 相同**；⚠⚠⚖ **剂量（生产密度）相同 ⇒ n_sites 随 inj 变**")
+    out.append("      ⇒ ⇒ ⛔ **244.71 那句「n_sites 全部相同 ＝ 剂量被钉死」是错的** ⇒ ⇒ 见账本 244.72 段")
+    out.append("      ⇒ n_sites = **每个 (轨迹, pos_frac) 各自**、"
+               "**生产密度落在 %.4f ± %.4f** 的那一档"
                % (float(spec["dose"]["frac"]), float(spec["dose"]["tol"])))
+    out.append("      ⇒ ⇒ ⚠⚠⚖⚖⚖ **244.72 实测：现有阶梯供不出**（它是**在 pos_frac=0.5 下生成**的）"
+               "⇒ ⇒ ⇒ **要在 0.25 / 0.75 下命中同一密度 ⇒ 需要另一个 n_sites**")
+    out.append("      ⇒ ⇒ ⇒ ⇒ ⇒ 那一部分**不在现有阶梯上** ⇒ ⇒ ⇒ **要新阶梯**（⇒ 生成侧 ⇒ ⛔ 要点头）")
+    out.append("      ⇒ ⇒ ⇒ ⇒ ⇒ 量法：`.cache/r244/fixed_dose_density_audit.py --supply --route <json>`")
     out.append("    · ⇒ **每臂**的格数 = %d × %d × %d = **%d**"
                % (int(route["n_blocks"]), 2, int(route["cells_per_track"]),
                   int(route["n_blocks"]) * 2 * int(route["cells_per_track"])))
@@ -283,10 +301,14 @@ def render_template(spec, route, base, pool):
     out.append("  ⚖⚠⚖⚖⚖⚖ **四条必须一起说清的前提**（⛔ 不是免责声明，是**口径**）：")
     out.append("    ① `pos_frac` ⛔ **不是位置** ⇒ 它是**有效前缀比例** `t = max(1, int(n_gen·pos_frac))`")
     out.append("       ⇒ ⇒ 固定剂量下**唯一**能变的轴就是它 ⇒ ⇒ **格清单必须多这一列**")
+    out.append("       ⇒ ⇒ ⚠⚠⚖⚖⚖ **244.72 更正**：「pos_frac **不承载剂量**」**不成立** ⇒ ⇒ "
+               "它改**可注入位置数** ⇒ ⇒ **生产剂量 = n_sites / inj** ⇒ ⇒ ⇒ "
+               "**密度相等**才叫固定剂量 ⇒ ⇒ **n_sites 必须随 pos_frac 等比变**")
     out.append("    ② ⚠⚠⚖ **剂量用「分数」不用「档位序号」** —— 实测：阶梯是**每条轨迹自己的 n_eff 分位**")
     out.append("       ⇒ 阶梯长度不同（7 / 8 / 9 档）⇒ **同一序号在不同轨迹上是不同的分数**")
     out.append("       ⇒ ⇒ 且 ⛔ **格清单的 k 行不是排序的**（实测 `p03__think` 的 **1** 夹在 1893 与 2839 之间）")
-    out.append("       ⇒ ⇒ ⇒ 唯一稳的口径是**分数** `n_sites / n_eff`")
+    out.append("       ⇒ ⇒ ⇒ 唯一稳的口径是**分数**（⚠⚠⚖ **244.72：那个分数要按**生产密度**算，"
+               "⛔ **不是** `n_sites/n_eff`** ⇒ ⇒ 因为分母依赖 pos_frac）")
     out.append("    ③ ⚠⚠ **只有 14 条轨迹有阶梯**（`warm_cells.txt` 覆盖 14 条 / 137 行）")
     out.append("       ⇒ ⇒ 其余轨迹的阶梯**尚未生成** ⇒ ⇒ 它们的剂量**未量到** ⇒ 进前提清单")
     out.append("    ④ ⛔ **本工具不发批**：它只**印格式** ＋ **核清单** ⇒ ⇒ 改格清单格式 / 改探针 / 发批")
@@ -303,6 +325,8 @@ def check_cells(spec, cells_path, pool, base):
     rows = []
     gaps = []
     premises = []
+    notes = []          # ⚖⚠⚖ **非阻断**但**必须印出来**的结论（244.72 加）
+                        #   ⇒ 否则「判据红了但理由不印」⇒ 印出来的与返回的不一致
 
     def put(gid, ok, detail):
         R[gid] = bool(ok)
@@ -358,7 +382,11 @@ def check_cells(spec, cells_path, pool, base):
         by_tid.setdefault(tid, []).append({"scope": sc, "n_sites": ns, "pos_frac": pf,
                                            "lineno": r["lineno"]})
 
-    # ---------- G3 同一条轨迹内剂量必须相同
+    # ---------- G3 同一条轨迹内**注入参数**必须一致
+    # ⚠⚠⚖⚖⚖ **244.72 更正**：这一条问的是「**注入参数**（scope / n_sites）一致」，
+    #   ⛔ **它不等于「剂量固定」** ⇒ ⇒ 244.71 把这两件事当成一件 ⇒ ⇒ 错。
+    #   ⇒ ⇒ 「剂量固定」的真判据是 **G13**（**生产密度**口径下的复制格密度相等）
+    #   ⇒ ⇒ G3 因此**降级为非阻断**（它的结论仍要印出来 ⇒ 走 `notes` 通道）
     mixed = []
     for tid, cells in sorted(by_tid.items()):
         doses = set((c["scope"], c["n_sites"]) for c in cells)
@@ -366,10 +394,70 @@ def check_cells(spec, cells_path, pool, base):
             mixed.append(tid)
     ok3 = (not mixed) and bool(by_tid)
     put("G3", ok3,
-        "**同一条轨迹内剂量被钉死**：%d 条轨迹里有剂量**不一致**的 **%d** 条 %s"
+        "**同一条轨迹内注入参数（scope / n_sites）一致**：%d 条轨迹里**不一致**的 **%d** 条 %s"
+        "（⚠⚠⚖ **这不等于「剂量固定」** ⇒ 「剂量固定」看 **G13**）"
         % (len(by_tid), len(mixed), "✅" if ok3 else "❌（%s）" % mixed[:3]))
     if not ok3:
-        gaps.append("%d 条轨迹内部的剂量参数不一致 ⇒ 那不是固定剂量" % len(mixed))
+        notes.append("%d 条轨迹内部的**注入参数**不一致 ⇒ ⇒ 注意：「剂量固定」要求的是"
+                     "**密度相等**（⇒ 看 **G13**），⛔ 不是「n_sites 相同」" % len(mixed))
+
+    # ---------- G13 同一条轨迹的**复制格密度相等**（**这才是「固定剂量」**）
+    # ⚖⚖⚖ 密度走**生产口径**（`n_sites / (P + max(1,int(n_gen·pos_frac))−1)`）
+    #   ⇒ ⛔ **不另写一份** ⇒ 直接调 `fixed_dose_density_audit.density_of`
+    #   ⇒ ⇒ 与**分析管线**（`dose_confound_audit.frac_of`）**逐位同源**
+    # ⚠⚠⚖⚖⚖ **244.72 的起因**：244.71 的校验器用 `n_sites / n_eff` 判「剂量固定」
+    #   ⇒ 而生产口径的**分母依赖 pos_frac** ⇒ ⇒ 两套定义只在 pos_frac=0.5 时相等
+    #   ⇒ ⇒ 而既有 137 条真记录**全是 0.5** ⇒ ⇒ 这条断层在真数据上**测不出来**
+    dens_mixed = []
+    dens_n = 0
+    dens_tids = sorted(by_tid)
+    # ⚠⚠⚖⚖⚖ **244.72 更正（另一条线的复核查出来的）**：这一段原来读的是 `POOL_DEFAULT`
+    #   ⇒ ⇒ **形参 `pool` 被完全忽略** ⇒ ⇒ 传**别的**池子时 G13 仍拿**默认池**算密度
+    #   ⇒ ⇒ 属于「**用错来源 ⇒ 数看起来正常、其实不是那一批**」的族 ⇒ ⇒ **改用形参**
+    #   ⇒ ⇒ 形参池里缺 P / n_gen ⇒ ⇒ **算不出** ⇒ ⇒ 印「未量到」
+    #   ⇒ ⇒ （⛔ **不许**回退到默认池 ⇒ 那就是「偷偷换了一批」）
+    _pool_ti = {}
+    try:
+        for _t in pool["tids"]:
+            _pool_ti[_t["tid"]] = (_t.get("P"), _t.get("n_gen"))
+    except Exception:
+        _pool_ti = {}
+    for tid in dens_tids:
+        cells = by_tid[tid]
+        info = _pool_ti.get(tid)
+        if not info or not info[0] or not info[1]:
+            continue
+        vals = []
+        for c in cells:
+            try:
+                vals.append(_load("fixed_dose_density_audit").density_of(
+                    int(c["n_sites"]), int(info[0]), int(info[1]), float(c["pos_frac"])))
+            except Exception:
+                vals = []
+                break
+        if len(vals) < 2:
+            continue
+        dens_n += 1
+        if (max(vals) - min(vals)) > tol:
+            dens_mixed.append((tid, max(vals) - min(vals)))
+    if dens_n == 0:
+        put_premise("G13", False,
+                    "**同一条轨迹的复制格密度相等**（⇒ **这才是「固定剂量」**）："
+                    "⚠⚠ **算不出**（**形参 pool** 里缺 P / n_gen）⇒ ⇒ 这些轨迹的剂量"
+                    "**未量到** ⇒ ⇒ ⛔ **本条没核**（⛔ 不是「没差异」）")
+        premises.append("**形参 pool** 里缺 P / n_gen ⇒ ⇒ **G13 没法核** ⇒ ⇒ "
+                        "那一批的「固定剂量」在**密度口径**下**未量到**")
+    else:
+        ok13 = not dens_mixed
+        put("G13", ok13,
+            "**同一条轨迹的复制格密度相等**（⇒ **这才是「固定剂量」**，生产口径）："
+            "%d 条轨迹里密度**不一致**的 **%d** 条 %s（容差 %.4f）"
+            % (dens_n, len(dens_mixed), "✅" if ok13 else "❌（%s）"
+               % [(t, "%.4f" % s) for t, s in dens_mixed[:3]], tol))
+        if not ok13:
+            gaps.append("%d 条轨迹的复制格**密度不等** ⇒ ⇒ 那一批**不是固定剂量**"
+                        "（⇒ 剂量与 pos_frac 混在一起 ⇒ ⇒ 与 244.48/244.50/244.51 "
+                        "查到的那个跨剂量多数**同一类**）" % len(dens_mixed))
 
     lad = ladder_map(base)
     neff = neff_map(pool)
@@ -587,6 +675,7 @@ def check_cells(spec, cells_path, pool, base):
     can = not blocking
     return rows, {
         "R": R, "rows": rows, "gaps": gaps, "premises": premises,
+        "notes": notes,
         "can": can, "blocking": blocking,
         "n_tid": len(tids), "n_rows": len(crows), "n_good": len(good),
         "per_arm_cells": per_arm, "need_cells": need_cells, "n_layer": n_layer,
@@ -627,7 +716,11 @@ def _need_cells(route, prereg_path=None):
 def build_demo(spec, pool, base):
     """⚖ 造一份**能核的**演示清单：只用**阶梯已知**的那些轨迹
     ⇒ ⇒ 它的块数 = **阶梯已知的对数**（⛔ 不是路线要的块数 ⇒ ⇒ 必须写清楚）
-    ⇒ ⇒ 用途：在**真件**上跑通「印清单 ⇒ 核清单」的**绿路径**（⛔ 不是那一批的清单）。"""
+    ⇒ ⇒ 用途：在**真件**上跑通「印清单 ⇒ 核清单」的**绿路径**（⛔ 不是那一批的清单）。
+
+    ⚠⚠⚖⚖⚖ **244.72 更正**：这份演示清单用的是「同一轨迹三个 pos_frac **共用同一 n_sites**」
+    ⇒ ⇒ 在**生产密度口径**下它的复制格**密度不等** ⇒ ⇒ **G13 必红** ⇒ ⇒
+    ⇒ ⇒ 它现在**只演示「格式与配对」** ⇒ ⇒ ⛔ **不是一份可以发的清单**。"""
     lad = ladder_map(base)
     neff = neff_map(pool)
     target = float(spec["dose"]["frac"])
@@ -668,6 +761,11 @@ def render_check(spec, verdict, cells_path):
         out.append("  🔴 **这份清单不能发** —— 阻断 %d 条：" % len(verdict["blocking"]))
         for i, g in enumerate(verdict["gaps"], 1):
             out.append("    %d) %s" % (i, g))
+    if verdict.get("notes"):
+        out.append("")
+        out.append("  ⚠⚠⚖ **提示（⛔ 不阻断，但必须看）**：")
+        for i, n in enumerate(verdict["notes"], 1):
+            out.append("    %d) %s" % (i, n))
     if verdict["premises"]:
         out.append("")
         out.append("  ⚠⚠⚠ **前提（未量到）** —— ⛔ **不许**说成「已验证」：")
@@ -767,8 +865,37 @@ def selftest(pool_path=POOL_DEFAULT, base_path=BASE_DEFAULT):
                                n_pairs=4, cpt=3)
         p = _mk(tmp, "good.tsv", txt)
         rows, v = check_cells(spec, p, pool, base)
-        chk("T1", v["can"], "干净清单应全绿（阻断：%s）" % v["blocking"])
-        chk("T1b", all(v["R"][g] for g in G_BLOCKING), "基线的阻断类判据应全绿")
+        # ⚠⚠⚖⚖⚖ **244.72 更正**：244.71 把这份清单当「干净清单 ⇒ 全绿」⇒
+        #   但它用的是「同一条轨迹三个 pos_frac **共用同一个 n_sites**」的形状
+        #   ⇒ ⇒ 在**生产密度口径**下它的复制格**密度不等** ⇒ ⇒ **G13 必红**
+        #   ⇒ ⇒ 「全绿」那句话是**基于错口径**的 ⇒ ⇒ 这里改成诚实版本。
+        chk("T1", v["blocking"] == ["G13"],
+            "基线清单（244.71 形状）⇒ 阻断**恰好**只有 G13（实际 %s）" % v["blocking"])
+        chk("T1b", all(v["R"][g] for g in G_BLOCKING if g != "G13"),
+            "基线清单的**其余**阻断类判据应全绿")
+        chk("T1c", "G13" in G_BLOCKING,
+            "G13 必须在阻断集里 ⇒ 「固定剂量」这条要参与判决")
+        # ---- T24 / T24b：**G13** 的红化反例（台架 M20 / M21 盯着这两条）
+        chk("T24", (not v["R"]["G13"]),
+            "ladder 形状（三个 pos_frac **共用同一个 n_sites**）⇒ 复制格**密度不等** ⇒ "
+            "G13 必须红（⛔ 这正是 244.72 的发现）")
+        chk("T24b", (not v["R"]["G13"]) and (not v["can"]),
+            "G13 红 ⇒ 判决必须是「**不能发**」（⇒ G13 若被踢出阻断集，这里要红）")
+
+        # ---- T25：**G13 必须用形参 `pool`**（244.72 更正后新增）
+        #   ⚠⚠⚖⚖⚖ 另一条线的复核查出来：G13 原来读 `POOL_DEFAULT` ⇒ **忽略形参 pool**
+        #   ⇒ ⇒ 「用错来源 ⇒ 数看起来正常、其实不是那一批」的族
+        #   ⇒ ⇒ 这里造一个**缺 P / n_gen** 的池子 ⇒ G13 必须**算不出** ⇒ 印「未量到」
+        #   ⇒ ⇒ （若 G13 偷偷回退到默认池 ⇒ 它照样能算出数 ⇒ 这里红）
+        pool_nopn = {"tids": [dict(t, P=None, n_gen=None) for t in pool["tids"]],
+                     "pos_frac": pool.get("pos_frac", {})}
+        _r, v25 = check_cells(spec, p, pool_nopn, base)
+        #   ⚠⚠⚖⚖⚖ **认专属标记，不认泛泛的「未量到」**（第一次写成 `any("未量到" in t ...)`
+        #   ⇒ ⇒ 被**别的**前提（G12 的「未量到轴」）蒙混过去 ⇒ ⇒ 台架 M22 **存活**
+        #   ⇒ ⇒ ⇒ 判据必须能分辨「**G13 这一条**算不出」与「别的前提算不出」
+        chk("T25", (not v25["R"]["G13"]) and any("缺 P / n_gen" in t for t in v25["premises"]),
+            "G13 必须读**形参 pool**（池里缺 P/n_gen ⇒ 必须印「G13 没法核 ⇒ 未量到」"
+            "⇒ ⛔ 不许回退到默认池）")
 
         # ---- G1：没有 pos_frac 列 ⇒ 红
         p2 = _mk(tmp, "nopf.tsv", "\n".join(
@@ -787,8 +914,8 @@ def selftest(pool_path=POOL_DEFAULT, base_path=BASE_DEFAULT):
         lines[1] = lines[1].replace("\tk\t", "\tkX\t")
         p4 = _mk(tmp, "mixed.tsv", "\n".join(lines))
         _r, v4 = check_cells(spec, p4, pool, base)
-        chk("T4", (not v4["R"]["G3"]) and (not v4["can"]),
-            "同轨迹内剂量不一致 ⇒ G3 必须红")
+        chk("T4", (not v4["R"]["G3"]) and ("G3" not in G_BLOCKING),
+            "同轨迹内**注入参数**不一致 ⇒ G3 必须红（且 ⛔ 它**不参与**阻断）")
 
         # ---- G4b：n_sites 不在阶梯上 ⇒ 红（⛔ **只换值**，⛔ 不许多出一列 ⇒ 否则测的是 G2）
         out5 = []
@@ -901,7 +1028,8 @@ def selftest(pool_path=POOL_DEFAULT, base_path=BASE_DEFAULT):
         _r, v14 = check_cells(spec, p, pool, base)
         chk("T14", (not v14["R"]["G12"]) and len(v14["premises"]) >= 1,
             "G12 红必须进前提清单")
-        chk("T14b", v14["can"], "G12 是**前提类** ⇒ ⛔ 不许判「不能发」")
+        chk("T14b", ("G12" not in G_BLOCKING) and (not v14["R"]["G12"]),
+            "G12 是**前提类** ⇒ ⛔ 不在阻断集里 ⇒ ⛔ 不许**单独因为它**判「不能发」")
         chk("T14c", "G12" not in G_BLOCKING, "G12 ⛔ 不许进阻断集")
 
         # ---- T21：G12 那一行**不许**印成 FAIL（⇒ 未量到 ≠ 失败）
@@ -936,8 +1064,12 @@ def selftest(pool_path=POOL_DEFAULT, base_path=BASE_DEFAULT):
         spec20, cells20, np20 = build_demo(spec, pool, base)
         p20 = _mk(tmp, "demo.tsv", cells20)
         _r, v20 = check_cells(spec20, p20, pool, base)
-        chk("T20", v20["can"],
-            "真件上的演示清单必须全绿（阻断：%s）" % v20["blocking"])
+        # ⚠⚠⚖⚖⚖ **244.72 更正**：演示清单用的是「三个 pos_frac **共用同一 n_sites**」的
+        #   形状 ⇒ ⇒ 在**生产密度口径**下它**不是固定剂量** ⇒ ⇒ **G13 必红**
+        #   ⇒ ⇒ 244.71 那句「演示清单必须全绿」是基于**错口径**的 ⇒ ⇒ 诚实改写。
+        chk("T20", (v20["blocking"] == ["G13"])
+            and all(v20["R"][g] for g in G_BLOCKING if g != "G13"),
+            "真件上的演示清单 ⇒ 阻断**恰好**只有 G13（实际 %s）" % v20["blocking"])
         chk("T20b", np20 >= 1, "演示必须至少挑到 1 对轨迹（得 %d）" % np20)
 
         # ---- T15：**印出来的**判决必须与返回的一致（⚖ 判决只算一次）

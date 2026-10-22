@@ -52,7 +52,7 @@ MUTATIONS = [
     ("M2", "ok2 = (not bad_cols) and bool(crows)", "ok2 = True", "T3",
      "G2（每行列数）被改成恒真 ⇒ 列数不对也不红"),
     ("M3", "ok3 = (not mixed) and bool(by_tid)", "ok3 = True", "T4",
-     "G3（同轨迹内剂量一致）被改成恒真 ⇒ 剂量混了也不红"),
+     "G3（同轨迹内**注入参数**一致，⛔ 非阻断）被改成恒真 ⇒ 注入参数混了也不红"),
     ("M4", "ok4b = not not_on_ladder", "ok4b = True", "T5",
      "G4b（n_sites 在自己阶梯上）被改成恒真 ⇒ 剂量档非法也不红"),
     ("M5", "ok4c = (not no_hit) and (not multi_hit)", "ok4c = True", "T5b",
@@ -79,11 +79,19 @@ MUTATIONS = [
     ("M15", "    if not ok12:\n        premises.append(",
      "    if False:\n        premises.append(", "T14",
      "G12 的「未量到」前提被抹掉 ⇒ 未量到的轴被当成已测过"),
-    ("M16", 'G_BLOCKING = ("G1", "G2", "G3", "G4a", "G4b", "G4c", "G4d", "G5", "G6",\n'
-     '              "G7", "G8", "G9a", "G9b", "G10", "G11")',
-     'G_BLOCKING = ("G1", "G2", "G3", "G4a", "G4b", "G4c", "G4d", "G5", "G6",\n'
-     '              "G7", "G8", "G9a", "G9b", "G10", "G11", "G12")', "T14b",
+    ("M16", 'G_BLOCKING = ("G1", "G2", "G4a", "G4b", "G4c", "G4d", "G5", "G6",\n'
+     '              "G7", "G8", "G9a", "G9b", "G10", "G11", "G13")',
+     'G_BLOCKING = ("G1", "G2", "G4a", "G4b", "G4c", "G4d", "G5", "G6",\n'
+     '              "G7", "G8", "G9a", "G9b", "G10", "G11", "G12", "G13")', "T14b",
      "G12 被塞进阻断集 ⇒ 「未量到」被当成「失败」（⇒ 判决方向搞反）"),
+    ("M20", "ok13 = not dens_mixed", "ok13 = True", "T24",
+     "⚠⚠⚖⚖⚖ **G13（复制格密度相等 ⇒ 这才是「固定剂量」）被改成恒真** ⇒ ⇒ "
+     "「固定剂量」被改成「什么都行」⇒ ⇒ 必须抓到"),
+    ("M21", 'G_BLOCKING = ("G1", "G2", "G4a", "G4b", "G4c", "G4d", "G5", "G6",\n'
+     '              "G7", "G8", "G9a", "G9b", "G10", "G11", "G13")',
+     'G_BLOCKING = ("G1", "G2", "G4a", "G4b", "G4c", "G4d", "G5", "G6",\n'
+     '              "G7", "G8", "G9a", "G9b", "G10", "G11")', "T24b",
+     "G13 被踢出阻断集 ⇒ 「固定剂量」这条判据**不参与判决** ⇒ ⇒ 必须抓到"),
     ("M17", "ok4a = not bad_scope", "ok4a = True", "T22",
      "G4a（scope 与规格一致）被改成恒真 ⇒ scope 不符也不红"),
     ("M18", 'out.append("    " + "\\t".join(COLUMNS))   # ⚖⚠⚖ 这行是「模板表头」⇒ 台架 M18 盯着它',
@@ -92,6 +100,14 @@ MUTATIONS = [
     ("M19", 'put_diag("**剂量分数的实测跨度**（⛔ **诊断**，⛔ 不参与判决）："',
      '_skip = ("**剂量分数的实测跨度**（⛔ **诊断**，⛔ 不参与判决）："', "T23",
      "诊断行被抹掉 ⇒ 「印出实测跨度」这句话就成了**说谎**（⇒ 靠 T23/T23b 抓）"),
+    ("M22", '        for _t in pool["tids"]:',
+     '        for _t in _read_json(POOL_DEFAULT, "生成池快照")["tids"]:', "T25",
+     "⚠⚠⚖⚖⚖ **G13 改回读默认池（忽略形参 `pool`）** ⇒ ⇒ 传别的池子时它仍拿**默认池**算密度"
+     "⇒ ⇒ 「用错来源 ⇒ 数看起来正常、其实不是那一批」的族 ⇒ ⇒ 必须抓到"),
+    ("M23", '        for _t in pool["tids"]:',
+     '        for _t in pool["tids"]:', "T25",
+     "⚖ **等价变异验收用例**：替换串 **==** 落点串 ⇒ 文件**逐字节不变** ⇒ ⇒ 必须记成"
+     "「**无效**」（⛔ **不是**「存活」）⇒ ⇒ 纪律 ③ 不是 docstring"),
 ]
 
 
@@ -164,7 +180,7 @@ def _positive_control(workdir):
     ⇒ 台架必须抓到它 ⇒ 抓不到 ⇒ **台架自己瞎了** ⇒ 下面的「存活」一律不算数 ⇒ 退出。"""
     r244dir = os.path.join(workdir, ".cache", "r244")
     src = io.open(os.path.join(r244dir, "fixed_dose_dispatch.py"), encoding="utf-8").read()
-    bad = src.replace('chk("T1", v["can"],', 'chk("T1", False,')
+    bad = src.replace('chk("T1", v["blocking"] == ["G13"],', 'chk("T1", False,')
     if bad == src:
         return False, "阳性对照的落点没找到（夹具变了？）"
     _materialize(r244dir, "fixed_dose_dispatch.py", bad)
@@ -214,7 +230,8 @@ def main():
     caught = []
     survived = []
     crashed = []
-    invalid = []
+    invalid_anchor = []
+    invalid_equiv = []
 
     for mid, anchor, repl, expect, why in muts:
         work = tempfile.mkdtemp(prefix="mutdisp_%s_" % mid)
@@ -223,10 +240,19 @@ def main():
             src = io.open(TARGET, encoding="utf-8").read()
             n = src.count(anchor)
             if n != 1:
-                invalid.append((mid, why, "落点命中 %d 次（必须恰好 1 次）" % n))
+                invalid_anchor.append((mid, why, "落点命中 %d 次（必须恰好 1 次）" % n))
                 print("[无效] %s：落点命中 %d 次 ⇒ 这条变异**无效**（不是「存活」）" % (mid, n))
                 continue
-            _materialize(r244dir, "fixed_dose_dispatch.py", src.replace(anchor, repl))
+            mutated = src.replace(anchor, repl)
+            # ⚖⚖⚖ **纪律 ③（244.72 补实现）**：等价变异 = 替换后文件**逐字节不变**
+            #   ⇒ ⇒ 必须记成「**无效**」（⛔ **不是**「存活」）⇒ ⇒ 否则纪律 ③ 只是 docstring
+            #   ⇒ ⇒ （⛔ 等价变异**不算失败** —— 它是示范用例；「锚点命中 ≠ 1」才算失败）
+            if mutated == src:
+                invalid_equiv.append((mid, why, "替换后文件逐字节相同 ⇒ 等价变异 ⇒ 无效"))
+                print("[无效] %s：替换后文件**逐字节不变** ⇒ 这条是**等价变异** ⇒ 记「无效」"
+                      "（⛔ 不是「存活」）" % mid)
+                continue
+            _materialize(r244dir, "fixed_dose_dispatch.py", mutated)
             rc, out = run_selftest(work)
             fails = parse_fails(out)
             if _looks_like_bench_side_error(out):
@@ -247,7 +273,6 @@ def main():
             shutil.rmtree(work, ignore_errors=True)
 
     print("")
-    print("变异台：抓住 %d / %d" % (len(caught), len(muts)))
     if survived:
         print("⛔ 存活 %d 条：%s" % (len(survived), [s[0] for s in survived]))
         for mid, why, fails in survived:
@@ -256,11 +281,20 @@ def main():
         print("⚠ 崩了 %d 条：%s" % (len(crashed), [c[0] for c in crashed]))
         for mid, why, tail in crashed:
             print("    %s：%s ⇒ %s" % (mid, why, tail))
-    if invalid:
-        print("⚠ 无效变异 %d 条：%s" % (len(invalid), [i[0] for i in invalid]))
-        for mid, why, tail in invalid:
+    if invalid_anchor:
+        print("⚠ 无效变异 %d 条（锚点命中 ≠ 1）：%s" % (len(invalid_anchor), [i[0] for i in invalid_anchor]))
+        for mid, why, tail in invalid_anchor:
             print("    %s：%s ⇒ %s" % (mid, why, tail))
-    return 0 if (not survived and not crashed and not invalid) else 1
+    if invalid_equiv:
+        print("⚖ 等价变异 %d 条（替换后**逐字节不变** ⇒ 记「无效」⇒ ⛔ **不是**「存活」）：%s"
+              % (len(invalid_equiv), [i[0] for i in invalid_equiv]))
+        for mid, why, tail in invalid_equiv:
+            print("    %s：%s ⇒ %s" % (mid, why, tail))
+    # ⚖ 分母 = **真正落上去**的变异数（等价变异与落点失效都**不计入**）
+    _applied = len(muts) - len(invalid_equiv) - len(invalid_anchor)
+    print("变异台：抓住 %d / %d（等价变异 %d 条 ⇒ 记「无效」⇒ 不计入分母）"
+          % (len(caught), _applied, len(invalid_equiv)))
+    return 0 if (not survived and not crashed and not invalid_anchor) else 1
 
 
 if __name__ == "__main__":

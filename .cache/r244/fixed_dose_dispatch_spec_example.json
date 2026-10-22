@@ -11,7 +11,7 @@
   ],
   "dose": {
     "frac": 0.25,
-    "meaning": "**每条轨迹取「n_sites/n_eff 落在 frac ± tol 内」的那一档**⇒ ⛔ **不是**「档位序号」⇒ ⇒ **不是**同一个绝对 n_sites",
+    "meaning": "**每个 (轨迹, pos_frac) 取「生产密度 n_sites / (P + max(1,int(n_gen·pos_frac))−1) 落在 frac ± tol 内」的那一档**⇒ ⚠⚠⚖ **244.72 更正**：244.71 这一版写的是 `n_sites/n_eff` ⇒ ⛔ **那不是生产剂量口径** ⇒ ⇒ 详见账本 244.72 段⇒ ⛔ **不是**「档位序号」⇒ ⇒ **不是**同一个绝对 n_sites",
     "scope": "k",
     "tol": 0.005
   },
