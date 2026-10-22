@@ -338,6 +338,14 @@ def mc_trend_p_geom(nzs_by_layer, obs_counts, n_mc=5000, seed=20261020, n_layer=
     """
     if n_layer is None:
         n_layer = N_LAYER
+    # ⚖⚠⚖⚖⚖⚖ **244.74 加的守卫**：剂量趋势**至少要 2 档**才有意义
+    #   ⇒ 合池模式（`n_layer = 1`）**没有剂量轴** ⇒ 趋势**未量到**
+    #   ⇒ ⛔ **绝不能**让它跑出 p = 1.0 —— 那是把「没测」渲染成「无差异」
+    #     （`trend_weights(1) = [0.0]` ⇒ 统计量恒 0 ⇒ 每次模拟都 `ge` ⇒ p = 1）
+    if n_layer < 2:
+        raise ValueError(
+            "n_layer=%r：剂量趋势需要 **≥2 档** ⇒ 合池模式（1 档 = 全池）**没有剂量轴** ⇒ "
+            "剂量趋势**未量到**（⛔ 不是 p=1.0，也不是「无差异」）" % (n_layer,))
     if n_layer < 1 or n_layer > len(nzs_by_layer):
         raise ValueError(
             "n_layer=%r 越界（nzs_by_layer 只有 %d 层）" % (n_layer, len(nzs_by_layer))
@@ -467,9 +475,19 @@ def size_requirements(layer_rows, cells_per_traj, fisher_power=None, n_layer=Non
                      " ｜ **精确枚举复核 %s**（现有 14）"
                      % (row["L"], row["pw"], row["pr"], 100 * delta, n_approx, note))
     need_cells = 3 * n_layer
-    lines.append("    · 每条轨迹平均 k 档 %.2f ⇒ 要让每层 m≥3（平票不出现）需 ≥%d 档"
-                 " ⇒ 阶梯要扫到现在的 **%.2f 倍**"
-                 % (cells_per_traj, need_cells, need_cells / cells_per_traj))
+    if n_layer == 1:
+        # ⚖⚠⚖⚖⚖ 244.74：**合池模式**（1 档 = 全池）⇒ 「档」这个词**不成立**
+        #   ⇒ m = 每条轨迹在**池子**里的**复制格数** ⇒ m≥3 ⇒ **每条轨迹 ≥3 个复制格**
+        #   ⇒ ⇒ **剂量阶梯不需要扫**（合池 = 同一剂量的复制格进同一档）
+        #   ⇒ ⇒ **剂量趋势未量到**（没有剂量轴 ⇒ ⛔ 不是「无趋势」）
+        lines.append("    · **合池模式**（1 档 = 全池 ⇒ 没有剂量轴）：每条轨迹平均 %.2f 个**复制格**"
+                     " ⇒ 要让 m≥3（平票不出现）需 **每条轨迹 ≥%d 个复制格**"
+                     " ⇒ ⇒ **剂量阶梯不需要扫**（合池 = 同一剂量的复制格进同一档）"
+                     % (cells_per_traj, need_cells))
+    else:
+        lines.append("    · 每条轨迹平均 k 档 %.2f ⇒ 要让每层 m≥3（平票不出现）需 ≥%d 档"
+                     " ⇒ 阶梯要扫到现在的 **%.2f 倍**"
+                     % (cells_per_traj, need_cells, need_cells / cells_per_traj))
     return lines, size
 
 

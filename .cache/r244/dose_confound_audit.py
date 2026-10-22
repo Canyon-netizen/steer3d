@@ -243,7 +243,14 @@ ZERO_SPAN_POLICIES = ("keep", "drop")
 #   ⇒ 但本文件的常量是**口径空间的登记处** ⇒ 扩它会让「244.63 测的是 8 组合」
 #   与「本仓登记的口径空间」**对不上** ⇒ 故另起 `QUANTILE_METHODS_EXT`，
 #   并在 244.64 的工具里**显式断言** 244.63 的那 2 支 ⊂ 本集合。
-N_BANDS_CHOICES = (3, 4, 5)
+# ⚖⚠⚖⚖⚖⚖ **244.74 加的「合池」档数（1）**：
+#   · 「固定剂量」⇒ **剂量轴没有离散度可分** ⇒ 4 个分位切点会**切穿复制组**
+#     （244.72 的 D5 实测）⇒ ⇒ 唯一正确的分析口径是**合池（1 档 = 全池）**
+#   · ⇒ 而 244.72 时 `dose_bands_v` **拒绝 `n_bands < 2`** ⇒ ⇒ 「没有合池模式」
+#     ⇒ ⇒ 「固定剂量」那一批跑完也**算不出判决数** ⇒ ⇒ 244.74 **把这一支补上**
+#   · ⛔ **加进白名单 ≠ 口径已经切换**：预登记文件里的 `n_bands` **仍是 4**
+#     ⇒ ⇒ 管线默认仍走 4 档（生产口径逐位不变）⇒ ⇒ 切换要**点头**（口径决定）
+N_BANDS_CHOICES = (1, 3, 4, 5)
 QUANTILE_METHODS_EXT = ("inclusive", "exclusive", "nearest_rank")
 # ⚖⚠⚠⚠ **本机只有 inclusive / exclusive 两支**（`statistics.quantiles` 的
 #   `method` 参数，Python 3.9.6）⇒ `hazen` / `weibull` / `linear` 等插值族
@@ -333,8 +340,28 @@ def dose_bands_v(ks, fr, boundary="prod", quantile="inclusive", n_bands=4):
         ⚖⚠⚠ **本机只有 inclusive / exclusive 两支 `statistics.quantiles`**
         ⇒ 插值族（hazen / weibull / linear…）**本机未量到**（⛔ 不是「无影响」）。
     """
-    if n_bands < 2:
-        raise HardFail("n_bands 至少 2（得到 %r）" % (n_bands,))
+    if n_bands < 1:
+        raise HardFail("n_bands 至少 1（得到 %r）" % (n_bands,))
+    # ⚖⚠⚖ 244.74：**先**校验口径取值（⛔ 合池分支根本不参与分位
+    #   ⇒ 别让**坏取值**在合池下被静默接受 ⇒ ⇒ 不管走不走合池，口径不合法一律拒读）
+    #   ⚖ 下面分派处**还留着**同样的 `else: raise` ⇒ 那是**防御网**
+    #   （万一这道闸被拆掉 ⇒ 坏取值会变成 `qs` 未定义 ⇒ 崩 ⇒ 崩⛔不等于抓到）
+    if quantile not in QUANTILE_METHODS_EXT:
+        raise HardFail("quantile 只能是 %s（得到 %r）"
+                       % (list(QUANTILE_METHODS_EXT), quantile))
+    if boundary not in BOUNDARY_CONVENTIONS:
+        raise HardFail("boundary 只能是 'prod' / 'alt'（得到 %r）" % (boundary,))
+    if n_bands == 1:
+        # ⚖⚠⚖⚖⚖⚖ **244.74 加的「合池模式」（1 档 = 全池）**
+        #   · 「固定剂量」⇒ 剂量轴**没有离散度可分** ⇒ 分位切点会**切穿复制组**
+        #     ⇒ ⇒ 合池 = **不分档** ⇒ 全部格进同一档 ⇒ 档内 m 才成立
+        #   · ⚠⚠⚠ **只放开上面的检查是不够的**：`statistics.quantiles(fr, n=1)`
+        #     返回**空表** ⇒ `qs[0]` 会**越界** ⇒ ⇒ 必须有**显式**的 1 档分支
+        #     （⛔ 不能靠「qs 为空」去推断档名 ⇒ 那样两个口径会**分叉**）
+        #   · 分位点 = **空表**（没有剂量轴 ⇒ 没有分位点）⇒ 下游⛔不许当 0 用
+        #   · ⚠ `boundary` / `quantile` 这两个维度在合池下**结构上不参与**
+        #     ⇒ ⇒ 6 个组合**逐位相同**（这是**实测**，不是「无影响」的断言）
+        return [], [("pooled(合池)", list(ks))]
     if quantile == "inclusive":
         qs = _st.quantiles(fr, n=n_bands)
     elif quantile == "exclusive":

@@ -637,13 +637,21 @@ def check_cells(spec, cells_path, pool, base):
 
     # ---------- G10 m≥3 的门槛（⛔ 复用 244.70 那条路 ⇒ 不写「3 × 档数」）
     need_cells, n_layer, sz_lines, _size = _need_cells(route)
-    ok10 = cpt >= need_cells
+    # ⚖⚠⚖ 244.74：**门槛算不出来 ⇒ 判红**，⛔ 不许崩、⛔ 不许猜一个数
+    if need_cells is None:
+        ok10 = False
+        need_txt = "**没解析出来**（规模机械的措辞变了 ⇒ ⛔ 不许猜）"
+        gap_txt = "❌（门槛算不出来）"
+    else:
+        ok10 = cpt >= need_cells
+        need_txt = "%d 格" % need_cells
+        gap_txt = "✅" if ok10 else "❌（差 %d 格）" % (need_cells - cpt)
     put("G10", ok10,
-        "**m≥3 的门槛**（⛔ 由规模机械算出）：一条轨迹服务 %d 个档 ⇒ 门槛 **%d 格**；"
-        "清单给 %d 格 %s" % (n_layer, need_cells, cpt, "✅" if ok10 else "❌（差 %d 格）"
-                             % (need_cells - cpt)))
+        "**m≥3 的门槛**（⛔ 由规模机械算出）：一条轨迹服务 %d 个档 ⇒ 门槛 **%s**；"
+        "清单给 %d 格 %s" % (n_layer, need_txt, cpt, gap_txt))
     if not ok10:
-        gaps.append("每条轨迹 %d 格 < 门槛 %d 格（m≥3 ⇒ 平票不出现）" % (cpt, need_cells))
+        gaps.append("每条轨迹 %d 格 vs 门槛 %s（m≥3 ⇒ 平票不出现）"
+                    % (cpt, need_txt))
 
     # ---------- G11 每臂总格数
     per_arm = n_blocks * 2 * cpt

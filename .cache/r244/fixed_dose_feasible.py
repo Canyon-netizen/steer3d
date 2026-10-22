@@ -174,9 +174,18 @@ def need_cells_from_mechanic(design, rows, cfg):
     need = None
     for ln in lines:
         m = re.search(r"需\s*≥(\d+)\s*档", ln)
+        if not m:
+            # ⚖⚠⚖ 244.74：**合池措辞**（`n_layer = 1` ⇒ 「固定剂量」设计 ⇒
+            #   `bands_per_traj` 返回 1）⇒ 规模机械那行写的是
+            #   「需 **每条轨迹 ≥N 个复制格**」⇒ ⇒ **同一个门槛、另一种措辞**
+            #   ⇒ ⇒ 两种都得认（⛔ 漏一种 ⇒ 「固定剂量」这条路**直接崩**）
+            m = re.search(r"每条轨迹\s*≥(\d+)\s*个复制格", ln)
         if m:
             need = int(m.group(1))
-    assert need is not None, "规模机械的输出行里没解析出 need_cells ⇒ 口径变了"
+    # ⚖⚠⚖⚖ 244.74：**门槛算不出来 ⇒ 记 None，⛔ 不许崩**
+    #   ⇒ 崩 ⛔ 不等于「按判据转红」⇒ ⇒ 变异台抓不到 ⇒ ⇒ 必须是**红**
+    #   ⇒ ⇒ 下游 F1 / ok10 会**红**（且印出「没解析出来」）⇒ ⇒ 抓得到
+    #   ⇒ ⇒ ⛔ 也**不许猜一个数**（猜出来的门槛 = 假账）
     return need, n_layer, lines, size
 
 
@@ -213,13 +222,21 @@ def build_report(design, pool, prereg_path=PREREG):
     # ---------- F1 口径相容：m≥3 的门槛**按设计**算（⛔ 不重写公式）
     need_cells, n_layer, sz_lines, size = need_cells_from_mechanic(design, rows, cfg)
     cpt = float(design["cells_per_track"])
-    ok1 = cpt >= float(need_cells)
+    # ⚖⚠⚖ 244.74：**门槛算不出来 ⇒ 判红**，⛔ 不许崩、⛔ 不许猜一个数
+    if need_cells is None:
+        ok1 = False
+        need_txt = "**没解析出来**（规模机械的措辞变了 ⇒ ⛔ 不许猜）"
+        gap_txt = "❌（门槛算不出来）"
+    else:
+        ok1 = cpt >= float(need_cells)
+        need_txt = "%d 格" % need_cells
+        gap_txt = "✅" if ok1 else "❌（差 %g 格）" % (need_cells - cpt)
     put("F1", ok1,
-        "**m≥3 的门槛按设计算**：「一条轨迹服务 %d 个档」⇒ 门槛 **%d 格**；设计给 %g 格 %s"
-        % (n_layer, need_cells, cpt, "✅" if ok1 else "❌（差 %g 格）" % (need_cells - cpt)))
+        "**m≥3 的门槛按设计算**：「一条轨迹服务 %d 个档」⇒ 门槛 **%s**；设计给 %g 格 %s"
+        % (n_layer, need_txt, cpt, gap_txt))
     if not ok1:
-        gaps.append("设计口径：每条轨迹 %g 格 < 门槛 %d 格（m≥3 ⇒ 平票不出现）"
-                    % (cpt, need_cells))
+        gaps.append("设计口径：门槛 %s ⇒ m≥3 的前提**未量到**"
+                    % (need_txt if need_cells is None else "%d 格" % need_cells))
 
     # ---------- F2 轨迹数可得
     need_w = sum(int(x) for x in design["tracks_per_band"]["w"])
@@ -367,8 +384,9 @@ def build_report(design, pool, prereg_path=PREREG):
     RP2.append("")
     RP2.append("  ⚖⚠⚠⚠ **244.68 的 D4 与本工具 F1 的差别**（口径更正，⛔ 不改 244.68 源码）：")
     RP2.append("    D4 用的是「一条轨迹服务 **4** 个档」⇒ 门槛 **12 格**（那是**剂量扫描**设计的数）")
-    RP2.append("    ⇒ 固定剂量设计下一条轨迹**只服务 %d 个档** ⇒ 门槛 **%d 格** ⇒ 本工具按 F1 判"
-               % (n_layer, need_cells))
+    RP2.append("    ⇒ 固定剂量设计下一条轨迹**只服务 %d 个档** ⇒ 门槛 **%s** ⇒ 本工具按 F1 判"
+               % (n_layer, ("%d 格" % need_cells) if need_cells is not None
+                  else "**没解析出来**（⛔ 不许猜）"))
     RP2.append("    ⇒ ⛔ 用 244.68 的 D4 去判**固定剂量**设计会**假红**（⇒ 见账本 244.70 的更正段）")
     RP2.append("")
     RP2.append("=" * 78)

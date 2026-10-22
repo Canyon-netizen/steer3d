@@ -364,8 +364,16 @@ def build_all(cfg, rows_by_arm=None):
                 "cells_by_tid": cells_by_tid,
             })
         out["arm"][arm] = {"ks": ks, "fr": fr, "qs": qs, "bands": bands, "rows": rows}
+        # ⚖⚠⚖⚖⚖ 244.74：**合池模式**（1 档 = 全池）⇒ **没有剂量轴**
+        #   ⇒ 剂量轴量（rho 等）**未量到**（⛔ 不是「无差异」⇒ 也不是 0.0 / NaN）
+        #   ⇒ ⇒ 生产口径（4 档）**逐位不变**（`_pooled` 为假 ⇒ 走老路）
+        _pooled = (cfg.n_bands == 1)
+        _rho = DC.spearman(fr, [DC.d_of(r) for r in ks])
         out["axis"][arm] = {"qs": list(qs), "sizes": [len(b[1]) for b in bands],
-                            "rho": DC.spearman(fr, [DC.d_of(r) for r in ks]),
+                            "rho": None if _pooled else _rho,
+                            "rho_raw": _rho,
+                            "dose_axis": ("**未量到**（合池模式：1 档 = 全池 ⇒ 没有剂量轴）"
+                                          if _pooled else "已测（生产口径 4 档）"),
                             "n_cells": len(ks)}
     # ⚖ 逐档的注入比例范围（供报告印「这一档是哪个剂量区间」）
     for arm in ARMS:
@@ -610,10 +618,28 @@ def build_report(A, cfg, prereg_raw, k_rows):
         % ("；".join(d2) if d2 else "17 项逐项一致"))
 
     # F3 剂量轴逐位复现 244.50（证明读的是同一批数据 + 同一套分档器）
+    # ⚖⚠⚖⚖⚖⚖ 244.74：**合池模式**（`n_bands = 1`）⇒ **没有剂量轴**
+    #   ⇒ 244.50 的登记值（分位点/档数/rho）**不适用**
+    #   ⇒ ⛔ **不许**拿「不适用」当 FAIL（那是「未量到被渲染成失败」）
+    #   ⇒ ⇒ 改成**结构自洽**检查：① 分位点**空表** ② 只有 1 档
+    #     ③ 那一档**含全部格**（守恒）④ rho 标成**未量到**（不是数）
+    _pooled3 = (cfg.n_bands == 1)
     ok3 = True
     d3 = []
     for arm in ARMS:
         ax = axis[arm]
+        if _pooled3:
+            gq = (len(ax["qs"]) == 0)
+            gs = (tuple(ax["sizes"]) == (ax["n_cells"],))
+            gr = (ax["rho"] is None)
+            ok3 = ok3 and gq and gs and gr
+            d3.append("%s 合池：分位点 %s ｜ 档 %s ｜ 池内格 %d/%d ｜ rho %s%s"
+                      % (arm, ("空表 ✅" if gq else "非空 ❌"),
+                         "/".join(str(x) for x in ax["sizes"]),
+                         sum(ax["sizes"]), ax["n_cells"],
+                         ax.get("dose_axis", "?"),
+                         " ✅" if (gq and gs and gr) else " ❌"))
+            continue
         want_q = AXIS_QUANTILES
         want_s = AXIS_BAND_SIZE
         want_r = AXIS_RHO if arm == "w" else AXIS_RHO_RAND
@@ -632,7 +658,9 @@ def build_report(A, cfg, prereg_raw, k_rows):
     ok3 = ok3 and (n_decl == n_act)
     d3.append("声明档数 %d vs 实际 %d %s" % (n_decl, n_act,
                                             "✅" if n_decl == n_act else "❌"))
-    put("F3", ok3, "剂量轴必须**逐位复现 244.50**（先证明「读的是同一批」）：%s"
+    put("F3", ok3, ("**合池模式**：没有剂量轴 ⇒ 244.50 的登记值**不适用**（⛔ 不当 FAIL）"
+                    "⇒ 改成**结构自洽**检查：%s" if _pooled3 else
+                    "剂量轴必须**逐位复现 244.50**（先证明「读的是同一批」）：%s")
         % "；".join(d3))
 
     # F4 跨臂配对前提：同一剂量档、同一批轨迹、逐条格数相同
