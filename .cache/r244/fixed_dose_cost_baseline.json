@@ -1,0 +1,224 @@
+{
+  "_note": "⚖ 244.71 的**成本基线快照**（零 GPU：从既有日志与文件 mtime 量出来的墙钟/字节）⇒ ⛔ 里面的数是**实测**（不是估计）⇒ 但 §② 的口径有**下界**与**间隔法**两条限制（见 `gen_track.caveats`）⇒ ⇒ **不许**把它当「精确的单条耗时」用",
+  "cell_list": {
+    "columns": "tid \\t scope(k) \\t n_sites",
+    "has_pos_frac_column": false,
+    "md5": "f320436ec2353caa93a1721edf6ad4ec",
+    "n_cells": 137,
+    "n_columns": [
+      3
+    ],
+    "note": "⚖⚠⚖ **现状是 3 列，没有 pos_frac** ⇒ 244.70 说的「格清单要加一维」是**真的**⇒ 而 244.70 也查清了：固定剂量下 **n_sites 与 scope 都被钉死** ⇒ 只剩 pos_frac⇒ ⇒ **要跑固定剂量，这一列必须加**（⇒ 生成侧改动 ⇒ 要用户点头）",
+    "path": "/home/zhourui/steer3d_bpath/warm_cells.txt"
+  },
+  "gen_track": {
+    "bytes_per_pair_mean": 2860687511.8,
+    "bytes_total": 85820625354,
+    "caveats": [
+      "⚖⚖ **间隔法**：`per_interval_s` 是「**相邻两条的完成时刻之差**」⇒ 那一段的耗时**归给后一条** ⇒ ⛔ **不是**「这一条的耗时」⇒ 只可当**同分布的抽样**用",
+      "⚖⚖ **第一条**没有起点戳（生成日志没打 `[start]`）⇒ `first_to_first_gap_s` 只是**下界**",
+      "⚖ 生成是**串行**的（一条一条写）⇒ 间隔法成立；⛔ 若将来并行生成，这套口径就**失效**",
+      "⚖⚠⚖⚖ **区间法的归因**：生成顺序是 think, no_think, think, no_think, … ⇒ 「到 think 的间隔」= **think 那一条**的生成耗时，「到 no_think 的间隔」= **no_think 的**⇒ ⇒ `per_interval_s_by_arm` 才是**按臂**的可用量",
+      "⚖⚠⚖⚖ **目录 mtime 不是起点**（加文件会更新它）⇒ ⛔ 不能拿它当「首条的起点」⇒ 本快照**不给**首条耗时 ⇒ `wall_total_s` 是**下界**"
+    ],
+    "dir_mtime_s": 1791994251.5692139,
+    "first_completion_s": 1791968627.3815978,
+    "first_gap_unknown": null,
+    "last_completion_s": 1791994250.5672166,
+    "n_json": 60,
+    "n_npz": 60,
+    "n_pairs": 30,
+    "n_tid": 60,
+    "per_interval_s": {
+      "max": 1290.2384226322174,
+      "mean": 434.29128167588834,
+      "median": 201.46361184120178,
+      "min": 15.092958688735962,
+      "n": 59,
+      "total": 25623.18561887741
+    },
+    "per_interval_s_by_arm": {
+      "no_think": {
+        "max": 1213.552541732788,
+        "mean": 180.0674501657486,
+        "median": 66.9677928686142,
+        "min": 15.092958688735962,
+        "n": 30,
+        "total": 5402.023504972458
+      },
+      "think": {
+        "max": 1290.2384226322174,
+        "mean": 697.2814522036191,
+        "median": 666.7410962581635,
+        "min": 114.97268533706665,
+        "n": 29,
+        "total": 20221.162113904953
+      }
+    },
+    "per_tid_bytes": {
+      "max": 3905062574,
+      "mean": 1430343755.9,
+      "median": 685425063.5,
+      "min": 52556847,
+      "n": 60,
+      "total": 85820625354
+    },
+    "per_tid_bytes_by_arm": {
+      "no_think": {
+        "max": 3905062574,
+        "mean": 590440225.6666666,
+        "median": 229588338.5,
+        "min": 52556847,
+        "n": 30,
+        "total": 17713206770
+      },
+      "think": {
+        "max": 3905062574,
+        "mean": 2270247286.133333,
+        "median": 2226272507.0,
+        "min": 394345011,
+        "n": 30,
+        "total": 68107418584
+      }
+    },
+    "tokens_by_arm": {
+      "no_think": {
+        "max": 32768,
+        "mean": 4954.466666666666,
+        "median": 1926.5,
+        "min": 441,
+        "n": 30,
+        "total": 148634
+      },
+      "think": {
+        "max": 32768,
+        "mean": 19050.0,
+        "median": 18681.0,
+        "min": 3309,
+        "n": 30,
+        "total": 571500
+      }
+    },
+    "wall_total_is_lower_bound": true,
+    "wall_total_s": 25692.61840224266
+  },
+  "measured_at": "2026-10-22 10:07:01",
+  "probe_cell": {
+    "caveats": [
+      "⚖ 每格是**独立子进程**（跑批脚本逐格起一个 r241_probe.py）⇒ 这个墙钟**含**每格的模型加载 ⇒ 它就是「一个格」的真实成本",
+      "⚖ 这是**w 臂与 rand 臂**两批独立跑出来的 ⇒ 两个样本 ⇒ 可看离散度",
+      "⚖⚠⚖ **两臂的 BEGIN 行格式不一样**（w 臂 = 旧版脚本，rand 臂 = 新版脚本，新版多带 `n_eff=`）⇒ ⇒ 「两臂之间**只差 --arm**」这句在**日志格式**上**并不成立**⇒ ⇒ ⚠ 这是**日志格式**的差异（`n_eff=` 只是多一个注释）⇒ ⛔ 但它说明**两臂不是同一次脚本版本跑的** ⇒ 以后要把这条当成**要核的项**，⛔ 不要默认成立"
+    ],
+    "per_cell_s_both_arms": {
+      "max": 27.0,
+      "mean": 26.0,
+      "median": 26.0,
+      "min": 25.0,
+      "n": 2,
+      "total": 52.0
+    },
+    "rand": {
+      "begin_fmt_counts": {
+        "new": 137,
+        "old": 0
+      },
+      "log_bytes": 288574,
+      "log_lines": 1510,
+      "log_md5": "19012d7125a51b2dc46d78ac5c714e07",
+      "n_begin": 137,
+      "n_end": 137,
+      "per_cell_s": {
+        "max": 464.0,
+        "mean": 66.81751824817518,
+        "median": 27.0,
+        "min": 14.0,
+        "n": 137,
+        "total": 9154.0
+      },
+      "per_cell_s_by_arm": {
+        "no_think": {
+          "max": 464.0,
+          "mean": 66.65151515151516,
+          "median": 24.0,
+          "min": 14.0,
+          "n": 66,
+          "total": 4399.0
+        },
+        "think": {
+          "max": 353.0,
+          "mean": 66.97183098591549,
+          "median": 28.0,
+          "min": 14.0,
+          "n": 71,
+          "total": 4755.0
+        }
+      },
+      "unpaired_cells": []
+    },
+    "w": {
+      "begin_fmt_counts": {
+        "new": 0,
+        "old": 137
+      },
+      "log_bytes": 276249,
+      "log_lines": 1372,
+      "log_md5": "ac39f192fbda3afc6a484b8ee52538bd",
+      "n_begin": 137,
+      "n_end": 137,
+      "per_cell_s": {
+        "max": 541.0,
+        "mean": 54.416058394160586,
+        "median": 25.0,
+        "min": 14.0,
+        "n": 137,
+        "total": 7455.0
+      },
+      "per_cell_s_by_arm": {
+        "no_think": {
+          "max": 436.0,
+          "mean": 47.484848484848484,
+          "median": 21.0,
+          "min": 14.0,
+          "n": 66,
+          "total": 3134.0
+        },
+        "think": {
+          "max": 541.0,
+          "mean": 60.859154929577464,
+          "median": 29.0,
+          "min": 15.0,
+          "n": 71,
+          "total": 4321.0
+        }
+      },
+      "unpaired_cells": []
+    }
+  },
+  "sources": {
+    "cell_list": {
+      "bytes": 4555,
+      "md5": "f320436ec2353caa93a1721edf6ad4ec",
+      "path": "/home/zhourui/steer3d_bpath/warm_cells.txt"
+    },
+    "gen_dir": {
+      "bytes": 85820625354,
+      "n_npz": 60,
+      "path": "/home/zhourui/steer3d_bpath/gen_b2_max32768/aime"
+    },
+    "gen_log": {
+      "bytes": 7478,
+      "md5": "8d49e3066119ed45107e35a3bd24a3bd",
+      "path": "/home/zhourui/steer3d_bpath/gen_b2_max32768_zju53_cuda3.log"
+    },
+    "warm_rand_log": {
+      "bytes": 288574,
+      "md5": "19012d7125a51b2dc46d78ac5c714e07",
+      "path": "/home/zhourui/steer3d_bpath/r244_warm_rand.log"
+    },
+    "warm_w_log": {
+      "bytes": 276249,
+      "md5": "ac39f192fbda3afc6a484b8ee52538bd",
+      "path": "/home/zhourui/steer3d_bpath/r244_warm.log"
+    }
+  }
+}
