@@ -1,0 +1,23 @@
+{
+  "_note": "⚠⚠⚠ **示例**设计描述（给 `fixed_dose_feasible.py` 用）⛔ **不是**建议规模 ⛔ **不是**已批准的设计 ⇒ 正式设计要由用户定。它的作用是：让下一位接手的人能立刻跑一遍体检器，看清『设计描述 + 生成池』长什么样、以及它会问哪些问题。逐字段的含义见工具的 docstring，或 `python3 .cache/r244/fixed_dose_feasible.py --emit-design-template`。⚠⚠⚠ **注意**：这一份**在体检器下判「能回答」**，是因为它的 `expected_proportions` 写了一个**很大的**效应（w 0.90 vs rand 0.10）⇒ 逐档需求触到下限 ⇒ ⚠ 那是**规划假设**⛔ **不是事实** ⇒ ⇒ 若真实效应更小 ⇒ 需求更大 ⇒ 而生成池只有 60 条 ⇒ ⇒ **「能回答」不稳健** ⇒ 报告里会把这一条印成**前提**。",
+  "design_id": "example_fd_feasible（示例 ⛔ 不是建议规模）",
+  "n_blocks": 28,
+  "tracks_per_arm": 56,
+  "cells_per_track": 3,
+  "tracks_per_band": {
+    "w": [14, 14, 14, 14],
+    "rand": [14, 14, 14, 14]
+  },
+  "expected_proportions": {
+    "w": [0.9, 0.9, 0.9, 0.9],
+    "rand": [0.1, 0.1, 0.1, 0.1]
+  },
+  "convention": {
+    "n_bands": 4,
+    "boundary": "prod",
+    "quantile": "inclusive",
+    "zero_span": "keep"
+  },
+  "dose_mode": "fixed",
+  "pos_fracs": [0.25, 0.5, 0.75]
+}

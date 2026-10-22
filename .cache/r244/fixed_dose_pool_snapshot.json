@@ -1,0 +1,1375 @@
+{
+ "snapshot_id": "gen-pool-2026-10-21",
+ "captured": "2026-10-21",
+ "note": "⚖ 本快照是**真件**的派生（⛔ 不手编）。⚠⚠⚠ **它只说明「现在有什么」，⛔ 不说明「够不够」** —— 够不够由 `fixed_dose_feasible.py` 判。⚠ 快照会过期：生成物一变就得重取（⇒ 源 md5 变了就是过期信号）。",
+ "sources": {
+  "n_eff_map": {
+   "path": "/home/zhourui/steer3d_bpath/n_eff_map.tsv",
+   "md5": "c0d30d22226765b71107ba4db8a2f5af",
+   "rows": 60
+  },
+  "cells": {
+   "path": "/home/zhourui/steer3d_bpath/warm_cells.txt",
+   "md5": "f320436ec2353caa93a1721edf6ad4ec",
+   "rows": 137
+  },
+  "probe": {
+   "path": "/home/zhourui/steer3d_bpath/r241_probe.py",
+   "md5": "61f5b6919306299c164af1bb9cf79c0a",
+   "note": "格的身份 = (轨迹, pos_frac, scope, n_sites)：**剂量轴 = n_sites（k 阶梯）**（`--inject-scope k --inject-n-sites N`）、scope 是**口径开关**（single / all / k 量的是**不同的东西**，⛔ 不许混进同一个汇总）、pos_frac 决定**注入位置**（inj = P + floor(n_gen×pos_frac) − 1）；`--repeat` **不**产出独立格（它是「同一剂量上单读」的可重复性）"
+  },
+  "sweep": {
+   "path": "/home/zhourui/steer3d_bpath/r244_warm_sweep.sh",
+   "pos_frac_used": 0.5,
+   "note": "现有批的 POS_FRAC=0.5 ⇒ **已测过的 pos_frac 只有 0.5**"
+  },
+  "generated_dir": {
+   "path": "/home/zhourui/steer3d_bpath/gen_b2_max32768/aime",
+   "npz": 60,
+   "json": 60,
+   "bytes": 86064287428
+  }
+ },
+ "n_tid": 60,
+ "n_think": 30,
+ "n_no_think": 30,
+ "n_blocks_paired": 30,
+ "n_eff": {
+  "min": 385,
+  "median": 3058.5,
+  "max": 16717
+ },
+ "bytes": {
+  "total": 86064287428,
+  "per_tid_median": 687342460.0,
+  "per_tid_min": 52706403,
+  "per_tid_max": 3916368332
+ },
+ "pos_frac": {
+  "measured": [
+   0.5
+  ],
+  "available": [
+   0.25,
+   0.5,
+   0.75
+  ],
+  "note": "⚠⚠ 现有批**整批 pos_frac = 0.5** ⇒ 它只决定**注入位置**、**不承载剂量**（剂量由 `--inject-n-sites` 承载）⇒ ⇒ 固定剂量下 n_sites 与 scope 都被钉死 ⇒ ⇒ 剩下的复制轴只有 **pos_frac** ⇒ 最多 **3** 个（0.25 / 0.5 / 0.75）⇒ ⇒ ⚠⚠ **0.25 / 0.75 从没被测过**（未量到）"
+ },
+ "tids": [
+  {
+   "tid": "aime__aime25__p00__no_think",
+   "n_eff": 490,
+   "n_gen": 757,
+   "t": 378,
+   "P": 112,
+   "bytes": 90466963,
+   "npz_bytes": 90215515,
+   "json_bytes": 251448,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p00__think",
+   "n_eff": 1762,
+   "n_gen": 3309,
+   "t": 1654,
+   "P": 108,
+   "bytes": 395456146,
+   "npz_bytes": 394345011,
+   "json_bytes": 1111135,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p01__no_think",
+   "n_eff": 1498,
+   "n_gen": 2515,
+   "t": 1257,
+   "P": 241,
+   "bytes": 300577962,
+   "npz_bytes": 299721649,
+   "json_bytes": 856313,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p01__think",
+   "n_eff": 5960,
+   "n_gen": 11446,
+   "t": 5723,
+   "P": 237,
+   "bytes": 1367875845,
+   "npz_bytes": 1364055712,
+   "json_bytes": 3820133,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p02__no_think",
+   "n_eff": 758,
+   "n_gen": 1124,
+   "t": 562,
+   "P": 196,
+   "bytes": 134331316,
+   "npz_bytes": 133952006,
+   "json_bytes": 379310,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p02__think",
+   "n_eff": 4161,
+   "n_gen": 7938,
+   "t": 3969,
+   "P": 192,
+   "bytes": 948667672,
+   "npz_bytes": 945996828,
+   "json_bytes": 2670844,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p03__no_think",
+   "n_eff": 1141,
+   "n_gen": 2005,
+   "t": 1002,
+   "P": 139,
+   "bytes": 239607925,
+   "npz_bytes": 238943419,
+   "json_bytes": 664506,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p03__think",
+   "n_eff": 3786,
+   "n_gen": 7303,
+   "t": 3651,
+   "P": 135,
+   "bytes": 872761040,
+   "npz_bytes": 870321973,
+   "json_bytes": 2439067,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p04__no_think",
+   "n_eff": 1034,
+   "n_gen": 1737,
+   "t": 868,
+   "P": 166,
+   "bytes": 207603685,
+   "npz_bytes": 207005055,
+   "json_bytes": 598630,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p04__think",
+   "n_eff": 10342,
+   "n_gen": 20360,
+   "t": 10180,
+   "P": 162,
+   "bytes": 2433227827,
+   "npz_bytes": 2426363990,
+   "json_bytes": 6863837,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p05__no_think",
+   "n_eff": 385,
+   "n_gen": 441,
+   "t": 220,
+   "P": 165,
+   "bytes": 52706403,
+   "npz_bytes": 52556847,
+   "json_bytes": 149556,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p05__think",
+   "n_eff": 1878,
+   "n_gen": 3434,
+   "t": 1717,
+   "P": 161,
+   "bytes": 410386658,
+   "npz_bytes": 409241636,
+   "json_bytes": 1145022,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p06__no_think",
+   "n_eff": 1242,
+   "n_gen": 2033,
+   "t": 1016,
+   "P": 226,
+   "bytes": 242982785,
+   "npz_bytes": 242280263,
+   "json_bytes": 702522,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p06__think",
+   "n_eff": 16606,
+   "n_gen": 32768,
+   "t": 16384,
+   "P": 222,
+   "bytes": 3916272372,
+   "npz_bytes": 3905062574,
+   "json_bytes": 11209798,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p07__no_think",
+   "n_eff": 2210,
+   "n_gen": 4014,
+   "t": 2007,
+   "P": 203,
+   "bytes": 479695402,
+   "npz_bytes": 478361976,
+   "json_bytes": 1333426,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p07__think",
+   "n_eff": 3200,
+   "n_gen": 6003,
+   "t": 3001,
+   "P": 199,
+   "bytes": 717405928,
+   "npz_bytes": 715397073,
+   "json_bytes": 2008855,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p08__no_think",
+   "n_eff": 1187,
+   "n_gen": 1998,
+   "t": 999,
+   "P": 188,
+   "bytes": 238771600,
+   "npz_bytes": 238109208,
+   "json_bytes": 662392,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p08__think",
+   "n_eff": 11853,
+   "n_gen": 23338,
+   "t": 11669,
+   "P": 184,
+   "bytes": 2789172043,
+   "npz_bytes": 2781261184,
+   "json_bytes": 7910859,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p09__no_think",
+   "n_eff": 974,
+   "n_gen": 764,
+   "t": 382,
+   "P": 592,
+   "bytes": 91311593,
+   "npz_bytes": 91049726,
+   "json_bytes": 261867,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p09__think",
+   "n_eff": 9017,
+   "n_gen": 16858,
+   "t": 8429,
+   "P": 588,
+   "bytes": 2014766277,
+   "npz_bytes": 2009019988,
+   "json_bytes": 5746289,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p10__no_think",
+   "n_eff": 2092,
+   "n_gen": 2357,
+   "t": 1178,
+   "P": 914,
+   "bytes": 281678655,
+   "npz_bytes": 280892315,
+   "json_bytes": 786340,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p10__think",
+   "n_eff": 12281,
+   "n_gen": 22742,
+   "t": 11371,
+   "P": 910,
+   "bytes": 2717981017,
+   "npz_bytes": 2710234076,
+   "json_bytes": 7746941,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p11__no_think",
+   "n_eff": 16577,
+   "n_gen": 32768,
+   "t": 16384,
+   "P": 193,
+   "bytes": 3915994862,
+   "npz_bytes": 3905062574,
+   "json_bytes": 10932288,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p11__think",
+   "n_eff": 11530,
+   "n_gen": 22683,
+   "t": 11341,
+   "P": 189,
+   "bytes": 2710890164,
+   "npz_bytes": 2703202869,
+   "json_bytes": 7687295,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p12__no_think",
+   "n_eff": 702,
+   "n_gen": 1079,
+   "t": 539,
+   "P": 163,
+   "bytes": 128965639,
+   "npz_bytes": 128589221,
+   "json_bytes": 376418,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p12__think",
+   "n_eff": 11856,
+   "n_gen": 23395,
+   "t": 11697,
+   "P": 159,
+   "bytes": 2796202165,
+   "npz_bytes": 2788054045,
+   "json_bytes": 8148120,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p13__no_think",
+   "n_eff": 16600,
+   "n_gen": 32768,
+   "t": 16384,
+   "P": 216,
+   "bytes": 3915947037,
+   "npz_bytes": 3905062574,
+   "json_bytes": 10884463,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p13__think",
+   "n_eff": 14348,
+   "n_gen": 28272,
+   "t": 14136,
+   "P": 212,
+   "bytes": 3378820309,
+   "npz_bytes": 3369260766,
+   "json_bytes": 9559543,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p14__no_think",
+   "n_eff": 964,
+   "n_gen": 1610,
+   "t": 805,
+   "P": 159,
+   "bytes": 192419958,
+   "npz_bytes": 191870084,
+   "json_bytes": 549874,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p14__think",
+   "n_eff": 16539,
+   "n_gen": 32768,
+   "t": 16384,
+   "P": 155,
+   "bytes": 3916368332,
+   "npz_bytes": 3905062574,
+   "json_bytes": 11305758,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p15__no_think",
+   "n_eff": 16555,
+   "n_gen": 32768,
+   "t": 16384,
+   "P": 171,
+   "bytes": 3915737860,
+   "npz_bytes": 3905062574,
+   "json_bytes": 10675286,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p15__think",
+   "n_eff": 2917,
+   "n_gen": 5500,
+   "t": 2750,
+   "P": 167,
+   "bytes": 657278992,
+   "npz_bytes": 655453054,
+   "json_bytes": 1825938,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p16__no_think",
+   "n_eff": 462,
+   "n_gen": 684,
+   "t": 342,
+   "P": 120,
+   "bytes": 81743643,
+   "npz_bytes": 81515886,
+   "json_bytes": 227757,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p16__think",
+   "n_eff": 16500,
+   "n_gen": 32768,
+   "t": 16384,
+   "P": 116,
+   "bytes": 3915799431,
+   "npz_bytes": 3905062574,
+   "json_bytes": 10736857,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p17__no_think",
+   "n_eff": 790,
+   "n_gen": 964,
+   "t": 482,
+   "P": 308,
+   "bytes": 115223498,
+   "npz_bytes": 114884326,
+   "json_bytes": 339172,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p17__think",
+   "n_eff": 16519,
+   "n_gen": 32431,
+   "t": 16215,
+   "P": 304,
+   "bytes": 3876139941,
+   "npz_bytes": 3864901273,
+   "json_bytes": 11238668,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p18__no_think",
+   "n_eff": 1156,
+   "n_gen": 1758,
+   "t": 879,
+   "P": 277,
+   "bytes": 210089953,
+   "npz_bytes": 209507688,
+   "json_bytes": 582265,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p18__think",
+   "n_eff": 5320,
+   "n_gen": 10094,
+   "t": 5047,
+   "P": 273,
+   "bytes": 1206291120,
+   "npz_bytes": 1202933816,
+   "json_bytes": 3357304,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p19__no_think",
+   "n_eff": 1500,
+   "n_gen": 1855,
+   "t": 927,
+   "P": 573,
+   "bytes": 221697454,
+   "npz_bytes": 221067469,
+   "json_bytes": 629985,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p19__think",
+   "n_eff": 9528,
+   "n_gen": 17919,
+   "t": 8959,
+   "P": 569,
+   "bytes": 2141545065,
+   "npz_bytes": 2135462541,
+   "json_bytes": 6082524,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p20__no_think",
+   "n_eff": 1505,
+   "n_gen": 1685,
+   "t": 842,
+   "P": 663,
+   "bytes": 201382048,
+   "npz_bytes": 200808059,
+   "json_bytes": 573989,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p20__think",
+   "n_eff": 9412,
+   "n_gen": 17506,
+   "t": 8753,
+   "P": 659,
+   "bytes": 2092143977,
+   "npz_bytes": 2086244092,
+   "json_bytes": 5899885,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p21__no_think",
+   "n_eff": 1960,
+   "n_gen": 3575,
+   "t": 1787,
+   "P": 173,
+   "bytes": 427265132,
+   "npz_bytes": 426045029,
+   "json_bytes": 1220103,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p21__think",
+   "n_eff": 9617,
+   "n_gen": 18896,
+   "t": 9448,
+   "P": 169,
+   "bytes": 2258353441,
+   "npz_bytes": 2251894718,
+   "json_bytes": 6458723,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p22__no_think",
+   "n_eff": 1020,
+   "n_gen": 1366,
+   "t": 683,
+   "P": 337,
+   "bytes": 163265943,
+   "npz_bytes": 162791872,
+   "json_bytes": 474071,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p22__think",
+   "n_eff": 16717,
+   "n_gen": 32768,
+   "t": 16384,
+   "P": 333,
+   "bytes": 3916339832,
+   "npz_bytes": 3905062574,
+   "json_bytes": 11277258,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p23__no_think",
+   "n_eff": 1350,
+   "n_gen": 2373,
+   "t": 1186,
+   "P": 164,
+   "bytes": 283606942,
+   "npz_bytes": 282799083,
+   "json_bytes": 807859,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p23__think",
+   "n_eff": 7370,
+   "n_gen": 14421,
+   "t": 7210,
+   "P": 160,
+   "bytes": 1723459212,
+   "npz_bytes": 1718595387,
+   "json_bytes": 4863825,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p24__no_think",
+   "n_eff": 617,
+   "n_gen": 935,
+   "t": 467,
+   "P": 150,
+   "bytes": 111755796,
+   "npz_bytes": 111428309,
+   "json_bytes": 327487,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p24__think",
+   "n_eff": 3956,
+   "n_gen": 7621,
+   "t": 3810,
+   "P": 146,
+   "bytes": 910846998,
+   "npz_bytes": 908218987,
+   "json_bytes": 2628011,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p25__no_think",
+   "n_eff": 882,
+   "n_gen": 1484,
+   "t": 742,
+   "P": 140,
+   "bytes": 177373904,
+   "npz_bytes": 176854286,
+   "json_bytes": 519618,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p25__think",
+   "n_eff": 9369,
+   "n_gen": 18466,
+   "t": 9233,
+   "P": 136,
+   "bytes": 2206962424,
+   "npz_bytes": 2200650296,
+   "json_bytes": 6312128,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p26__no_think",
+   "n_eff": 1782,
+   "n_gen": 3029,
+   "t": 1514,
+   "P": 268,
+   "bytes": 361992611,
+   "npz_bytes": 360976571,
+   "json_bytes": 1016040,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p26__think",
+   "n_eff": 16382,
+   "n_gen": 32237,
+   "t": 16118,
+   "P": 264,
+   "bytes": 3852707310,
+   "npz_bytes": 3841781711,
+   "json_bytes": 10925599,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p27__no_think",
+   "n_eff": 1360,
+   "n_gen": 2329,
+   "t": 1164,
+   "P": 196,
+   "bytes": 278341571,
+   "npz_bytes": 277555471,
+   "json_bytes": 786100,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p27__think",
+   "n_eff": 15896,
+   "n_gen": 31409,
+   "t": 15704,
+   "P": 192,
+   "bytes": 3753712107,
+   "npz_bytes": 3743106467,
+   "json_bytes": 10605640,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p28__no_think",
+   "n_eff": 1716,
+   "n_gen": 3085,
+   "t": 1542,
+   "P": 174,
+   "bytes": 368690704,
+   "npz_bytes": 367650259,
+   "json_bytes": 1040445,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p28__think",
+   "n_eff": 7841,
+   "n_gen": 15342,
+   "t": 7671,
+   "P": 170,
+   "bytes": 1833456080,
+   "npz_bytes": 1828353720,
+   "json_bytes": 5102360,
+   "think": true,
+   "no_think": false
+  },
+  {
+   "tid": "aime__aime25__p29__no_think",
+   "n_eff": 1541,
+   "n_gen": 2774,
+   "t": 1387,
+   "P": 154,
+   "bytes": 331546331,
+   "npz_bytes": 330587456,
+   "json_bytes": 958875,
+   "think": false,
+   "no_think": true
+  },
+  {
+   "tid": "aime__aime25__p29__think",
+   "n_eff": 10902,
+   "n_gen": 21505,
+   "t": 10752,
+   "P": 150,
+   "bytes": 2570222528,
+   "npz_bytes": 2562817075,
+   "json_bytes": 7405453,
+   "think": true,
+   "no_think": false
+  }
+ ],
+ "cells_by_tid": {
+  "aime__aime25__p00__think": [
+   {
+    "kind": "k",
+    "val": "1"
+   },
+   {
+    "kind": "k",
+    "val": "6"
+   },
+   {
+    "kind": "k",
+    "val": "27"
+   },
+   {
+    "kind": "k",
+    "val": "110"
+   },
+   {
+    "kind": "k",
+    "val": "440"
+   },
+   {
+    "kind": "k",
+    "val": "881"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "k",
+    "val": "1321"
+   },
+   {
+    "kind": "k",
+    "val": "1541"
+   }
+  ],
+  "aime__aime25__p00__no_think": [
+   {
+    "kind": "k",
+    "val": "1"
+   },
+   {
+    "kind": "k",
+    "val": "7"
+   },
+   {
+    "kind": "k",
+    "val": "30"
+   },
+   {
+    "kind": "k",
+    "val": "122"
+   },
+   {
+    "kind": "k",
+    "val": "245"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "k",
+    "val": "367"
+   },
+   {
+    "kind": "k",
+    "val": "428"
+   }
+  ],
+  "aime__aime25__p03__think": [
+   {
+    "kind": "k",
+    "val": "3"
+   },
+   {
+    "kind": "k",
+    "val": "14"
+   },
+   {
+    "kind": "k",
+    "val": "59"
+   },
+   {
+    "kind": "k",
+    "val": "236"
+   },
+   {
+    "kind": "k",
+    "val": "946"
+   },
+   {
+    "kind": "k",
+    "val": "1893"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "k",
+    "val": "1"
+   },
+   {
+    "kind": "k",
+    "val": "2839"
+   },
+   {
+    "kind": "k",
+    "val": "3312"
+   }
+  ],
+  "aime__aime25__p03__no_think": [
+   {
+    "kind": "k",
+    "val": "1"
+   },
+   {
+    "kind": "k",
+    "val": "4"
+   },
+   {
+    "kind": "k",
+    "val": "17"
+   },
+   {
+    "kind": "k",
+    "val": "71"
+   },
+   {
+    "kind": "k",
+    "val": "285"
+   },
+   {
+    "kind": "k",
+    "val": "570"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "k",
+    "val": "855"
+   },
+   {
+    "kind": "k",
+    "val": "998"
+   }
+  ],
+  "aime__aime25__p02__think": [
+   {
+    "kind": "k",
+    "val": "4"
+   },
+   {
+    "kind": "k",
+    "val": "16"
+   },
+   {
+    "kind": "k",
+    "val": "65"
+   },
+   {
+    "kind": "k",
+    "val": "260"
+   },
+   {
+    "kind": "k",
+    "val": "1040"
+   },
+   {
+    "kind": "k",
+    "val": "2080"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "k",
+    "val": "3120"
+   },
+   {
+    "kind": "k",
+    "val": "3640"
+   }
+  ],
+  "aime__aime25__p02__no_think": [
+   {
+    "kind": "k",
+    "val": "2"
+   },
+   {
+    "kind": "k",
+    "val": "11"
+   },
+   {
+    "kind": "k",
+    "val": "47"
+   },
+   {
+    "kind": "k",
+    "val": "189"
+   },
+   {
+    "kind": "k",
+    "val": "379"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "k",
+    "val": "568"
+   },
+   {
+    "kind": "k",
+    "val": "663"
+   }
+  ],
+  "aime__aime25__p05__think": [
+   {
+    "kind": "k",
+    "val": "1"
+   },
+   {
+    "kind": "k",
+    "val": "7"
+   },
+   {
+    "kind": "k",
+    "val": "29"
+   },
+   {
+    "kind": "k",
+    "val": "117"
+   },
+   {
+    "kind": "k",
+    "val": "469"
+   },
+   {
+    "kind": "k",
+    "val": "939"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "k",
+    "val": "1408"
+   },
+   {
+    "kind": "k",
+    "val": "1643"
+   }
+  ],
+  "aime__aime25__p05__no_think": [
+   {
+    "kind": "k",
+    "val": "1"
+   },
+   {
+    "kind": "k",
+    "val": "6"
+   },
+   {
+    "kind": "k",
+    "val": "24"
+   },
+   {
+    "kind": "k",
+    "val": "96"
+   },
+   {
+    "kind": "k",
+    "val": "192"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "k",
+    "val": "288"
+   },
+   {
+    "kind": "k",
+    "val": "336"
+   }
+  ],
+  "aime__aime25__p07__think": [
+   {
+    "kind": "k",
+    "val": "3"
+   },
+   {
+    "kind": "k",
+    "val": "12"
+   },
+   {
+    "kind": "k",
+    "val": "50"
+   },
+   {
+    "kind": "k",
+    "val": "200"
+   },
+   {
+    "kind": "k",
+    "val": "800"
+   },
+   {
+    "kind": "k",
+    "val": "1600"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "k",
+    "val": "2400"
+   },
+   {
+    "kind": "k",
+    "val": "2800"
+   }
+  ],
+  "aime__aime25__p07__no_think": [
+   {
+    "kind": "k",
+    "val": "2"
+   },
+   {
+    "kind": "k",
+    "val": "8"
+   },
+   {
+    "kind": "k",
+    "val": "34"
+   },
+   {
+    "kind": "k",
+    "val": "138"
+   },
+   {
+    "kind": "k",
+    "val": "552"
+   },
+   {
+    "kind": "k",
+    "val": "1105"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "k",
+    "val": "1657"
+   },
+   {
+    "kind": "k",
+    "val": "1933"
+   }
+  ],
+  "aime__aime25__p18__think": [
+   {
+    "kind": "k",
+    "val": "5"
+   },
+   {
+    "kind": "k",
+    "val": "20"
+   },
+   {
+    "kind": "k",
+    "val": "83"
+   },
+   {
+    "kind": "k",
+    "val": "332"
+   },
+   {
+    "kind": "k",
+    "val": "1330"
+   },
+   {
+    "kind": "k",
+    "val": "2660"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "k",
+    "val": "3990"
+   },
+   {
+    "kind": "k",
+    "val": "4655"
+   }
+  ],
+  "aime__aime25__p18__no_think": [
+   {
+    "kind": "k",
+    "val": "1"
+   },
+   {
+    "kind": "k",
+    "val": "4"
+   },
+   {
+    "kind": "k",
+    "val": "18"
+   },
+   {
+    "kind": "k",
+    "val": "72"
+   },
+   {
+    "kind": "k",
+    "val": "289"
+   },
+   {
+    "kind": "k",
+    "val": "578"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "k",
+    "val": "867"
+   },
+   {
+    "kind": "k",
+    "val": "1011"
+   }
+  ],
+  "aime__aime25__p24__think": [
+   {
+    "kind": "k",
+    "val": "3"
+   },
+   {
+    "kind": "k",
+    "val": "15"
+   },
+   {
+    "kind": "k",
+    "val": "61"
+   },
+   {
+    "kind": "k",
+    "val": "247"
+   },
+   {
+    "kind": "k",
+    "val": "989"
+   },
+   {
+    "kind": "k",
+    "val": "1978"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "k",
+    "val": "2967"
+   },
+   {
+    "kind": "k",
+    "val": "3461"
+   }
+  ],
+  "aime__aime25__p24__no_think": [
+   {
+    "kind": "k",
+    "val": "2"
+   },
+   {
+    "kind": "k",
+    "val": "9"
+   },
+   {
+    "kind": "k",
+    "val": "38"
+   },
+   {
+    "kind": "k",
+    "val": "154"
+   },
+   {
+    "kind": "k",
+    "val": "308"
+   },
+   {
+    "kind": "scope",
+    "val": "all"
+   },
+   {
+    "kind": "scope",
+    "val": "single"
+   },
+   {
+    "kind": "k",
+    "val": "462"
+   },
+   {
+    "kind": "k",
+    "val": "539"
+   }
+  ]
+ },
+ "used_tids": [
+  "aime__aime25__p00__no_think",
+  "aime__aime25__p00__think",
+  "aime__aime25__p02__no_think",
+  "aime__aime25__p02__think",
+  "aime__aime25__p03__no_think",
+  "aime__aime25__p03__think",
+  "aime__aime25__p05__no_think",
+  "aime__aime25__p05__think",
+  "aime__aime25__p07__no_think",
+  "aime__aime25__p07__think",
+  "aime__aime25__p18__no_think",
+  "aime__aime25__p18__think",
+  "aime__aime25__p24__no_think",
+  "aime__aime25__p24__think"
+ ]
+}
