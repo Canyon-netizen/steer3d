@@ -51,7 +51,13 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "."
-PROBE_REL = ".cache/mutbak/r204_noise_probe.py"
+# ⚖⚠⚠⚖ 修订 244.71：探针路径**锚定仓库根**，⛔ 不按 CWD 解析。
+#   原先是裸相对路径 ".cache/mutbak/r204_noise_probe.py" ⇒ ⇒ 回归以**工具目录**为
+#   CWD 跑自检时它必然不可达 ⇒ ⇒ 自检 C1 报「探针源码不可达」⇒ ⇒ 台架**瞎了**
+#   （工具自己的环境依赖），⛔ **不是**「判据红」⇒ ⇒ 244.70 的回归就带着这处红。
+#   ⇒ ⇒ 改成由 __file__ 推导的绝对路径 ⇒ ⇒ 本机与服务器暂存树**同一份**都可达。
+REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
+PROBE_REL = os.path.join(REPO, ".cache", "mutbak", "r204_noise_probe.py")
 
 # ⚖ 三个从探针 AST 抽函数的工具：改动若破坏它们的抽取，这里必须报红。
 EXTRACTORS = ("ladder_position_audit", "dose_axis_audit", "pair_ladder_preflight")
@@ -189,6 +195,49 @@ def probe_state(src):
     if n_sig_old == 0 and has_new and has_guard:
         return "patched"
     return "mixed"
+
+
+def check_probe_form(src):
+    """⚖⚖⚖ **探针形态检查（状态感知）** —— 244.81 修订。
+
+    ⚖⚠⚠⚖⚖⚠⚠ **为什么要改（这不是「把判据改绿」）**：
+      原来 C1 无条件要求 `SIG_OLD`/`SHORTCUT`/`NESTED_RET` 各恰好 1
+      ⇒ ⇒ 那是**补丁前**的形态 ⇒ ⇒ 244.45 给**真探针**打了 force 补丁之后
+      `SIG_OLD` **再也命中不到** ⇒ ⇒ 这条判据**永久红**
+      ⇒ ⇒ 它不是「判据红」，是**断言过期**（和恒绿一样是**坏护栏**）。
+      ⚖ 244.79 的全回归把它记成「既有红（244.45 起）」⇒ ⇒ 那个**分类是对的**
+      ⇒ ⇒ 但只记账不修 ⇒ ⇒ 这个工具会**永远瞎着**。
+
+    ⚖⇒ 改成**按形态各查各的锚点**（形态判定**复用** `probe_state`，
+      ⛔ **不另写一套** —— 两处判定不一致本身就是一类错）：
+      · `unpatched`：`SIG_OLD`/`SHORTCUT`/`NESTED_RET` 各恰好 1；
+      · `patched`  ：`SIG_NEW`/`FORCE_GUARD`/`SHORTCUT`/`NESTED_RET` 各恰好 1，
+                    且 `SIG_OLD` **恰好 0**；
+      · `mixed`    ：⛔ 一律红（形态不明 ⇒ 拒读）。
+
+    ⚖⚠ **不许放松成恒绿**：两种形态各自的锚点**仍要求唯一**
+      ⇒ ⇒ 自检 **C11** 用**合成夹具**（混合形态）证明它**会红**。
+    """
+    state = probe_state(src)
+    counts = dict(anchor_counts(src))
+    if state == "unpatched":
+        need = (("SIG_OLD", counts.get("SIG_OLD", 0)),
+                ("SHORTCUT", counts.get("SHORTCUT", 0)),
+                ("NESTED_RET", counts.get("NESTED_RET", 0)))
+        ok = all(c == 1 for _n, c in need)
+        return ok, ("形态=unpatched ｜ %s（各须恰好 1）"
+                    % ", ".join("%s=%d" % (n, c) for n, c in need))
+    if state == "patched":
+        need = (("SIG_NEW", src.count(SIG_NEW)),
+                ("FORCE_GUARD", src.count(FORCE_GUARD)),
+                ("SHORTCUT", counts.get("SHORTCUT", 0)),
+                ("NESTED_RET", counts.get("NESTED_RET", 0)),
+                ("SIG_OLD", src.count(SIG_OLD)))
+        ok = all(c == 1 for _n, c in need[:4]) and need[4][1] == 0
+        return ok, ("形态=patched ｜ %s（前三须恰好 1；SIG_OLD 须恰好 0）"
+                    % ", ".join("%s=%d" % (n, c) for n, c in need))
+    return False, ("形态=mixed（%s）⇒ 形态不明 ⇒ ⛔ 拒读"
+                   % ", ".join("%s=%d" % (n, c) for n, c in anchor_counts(src)))
 
 
 def assert_distinct_reference(orig_path, under_test):
@@ -580,14 +629,20 @@ def selftest(probe_path=PROBE_REL):
     _PROBE = probe_path if os.path.exists(probe_path) else None
     tmpdir = tempfile.mkdtemp(prefix="compat_st_")
 
-    # C1 三个锚点必须**各恰好 1**（真探针）
+    # C1 探针形态必须**已知且锚点唯一**（⚖ **状态感知**：补丁前/补丁后各查各的）
     if _PROBE:
         src = open(_PROBE, encoding="utf-8").read()
-        cs = anchor_counts(src)
-        chk("C1", all(c == 1 for _, c in cs),
-            "锚点 %s（各须恰好 1）" % ", ".join("%s=%d" % (n, c) for n, c in cs))
+        ok1, why1 = check_probe_form(src)
+        chk("C1", ok1, why1)
     else:
         chk("C1", False, "探针源码不可达（%r）⇒ 锚点未验" % probe_path)
+
+    # C11 ⚖⚖⚖ **C1 必须能红**：合成一个「**混合形态**」的探针
+    #   （补丁前的 `SIG_OLD` 与补丁后的 `SIG_NEW` 同时在）⇒ ⇒ 形态检查必须报红
+    #   ⇒ ⇒ 否则 C1 就是恒绿护栏 ⇒ ⇒ 这条判据自己先把自己钉住。
+    _mixed_src = SYNTH_PROBE + "\n\n" + SIG_NEW + "\n    return []\n"
+    ok11, why11 = check_probe_form(_mixed_src)
+    chk("C11", (not ok11), "混合形态 ⇒ 必须红（%s）" % why11[:90])
 
     # C2 J1 双向 × **两条路**：同函数⇒过；候选多吐一个⇒不过
     def drift_fn(n, k, seed=0, nested=False):
