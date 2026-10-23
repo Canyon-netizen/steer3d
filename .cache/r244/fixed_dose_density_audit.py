@@ -40,11 +40,17 @@ import sys
 import collections
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 
 POOL_DEFAULT = os.path.join(HERE, "fixed_dose_pool_snapshot.json")
 CELLS_COLUMNS = ("tid", "scope", "n_sites", "pos_frac")
 D_TOL_DEFAULT = 0.005
+# ⚖⚖⚖ 244.76：**生效口径的默认来源 = 老预登记**（⇒ 老口径下数值**逐位不变**）
+#   ⇒ 变体预登记（合池 `n_bands = 1`）走 `--prereg` 指过去 ⇒ ⇒ **两条口径并存、互不覆盖**
+PREREG_DEFAULT = os.path.join(REPO, ".cache", "xcheck", "R6_FIXED_DOSE_PREREG.md")
+# ⚖ 244.76：**变体**预登记（合池 `n_bands = 1`，244.76 新签）⇒ 与老预登记**并存**
+PREREG_VARIANT = os.path.join(REPO, ".cache", "xcheck", "R6_FIXED_DOSE_VARIANT_PREREG.md")
 
 
 class HardFail(Exception):
@@ -70,6 +76,39 @@ def dlayer():
 def fdf():
     import fixed_dose_feasible
     return fixed_dose_feasible
+
+
+def fda():
+    import fixed_dose_audit
+    return fixed_dose_audit
+
+
+def read_convention(prereg_path=None):
+    """⚖⚖⚖ 读**生效口径**（档数 / 档边界 / 分位点算法 / 零跨度）⇒ **只从预登记的机器块读**。
+
+    ⚖⚖⚖⚖⚖ **244.76**：这个工具原来把四个口径**写死**在代码里
+       （`dose_cells(zero_span="keep")` ＋ `dose_bands_v(boundary="prod",
+       quantile="inclusive", n_bands=4)`）⇒ ⇒ 违反 244.66 的宪法
+       「口径**只写一处**：分析脚本从机器可读块读，⛔ **代码里一个口径都不写死**」
+       ⇒ ⇒ **它是四个工具里唯一的例外**（preflight / feasible / audit 都读预登记）
+       ⇒ ⇒ 现在改成**从预登记读** ⇒ ⇒ **老预登记写的正是那四个值 ⇒ 数值逐位不变**
+       ⇒ ⇒ ⇒ 「改口径不许改数」这条判据的第一版就在这里（见 T12）。
+
+    ⛔ **不许兜底**：预登记缺键 / 取值非法 ⇒ `Cfg` 直接 HardFail
+       （⛔ 默认值兜底 ⇒ 「口径被改」就看不见了 ⇒ 那是宪法明令禁止的）。
+    """
+    p = prereg_path or PREREG_DEFAULT
+    F = fda()
+    # ⚖⚠⚖⚖⚖ 244.76：**两个模块各有各的 `HardFail`** ⇒ `fixed_dose_audit.read_prereg`
+    #   抛的是**它那个**类 ⇒ ⇒ 若不转成本模块的类 ⇒ ⇒ 异常会**逃出去**
+    #   ⇒ ⇒ 自检会**崩**、变异台会把每一条都记成「崩」（⛔ 崩 ≠ 抓到）⇒ ⇒ 这里必须转。
+    try:
+        raw = F.read_prereg(p)
+        cfg = F.Cfg(raw)
+    except F.HardFail as e:
+        raise HardFail("读预登记失败（%s）：%s" % (p, e))
+    return {"n_bands": int(cfg.n_bands), "boundary": cfg.boundary,
+            "quantile": cfg.quantile, "zero_span": cfg.zero_span, "prereg": p}
 
 
 def _read_json(path, what):
@@ -140,6 +179,8 @@ def parse_spec(path):
     return {
         "spec_id": sp.get("spec_id", "（未命名）"),
         "route": sp.get("route") or {},
+        # ⚖ 244.76：**表头是格式的第二个维度** ⇒ 判据 D9 要拿规格声明的列名来比
+        "columns": [str(c) for c in (sp.get("columns") or CELLS_COLUMNS)],
         "scope": str(dose.get("scope", "k")),
         "frac": float(dose.get("frac", 0.25)),
         "tol": float(dose.get("tol", D_TOL_DEFAULT)),
@@ -150,10 +191,14 @@ def parse_spec(path):
 
 
 # ================================================================ 主审计
-def audit_cells(spec, cells_path, pool, base):
+def audit_cells(spec, cells_path, pool, base, conv=None):
     """⚖ 在**生产剂量口径**下核一份格清单 ⇒ 返回 `(判据行, 判决字典)`。
-    ⚖⚖⚖ **判决只算一次**（印出来的与返回的一致 ⇒ 报告层算完再返回）。"""
+    ⚖⚖⚖ **判决只算一次**（印出来的与返回的一致 ⇒ 报告层算完再返回）。
+
+    ⚖⚖⚖ 244.76：`conv` = **生效口径**（从预登记读）⇒ ⛔ 代码里不再写死任何口径取值。
+    """
     DC = dconf()
+    conv = conv or read_convention()
     R = {}
     rows = []
     gaps = []
@@ -292,9 +337,12 @@ def audit_cells(spec, cells_path, pool, base):
                              "pos_frac": float(c["pos_frac"]),
                              "p9_lo_meas": 0.1, "p9_hi_meas": 0.2})
         try:
-            ks, fr = DC.dose_cells(recs, zero_span="keep")
-            _qs, bands = DC.dose_bands_v(ks, fr, boundary="prod",
-                                          quantile="inclusive", n_bands=4)
+            # ⚖⚖⚖ 244.76：四个口径**全部来自预登记**（⛔ 原来这里是四个写死的字面量
+            #   ⇒ ⇒ 违反 244.66 宪法「代码里一个口径都不写死」）
+            ks, fr = DC.dose_cells(recs, zero_span=conv["zero_span"])
+            _qs, bands = DC.dose_bands_v(ks, fr, boundary=conv["boundary"],
+                                          quantile=conv["quantile"],
+                                          n_bands=int(conv["n_bands"]))
             band_of = collections.defaultdict(set)
             for i, (_lab, sub) in enumerate(bands):
                 for r in sub:
@@ -305,9 +353,9 @@ def audit_cells(spec, cells_path, pool, base):
                 for t2, cs2 in cb.items():
                     ms[len(cs2)] += 1
             split_tids = [t for t, s in band_of.items() if len(s) > 1]
-            detail = ("分析管线的 4 档把复制格**拆开**的轨迹 **%d / %d** 条；"
+            detail = ("分析管线的 **%d 档**（口径来自预登记）把复制格**拆开**的轨迹 **%d / %d** 条；"
                       "档内 m 分布 **%s**（设计意图 m=%d）"
-                      % (len(split_tids), len(band_of), dict(ms),
+                      % (int(conv["n_bands"]), len(split_tids), len(band_of), dict(ms),
                          int(spec.get("cells_per_track") or 3)))
             ok5 = not split_tids
         except Exception as e:
@@ -330,8 +378,10 @@ def audit_cells(spec, cells_path, pool, base):
     pooled_ok = False
     pooled_why = ""
     try:
-        DC.dose_bands_v([{"tid": "x"}], [0.25], boundary="prod",
-                        quantile="inclusive", n_bands=1)
+        #   ⚖⚖⚖ 244.76：`n_bands = 1` 是**被探的那项能力**（⛔ **不是**口径取值）
+        #   ⇒ ⇒ 档边界 / 分位点算法一律取**预登记**的（⛔ 代码里不再写死）
+        DC.dose_bands_v([{"tid": "x"}], [0.25], boundary=conv["boundary"],
+                        quantile=conv["quantile"], n_bands=1)
         pooled_ok = True
         pooled_why = "分档器**接受** n_bands=1 ⇒ 合池模式**可用**"
     except Exception as e:
@@ -344,6 +394,25 @@ def audit_cells(spec, cells_path, pool, base):
         gaps.append("当前分析管线**没有合池模式**（`dose_bands_v` 拒绝 n_bands=1）⇒ ⇒ "
                     "「固定剂量」这一批**在当前管线下算不出判决数** ⇒ ⇒ 要么改管线，"
                     "要么那一批**别跑**")
+
+    # ---------- D9：**表头**（格式的**第二个**维度，不止列数）—— 必须存在且与规格一致
+    #    ⚖⚖⚖⚖⚖ 244.76 新增：原来 `read_cells` **无条件吃第一行** ⇒ ⇒ 喂**无表头**的文件
+    #    ⇒ ⇒ 第一格被**静默吞掉** ⇒ ⇒ **没有任何判据会报** ⇒ ⇒ 典型的「静默数据丢失」
+    #    （与本项目「崩 ≠ 抓到」「恒绿护栏要能红」同类）
+    #    ⇒ ⇒ 现在有一条**能红**的判据盯着它：**表头缺失 / 列名不符 ⇒ 红**。
+    #    ⚖⚖ **244.75 登记的数不受影响**：`fixed_dose_density_target.py` 的 `read_ladder`
+    #    （行 131–153）**不吃表头** ⇒ ⇒ 14/28/308 逐条成立 ✅
+    expect_cols = [str(c).strip() for c in (spec.get("columns") or CELLS_COLUMNS)]
+    head_cols = [str(c).strip() for c in (head or [])]
+    ok9 = (head_cols == expect_cols)
+    put("D9", ok9,
+        "**表头存在且列名与规格 `columns` 一致**（格式的**第二个**维度，不止列数）："
+        "表头 **%s** vs 规格 **%s** %s"
+        % (head_cols, expect_cols, "✅" if ok9 else "❌（分析侧会**静默吞掉第一格**）"))
+    if not ok9:
+        gaps.append("格清单的**表头**与规格 `columns` 不一致（或**根本没有表头**）⇒ ⇒ "
+                    "分析侧 `read_cells` 会**静默吞掉第一格**（⛔ 静默数据丢失）⇒ ⇒ "
+                    "要么补上表头，要么 ⛔ **不许跑这一批**")
 
     # ---------- D6 两套口径的差（⛔ 诊断，⛔ 不参与判决）
     neff_spread = 0.0
@@ -386,11 +455,14 @@ def audit_cells(spec, cells_path, pool, base):
         premises.append("pos_frac 取值 %s **未量到**（已测过的只有 %s）⇒ "
                         "**这一批同时是这条轴的首次测量**" % (unmeasured, pf_meas))
 
-    blocking = [g for g in ("D2", "D3", "D4", "D5", "D8") if not R.get(g, False)]
+    # ⚖⚖⚖ 244.76：阻断集 **加了 D9**（表头/列名）⇒ ⇒ 244.74 登记的「阻断集 = {D2,D3,D4,D5}」
+    #   ⇒ ⇒ **244.76 起 = {D2,D3,D4,D5,D9}**（⚠ 这是**新增一条判据**带来的事实变化，
+    #   ⇒ ⇒ 不是把红改成绿 ⇒ ⇒ 老口径下 D1–D8 的**判决数字逐位不变**）
+    blocking = [g for g in ("D2", "D3", "D4", "D5", "D8", "D9") if not R.get(g, False)]
     can = not blocking
     return rows, {
         "R": R, "rows": rows, "gaps": gaps, "premises": premises,
-        "can": can, "blocking": blocking,
+        "can": can, "blocking": blocking, "conv": conv,
         "n_tid": len(by_tid), "n_cells": len(good),
         "dens": dens, "supply_miss": supply_miss, "supply_tot": supply_tot,
         "ana_spread": ana_spread, "neff_spread": neff_spread,
@@ -408,6 +480,12 @@ def render_audit(spec, v, cells_path):
     out.append("  ⚖ 清单：`%s`（%d 行 / %d 条轨迹）" % (cells_path, v["n_cells"], v["n_tid"]))
     out.append("  ⚖ 密度口径：**n_sites / (P + max(1, int(n_gen·pos_frac)) − 1)**"
                "（⛔ **复用** `dose_confound_audit.frac_of` ⇒ 与**分析管线**逐位同源）")
+    # ⚖⚖⚖ 244.76：**生效口径必须印出来**（从预登记读 ⇒ 数字与口径**一起**可核对）
+    cv = v.get("conv") or {}
+    out.append("  ⚖ **生效分析口径**（来自预登记 `%s` ⇒ ⛔ 代码里不写死）："
+               "档数 **%s** ｜ 档边界 **%s** ｜ 分位点算法 **%s** ｜ 零跨度 **%s**"
+               % (cv.get("prereg", "（未指定）"), cv.get("n_bands"),
+                  cv.get("boundary"), cv.get("quantile"), cv.get("zero_span")))
     out.append("")
     for ln in v["rows"]:
         out.append(ln)
@@ -432,14 +510,21 @@ def render_audit(spec, v, cells_path):
 
 
 # ================================================================ 供给审计
-def audit_supply(route, pool, base, target=0.25, tol=D_TOL_DEFAULT):
+def audit_supply(route, pool, base, target=None, tol=None):
     """⚖ **供给审计**：现有 k 阶梯（pos_frac=0.5 下生成的）能不能在每个
     (轨迹, pos_frac) 下供出「生产密度 = target」的那一档。
+
+    ⚠⚠⚖⚖⚖ **244.76**：原来 `target=0.25` / `tol=0.005` 是**函数默认值**
+       ⇒ ⇒ 那是**第二处**写着剂量口径（真源在**规格**的 `dose.frac` / `dose.tol`）
+       ⇒ ⇒ 违反「口径只写一处」⇒ ⇒ 现在**不许兜底**：不给就 HardFail。
 
     ⚖⚠⚖ **为什么必须查这条**：阶梯是**在 pos_frac=0.5 下生成**的 ⇒
     同一个 n_sites 在 0.25 / 0.75 下**密度不同** ⇒ ⇒ 要在别的 pos_frac 下
     命中同一密度 ⇒ **需要另一个 n_sites** ⇒ ⇒ 那个 n_sites **在不在阶梯上**，
     本地量得到 ⇒ ⇒ **量不到就别假设它在**。"""
+    if target is None or tol is None:
+        raise HardFail("供给审计必须显式给出目标密度与容差（⛔ 不许默认值兜底 ⇒ "
+                       "剂量口径的真源是**规格**的 `dose.frac` / `dose.tol`）")
     DC = dconf()
     ti = tid_info(pool)
     lad = ladder_rungs(base)
@@ -492,7 +577,17 @@ def _fake_cells_ladder(pool, base, target=0.25, tol=D_TOL_DEFAULT):
     """⚖ 造一份**当前世界形状**的清单：用**真阶梯**上那一档 n_sites，
     **三个 pos_frac 共用同一个 n_sites** ⇒ ⇒ 正是 244.71 模板印的那个形状。
 
-    ⚖⚠⚖ 它**故意**不满足密度口径（D2/D3 会红）⇒ ⇒ 它的用处是当**反例**。"""
+    ⚖⚠⚖ 它**故意**不满足密度口径（D2/D3 会红）⇒ ⇒ 它的用处是当**反例**。
+
+    ⚖⚖⚖ 244.76 **回补默认值**的因（⛔ 不是「口径写死」）：
+       `pooled_mode_audit.py`（**244.74 入库的另一个工具**）在两处调用
+       `_fake_cells_fixed(pool, base)` ⇒ ⇒ 我一度把 `target`/`tol` 改成**必填**
+       ⇒ ⇒ **那个工具直接崩**（`TypeError`）⇒ ⇒ **本轮引入的红**
+       ⇒ ⇒ 所以默认值**必须留着**。
+       ⚖⚖⚖ 而这两个值是**夹具的测试输入**（⛔ **不是分析口径**）：
+       ⇒ ⇒ 分析口径（档数/边界/分位/零跨度）**只从预登记读**（见 `read_convention`）
+       ⇒ ⇒ 发批口径（ρ*/tol）**只从规格读**（见 `parse_spec`）⇒ ⇒ 这里的 0.25/0.005
+       只是**夹具**，⛔ 不参与任何判决。"""
     ti = tid_info(pool)
     lad = ladder_rungs(base)
     DC = dconf()
@@ -516,7 +611,11 @@ def _fake_cells_fixed(pool, base, target=0.25, tol=D_TOL_DEFAULT):
     按**它自己的分母**缩放 ⇒ ⇒ 三个复制格的**密度相等** ⇒ ⇒ 这才是「固定剂量」。
 
     ⚖⚠⚖ 这份清单的 n_sites **不在现有阶梯上** ⇒ ⇒ D4（供给）仍红
-    ⇒ ⇒ **这正是本轮要量出来的东西**：密度口径下**需要新阶梯**。"""
+    ⇒ ⇒ **这正是本轮要量出来的东西**：密度口径下**需要新阶梯**。
+
+    ⚖⚖⚖ 244.76：默认值**必须留着**（`pooled_mode_audit.py` 在两处用两参调用它
+    ⇒ ⇒ 改成必填 ⇒ ⇒ 那个工具崩 ⇒ ⇒ 本轮引入的红）⇒ ⇒ 详见
+    `_fake_cells_ladder` 的同一段说明。"""
     ti = tid_info(pool)
     lad = ladder_rungs(base)
     DC = dconf()
@@ -555,10 +654,12 @@ def selftest(pool_path=POOL_DEFAULT, base_path=None):
              "arms": ["w", "rand"]}
     spec = {"spec_id": "selftest", "route": route, "scope": "k",
             "frac": 0.25, "tol": D_TOL_DEFAULT,
+            # ⚖ 244.76：**表头是格式的第二个维度** ⇒ 判据 D9 要拿它来比
+            "columns": list(CELLS_COLUMNS),
             "pos_fracs": [0.25, 0.5, 0.75], "n_blocks": 2, "cells_per_track": 3}
     tmp = tempfile.mkdtemp(prefix="fdden_")
     try:
-        txt = _fake_cells_ladder(pool, base)
+        txt = _fake_cells_ladder(pool, base, spec["frac"], spec["tol"])
         p = _mk(tmp, "cells.tsv", txt)
         _rows, v = audit_cells(spec, p, pool, base)
         chk("T1", v["n_tid"] >= 1, "夹具自己造不出格（n_tid=%d）" % v["n_tid"])
@@ -591,7 +692,7 @@ def selftest(pool_path=POOL_DEFAULT, base_path=None):
             "某格密度不落 frac±tol ⇒ D3 必须红")
 
         # ---- D4：供给断层（⛔ 用**真阶梯**量 ⇒ ⛔ 不许用手造的数）
-        _txt, sv = audit_supply(route, pool, base)
+        _txt, sv = audit_supply(route, pool, base, spec["frac"], spec["tol"])
         chk("T4", isinstance(sv["miss"], list) and sv["tot"] > 0,
             "供给审计没跑起来")
         # ---- T4b：供给审计的**负样**（⚠⚠⚖ 244.72 更正：原来那条是**恒真重言式**）
@@ -600,7 +701,7 @@ def selftest(pool_path=POOL_DEFAULT, base_path=None):
         #   ⇒ ⇒ 改成**负样**：给路线加一个阶梯供不出的 pos_frac（0.125）
         #   ⇒ ⇒ 供给审计**必须**多报出 miss ⇒ ⇒ 「miss 永远空着」这类改动会被抓住
         route2 = dict(route, pos_fracs=list(route["pos_fracs"]) + [0.125])
-        _txt2, sv2 = audit_supply(route2, pool, base)
+        _txt2, sv2 = audit_supply(route2, pool, base, spec["frac"], spec["tol"])
         chk("T4b", (sv2["tot"] > sv["tot"]) and (len(sv2["miss"]) > len(sv["miss"])),
             "给路线加一个供不出的 pos_frac（0.125）⇒ 供给审计必须多报 miss"
             "（tot %d→%d，miss %d→%d）" % (sv["tot"], sv2["tot"],
@@ -634,7 +735,7 @@ def selftest(pool_path=POOL_DEFAULT, base_path=None):
 
         # ---- T9（⚖⚖⚖ **正向夹具**）：密度**真的固定**的那份清单 ⇒ D2/D3/D5 必须**全绿**
         #      ⇒ ⇒ 证明这三条判据**不是恒红** ⇒ ⇒ 也证明「换成 n_eff 那一支」会被抓住
-        txt9 = _fake_cells_fixed(pool, base)
+        txt9 = _fake_cells_fixed(pool, base, spec["frac"], spec["tol"])
         p9 = _mk(tmp, "fixed.tsv", txt9)
         _r9, v9 = audit_cells(spec, p9, pool, base)
         chk("T9", v9["R"]["D2"] and v9["R"]["D3"],
@@ -652,6 +753,55 @@ def selftest(pool_path=POOL_DEFAULT, base_path=None):
         chk("T9b", not v9["R"]["D4"],
             "密度固定的那份清单的 n_sites **不在现有阶梯上** ⇒ D4（供给）**必须**仍红"
             "（⇒ 这正是本轮要量出来的东西：需要新阶梯）")
+
+        # ---- T10：**表头存在** ⇒ D9 必须绿（正向夹具）⇒ ⇒ 证明 D9 不是恒红
+        chk("T10", v["R"]["D9"] and ("D9" not in v["blocking"]),
+            "带表头的夹具 ⇒ D9 必须**绿**且**不阻断**（实际 D9=%s 阻断=%s）"
+            % (v["R"]["D9"], v["blocking"]))
+
+        # ---- T11：**表头缺失** ⇒ D9 必须红（⛔ 这正是【9.3】那条「静默吞第一格」的护栏）
+        #      ⇒ 原来 `read_cells` 无条件吃第一行 ⇒ ⇒ 喂无表头文件 ⇒ **第一格被静默吞掉**
+        #      ⇒ ⇒ 没有任何判据会报 ⇒ ⇒ 现在必须**报出来**
+        no_head = "\n".join([ln for ln in txt.split("\n") if not ln.startswith("tid\t")])
+        p11 = _mk(tmp, "nohead.tsv", no_head)
+        _r11, v11 = audit_cells(spec, p11, pool, base)
+        chk("T11", (not v11["R"]["D9"]) and ("D9" in v11["blocking"]),
+            "喂**无表头**的清单 ⇒ D9 必须红且阻断（原来会**静默吞掉第一格**而无任何判据报）"
+            "（实际 D9=%s 阻断=%s）" % (v11["R"]["D9"], v11["blocking"]))
+
+        # ---- T12：**表头列名不符** ⇒ D9 必须红（⛔ 格式的第二个维度）
+        bad_head = "\n".join(["tid\tscope\tn_sites\tPOS_FRAC"] + txt.split("\n")[1:])
+        p12 = _mk(tmp, "badhead.tsv", bad_head)
+        _r12, v12 = audit_cells(spec, p12, pool, base)
+        chk("T12", (not v12["R"]["D9"]),
+            "表头列名与规格 `columns` 不一致 ⇒ D9 必须红（实际 D9=%s）" % (v12["R"]["D9"],))
+
+        # ---- T13：⚖⚖⚖ **口径去写死的活体验**：D5 必须**跟着预登记走**
+        #      ⇒ 老预登记（n_bands = 4）⇒ D5 **红**（4 档切穿复制组）
+        #      ⇒ 变体预登记（n_bands = 1 合池）⇒ D5 **绿**（合池不切）
+        #      ⇒ ⇒ 证明 D5 **不再**由代码里的字面量决定（⛔ 否则这条判据恒绿 ⇒ 不算数）
+        conv_var = read_convention(PREREG_VARIANT)
+        _r13, v13 = audit_cells(spec, p9, pool, base, conv_var)
+        chk("T13a", (conv_var["n_bands"] == 1) and v13["R"]["D5"],
+            "变体预登记（合池 n_bands=1）⇒ D5 必须**绿**（合池不会切穿复制组）"
+            "（实际 n_bands=%s D5=%s）" % (conv_var["n_bands"], v13["R"]["D5"]))
+        chk("T13b", (not v9["R"]["D5"]),
+            "老预登记（n_bands=4）⇒ D5 必须**仍红**（⇒ ⇒ **老口径下数字逐位不变**）"
+            "（实际 D5=%s）" % (v9["R"]["D5"],))
+
+        # ---- T14：⛔ 缺预登记 ⇒ HardFail（⛔ 不许用默认值兜底）
+        try:
+            read_convention(os.path.join(HERE, "_no_such_prereg_24476.md"))
+            chk("T14", False, "缺预登记文件必须 HardFail（⛔ 不许兜底）")
+        except HardFail:
+            chk("T14", True, "缺预登记文件必须 HardFail（⛔ 不许兜底）")
+
+        # ---- T15：⛔ 供给审计**不许**默认值兜底（剂量口径的真源是**规格**）
+        try:
+            audit_supply(route, pool, base)
+            chk("T15", False, "供给审计不给目标密度/容差 ⇒ 必须 HardFail（⛔ 不许兜底）")
+        except HardFail:
+            chk("T15", True, "供给审计不给目标密度/容差 ⇒ 必须 HardFail（⛔ 不许兜底）")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("自检 %d 通过 / %d 失败" % (len(ok), len(bad)))
@@ -668,8 +818,12 @@ def main():
     ap.add_argument("--route", default=None)
     ap.add_argument("--pool", default=POOL_DEFAULT)
     ap.add_argument("--baseline", default=os.path.join(HERE, "fixed_dose_cost_baseline.json"))
-    ap.add_argument("--dose-frac", type=float, default=0.25)
-    ap.add_argument("--dose-tol", type=float, default=D_TOL_DEFAULT)
+    # ⚖⚖⚖ 244.76：**生效分析口径从预登记读**（⛔ 原来写死在代码里）
+    #   ⇒ 变体预登记（合池 `n_bands = 1`）⇒ `--prereg …/R6_FIXED_DOSE_VARIANT_PREREG.md`
+    ap.add_argument("--prereg", default=PREREG_DEFAULT)
+    # ⚖⚖⚖ 244.76：剂量口径（ρ* / tol）**真源 = 规格** ⇒ ⛔ 不给默认值兜底
+    ap.add_argument("--dose-frac", type=float, default=None)
+    ap.add_argument("--dose-tol", type=float, default=None)
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args()
     try:
@@ -678,15 +832,21 @@ def main():
         pool = fdf().read_pool(a.pool)
         base = _read_json(a.baseline, "成本基线")
         if a.supply:
+            if not a.spec:
+                raise HardFail("--supply 需要 --spec（剂量口径 ρ*/tol **只写在规格里** ⇒ "
+                               "⛔ 不许代码里兜底）")
+            spec = parse_spec(a.spec)
             route = _read_json(a.route, "路线") if a.route else {}
-            txt, _sv = audit_supply(route, pool, base, a.dose_frac, a.dose_tol)
+            frac = a.dose_frac if a.dose_frac is not None else spec["frac"]
+            tol = a.dose_tol if a.dose_tol is not None else spec["tol"]
+            txt, _sv = audit_supply(route, pool, base, frac, tol)
             print(txt)
             return 0
         if a.audit:
             if not a.cells or not a.spec:
                 raise HardFail("--audit 需要 --cells 与 --spec")
             spec = parse_spec(a.spec)
-            rows, v = audit_cells(spec, a.cells, pool, base)
+            rows, v = audit_cells(spec, a.cells, pool, base, read_convention(a.prereg))
             print(render_audit(spec, v, a.cells))
             return 0 if v["can"] else 1
         print("用法：--audit --cells <tsv> --spec <json> ｜ --supply --route <json> ｜ --selftest",

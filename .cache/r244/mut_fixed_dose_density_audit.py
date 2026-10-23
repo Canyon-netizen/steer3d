@@ -76,10 +76,11 @@ MUTATIONS = [
      "**无中生有** ⇒ ⇒ T9c 必须红"
      "（⚠ 原来这条是「改成恒真」⇒ 244.74 起 D8 的**正确极性就是绿** ⇒ 那个变异"
      "与正确行为**语义等价** ⇒ 抓不到 ⇒ ⇒ 换成「恒假」这一支）"),
-    ("M10b", '                        quantile="inclusive", n_bands=1)',
-     '                        quantile="inclusive", n_bands=0)', "T9c",
+    ("M10b", '                        quantile=conv["quantile"], n_bands=1)',
+     '                        quantile=conv["quantile"], n_bands=0)', "T9c",
      "⚠⚠⚖ 244.74：**D8 的探测被改坏**（探 n_bands=0 而不是 1 ⇒ 必抛 ⇒ 合池模式"
-     "被判成「没有」）⇒ ⇒ D8 转红 ⇒ ⇒ T9c 必须红"),
+     "被判成「没有」）⇒ ⇒ D8 转红 ⇒ ⇒ T9c 必须红"
+     "（⚠ 244.76：落点随「口径去写死」改过 ⇒ 边界/分位改成取预登记 ⇒ 断言同步更新）"),
     ("M11", "            if len(hits) != 1:\n                miss.append((tid, pf, len(hits)))",
      "            if False:  # 变异：让供给审计永远不报 miss\n                miss.append((tid, pf, len(hits)))", "T4b",
      "⚠⚠⚖⚖⚖ **供给审计的 miss 列表被改成永远为空** ⇒ ⇒ 「供不出」这件事**测不到** ⇒ ⇒ "
@@ -89,6 +90,27 @@ MUTATIONS = [
      "            if len(hits) != 1:\n                miss.append((tid, pf, len(hits)))", "T4b",
      "⚖ **等价变异验收用例**：替换串 **==** 落点串 ⇒ 文件**逐字节不变** ⇒ ⇒ 必须记成"
      "「**无效**」（⛔ **不是**「存活」）⇒ ⇒ 纪律 ③ 不是 docstring"),
+    # ---- 244.76 新增：三条都是「**口径去写死**」这一层的护栏 ----
+    ("M13", 'n_bands=int(conv["n_bands"]))',
+     'n_bands=4)', "T13a",
+     "⚖⚖⚖⚖⚖ 244.76：**D5 的档数被写死回 4**（⛔ 原来就是写死的 ⇒ ⇒ 244.76 刚把它"
+     "改成读预登记 ⇒ ⇒ 这条变异把它**焊回去**）⇒ ⇒ 变体预登记（合池）下 D5 必红 ⇒ ⇒ "
+     "T13a 必须抓到 ⇒ ⇒ 证明「口径真的来自预登记」"),
+    ("M14", "    ok9 = (head_cols == expect_cols)",
+     "    ok9 = True", "T11",
+     "⚖⚖⚖⚖⚖ 244.76：**D9（表头判据）被改成恒真** ⇒ ⇒ 无表头的清单也会说「表头对」⇒ ⇒ "
+     "【9.3】那条「静默吞掉第一格」又变成**测不到** ⇒ ⇒ T11 必须抓到"),
+    ("M15", "        raw = F.read_prereg(p)\n        cfg = F.Cfg(raw)",
+     "        return {\"n_bands\": 4, \"boundary\": \"prod\", \"quantile\": \"inclusive\",\n"
+     "                \"zero_span\": \"keep\", \"prereg\": p}", "T13a",
+     "⚖⚖⚖⚖⚖ 244.76：**读预登记那一层被换成写死的字典** ⇒ ⇒ 「口径只写一处」被破坏 ⇒ ⇒ "
+     "变体预登记读不到 ⇒ ⇒ T13a 必须抓到（⛔ 兜底 ⇒ 口径被改就看不见了）"),
+    ("M16", '    if target is None or tol is None:\n'
+     '        raise HardFail("供给审计必须显式给出目标密度与容差（⛔ 不许默认值兜底 ⇒ "\n'
+     '                       "剂量口径的真源是**规格**的 `dose.frac` / `dose.tol`）")',
+     "    if target is None or tol is None:\n        target, tol = 0.25, 0.005", "T15",
+     "⚖⚖⚖ 244.76：**供给审计的「不许兜底」被拆掉** ⇒ ⇒ 剂量口径又变成代码里写死的第二处 ⇒ ⇒ "
+     "T15 必须抓到"),
 ]
 
 
