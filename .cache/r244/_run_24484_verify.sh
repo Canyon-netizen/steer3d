@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# =============================================================================
+# _run_24484_verify.sh —— 244.84「对照臂方向污染类级判读」的**验证链**（远端驱动，零 GPU）
+#
+# ⚖ 顺序（⛔ 有依赖，别换）：
+#   ① 第一条实现的自检（Phase-0 G0-1/G0-2/G0-3：合成夹具，⛔ 不依赖真数据）
+#   ② 第一条实现（真数据：bpath 的 6 把 w + sidecar + 探针 + 跑批器 + 两臂日志）
+#   ③ 它的变异台（19 条）                      ← 证明每条判据**能红**
+#   ④ 跨实现互证（纯 Python 路线 vs numpy 路线）← 两条独立实现逐位比
+#
+# ⛔ 硬约束：
+#   · 解释器一律 easysteer（⛔ 不用裸 python3）
+#   · **只读** bpath；所有中间产物写 /dev/shm（⛔ 不写 NFS、⛔ 不改 bpath）
+#   · ⛔ 零 GPU、⛔ 不跑批、⛔ 不 kill 任何进程、⛔ 不改任何预登记/读数器/探针
+#   · ⛔ 不删任何已有文件（⇒ 上一轮的收据保留 ⇒ 可对照）
+#
+# ⚖⚖⚖ **账本依赖**：本轮的真数据路径与变异台都要从**账本**里读 244.83 的期望值
+#   ⇒ ⇒ 账本里必须**已经有**「## 修订 244.83」段 ⇒ ⇒ ⛔ 没有 ⇒ 直接 PRECOND_FAIL
+#   （⛔ 绝不用代码里的字面值兜底）
+# =============================================================================
+set -uo pipefail
+
+PY=/home/zhourui/miniconda3/envs/easysteer/bin/python
+DEV=/home/zhourui/steer3d/.cache/r244
+BP=/home/zhourui/steer3d_bpath
+LEDGER=${LEDGER:-/home/zhourui/steer3d/.cache/xcheck/R6_RERUN_PREREG.md}
+LEDGER_DIR=${LEDGER_DIR:-$(dirname "$LEDGER")}
+PREREG=${PREREG:-$LEDGER_DIR/R6_ALIGNMENT_DISTRIBUTION_PREREG.md}
+OUT=${OUT:-/dev/shm/_ad_24484}
+mkdir -p "$OUT"
+
+echo "=============================================================="
+echo "244.84 验证链 ｜ $(date -Is) ｜ host=$(hostname)"
+echo "=============================================================="
+"$PY" -V || { echo "PRECOND_FAIL: 解释器跑不起来"; exit 2; }
+echo "nproc=$(nproc)  load=$(cut -d' ' -f1-3 /proc/loadavg)"
+
+echo ""
+echo "---- 前置：账本里必须有 244.83 段（期望值来源）----"
+if ! grep -q '^## 修订 244\.83 ' "$LEDGER" 2>/dev/null; then
+  echo "PRECOND_FAIL: 账本 $LEDGER 里没有「## 修订 244.83」段 ⇒ 期望值无处可读 ⇒ 中止"
+  exit 2
+fi
+echo "ledger_lines=$(wc -l < "$LEDGER")  ledger_md5=$(md5sum "$LEDGER" | cut -d' ' -f1)"
+grep -n '^## 修订 244\.83 ' "$LEDGER" | head -1
+
+echo ""
+echo "---- 前置：预登记必须在（口径真相源）----"
+if [ ! -f "$PREREG" ]; then
+  echo "PRECOND_FAIL: 预登记 $PREREG 不存在 ⇒ 口径真相源缺失 ⇒ 中止"
+  exit 2
+fi
+echo "prereg=$PREREG  prereg_md5=$(md5sum "$PREREG" | cut -d' ' -f1)"
+
+echo ""
+echo "---- 被检字节 ----"
+md5sum "$DEV/alignment_distribution_audit.py" \
+       "$DEV/mut_alignment_distribution_audit.py" \
+       "$DEV/_cross_check_24484.py" 2>&1
+md5sum "$DEV/_run_24484_verify.sh" \
+       "$PREREG" 2>&1
+
+echo ""
+echo "---- bpath 产物 md5（被读的那些）----"
+md5sum "$BP/w_L19_m0.npy" "$BP/w_L19_m1.npy" "$BP/w_real.npy" \
+       "$BP/w_t1.npy" "$BP/w_p2a.npy" "$BP/w_old.npy" \
+       "$BP/r241_probe.py" "$BP/r244_warm_sweep.sh" \
+       "$BP/r244_warm_fd_w.log" "$BP/r244_warm_fd_rand.log" 2>&1
+
+echo ""
+echo "==== ① 第一条实现的自检（Phase-0 G0-1/G0-2/G0-3）===="
+"$PY" "$DEV/alignment_distribution_audit.py" --selftest 2>&1 | tee "$OUT/selftest.out"
+SELFTEST_RC=${PIPESTATUS[0]}
+echo "SELFTEST_RC=$SELFTEST_RC"
+
+echo ""
+echo "==== ② 第一条实现（真数据）===="
+"$PY" "$DEV/alignment_distribution_audit.py" \
+    --data --bpath "$BP" --ledger "$LEDGER" 2>&1 | tee "$OUT/de.out"
+DE_RC=${PIPESTATUS[0]}
+echo "DE_RC=$DE_RC"
+
+echo ""
+echo "==== ③ 变异台（19 条）===="
+"$PY" "$DEV/mut_alignment_distribution_audit.py" 2>&1 | tee "$OUT/mut.out"
+MUT_RC=${PIPESTATUS[0]}
+echo "MUT_RC=$MUT_RC"
+
+echo ""
+echo "==== ④ 跨实现互证（纯 Python 路线 vs numpy 路线；⛔ 且**逐项对比被检实现的真数据输出**）===="
+R244_LEDGER="$LEDGER" R244_DE_OUT="$OUT/de.out" "$PY" "$DEV/_cross_check_24484.py" 2>&1 | tee "$OUT/cross.out"
+CROSS_RC=${PIPESTATUS[0]}
+echo "CROSS_RC=$CROSS_RC"
+
+echo ""
+echo "==== 收据 ===="
+{
+  echo "=== 244.84 对照臂方向污染类级判读 验证链 收据 ==="
+  echo "host=$(hostname)  date=$(date '+%F %T')"
+  echo "SELFTEST_RC=$SELFTEST_RC  DE_RC=$DE_RC  MUT_RC=$MUT_RC  CROSS_RC=$CROSS_RC"
+  echo "--- 被检字节 md5 ---"
+  md5sum "$DEV/alignment_distribution_audit.py" \
+         "$DEV/mut_alignment_distribution_audit.py" \
+         "$DEV/_cross_check_24484.py"
+  echo "--- 口径与驱动字节 md5 ---"
+  md5sum "$DEV/_run_24484_verify.sh" \
+         "$PREREG"
+  echo "--- bpath 产物 md5 ---"
+  md5sum "$BP/w_L19_m0.npy" "$BP/w_L19_m1.npy" "$BP/w_real.npy" \
+         "$BP/w_t1.npy" "$BP/w_p2a.npy" "$BP/w_old.npy" \
+         "$BP/r241_probe.py" "$BP/r244_warm_sweep.sh" \
+         "$BP/r244_warm_fd_w.log" "$BP/r244_warm_fd_rand.log"
+  echo "--- 收据文件 md5 ---"
+  md5sum "$OUT/selftest.out" "$OUT/de.out" "$OUT/mut.out" "$OUT/cross.out"
+} > "$OUT/receipt.txt"
+cat "$OUT/receipt.txt"
+
+echo ""
+echo "=== 验证链跑完 ==="
