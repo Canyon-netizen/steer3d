@@ -266,9 +266,43 @@ def main():
     old_md5 = md5b(old_b)
     old_fence = len(re.findall(r"^```", old, re.M))
 
-    # ---- 硬闸 2：**幂等**（已落过 ⇒ 「逐字节相同、不重复写」）----
-    if old.startswith(MARK):
-        print("⛔ 账本里已经有 244.93 段 ⇒ ⇒ 幂等命中：逐字节相同、不重复写")
+    # ---- 硬闸 2：**幂等**（已落 ⇒ **绝不重复写**；并逐条报告「已有段 vs 收据算出来的那段」）----
+    # ⚖⚖⚖ **本轮修的真缺陷（244.92–244.96 五轮同病）**：原来写的是 `old.startswith(MARK)`
+    #    ⇒ ⇒ MARK 是**段标题**（「## 修订 244.93 ——」）⇒ ⇒ 整本账本的**第一行**永远不是它
+    #    ⇒ ⇒ **这个闸从来没有触发过**（死闸）⇒ ⇒ 拿已落过账的账本再跑一次
+    #    ⇒ ⇒ 会**再追加一份** 244.93 段（实测 244.96 段被追加了第二份，+95 行）。
+    #    ⇒ ⇒ 恢复 **244.86 起的成规**（账本 `:41731` 记着「改成『已落 ⇒ 必须与收据算出来的
+    #    那段逐字节相同』⇒ ⇒ 幂等且**自证**」）⇒ ⇒ 这五轮把它**退化**掉了。
+    n_have = len(re.findall(r"^" + re.escape(MARK), old, re.M))
+    if n_have > 1:
+        raise SystemExit("⛔ 账本里有 %d 处「%s」⇒ ⇒ 停下" % (n_have, MARK))
+    if n_have == 1:
+        # ⚖ 成规里比的是「段标题 → **文件末尾**」⇒ ⇒ 对**非最后一段**的历史轮次不成立
+        #    （后面还跟着别的段）⇒ ⇒ 这里改成「段标题 → **下一段标题**」。
+        _i = old.index(MARK)
+        _m = re.search(r"^## 修订 ", old[_i + len(MARK):], re.M)
+        _j = (_i + len(MARK) + _m.start()) if _m else len(old)
+        _have = old[_i:_j].rstrip("\n")
+        _want = entry.rstrip("\n")
+        # ⚖ 段里唯一**账本派生**的 token 是「落账前 md5（行数）」⇒ ⇒ 重跑时它必然变
+        _pre = r"落账前\*\* md5 `[0-9a-f]{32}`（\d+ 行）"
+        _h2 = re.sub(_pre, "落账前** md5 `<MD5>`（<N> 行）", _have)
+        _w2 = re.sub(_pre, "落账前** md5 `<MD5>`（<N> 行）", _want)
+        _n_pre = len(re.findall(_pre, _have))
+        if _have == _want:
+            print("✅ 幂等：账本里已有的 244.93 段与**收据算出来的那段逐字节相同**"
+                  " ⇒ ⇒ **不重复写**（本次落账无需再动）")
+        elif _h2 == _w2 and _n_pre > 0:
+            print("✅ 幂等：账本里已有的 244.93 段与**收据算出来的那段**"
+                  "（**除『落账前 md5（行数）』这 %d 处 token 外**）**逐字节相同**"
+                  " ⇒ ⇒ **不重复写**（本次落账无需再动）" % _n_pre)
+            print("   （那一个 token 指向『本次落账前那版账本』⇒ ⇒ **重跑时必然变**"
+                  " ⇒ ⇒ ⛔ 不许据此改数）")
+        else:
+            _dl = [(x, y) for x, y in zip(_h2.split("\n"), _w2.split("\n")) if x != y][:3]
+            raise SystemExit("⛔ 账本里已有 244.93 段，但它与收据算出来的**不一致**"
+                             "（**不止『落账前 md5』那一处**）⇒ ⇒ 停下"
+                             "（⛔ 不许覆盖、⛔ 不许改数凑好看）\n   前 3 处差异：%r" % (_dl,))
         print("LEDGER_LINES=%d" % len(old.split("\n")))
         print("LEDGER_BYTES=%d" % len(old_b))
         print("LEDGER_MD5=%s" % old_md5)
